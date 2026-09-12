@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Empty, Tag } from "antd";
+import { Empty } from "antd";
 import { ConfigField } from "./ConfigField";
 import { ConfigFieldAddProperty } from "./ConfigFieldObject";
 import { categoryFor, CONFIG_CATEGORIES } from "./labels";
@@ -44,7 +44,7 @@ export function ConfigForm({ values, disabled, onCommit, view }: ConfigFormProps
         <div className={styles.sectionHeading}>
           <div><h2>{query ? "搜索结果" : activeCategory.label}</h2>
             <p>{query ? `找到 ${visible.length} 组相关配置。` : activeCategory.description}</p></div>
-          <Tag bordered={false}>{visible.length} 项</Tag>
+          <span className={styles.sectionCount}>共 {visible.length} 项</span>
         </div>
         <div className={styles.fields}>
           {visible.map((key) => <ConfigField key={key} fieldKey={key} path={[key]}

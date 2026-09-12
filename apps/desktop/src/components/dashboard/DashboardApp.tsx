@@ -1314,6 +1314,9 @@ export function DashboardApp() {
                   })}</h1>
                   {page === "skills" && <div id="skills-market-tabs" className="skills-market-tabs-slot" />}
                   {page === "settings" && <SettingsGroupsNav t={t} />}
+                  {page === "codexConfig" && <p className={codexConfigStyles.subtitle}>
+                    管理 Codex 的 config.toml 配置项
+                  </p>}
                 </div>
               </div>
             )}

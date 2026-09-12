@@ -32,13 +32,9 @@ function CodexConfigContent({ active }: { active: boolean }) {
   return (
     <div className={styles.page}>
       {active && topbarHost && createPortal(<div className={styles.controls}>
-        <CodexHomeSelect disabled={busy || editorOpen} />
-        <div className={styles.filters}>
-          <Input allowClear prefix={<Search size={16} />} aria-label="搜索配置" placeholder="搜索配置名称或关键字"
-            value={search} onChange={(event) => setSearch(event.target.value)} />
-          <Segmented value={filter} onChange={(next) => setFilter(String(next))} options={[
-            { value: "all", label: "全部配置" }, { value: "configured", label: "已配置" },
-          ]} />
+        <div className={styles.directory}>
+          <span>配置目录</span>
+          <CodexHomeSelect disabled={busy || editorOpen} showLabel={false} />
         </div>
         <div className={styles.actions}>
           <span role="status" aria-live="polite">
@@ -46,12 +42,19 @@ function CodexConfigContent({ active }: { active: boolean }) {
             {!busy && config.saved && !config.error && <Tag color="success"
               icon={<CheckCircle2 size={13} />}>已自动保存</Tag>}
           </span>
-          <Button icon={<RefreshCw size={15} />} disabled={busy || editorOpen}
+          <Button icon={<RefreshCw size={18} />} disabled={busy || editorOpen}
             onClick={() => void config.reload()}>重新读取</Button>
-          <Button type="primary" icon={<CodeXml size={15} />} disabled={!document || busy}
+          <Button type="primary" icon={<CodeXml size={18} />} disabled={!document || busy}
             onClick={() => setEditorOpen(true)}>编辑 config.toml</Button>
         </div>
       </div>, topbarHost)}
+      <div className={styles.filters}>
+        <Input allowClear prefix={<Search size={20} />} aria-label="搜索配置" placeholder="搜索配置名称或关键字"
+          value={search} onChange={(event) => setSearch(event.target.value)} />
+        <Segmented value={filter} onChange={(next) => setFilter(String(next))} options={[
+          { value: "all", label: "全部配置" }, { value: "configured", label: "已配置" },
+        ]} />
+      </div>
       {config.error && <Alert type="error" showIcon message={document ? "配置尚未保存" : "无法读取配置"}
         description={config.error} className={styles.notice} />}
       {document?.error && <Alert type="warning" showIcon message="请先在编辑器中检查配置"

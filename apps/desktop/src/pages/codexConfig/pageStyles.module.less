@@ -1,22 +1,53 @@
 :global(main).main {
-  display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; scrollbar-gutter: auto;
+  display: flex; flex-direction: column; overflow: hidden; padding: 16px; scrollbar-gutter: auto;
 }
-.panel { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
-.page { display: grid; gap: 20px; padding: 24px var(--page-x) 28px; min-width: 0; }
-:global(.topbar).topbar { flex-shrink: 0; height: auto; min-height: 110px; flex-wrap: wrap; column-gap: 32px; }
+.panel { flex: 1; min-height: 0; overflow-y: auto; }
+.page { display: grid; gap: 28px; padding: 16px 0 0; min-width: 0; }
+:global(.topbar).topbar {
+  flex-shrink: 0; height: auto; min-height: 110px; padding: 0 0 16px; flex-wrap: wrap;
+  gap: 20px 32px; background: transparent;
+}
 .heading { flex: 0 0 auto; }
-.topbarHost { flex: 1 1 620px; min-width: 0; }
-.controls {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;
+.subtitle { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.topbarHost { flex: 1 1 600px; max-width: 900px; min-width: 0; }
+.controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
+.directory {
+  display: grid; flex: 1 1 260px; gap: 6px; min-width: 0; font-size: 13px;
+  > label { width: 100%; max-width: none; }
+  > label :global(.ant-select) { width: 100%; min-width: 0; height: 40px; }
+  :global(.ant-select-selector) { border-radius: 8px; }
 }
 .filters {
-  display: flex; flex: 1 1 380px; max-width: 650px; align-items: center; gap: 12px; min-width: 0;
-  > :first-child { flex: 1; min-width: 140px; }
-  :global(.ant-segmented) { flex-shrink: 0; }
+  display: flex; align-items: center; gap: 24px; min-width: 0;
+  > :first-child { flex: 1; min-width: 0; height: 42px; border-radius: 8px; padding-inline: 12px; }
+  :global(.ant-input-prefix) { margin-inline-end: 10px; }
+  :global(.ant-segmented) {
+    flex-shrink: 0; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+  }
+  :global(.ant-segmented-item) { min-width: 112px; border-radius: 6px; }
+  :global(.ant-segmented-item-label) { line-height: 36px; }
+  :global(.ant-segmented-item-selected), :global(.ant-segmented-thumb) {
+    color: white; background: var(--green); font-weight: 600; box-shadow: none;
+  }
 }
 .actions {
-  display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; margin-left: auto;
+  position: relative; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center;
+  gap: 10px; margin-left: auto;
+  > [role="status"] { position: absolute; right: 0; bottom: calc(100% + 6px); }
+  :global(.ant-btn) { height: 42px; padding-inline: 20px; border-radius: 8px; font-size: 14px; }
+  :global(.ant-btn-primary) { font-weight: 600; }
   :global(.ant-tag) { display: inline-flex; align-items: center; gap: 5px; margin: 0; }
 }
 .notice { max-width: 400px; overflow-wrap: anywhere; }
 .loading { padding: 40px; text-align: center; }
+
+@media (max-width: 760px) {
+  .topbarHost { max-width: none; }
+  .controls { row-gap: 30px; }
+  .filters { flex-wrap: wrap; gap: 12px; }
+  .filters > :first-child { flex-basis: 100%; }
+  .filters :global(.ant-segmented) { width: 100%; }
+  .filters :global(.ant-segmented-group) { display: flex; }
+  .filters :global(.ant-segmented-item) { flex: 1; min-width: 0; }
+  .actions :global(.ant-btn) { padding-inline: 12px; }
+}

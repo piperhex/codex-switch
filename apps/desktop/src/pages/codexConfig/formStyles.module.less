@@ -1,34 +1,43 @@
 .form { min-width: 0; color: var(--ink); }
-.layout { display: grid; grid-template-columns: 164px minmax(0, 1fr); align-items: start; gap: 24px; }
-.categories { position: sticky; top: 24px; display: grid; gap: 5px; }
+.layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); align-items: start; gap: 24px; }
+.categories { position: sticky; top: 0; display: grid; gap: 6px; }
 .categories button {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 13px 14px;
   border: 1px solid transparent; border-radius: 10px; color: var(--muted); background: transparent;
-  text-align: left; font: inherit; font-size: 12px; cursor: pointer; transition: background .16s, color .16s;
+  text-align: left; font: inherit; font-size: 15px; cursor: pointer; transition: background .16s, color .16s;
 }
 .categories button:hover { background: var(--panel); color: var(--ink); }
 .categories button.activeCategory {
   border-color: var(--line); color: var(--green-dark); background: var(--green-soft); font-weight: 700;
 }
-.categoryCount { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.categoryCount { color: inherit; font-size: 12px; font-variant-numeric: tabular-nums; }
 .content { min-width: 0; }
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.sectionHeading h2 { margin: 0; font-size: 16px; font-weight: 700; }
-.sectionHeading p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.fields { display: grid; gap: 10px; }
+.sectionHeading h2 { margin: 0; font-size: 20px; font-weight: 700; }
+.sectionHeading p { margin: 6px 0 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.sectionCount { flex-shrink: 0; color: var(--muted); font-size: 13px; }
+.fields { display: grid; gap: 12px; }
 .field {
-  display: grid; grid-template-columns: minmax(160px, 1fr) minmax(210px, 1fr); align-items: center; gap: 20px;
-  min-width: 0; padding: 17px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: center; gap: 20px;
+  min-width: 0; min-height: 94px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
 }
 .fieldHeading { display: flex; align-items: flex-start; justify-content: space-between; min-width: 0; gap: 8px; }
 .fieldCopy { min-width: 0; }
-.fieldTitle { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 13px; font-weight: 650; }
+.fieldTitle { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 16px; font-weight: 650; }
 .fieldTitle > span:first-child { overflow-wrap: anywhere; }
-.fieldCopy code { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
-.fieldCopy p { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.fieldCopy code { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.fieldCopy p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .configuredTag { margin: 0 !important; color: var(--green-dark) !important; background: var(--green-soft) !important;
-  font-size: 10px !important; line-height: 18px !important; font-weight: 500; }
-.fieldControl { min-width: 0; display: grid; gap: 10px; }
+  font-size: 11px !important; line-height: 18px !important; font-weight: 500; }
+.resetButton { flex-shrink: 0; color: var(--ink); }
+.fieldControl {
+  min-width: 0; display: grid; gap: 10px;
+  :global(.ant-select) { height: 36px; }
+  :global(.ant-select-selector) { border-radius: 8px; }
+  :global(.ant-input), :global(.ant-input-affix-wrapper) { border-radius: 8px; }
+  :global(.ant-input:not(textarea)), :global(.ant-input-affix-wrapper) { min-height: 36px; }
+  :global(.ant-input-affix-wrapper) > :global(.ant-input) { min-height: 0; }
+}
 .complexField { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .complexField > .fieldHeading { align-items: center; }
 .select { width: 100%; min-width: 0; }

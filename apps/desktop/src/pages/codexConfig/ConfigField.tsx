@@ -56,8 +56,8 @@ function FieldHeading(props: ConfigFieldProps & { reset: () => void }) {
     </div>
     {value !== undefined && <Tooltip title={arrayItem ? "删除此项" : "清除此项，使用默认值"}
       styles={{ root: { maxWidth: 400 } }}>
-      <Button type="text" size="small" aria-label={resetLabel} disabled={disabled}
-        icon={<RotateCcw size={14} />} onClick={reset} />
+      <Button type="text" className={styles.resetButton} aria-label={resetLabel} disabled={disabled}
+        icon={<RotateCcw size={18} />} onClick={reset} />
     </Tooltip>}
   </div>;
 }
