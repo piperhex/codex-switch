@@ -23,6 +23,7 @@ import { useDreamSkin } from "./codexGui/useDreamSkin";
 import { guiComposer } from "./codexGui/composerBridge";
 import { FocusModeButton, type GuiFocusMode } from "./codexGui/FocusModeButton";
 import { useTerminalPanel } from "./codexGui/terminal/useTerminalPanel";
+import { MobileConnectionStatus } from "./codexGui/MobileConnectionStatus";
 
 const TerminalPanel = lazy(() => import("./codexGui/terminal/TerminalPanel"));
 
@@ -84,6 +85,7 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
           <strong data-tauri-drag-region={isDesktopApp || undefined}>{thread ? threadTitle(thread) : "Codex GUI"}</strong>
         </div>
         <div className={styles.headerActions} data-tauri-drag-region={isDesktopApp || undefined}>
+          {isDesktopApp && <MobileConnectionStatus />}
           {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接 Codex"
             disabled={Boolean(running)} loading={state.connection === "connecting"}
             onClick={() => void controller.connect()} />}

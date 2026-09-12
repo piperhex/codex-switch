@@ -2,7 +2,7 @@ import { guiApi } from '../pages/codexGui/api';
 import { keyPair } from '../../../../shared/remote-chat/cipher';
 import { ChatLink } from '../../../../shared/remote-chat/link';
 import { RtcPeer } from '../../../../shared/remote-chat/rtcPeer';
-import { parseMessage, type IceServer, type Signal } from '../../../../shared/remote-chat/protocol';
+import { parseMessage, type ConnectionMode, type IceServer, type Signal } from '../../../../shared/remote-chat/protocol';
 import { ChatOperations } from './operations';
 import { guiComposer } from '../pages/codexGui/composerBridge';
 import { COMPOSER_EVENT } from '../../../../shared/remote-chat/composer';
@@ -20,6 +20,7 @@ export interface ChatHostConfig { websocketUrl: string; accessToken: string; dev
 export class ChatHost {
   private readonly socket: WebSocket;
   private readonly links = new Map<string, ChatLink>();
+  private readonly connectedSessions = new Set<string>();
   private readonly operations = new ChatOperations();
   private readonly stream = new EventStream((event) => this.broadcast(event));
   private unsubscribe?: () => void;
@@ -30,7 +31,7 @@ export class ChatHost {
   private readonly unsubscribeMessages: () => void;
   private closed = false;
 
-  constructor(readonly config: ChatHostConfig) {
+  constructor(readonly config: ChatHostConfig, private readonly onConnectionChange: (connected: boolean) => void) {
     this.unsubscribeMessages = acknowledgedMessages.subscribe((event) => {
       this.stream.receive(this.operations.prepareEvent(event));
     });
@@ -97,7 +98,7 @@ export class ChatHost {
       iceServers: message.iceServers as IceServer[],
       createPeer: (options) => new RtcPeer(options, () => new RTCPeerConnection({ iceServers: options.iceServers })),
       signal: (frame) => this.send(frame), relayBuffered: () => this.socket.bufferedAmount,
-      mode: (mode) => { if (mode === 'offline') this.drop(sessionId); },
+      mode: (mode) => this.updateConnection(sessionId, mode),
       error: () => this.drop(sessionId),
       message: (request) => {
         if (request.kind !== 'request') return;
@@ -113,6 +114,14 @@ export class ChatHost {
     this.send({ type: 'signal', sessionId, payload: { kind: 'key', key: keys.publicKey } });
   }
 
+  private updateConnection(sessionId: string, mode: ConnectionMode) {
+    if (this.closed) return;
+    if (mode === 'direct' || mode === 'relay') this.connectedSessions.add(sessionId);
+    else this.connectedSessions.delete(sessionId);
+    this.onConnectionChange(this.connectedSessions.size > 0);
+    if (mode === 'offline') this.drop(sessionId);
+  }
+
   private drop(sessionId: string) {
     const link = this.links.get(sessionId);
     this.links.delete(sessionId);
@@ -123,6 +132,8 @@ export class ChatHost {
   close() {
     if (this.closed) return;
     this.closed = true;
+    this.connectedSessions.clear();
+    this.onConnectionChange(false);
     this.unsubscribe?.();
     this.unsubscribeAccounts?.();
     this.unsubscribeComposer();
