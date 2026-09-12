@@ -10,6 +10,7 @@ export interface ImageGestureState {
   origin: ImageGestureTouch | undefined;
   started: number;
   moved: boolean;
+  pinched: boolean;
 }
 
 function isTapPosition(origin: ImageGestureTouch | undefined, touches: ImageGestureTouch[]): boolean {
@@ -22,7 +23,7 @@ export function beginImageGesture(
   transform: ImageTransform, touches: ImageGestureTouch[], started: number,
 ): ImageGestureState {
   return { transform, anchor: { before: transform, start: touches }, origin: touches[0],
-    started, moved: touches.length !== 1 };
+    started, moved: touches.length !== 1, pinched: touches.length > 1 };
 }
 
 export function updateImageGesture(state: ImageGestureState, touches: ImageGestureTouch[]): ImageGestureState {
@@ -31,12 +32,12 @@ export function updateImageGesture(state: ImageGestureState, touches: ImageGestu
   // Rebase as fingers join or leave, using the latest transform even before React renders it.
   const anchor = sameTouches ? state.anchor : { before: state.transform, start: touches };
   return { ...state, anchor, transform: moveImage({ ...anchor, current: touches }),
-    moved: state.moved || !isTapPosition(state.origin, touches) };
+    moved: state.moved || !isTapPosition(state.origin, touches), pinched: state.pinched || touches.length > 1 };
 }
 
 export function isImageGestureTap(
-  state: ImageGestureState | null, released: ImageGestureTouch[], ended: number,
+  state: ImageGestureState | null, released: ImageGestureTouch[], ended: number, closeBlockedUntil = 0,
 ): boolean {
-  return !!state && !state.moved && ended - state.started <= TAP_DURATION_MS
+  return !!state && !state.moved && state.started >= closeBlockedUntil && ended - state.started <= TAP_DURATION_MS
     && isTapPosition(state.origin, released);
 }
