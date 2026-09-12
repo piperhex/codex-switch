@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ClipboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFilePaste } from "./useFilePaste";
 import type { GuiController } from "./controller";
 import type { ComposerText } from "./types";
 import { MAX_ATTACHMENTS, type AttachmentReference } from "./attachmentTypes";
@@ -102,15 +103,9 @@ export function useComposerDraft(key: string, controller: GuiController) {
         .catch(() => { removeImage(id); controller.report("图片读取失败，请重新粘贴或选择图片。"); });
     }
   };
-  const paste = (event: ClipboardEvent<HTMLElement>) => {
-    const files = Array.from(event.clipboardData.items)
-      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
-      .map((item) => item.getAsFile()).filter((file): file is File => file !== null);
-    if (!files.length) return;
-    event.preventDefault();
-    addImages(files);
-  };
-  const reading = draft.images.some((image) => !image.url);
+  const { paste, pasteKeyDown, readingFiles } = useFilePaste({ key, addAttachments, addImages,
+    report: controller.report });
+  const reading = readingFiles || draft.images.some((image) => !image.url);
   const send = async () => {
     if (reading || submitting.current) return;
     submitting.current = true;
@@ -131,6 +126,7 @@ export function useComposerDraft(key: string, controller: GuiController) {
       }
     } finally { submitting.current = false; }
   };
-  return { draft, reading, editText, editContent, removeImage, addImages, paste, send, addAttachments, removeAttachment,
+  return { draft, reading, editText, editContent, removeImage, addImages, paste, pasteKeyDown,
+    send, addAttachments, removeAttachment,
     addQuote, removeQuote, clearQuotes, editQueued };
 }

@@ -6,6 +6,7 @@ mod attachment_uploads;
 pub(crate) mod auto_switch_policy;
 pub(crate) mod auto_switch_settings;
 mod client;
+pub(crate) mod clipboard;
 mod computer_use_setup;
 pub(crate) mod deletion;
 mod error;

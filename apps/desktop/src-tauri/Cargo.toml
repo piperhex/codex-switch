@@ -24,6 +24,7 @@ path = "src/test_main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+arboard = { version = "3.6.1", default-features = false }
 base64 = "0.22"
 bytes = "1"
 aes-gcm = "0.10"

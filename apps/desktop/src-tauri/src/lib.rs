@@ -247,6 +247,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             codex_gui::codex_gui_connect,
+            codex_gui::clipboard::codex_gui_clipboard_files,
             codex_gui::account_selection::codex_gui_account_selection,
             codex_gui::account_selection::codex_gui_switch_account,
             codex_gui::model_settings::codex_gui_model_settings,

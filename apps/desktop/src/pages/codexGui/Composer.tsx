@@ -44,7 +44,7 @@ export const Composer = forwardRef<ComposerHandle, {
   const key = state.selected ?? "new";
   const [dialog, setDialog] = useState<"files" | "goal" | null>(null);
   const workspaceBusy = Boolean(state.workspaceBusy);
-  const { draft, reading, editContent, removeImage, addImages, paste, send: sendDraft,
+  const { draft, reading, editContent, removeImage, addImages, paste, pasteKeyDown, send: sendDraft,
     addAttachments, removeAttachment, addQuote, removeQuote, clearQuotes, editQueued } = useComposerDraft(key, controller);
   // Creating a goal first creates its conversation; keep the form until the goal request succeeds.
   useEffect(() => { if (!controller.getSnapshot().goalBusy || !active) setDialog(null); }, [key, active, controller]);
@@ -103,7 +103,7 @@ export const Composer = forwardRef<ComposerHandle, {
         connected={state.connection === "ready"} disabled={disabled}
         compact={compactCommand(state, () => void controller.compact())}
         placeholder={state.archived ? "恢复对话后即可继续" : "描述任务，或输入 / 选择命令和技能…"}
-        onChange={editContent} onPaste={paste} onSend={() => void send()} />
+        onChange={editContent} onPaste={paste} onPasteKeyDown={pasteKeyDown} onSend={() => void send()} />
       <div className={styles.composerControls}>
         <ComposerAddMenu cwd={project} active={active} disabled={disabled} anchor={composer}
           onFiles={() => setDialog("files")} onGoal={() => setDialog("goal")}

@@ -26,8 +26,9 @@ export const SkillInput = forwardRef<SkillInputHandle, {
   placeholder: string; onChange: (value: ComposerText) => void;
   compact: CompactCommand;
   onPaste: (event: ClipboardEvent<HTMLElement>) => void; onSend: () => void;
+  onPasteKeyDown?: (event: KeyboardEvent<HTMLElement>) => void;
 }>(function SkillInput({ value, draftKey, cwd, active, connected, disabled, placeholder,
-  compact, onChange, onPaste, onSend }, ref) {
+  compact, onChange, onPaste, onPasteKeyDown, onSend }, ref) {
   const editor = useRef<HTMLDivElement>(null);
   const savedCaret = useRef<Range | null>(null);
   const composing = useRef(false);
@@ -82,6 +83,8 @@ export const SkillInput = forwardRef<SkillInputHandle, {
     if (option.kind === "compact") option.command.run();
   };
   const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (disabled || !active) return;
+    onPasteKeyDown?.(event);
     if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
     const menuKey = ["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(event.key);
     if (open && menuKey && !(event.key === "Enter" && event.shiftKey)) {
@@ -99,6 +102,7 @@ export const SkillInput = forwardRef<SkillInputHandle, {
     else onSend();
   };
   const paste = (event: ClipboardEvent<HTMLDivElement>) => {
+    if (disabled || !active) { event.preventDefault(); return; }
     onPaste(event);
     if (event.defaultPrevented) return;
     event.preventDefault();

@@ -2,11 +2,15 @@
 .copy { max-width: 400px; color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .references { display: flex; flex-wrap: wrap; gap: 6px; padding: 3px 8px 8px; }
 .reference { display: inline-flex; align-items: center; gap: 6px; max-width: min(100%, 300px);
-  padding: 5px 8px; border: 1px solid var(--line); border-radius: 9px; font-size: 12px; color: var(--ink);
+  padding: 5px 8px 5px 10px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 12px; color: var(--ink); background: var(--bg);
   > svg { flex-shrink: 0; }
-  > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  > button { display: grid; place-items: center; padding: 2px; border: 0; background: transparent;
+  > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  > button { display: grid; place-items: center; flex-shrink: 0; padding: 3px; border: 0;
+    border-radius: 50%; background: transparent;
     color: var(--muted); cursor: pointer; }
+  > button:hover:not(:disabled) { background: var(--line); color: var(--ink); }
+  > button:disabled { cursor: default; opacity: .5; }
 }
 .goalChip { display: flex; align-items: center; gap: 7px; width: fit-content; max-width: 100%; margin: 0 8px 8px;
   padding: 6px 9px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink);

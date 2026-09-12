@@ -885,6 +885,7 @@ name = "csw"
 version = "1.0.21"
 dependencies = [
  "aes-gcm",
+ "arboard",
  "base64 0.22.1",
  "bytes",
  "chrono",
