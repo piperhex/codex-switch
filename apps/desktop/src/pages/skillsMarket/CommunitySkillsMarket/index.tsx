@@ -5,7 +5,7 @@ import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "../../../
 import { useCommunitySkills } from "./useCommunitySkills";
 import { ChromePluginCard, chromePluginMatches } from "../ChromePluginCard";
 import { ComputerUseCard, computerUseMatches } from "../ComputerUseCard";
-import type { SkillMarketItem } from "../../../types";
+import { GUI_CODEX_HOME_ID, type SkillMarketItem } from "../../../types";
 import { SkillDetailModal } from "../SkillDetailModal";
 import { SkillMarketGrid } from "../SkillMarketGrid";
 import { SkillPublishModal } from "../SkillPublishModal";
@@ -66,9 +66,10 @@ function CommunitySkillsContent({
   const markPreviewBroken = (skillId: string) => {
     setBrokenPreviews((current) => new Set(current).add(skillId));
   };
-  const browserCard = isDesktopApp && homeId && (chromeBusy || chromePluginMatches(query))
+  const showBuiltinPlugins = isDesktopApp && homeId === GUI_CODEX_HOME_ID;
+  const browserCard = showBuiltinPlugins && (chromeBusy || chromePluginMatches(query))
     ? <ChromePluginCard key={homeId} homeId={homeId} active={active} onBusyChange={setChromeBusy} /> : null;
-  const computerCard = isDesktopApp && homeId && (computerBusy || computerUseMatches(query))
+  const computerCard = showBuiltinPlugins && (computerBusy || computerUseMatches(query))
     ? <ComputerUseCard key={homeId} homeId={homeId} active={active} onBusyChange={setComputerBusy} /> : null;
 
   return (
