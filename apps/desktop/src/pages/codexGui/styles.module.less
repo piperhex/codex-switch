@@ -30,7 +30,23 @@
   min-height: 0; border-right: 1px solid var(--gui-border); background: var(--bg, #f6f8f7); }
 .sidebarHeading { display: flex; align-items: center; justify-content: space-between; gap: 8px;
   min-height: 24px; flex-shrink: 0; padding: 0 6px; }
-.sidebarTitle { margin: 0; font-size: 13px; font-weight: 600; line-height: 18px; white-space: nowrap; }
+.sidebarTitle {
+  --title-gradient: linear-gradient(105deg, #087f8c 0%, #2563eb 35%, #7c3aed 65%, #c0267e 100%);
+  margin: 0; font-size: 13px; font-weight: 600; line-height: 18px; white-space: nowrap;
+  @supports (background-clip: text) or (-webkit-background-clip: text) {
+    background-image: var(--title-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+:global(:root[data-theme='dark']) .sidebarTitle {
+  --title-gradient: linear-gradient(105deg, #5eead4 0%, #60a5fa 35%, #c084fc 65%, #f472b6 100%);
+}
+@media (forced-colors: active) {
+  .sidebarTitle { background-image: none; color: CanvasText; -webkit-text-fill-color: CanvasText; }
+}
 .sidebarActions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .sidebarHeading[data-tauri-drag-region], .header[data-tauri-drag-region] { user-select: none; }
 .newButton {
