@@ -11,10 +11,12 @@ interface Props {
   email: string; chooseDevice: () => void;
 }
 
+const ACCOUNT_REFRESH_INTERVAL_MS = 60_000;
+
 export function ChatProfileMenu({ client, deviceName, ready, active, email, chooseDevice }: Props) {
   const [panel, setPanel] = useState<'profile' | 'accounts' | null>(null);
   const [query, setQuery] = useState('');
-  const accounts = useGuiAccounts(client, active && ready);
+  const accounts = useGuiAccounts(client, active && ready, panel === 'accounts' ? ACCOUNT_REFRESH_INTERVAL_MS : 0);
   const selection = accounts.snapshot?.selection;
   const current = accounts.snapshot?.choices.find((choice) =>
     selection?.kind === choice.kind && selection.id === choice.id);
@@ -23,7 +25,7 @@ export function ChatProfileMenu({ client, deviceName, ready, active, email, choo
   const disabled = accounts.loading || Boolean(accounts.saving) || !ready || !accounts.snapshot?.running;
   const search = query.trim().toLowerCase();
   const choices = accounts.snapshot?.choices.filter((choice) =>
-    `${choice.name} ${choice.detail}`.toLowerCase().includes(search)) ?? [];
+    `${choice.name} ${choice.detail} ${choice.searchDetail ?? ''}`.toLowerCase().includes(search)) ?? [];
   useEffect(() => { if (!active) setPanel(null); }, [active]);
 
   const select = async (choice: GuiAccountChoice) => {
@@ -82,8 +84,8 @@ export function ChatProfileMenu({ client, deviceName, ready, active, email, choo
                 (disabled || !choice.available) && styles.disabled]}>
               <View style={pickerStyles.copy}>
                 <Text numberOfLines={1} style={styles.title}>{choice.name}</Text>
-                <Text numberOfLines={1} style={styles.subtitle}>
-                  {choice.available ? choice.detail : '此账户暂不可用'}</Text>
+                <Text style={styles.subtitle}>{choice.detail}</Text>
+                {!choice.available && <Text style={styles.subtitle}>此账户暂不可用</Text>}
               </View>
               {accounts.saving === `${choice.kind}:${choice.id}`
                 ? <ActivityIndicator color={palette.green} accessibilityLabel="正在切换" />

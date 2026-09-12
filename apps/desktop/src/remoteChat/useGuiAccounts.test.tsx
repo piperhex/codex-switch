@@ -20,8 +20,8 @@ let stop = vi.fn<() => void>();
 let view: ReturnType<typeof useGuiAccounts>;
 let root: Root;
 let container: HTMLDivElement;
-function Fixture({ active = true }: { active?: boolean }) {
-  view = useGuiAccounts(client, active);
+function Fixture({ active = true, interval = 0 }: { active?: boolean; interval?: number }) {
+  view = useGuiAccounts(client, active, interval);
   return <span>{JSON.stringify(view.snapshot?.selection)}</span>;
 }
 const render = (active = true) => act(async () => { root.render(<Fixture active={active} />); });
@@ -34,7 +34,23 @@ beforeEach(() => {
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
 });
 afterEach(async () => {
-  await act(async () => root.unmount()); container.remove(); vi.unstubAllGlobals();
+  await act(async () => root.unmount()); container.remove(); vi.unstubAllGlobals(); vi.useRealTimers();
+});
+
+it('refreshes the open picker without overlapping slow reads and stops when closed', async () => {
+  vi.useFakeTimers();
+  await act(async () => root.render(<Fixture interval={60_000} />));
+  const pending = deferred<GuiAccountsSnapshot>();
+  vi.mocked(client.read).mockReturnValueOnce(pending.promise);
+  await act(async () => vi.advanceTimersByTime(60_000));
+  expect(client.read).toHaveBeenCalledTimes(2);
+  await act(async () => vi.advanceTimersByTime(120_000));
+  expect(client.read).toHaveBeenCalledTimes(2);
+  await act(async () => pending.resolve(snapshot('second')));
+  expect(view.snapshot?.selection).toEqual({ kind: 'account', id: 'second' });
+  await render();
+  await act(async () => vi.advanceTimersByTime(120_000));
+  expect(client.read).toHaveBeenCalledTimes(2);
 });
 
 it('receives desktop changes and resyncs after reconnection without polling', async () => {

@@ -14,6 +14,7 @@ import { QUEUE_EVENT } from '../../../../shared/remote-chat/queue';
 import { GUI_ACCOUNTS_EVENT } from '../../../../shared/remote-chat/guiAccounts';
 import { subscribeGuiEvent } from '../pages/codexGui/webEvents';
 import { acknowledgedMessages } from './acknowledgedMessages';
+import { guiAccountBalances } from './guiAccountBalances';
 
 export interface ChatHostConfig { websocketUrl: string; accessToken: string; deviceId: string }
 
@@ -29,9 +30,13 @@ export class ChatHost {
   private readonly unsubscribeSidebar: () => void;
   private readonly unsubscribeQueue: () => void;
   private readonly unsubscribeMessages: () => void;
+  private readonly unsubscribeBalances: () => void;
   private closed = false;
 
   constructor(readonly config: ChatHostConfig, private readonly onConnectionChange: (connected: boolean) => void) {
+    this.unsubscribeBalances = guiAccountBalances.subscribe(() => {
+      this.broadcast({ method: GUI_ACCOUNTS_EVENT, params: {} });
+    });
     this.unsubscribeMessages = acknowledgedMessages.subscribe((event) => {
       this.stream.receive(this.operations.prepareEvent(event));
     });
@@ -140,6 +145,7 @@ export class ChatHost {
     this.unsubscribeSidebar();
     this.unsubscribeQueue();
     this.unsubscribeMessages();
+    this.unsubscribeBalances();
     this.stream.close();
     for (const link of this.links.values()) link.close();
     this.links.clear();

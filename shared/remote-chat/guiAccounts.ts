@@ -7,6 +7,7 @@ export interface GuiAccountChoice {
   id: string;
   name: string;
   detail: string;
+  searchDetail?: string;
   available: boolean;
 }
 export interface GuiAccountsSnapshot {

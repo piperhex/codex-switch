@@ -15,7 +15,10 @@ it('reads the independent GUI account and sends only picker fields from this com
     if (command === 'list_accounts') return [
       { id: 'global', email: 'global@example.test', active: true, localProxyCompatible: true,
         privateDetails: { password: 'private' }, codexAccessToken: 'secret' },
-      { id: 'gui', email: 'gui@example.test', note: '工作', active: false, localProxyCompatible: true },
+      { id: 'gui', email: 'gui@example.test', note: '工作', plan: 'pro', active: false,
+        localProxyCompatible: true, usage: {
+          primary: { remainingPercent: 82.4 }, secondary: { remainingPercent: 0 },
+        } },
     ];
     if (command === 'list_providers') return [{ id: 'provider', name: 'Provider', model: 'model', apiKey: 'secret' }];
     throw new Error('Unexpected command');
@@ -23,9 +26,12 @@ it('reads the independent GUI account and sends only picker fields from this com
   const snapshot = await readGuiAccounts();
   expect(snapshot.selection).toEqual({ kind: 'account', id: 'gui' });
   expect(snapshot.choices).toEqual([
-    { kind: 'account', id: 'global', name: 'global@example.test', detail: 'ChatGPT', available: true },
-    { kind: 'account', id: 'gui', name: 'gui@example.test', detail: '工作', available: true },
-    { kind: 'provider', id: 'provider', name: 'Provider', detail: 'model', available: true },
+    { kind: 'account', id: 'global', name: 'global@example.test',
+      detail: '套餐未知 · 主剩余 — · 次剩余 —', available: true },
+    { kind: 'account', id: 'gui', name: 'gui@example.test',
+      detail: 'pro · 主剩余 82% · 次剩余 0%', searchDetail: '工作', available: true },
+    { kind: 'provider', id: 'provider', name: 'Provider',
+      detail: '钱包余额 暂无余额', searchDetail: 'model', available: true },
   ]);
   expect(JSON.stringify(snapshot)).not.toMatch(/secret|privateDetails|password|apiKey/);
 });

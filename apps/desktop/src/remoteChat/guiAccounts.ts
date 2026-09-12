@@ -2,6 +2,19 @@ import { invoke } from '../api/backend';
 import type { Account, LocalProxyStatus, Provider } from '../types';
 import { object } from '../../../../shared/remote-chat/protocol';
 import type { GuiAccountSelection, GuiAccountsSnapshot } from '../../../../shared/remote-chat/guiAccounts';
+import { guiAccountBalances } from './guiAccountBalances';
+
+function remainingPercent(value: number | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
+  return `${Math.round(Math.max(0, Math.min(100, value)))}%`;
+}
+
+function accountDetail(account: Account) {
+  const plan = account.plan?.trim() || account.usage?.plan?.trim() || '套餐未知';
+  const primary = remainingPercent(account.usage?.primary?.remainingPercent);
+  const secondary = remainingPercent(account.usage?.secondary?.remainingPercent);
+  return `${plan} · 主剩余 ${primary} · 次剩余 ${secondary}`;
+}
 
 export async function readGuiAccounts(): Promise<GuiAccountsSnapshot> {
   const [selection, accounts, providers, proxy] = await Promise.all([
@@ -16,11 +29,11 @@ export async function readGuiAccounts(): Promise<GuiAccountsSnapshot> {
     choices: [
       ...accounts.map((account) => ({
         kind: 'account' as const, id: account.id, name: account.email,
-        detail: account.note || account.plan || 'ChatGPT', available: account.localProxyCompatible,
+        detail: accountDetail(account), searchDetail: account.note, available: account.localProxyCompatible,
       })),
       ...providers.map((provider) => ({
         kind: 'provider' as const, id: provider.id, name: provider.name,
-        detail: provider.model || '第三方账户', available: true,
+        detail: guiAccountBalances.detail(provider), searchDetail: provider.model, available: true,
       })),
     ],
   };

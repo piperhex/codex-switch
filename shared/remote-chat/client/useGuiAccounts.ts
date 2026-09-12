@@ -6,7 +6,7 @@ function readError(error: unknown) {
   return '暂时无法读取电脑的账户，请重试。';
 }
 
-export function useGuiAccounts(client: GuiAccountsClient, active: boolean) {
+export function useGuiAccounts(client: GuiAccountsClient, active: boolean, refreshIntervalMs = 0) {
   const [snapshot, setSnapshot] = useState<GuiAccountsSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -14,6 +14,7 @@ export function useGuiAccounts(client: GuiAccountsClient, active: boolean) {
   const switching = useRef(false);
   const generation = useRef(0);
   const refresh = useRef(() => {});
+  const poll = useRef(() => {});
 
   useEffect(() => {
     const epoch = ++generation.current;
@@ -39,13 +40,21 @@ export function useGuiAccounts(client: GuiAccountsClient, active: boolean) {
       });
     };
     refresh.current = read;
+    poll.current = () => { if (!reading) read(); };
     const stop = client.subscribe(read);
     read();
     return () => {
       disposed = true; stop(); refresh.current = () => {};
+      poll.current = () => {};
       if (generation.current === epoch) generation.current++;
     };
   }, [client, active]);
+
+  useEffect(() => {
+    if (!active || refreshIntervalMs <= 0) return;
+    const timer = setInterval(() => poll.current(), refreshIntervalMs);
+    return () => clearInterval(timer);
+  }, [active, refreshIntervalMs]);
 
   const select = async (selection: SelectableGuiAccount) => {
     if (!active || !snapshot?.running || switching.current || loading) return false;
