@@ -1,0 +1,4 @@
+# Installation and removal must work before any Visual C++ runtime is installed.
+# Use an explicit --target so these flags do not affect host-side procedural macros.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]

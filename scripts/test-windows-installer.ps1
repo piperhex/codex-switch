@@ -5,12 +5,17 @@ $tauri = Join-Path $repository 'apps/desktop/src-tauri'
 $helperRoot = Join-Path $tauri 'installer-helper'
 $wix = Join-Path $env:LOCALAPPDATA 'tauri/WixTools314'
 if (-not $NoBuild) {
-    & cargo build --manifest-path "$helperRoot/Cargo.toml" --locked
+    & node "$PSScriptRoot/build-installer-helper.mjs" --debug --target x86_64-pc-windows-msvc
     if ($LASTEXITCODE) { throw 'Helper debug build failed.' }
-    & cargo build --manifest-path "$helperRoot/Cargo.toml" --locked --release --target x86_64-pc-windows-msvc
+    & node "$PSScriptRoot/build-installer-helper.mjs" --target x86_64-pc-windows-msvc
     if ($LASTEXITCODE) { throw 'Helper release build failed.' }
 }
-$fixtureBinary = Join-Path $helperRoot 'target/debug/csw-installer-helper.exe'
+$fixtureBinary = Join-Path $helperRoot 'target/x86_64-pc-windows-msvc/debug/csw-installer-helper.exe'
+$releaseHelper = Join-Path $helperRoot 'target/x86_64-pc-windows-msvc/release/csw-installer-helper.exe'
+foreach ($binary in @($fixtureBinary, $releaseHelper)) {
+    & node "$PSScriptRoot/verify-windows-runtime.mjs" $binary
+    if ($LASTEXITCODE) { throw 'Installer helper runtime dependency check failed.' }
+}
 $runId = [guid]::NewGuid().ToString('N')
 $testRoot = Join-Path $env:TEMP "csw-installer-test-$runId"
 $installParent = Join-Path $repository '.codex-tmp/installer-native-tests'

@@ -7,12 +7,18 @@ on:
       - "apps/desktop/src-tauri/installer-helper/**"
       - "apps/desktop/src-tauri/src/installer_lifecycle/protocol.rs"
       - "scripts/check-installer-helper.mjs"
+      - "scripts/build-installer-helper*.mjs"
+      - "scripts/verify-windows-runtime*.mjs"
+      - "scripts/prepare-desktop-bundle.mjs"
       - ".github/workflows/installer-helper.yml"
   pull_request:
     paths:
       - "apps/desktop/src-tauri/installer-helper/**"
       - "apps/desktop/src-tauri/src/installer_lifecycle/protocol.rs"
       - "scripts/check-installer-helper.mjs"
+      - "scripts/build-installer-helper*.mjs"
+      - "scripts/verify-windows-runtime*.mjs"
+      - "scripts/prepare-desktop-bundle.mjs"
       - ".github/workflows/installer-helper.yml"
   workflow_dispatch:
 
@@ -46,9 +52,10 @@ jobs:
           arch: ${{ matrix.msvcArch }}
       - name: Check formatting, lint, and shutdown behavior
         run: node scripts/check-installer-helper.mjs
-      - name: Build release helper for target architecture
-        working-directory: apps/desktop/src-tauri/installer-helper
-        run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: Test runtime dependency checks
+        run: node --test scripts/build-installer-helper.test.mjs scripts/verify-windows-runtime.test.mjs
+      - name: Build release helper and verify runtime dependencies
+        run: node scripts/build-installer-helper.mjs --target ${{ matrix.target }}
       - name: Show installer diagnostics
         if: failure()
         shell: pwsh

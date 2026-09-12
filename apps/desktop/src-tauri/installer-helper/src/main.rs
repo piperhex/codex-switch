@@ -1,5 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(all(target_env = "msvc", not(target_feature = "crt-static")))]
+compile_error!(
+    "Installer helper requires static CRT linkage; use scripts/build-installer-helper.mjs."
+);
+
 mod events;
 mod logging;
 mod native;
