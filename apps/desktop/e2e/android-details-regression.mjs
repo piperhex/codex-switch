@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { adb, apiUrl, prepare, waitText, tap, input, screenshot, hasText, waitFor, serverState }
+import { adb, apiUrl, prepare, waitText, tap, tapNode, nodes, input, screenshot, hasText, waitFor, serverState }
   from './android-chat-driver.mjs';
 
 await prepare();
@@ -20,6 +20,9 @@ await tap('移动端聊天体验');
 await waitText('查看最近一轮文件修改');
 await screenshot('details-01-chat');
 await tap('查看最近一轮文件修改');
+await waitText('▸ src/note.ts');
+await tapNode((await nodes()).find((node) =>
+  node.text?.includes('▸ src/note.ts') || node['content-desc']?.includes('▸ src/note.ts')));
 await waitText('复制 diff');
 assert.equal(await hasText('const value = 2;', true), true);
 await screenshot('details-02-diff');

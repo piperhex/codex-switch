@@ -18,7 +18,7 @@ function DiffRow({ line }: { line: DiffLine }) {
 }
 
 function DiffFileView({ file }: { file: DiffFile }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [limit, setLimit] = useState(PAGE_LINES);
   const [wrap, setWrap] = useState(true);
   const openFile = useContext(ChatFileContext);
