@@ -29,7 +29,7 @@ export function ProxySettingsModal(options: ProxySettingsModalProps) {
   const endpoints = useProxyEndpointAddresses(open);
 
   return (
-    <Modal open={open} width={440} centered title={t("providers.proxy.settings")}
+    <Modal open={open} width="80vw" centered title={t("providers.proxy.settings")}
       className="proxy-settings-modal" onCancel={onClose} footer={null}>
       <div className="proxy-settings-content">
         {!proxy?.running && <p className="proxy-settings-notice">{t("providers.proxy.settingsStopped")}</p>}

@@ -79,7 +79,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
       onClick={controller.newConversation}>
       <SquarePen size={18} strokeWidth={1.6} aria-hidden="true" /><span>新对话</span>
     </button>
-    <Segmented block size="small" value={state.archived ? "archived" : "recent"}
+    <Segmented className={styles.threadFilter} block size="small" value={state.archived ? "archived" : "recent"}
       options={[{ label: "最近", value: "recent" }, { label: "已归档", value: "archived" }]}
       onChange={(value) => controller.filter("", value === "archived")} disabled={state.connection !== "ready"} />
     <div className={styles.threadList} {...pagination}>

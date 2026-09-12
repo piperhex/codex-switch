@@ -45,6 +45,27 @@
   > svg { flex-shrink: 0; }
   > span { font-size: 13px; }
 }
+.sidebar .threadFilter {
+  --filter-radius: 999px;
+  --filter-highlight: color-mix(in srgb, var(--panel) 78%, transparent);
+  flex-shrink: 0; padding: 3px; border-radius: var(--filter-radius);
+  border: 1px solid color-mix(in srgb, var(--panel) 65%, var(--gui-border));
+  background: color-mix(in srgb, var(--panel) 42%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel) 65%, transparent), 0 2px 8px #00000008;
+  :global(.ant-segmented-item), :global(.ant-segmented-thumb) { border-radius: var(--filter-radius); }
+  :global(.ant-segmented-item) { color: var(--gui-muted); }
+  :global(.ant-segmented-item)::after { border-radius: inherit; }
+  :global(.ant-segmented-item-selected), :global(.ant-segmented-thumb) {
+    background: var(--filter-highlight); color: var(--ink);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--panel) 85%, transparent), 0 1px 4px #00000012;
+  }
+  &:not(:global(.ant-segmented-disabled)) :global(.ant-segmented-item):hover { color: var(--ink); }
+  &:global(.ant-segmented-disabled) :global(.ant-segmented-item) {
+    color: color-mix(in srgb, var(--gui-muted) 50%, transparent);
+  }
+}
 .page .sidebar .threadList {
   --thread-scrollbar-thumb: color-mix(in srgb, var(--gui-muted) 35%, transparent);
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;

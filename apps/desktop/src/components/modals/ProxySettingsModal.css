@@ -1,12 +1,25 @@
+.proxy-settings-modal .ant-modal-content {
+  display: flex;
+  flex-direction: column;
+  height: 80vh;
+  overflow: hidden;
+}
+
+.proxy-settings-modal .ant-modal-header {
+  flex: 0 0 auto;
+}
+
 .proxy-settings-modal .ant-modal-body {
-  max-height: calc(100dvh - 160px);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .proxy-settings-content {
   display: grid;
   gap: 18px;
-  max-width: 400px;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 
@@ -44,11 +57,10 @@
 
 .proxy-settings-endpoints {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  max-height: 180px;
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   list-style: none;
 }
 
@@ -57,6 +69,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
   padding: 8px 10px;
   border-radius: 8px;
   background: var(--green-soft);
