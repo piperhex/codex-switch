@@ -123,7 +123,7 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
     </ComposerPopover>}
     <View ref={anchor} collapsable={false} style={styles.composerField}
       onLayout={({ nativeEvent }) => setAnchorHeight(nativeEvent.layout.height)}>
-      <ChatPhotoPicker photos={photos} disabled={sending} />
+      <ChatPhotoPicker photos={photos} disabled={sending} active={active} />
       <ComposerReferences items={attachments.items} disabled={attachmentBusy} remove={attachments.remove} />
       <TextInput ref={menu.input} accessibilityLabel="聊天消息"
         style={[styles.input, compactField && styles.composerEmptyInput]}
