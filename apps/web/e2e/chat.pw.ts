@@ -19,6 +19,28 @@ test.beforeEach(async ({ page, request }) => {
 
 test('keeps composer icons below single and multiline drafts', async ({ page }) => composerLayout(page));
 
+for (const [code, message] of [[4004, '电脑的聊天连接尚未就绪。'], [4008, '这台电脑的聊天连接数已满，']] as const) {
+  test(`explains connection failure ${code} in a compact message and recovers`, async ({ page }, info) => {
+    let rejectConnection = true;
+    await page.routeWebSocket('**/device-chat', (socket) => {
+      if (!rejectConnection) { socket.connectToServer(); return; }
+      socket.onMessage(() => socket.close({ code, reason: 'Private server details must not be displayed' }));
+    });
+    // Login opens chat immediately, so recreate that socket after installing the failure route.
+    await page.reload();
+    await connect(page);
+    const alert = page.getByRole('alert').filter({ hasText: message });
+    await expect(alert).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText('连接未完成');
+    const box = await alert.boundingBox();
+    expect(box?.width).toBeLessThanOrEqual(400);
+    await screenshot(page, info, `connection-failure-${code}`);
+    rejectConnection = false;
+    await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 20_000 });
+    await expect(alert).toHaveCount(0);
+  });
+}
+
 test('syncs request speed with the PC and shows a lightning indicator only in fast mode', async ({ page, request }) => {
   await connect(page);
   await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 16_000 });

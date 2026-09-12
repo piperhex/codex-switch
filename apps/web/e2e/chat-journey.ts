@@ -140,7 +140,8 @@ async function synchronizeComposer({ page, request, info }: Journey) {
   } });
   await expect.poll(async () => (await state(request)).composer.settings.model).toBe('second-model');
   await openChatSettings(page);
-  await expect(page.locator('.chat-setting-entry')).toHaveCount(3);
+  await expect(page.locator('.chat-setting-entry')).toHaveCount(4);
+  await expect(page.getByRole('button', { name: '设置速度模式', exact: true })).toBeVisible();
   await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '设置模型' })).toContainText('第二模型');
   await expect(page.getByRole('button', { name: '设置推理强度' })).toContainText('极高');

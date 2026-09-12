@@ -11,13 +11,16 @@ export function ChatConnectionInfo({ state, controller, device, active, chooseDe
 }) {
   const [picking, setPicking] = useState(false);
   const canChoose = active && state.ready && !state.selected && !state.sending;
+  let status = modeLabels[state.mode];
+  if (!state.ready && (state.mode === 'direct' || state.mode === 'relay')) status = '正在同步聊天…';
+  if (!state.ready && state.error) status = '连接未完成';
   useEffect(() => { if (!canChoose) setPicking(false); }, [canChoose]);
   return <>
     <div className="chat-connection-info">
       <button className="chat-connection chat-muted chat-ellipsis" type="button" aria-label="选择电脑"
         onClick={chooseDevice}>
         {device ? <>{device.name} · <span role="status">
-          {!state.ready && state.mode !== 'offline' ? '正在同步聊天…' : modeLabels[state.mode]}</span></>
+          {status}</span></>
           : '选择电脑，开始聊天'}
       </button>
       {!state.selected && <>

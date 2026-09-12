@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatConnection } from '../../../../shared/remote-chat/client/connection';
+import { CONNECTION_ERRORS } from '../../../../shared/remote-chat/connectionErrors';
 
 class Socket {
   static instances: Socket[] = [];
@@ -60,7 +61,7 @@ it('cleans up after socket errors even when the platform never emits close', asy
   const { connection, authorize } = harness();
   await vi.advanceTimersByTimeAsync(0);
   Socket.instances[0].onerror?.();
-  await vi.advanceTimersByTimeAsync(1500);
+  await vi.advanceTimersByTimeAsync(1750);
   expect(authorize).toHaveBeenCalledTimes(2);
   connection.stop();
   await vi.advanceTimersByTimeAsync(60_000);
@@ -74,4 +75,55 @@ it('cancels all connection work when a phone leaves the chat', async () => {
   expect(Socket.instances).toHaveLength(0);
   expect(authorize).toHaveBeenCalledOnce();
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it.each([
+  [4001, CONNECTION_ERRORS.authorization], [4004, CONNECTION_ERRORS.unavailable],
+  [4008, CONNECTION_ERRORS.limit], [1006, CONNECTION_ERRORS.network], [1012, CONNECTION_ERRORS.server],
+])('shows a useful reason for socket close %s, even after an error event', async (code, message) => {
+  const { connection, error } = harness();
+  await vi.advanceTimersByTimeAsync(0);
+  Socket.instances[0].onerror?.();
+  Socket.instances[0].onclose?.({ code });
+  await vi.advanceTimersByTimeAsync(250);
+  expect(error).toHaveBeenCalledExactlyOnceWith(message);
+  connection.stop();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it.each([
+  [401, CONNECTION_ERRORS.expired], [403, CONNECTION_ERRORS.authorization], [503, CONNECTION_ERRORS.server],
+])('distinguishes authorization failure %s without leaking server details', async (status, message) => {
+  const { connection, error } = harness(vi.fn().mockRejectedValue({ status, message: '/private/token' }));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(error).toHaveBeenCalledWith(message);
+  expect(Socket.instances).toHaveLength(0);
+  connection.stop();
+});
+
+it('reports a timeout and ignores obsolete close reasons during the next attempt', async () => {
+  const { connection, error } = harness();
+  await vi.advanceTimersByTimeAsync(31_500);
+  expect(error).toHaveBeenCalledExactlyOnceWith(CONNECTION_ERRORS.timeout);
+  Socket.instances[0].onclose?.({ code: 4008 });
+  expect(error).toHaveBeenCalledOnce();
+  connection.stop();
+});
+
+it('recognizes the H5 login error without showing it as a network failure', async () => {
+  const { connection, error } = harness(vi.fn().mockRejectedValue(new Error('登录已过期，请重新登录')));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(error).toHaveBeenCalledWith(CONNECTION_ERRORS.expired);
+  connection.stop();
+});
+
+it.each([
+  ['{"type":"peer-close"}', CONNECTION_ERRORS.interrupted], ['invalid json', CONNECTION_ERRORS.invalid],
+])('reports a disconnected peer or invalid connection message', async (data, message) => {
+  const { connection, error } = harness();
+  await vi.advanceTimersByTimeAsync(0);
+  Socket.instances[0].onmessage?.({ data });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(error).toHaveBeenCalledWith(message);
+  connection.stop();
 });

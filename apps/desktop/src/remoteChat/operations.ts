@@ -13,6 +13,8 @@ import { composerCatalog } from './composerCatalog';
 import { remoteQueue } from './queue';
 import { readGuiAccounts, selectGuiAccount } from './guiAccounts';
 import { acknowledgedMessages } from './acknowledgedMessages';
+import { chatHandshake, validateChatHandshake } from '../../../../shared/remote-chat/handshake';
+import { guiConnectionError } from '../../../../shared/remote-chat/connectionErrors';
 
 const OPERATIONS = new Set([
   'projectDirectories',
@@ -69,7 +71,7 @@ export class ChatOperations {
   }
 
   private async run(request: RpcRequest): Promise<unknown> {
-    if (request.method === 'connect') return guiApi.connect({ reuseExisting: true });
+    if (request.method === 'connect') return this.connect(request.body);
     const body = object(request.body);
     if (request.method === 'request' && body.operation === 'guiAccountsRead') return readGuiAccounts();
     if (request.method === 'request' && body.operation === 'guiAccountSelect') return selectGuiAccount(body.selection);
@@ -111,6 +113,14 @@ export class ChatOperations {
     }
     if (body.operation === 'resume' || body.operation === 'send' || body.operation === 'steer') return {};
     return this.images.prepare(result, String(body.threadId ?? ''));
+  }
+
+  private async connect(body: unknown) {
+    validateChatHandshake(body);
+    try {
+      const approvals = await guiApi.connect({ reuseExisting: true });
+      return body === undefined ? approvals : { ...chatHandshake, approvals };
+    } catch (error) { throw new Error(guiConnectionError(error)); }
   }
 
   prepareEvent(event: GuiEvent) {

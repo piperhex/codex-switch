@@ -13,12 +13,14 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
 }) {
   const [picking, setPicking] = useState(false);
   const canChoose = active && state.ready && !state.selected && !state.sending;
+  let status = modeLabels[state.mode];
+  if (!state.ready && (state.mode === 'direct' || state.mode === 'relay')) status = '正在同步聊天…';
+  if (!state.ready && state.error) status = '连接未完成';
   useEffect(() => { if (!canChoose) setPicking(false); }, [canChoose]);
   return <>
     <View style={connectionStyles.row}>
       <Text numberOfLines={1} style={[styles.headerMeta, connectionStyles.status]}>
-        {device ? `${device.name} · ${!state.ready && state.mode !== 'offline'
-          ? '正在同步聊天…' : modeLabels[state.mode]}` : '选择电脑，开始聊天'}</Text>
+        {device ? `${device.name} · ${status}` : '选择电脑，开始聊天'}</Text>
       {!state.selected && <>
         <Text style={styles.headerMeta}> · </Text>
         <Pressable accessibilityRole="button" accessibilityLabel="选择项目" disabled={!canChoose}

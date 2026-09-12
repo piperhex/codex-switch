@@ -10,6 +10,8 @@ import { ImageCache } from './imageCache';
 import { validateChatImages } from '../attachments';
 import { compactUnavailableReason } from './composerCommands';
 import type { ConnectionMode } from '../protocol';
+import { chatApprovals, chatHandshake } from '../handshake';
+import { CONNECTION_ERRORS, guiConnectionError } from '../connectionErrors';
 import { COMPOSER_EVENT, COMPOSER_FIELDS, composerPatch, type ComposerModelsResponse,
   type ComposerSettings, type ComposerSnapshot } from '../composer';
 import { resolveModelSelection } from '../../../apps/desktop/src/pages/codexGui/modelSelection';
@@ -120,7 +122,7 @@ export class ChatController {
     }
     if (event?.method === 'connection/closed' || event?.method === 'codex/disconnected') {
       this.skillGeneration += 1;
-      this.update({ ready: false });
+      this.update({ ready: false, error: CONNECTION_ERRORS.guiDisconnected });
       this.scheduleSynchronization();
     }
   }
@@ -162,8 +164,9 @@ export class ChatController {
     clearTimeout(this.syncTimer);
     const generation = ++this.synchronization;
     try {
-      const approvals = await this.connection.request<GuiEvent[]>('connect');
+      const response = await this.connection.request<unknown>('connect', chatHandshake);
       if (!this.active || generation !== this.synchronization) return;
+      const approvals = chatApprovals(response);
       this.update({ approvals, error: '' });
       await Promise.all([this.list(), this.loadModels(generation), this.refreshSelected(), this.loadQueue(generation)]);
       if (this.active && generation === this.synchronization) {
@@ -172,7 +175,7 @@ export class ChatController {
       }
     } catch (error) {
       if (!this.active || generation !== this.synchronization) return;
-      this.failure(error);
+      this.update({ error: guiConnectionError(error) });
       this.scheduleSynchronization();
     }
   }

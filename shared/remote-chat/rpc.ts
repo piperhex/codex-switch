@@ -1,4 +1,5 @@
 import { REQUEST_TIMEOUT_MS, type RpcMessage, type RpcRequest } from './protocol';
+import { CONNECTION_ERRORS } from './connectionErrors';
 
 interface Pending {
   request: RpcRequest;
@@ -23,7 +24,8 @@ export class ChatRpc {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error('电脑暂未确认结果，请刷新对话后再试，避免重复发送。'));
+        reject(new Error(method === 'connect' ? CONNECTION_ERRORS.guiTimeout
+          : '电脑暂未确认结果，请刷新对话后再试，避免重复发送。'));
       }, REQUEST_TIMEOUT_MS);
       this.pending.set(id, { request, resolve: (value) => resolve(value as T), reject, timer });
       void this.options.send(request).catch((error: unknown) => this.fail(id, error));
