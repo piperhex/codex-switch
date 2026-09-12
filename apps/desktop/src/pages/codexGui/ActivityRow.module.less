@@ -1,3 +1,5 @@
+@import "./activeText.less";
+
 .row { min-width: 0; color: var(--muted); font-size: 13px; }
 .row + .row { margin-top: -10px; }
 .summary {
@@ -33,6 +35,7 @@
     padding: 3px 6px; background: transparent; cursor: pointer;
     &:disabled { opacity: .5; cursor: default; } } }
 .row[data-status='inProgress'] .icon { color: var(--green-dark); animation: breathe 1.5s ease-in-out infinite; }
+.row[data-status='inProgress'] .preview { .activeText(); }
 .row[data-status='failed'] .icon { color: #c24047; }
 @keyframes breathe { 50% { opacity: .4; } }
 @media (hover: none) { .toggle { opacity: 1; } }

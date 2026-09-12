@@ -6,12 +6,15 @@ import { CopyButton } from "./CopyButton";
 import { UserMessage } from "./UserMessage";
 import { useStreamingText } from "./useStreamingText";
 import styles from "./styles.module.less";
+import activeStyles from "./activeText.module.less";
 
 function AgentMessage({ item, streaming }: { item: Item; streaming: boolean }) {
   const text = item.text ?? "";
   const visible = useStreamingText(text, streaming);
-  return <article className={styles.agentMessage} data-phase={item.phase ?? "final_answer"}>
-    <div data-quote-source={item.id}><RichText text={visible} /></div>
+  return <article className={styles.agentMessage} data-phase={item.phase ?? "final_answer"}
+    data-streaming={streaming || undefined}>
+    <div data-quote-source={item.id} className={streaming ? activeStyles.response : undefined}>
+      <RichText text={visible} /></div>
     {!streaming && <CopyButton text={text} />}
   </article>;
 }
