@@ -62,6 +62,6 @@ const menuStyles = StyleSheet.create({
   content: { paddingBottom: 18 },
   entry: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, padding: 14,
     borderWidth: 1, borderColor: palette.border, borderRadius: 12 },
-  value: { flex: 1, textAlign: 'right', color: palette.green, fontSize: 13 },
+  value: { flex: 1, textAlign: 'right', color: palette.green, fontSize: 13, lineHeight: 20 },
   arrow: { color: palette.muted, fontSize: 22 },
 });

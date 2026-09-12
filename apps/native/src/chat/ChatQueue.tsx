@@ -41,7 +41,7 @@ const queueStyles = StyleSheet.create({
   list: { maxHeight: 180, flexGrow: 0, paddingHorizontal: 8 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 6, borderTopWidth: 1,
     borderColor: palette.border, paddingVertical: 6 },
-  text: { color: palette.ink, fontSize: 13 },
+  text: { color: palette.ink, fontSize: 13, lineHeight: 20 },
   action: { minHeight: 40, minWidth: 32, paddingHorizontal: 6, justifyContent: 'center', alignItems: 'center' },
-  error: { color: palette.danger, fontSize: 12 },
+  error: { color: palette.danger, fontSize: 12, lineHeight: 18 },
 });

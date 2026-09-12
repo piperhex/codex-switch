@@ -51,13 +51,14 @@ export function ChatThreadList({ state, newChat, select, refresh, loadMore }: Pr
 
 const listStyles = StyleSheet.create({
   content: { paddingHorizontal: 14, paddingBottom: 16 },
-  project: { color: palette.muted, fontSize: 12, fontWeight: '600', paddingHorizontal: 10, marginVertical: 12 },
+  project: { color: palette.muted, fontSize: 12, lineHeight: 18, fontWeight: '600',
+    paddingHorizontal: 10, marginVertical: 12 },
   add: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   plus: { color: palette.muted, fontSize: 22 },
   thread: { minHeight: 46, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center',
     gap: 10, borderRadius: 10 },
   selected: { backgroundColor: '#e6f8f1' },
-  title: { flex: 1, color: palette.ink, fontSize: 14 },
+  title: { flex: 1, color: palette.ink, fontSize: 14, lineHeight: 22 },
   status: { width: 18, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#a7b1ab' },
   more: { paddingHorizontal: 10, minHeight: 40, justifyContent: 'center' },
