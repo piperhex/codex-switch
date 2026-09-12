@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { App, Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
-import { Archive, Pencil, Pin, RefreshCw, Search, SquarePen, Trash2 } from "lucide-react";
+import { Archive, Pencil, Pin, RefreshCw, Search, Trash2 } from "lucide-react";
 import type { GuiController } from "./controller";
 import type { GuiState, Thread } from "./types";
 import { ThreadGroup } from "./ThreadGroup";
@@ -13,13 +13,16 @@ import { ThreadPagination } from "./ThreadPagination";
 import { useThreadPagination } from "./useThreadPagination";
 import { isDesktopApp } from "../../api/backend";
 import { FocusModeButton, type GuiFocusMode } from "./FocusModeButton";
+import { GuiNavigation, type GuiView } from "./GuiNavigation";
 import styles from "./styles.module.less";
 
 export function threadTitle(thread: Thread) { return thread.name || thread.preview || "新对话"; }
 export { projectName } from "./projectCatalog";
 
-export function ThreadSidebar({ state, controller, accountPicker, focused, onToggleFocus }: {
+export function ThreadSidebar({ state, controller, accountPicker, focused, onToggleFocus,
+  view = "conversation", onNavigate = () => {}, scheduledTasksAvailable = true }: {
   state: GuiState; controller: GuiController; accountPicker: ReactNode;
+  view?: GuiView; onNavigate?: (view: GuiView) => void; scheduledTasksAvailable?: boolean;
 } & GuiFocusMode) {
   const [searchOpen, setSearchOpen] = useState(false);
   const pagination = useThreadPagination({ state, controller, enabled: !searchOpen });
@@ -54,9 +57,10 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
         if (key === "archive") void controller.manage(state.archived ? "unarchive" : "archive", thread.id);
         if (key === "delete") setDeleting(thread);
       } }}>
-      <div className={`${styles.thread} ${state.selected === thread.id ? styles.selected : ""}`}>
+      <div className={[styles.thread,
+        view === "conversation" && state.selected === thread.id ? styles.selected : ""].join(" ")}>
         <button className={styles.threadSelect} disabled={state.sending}
-          onClick={() => void controller.select(thread.id)}>
+          onClick={() => { onNavigate("conversation"); void controller.select(thread.id); }}>
           <span className={styles.threadTitle}>{threadTitle(thread)}</span>
           <ThreadStatus running={running} needsInput={needsInput}
             unread={Boolean(state.threadReadState[thread.id]?.unread)} />
@@ -72,13 +76,12 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
         <Button type="text" size="small" icon={<RefreshCw size={15} />} aria-label="刷新对话"
           loading={state.loading} disabled={state.connection !== "ready"} onClick={() => void controller.refresh()} />
         <Button type="text" size="small" icon={<Search size={15} />} aria-label="搜索对话"
-          disabled={state.connection !== "ready"} onClick={() => setSearchOpen(true)} />
+          disabled={state.connection !== "ready"} onClick={() => { onNavigate("conversation"); setSearchOpen(true); }} />
       </div>
     </div>
-    <button type="button" className={styles.newButton} disabled={state.sending}
-      onClick={controller.newConversation}>
-      <SquarePen size={18} strokeWidth={1.6} aria-hidden="true" /><span>新对话</span>
-    </button>
+    <GuiNavigation view={view} sending={state.sending} onNavigate={onNavigate}
+      scheduledTasksAvailable={scheduledTasksAvailable}
+      onNewConversation={() => { onNavigate("conversation"); controller.newConversation(); }} />
     <Segmented className={styles.threadFilter} block size="small" value={state.archived ? "archived" : "recent"}
       options={[{ label: "最近", value: "recent" }, { label: "已归档", value: "archived" }]}
       onChange={(value) => controller.filter("", value === "archived")} disabled={state.connection !== "ready"} />
@@ -86,12 +89,14 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
       {groups.map((group) => {
         const key = `${state.archived ? "archived" : "recent"}:${group.id}`;
         return <ThreadGroup key={key} label={group.label} pinned={group.pinned} threads={group.threads}
-          selected={state.selected} collapsed={views.collapsed.includes(key)} expanded={views.expanded.includes(key)}
+          selected={view === "conversation" ? state.selected : null}
+          collapsed={views.collapsed.includes(key)} expanded={views.expanded.includes(key)}
           filtering={Boolean(state.search.trim())} onToggle={(field) => toggle(field, key)}
           projectPinned={state.pinnedProjects.includes(group.cwd)}
           projectMenu={group.cwd ? <ProjectGroupMenu path={group.cwd} label={group.label}
             state={state} controller={controller} /> : undefined}
           creatingDisabled={state.sending} onNewConversation={group.cwd ? () => {
+            onNavigate("conversation");
             controller.newConversation();
             controller.setProject(group.cwd);
           } : undefined}

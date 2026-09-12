@@ -3,6 +3,9 @@ fn dispatch_gui_command(app: AppHandle, command: &str, args: Value) -> Result<Va
     use tauri::Manager;
 
     match command {
+        "codex_gui_scheduled_tasks" => serialize(block_on(
+            codex_gui::scheduled_tasks::codex_gui_scheduled_tasks(app, argument(&args, "request")?),
+        )),
         "codex_gui_model_settings" => serialize(block_on(
             codex_gui::model_settings::codex_gui_model_settings(app, argument(&args, "threadId")?),
         )),

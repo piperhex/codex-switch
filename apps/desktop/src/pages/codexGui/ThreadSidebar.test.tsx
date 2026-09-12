@@ -219,3 +219,32 @@ it("loads on downward wheel gestures even when collapsed groups do not fill the 
   await wheel(50);
   expect(refresh).toHaveBeenCalledExactlyOnceWith(true);
 });
+
+
+it("opens feature pages during a reply without creating or changing a conversation", async () => {
+  const onNavigate = vi.fn();
+  const start = vi.spyOn(controller, "newConversation");
+  const select = vi.spyOn(controller, "select").mockResolvedValue();
+  state = { ...state, selected: "one", sending: true };
+  await act(async () => root.render(<App><ThreadSidebar state={state} controller={controller}
+    accountPicker={null} focused={false} onToggleFocus={vi.fn()} view="plugins" onNavigate={onNavigate} /></App>));
+  expect(button("新对话").disabled).toBe(true);
+  expect(button("插件").getAttribute("aria-current")).toBe("page");
+  expect(button("会话示例").closest("." + styles.selected)).toBeNull();
+  await act(async () => button("定时任务").click());
+  expect(onNavigate).toHaveBeenCalledExactlyOnceWith("scheduled-tasks");
+  expect(start).not.toHaveBeenCalled();
+  expect(select).not.toHaveBeenCalled();
+});
+
+it("returns to the conversation when selecting the already selected thread from a feature page", async () => {
+  const onNavigate = vi.fn();
+  const select = vi.spyOn(controller, "select").mockResolvedValue();
+  state = { ...state, selected: "one" };
+  await act(async () => root.render(<App><ThreadSidebar state={state} controller={controller}
+    accountPicker={null} focused={false} onToggleFocus={vi.fn()} view="scheduled-tasks"
+    onNavigate={onNavigate} /></App>));
+  await act(async () => button("会话示例").click());
+  expect(onNavigate).toHaveBeenCalledExactlyOnceWith("conversation");
+  expect(select).toHaveBeenCalledExactlyOnceWith("one");
+});

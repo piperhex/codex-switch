@@ -120,6 +120,7 @@ function PublishModal({ editing, onClose, onPublished, t }: PublishModalProps) {
 export function PromptPluginsMarket({
   active,
   activeTab,
+  embedded,
   authenticated,
   currentUserId,
   notify,
@@ -186,6 +187,7 @@ export function PromptPluginsMarket({
   return (
     <div className="skills-market-page">
       <SkillsMarketToolbar
+        embedded={embedded}
         active={active}
         activeTab={activeTab}
         loading={loading}
@@ -196,13 +198,14 @@ export function PromptPluginsMarket({
         query={query}
         t={t}
       />
+      {embedded && <p className={styles.scopeNote}>{t("skills.prompt.scope")}</p>}
       {error && <div className="skills-market-error" role="alert">{error}</div>}
       {loading && !items.length ? (
         <div className="skills-market-state"><LoaderCircle className="spin" size={22} />{t("skills.prompt.loading")}</div>
       ) : !filtered.length ? (
         <div className="skills-market-state">{t("skills.prompt.empty")}</div>
       ) : (
-        <div className={styles.grid}>
+        <div className={`${styles.grid} ${embedded ? styles.compact : ""}`}>
           {filtered.map((item) => {
             const isPublisher = Boolean(authenticated && currentUserId && item.uploaderId === currentUserId);
             const updateAvailable = isPromptPluginUpdateAvailable(item.installedVersion, item.version);

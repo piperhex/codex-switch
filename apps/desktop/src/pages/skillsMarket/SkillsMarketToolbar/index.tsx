@@ -75,7 +75,13 @@ function SkillsMarketActions(props: SkillsMarketToolbarProps) {
 }
 
 export function SkillsMarketToolbar(props: SkillsMarketToolbarProps) {
-  const hosts = useTopbarHosts(props.active);
+  const hosts = useTopbarHosts(props.active && !props.embedded);
+  if (props.embedded) return (
+    <div className={styles.embedded}>
+      <SkillsMarketTabs {...props} />
+      <SkillsMarketActions {...props} />
+    </div>
+  );
   return (
     <>
       {hosts.tabs && createPortal(<SkillsMarketTabs {...props} />, hosts.tabs)}

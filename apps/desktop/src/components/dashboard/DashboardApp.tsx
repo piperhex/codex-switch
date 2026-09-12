@@ -1495,6 +1495,8 @@ export function DashboardApp() {
           </section>
           <section className={codexGuiStyles.panel} hidden={page !== "codexGui"}>
             <GuiWorkspace active={page === "codexGui"}
+              plugins={{ baseUrl: cloud.state.baseUrl, authenticated: cloud.state.authenticated,
+                currentUserId: cloud.state.userId, onLogin: openCloudLogin, notify, t }}
               windowControls={NATIVE_WINDOW_CONTROLS_ENABLED && <WindowControls onError={notify} t={t} />}
               accounts={manager.accounts}
                 privacyMode={privacyMode.enabled}

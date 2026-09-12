@@ -77,6 +77,21 @@ Selecting a project is optional. Hovering a selected folder reveals a removal bu
 the selection leaves the actual folder intact and applies to the next message. Project changes are disabled
 while a turn is running. Projectless conversations appear under the “无项目” group.
 
+## Scheduled tasks and plugins
+
+The GUI sidebar includes **定时任务** and **插件**. Switching pages keeps the current conversation and unsent draft.
+Scheduled tasks support one-time, interval, daily, weekday, and weekly schedules, with search, status filters,
+editing, pause/resume, immediate runs, and links to the latest task conversation. Suggested tasks prefill the editor.
+
+Tasks run while the Switch host is open and use that computer's local time. Each execution creates a separate GUI
+conversation with the usual workspace permissions and approval flow. Missed repetitions are combined into one run;
+a running task cannot overlap itself. Tasks are stored in the GUI home and resume scheduling after app restart.
+Task management is available in the desktop app and localhost web interface; it is not exposed to LAN clients.
+
+The compact plugin market reuses community plugins, official plugins, and system prompt plugins. Community,
+official, and built-in plugin operations always use the private GUI home, without a directory selector.
+System prompt plugins retain their existing shared proxy scope, which is explained in that tab.
+
 ## Browser conversations
 
 Open the web address provided by the running Codex Switch host, then choose **Codex GUI**. The same page is

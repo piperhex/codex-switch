@@ -1,0 +1,14 @@
+.navigation {
+  display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
+  button {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px;
+    padding: 8px 7px; border: 0; border-radius: 9px; background: transparent;
+    color: inherit; text-align: left; cursor: pointer; transition: background-color 150ms ease;
+    &:hover:not(:disabled), &:focus-visible { background: var(--green-selection-hover); }
+    &:focus-visible { outline: 2px solid var(--green-dark); outline-offset: 2px; }
+    &[aria-current='page'], &:active:not(:disabled) { background: var(--green-selection); }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    > svg { flex-shrink: 0; }
+    > span { font-size: 13px; }
+  }
+}

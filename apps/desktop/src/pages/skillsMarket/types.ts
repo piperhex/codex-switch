@@ -7,10 +7,13 @@ export type SkillsMarketTab = "community" | "official" | "prompt";
 export interface SkillsMarketNavigationProps {
   activeTab: SkillsMarketTab;
   onTabChange: (tab: SkillsMarketTab) => void;
+  embedded?: boolean;
 }
 
 export interface SkillsMarketPageProps {
   active: boolean;
+  homeId?: string;
+  embedded?: boolean;
   baseUrl?: string | null;
   authenticated: boolean;
   currentUserId?: string | null;
@@ -24,6 +27,7 @@ export interface CommunitySkillsMarketProps
 
 export interface OfficialPluginsMarketProps extends SkillsMarketNavigationProps {
   active: boolean;
+  homeId?: string;
   notify: (message: string) => void;
   t: Translate;
 }

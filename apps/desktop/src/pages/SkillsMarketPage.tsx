@@ -6,10 +6,11 @@ import { PromptPluginsMarket } from "./promptPlugins/PromptPluginsMarket";
 
 export function SkillsMarketPage(props: SkillsMarketPageProps) {
   const [activeTab, setActiveTab] = useState<SkillsMarketTab>("community");
-  const navigation = { activeTab, onTabChange: setActiveTab };
+  const navigation = { activeTab, onTabChange: setActiveTab, embedded: props.embedded };
 
   if (activeTab === "official") {
-    return <OfficialPluginsMarket {...navigation} active={props.active} notify={props.notify} t={props.t} />;
+    return <OfficialPluginsMarket {...navigation} active={props.active}
+      homeId={props.homeId} notify={props.notify} t={props.t} />;
   }
   if (activeTab === "prompt") {
     return <PromptPluginsMarket {...props} active={props.active} activeTab={activeTab} onTabChange={setActiveTab} />;

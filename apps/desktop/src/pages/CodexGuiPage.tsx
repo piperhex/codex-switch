@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Button, Popover, Tooltip } from "antd";
 import { Download, PanelBottom, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
-import { hasLocalBackend, isDesktopApp } from "../api/backend";
+import { canManageCodexConnection, hasLocalBackend, isDesktopApp } from "../api/backend";
 import { getGuiController, retainGuiSession } from "./codexGui/session";
 import { canEditMessage } from "./codexGui/editMessage";
 import { ThreadSidebar, threadTitle } from "./codexGui/ThreadSidebar";
@@ -24,12 +24,18 @@ import { guiComposer } from "./codexGui/composerBridge";
 import { FocusModeButton, type GuiFocusMode } from "./codexGui/FocusModeButton";
 import { useTerminalPanel } from "./codexGui/terminal/useTerminalPanel";
 import { MobileConnectionStatus } from "./codexGui/MobileConnectionStatus";
+import { GUI_VIEW_TITLES, type GuiView } from "./codexGui/GuiNavigation";
+import type { SkillsMarketPageProps } from "./skillsMarket/types";
+import paneStyles from "./codexGui/workspacePanes.module.less";
 
+const GuiPluginsPage = lazy(() => import("./codexGui/GuiPluginsPage"));
+const ScheduledTasksPage = lazy(() => import("./codexGui/scheduledTasks/ScheduledTasksPage")
+  .then((module) => ({ default: module.ScheduledTasksPage })));
 const TerminalPanel = lazy(() => import("./codexGui/terminal/TerminalPanel"));
 
 type CodexGuiPageProps = {
   active: boolean; accountPicker: ReactNode; providers: Provider[]; aggregateApis: AggregateApi[];
-  windowControls?: ReactNode;
+  windowControls?: ReactNode; plugins: Omit<SkillsMarketPageProps, "active">;
 };
 
 export function CodexGuiPage(props: CodexGuiPageProps) {
@@ -45,11 +51,18 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
   return <Workspace {...props} {...focusMode} />;
 }
 
-function Workspace({ active, accountPicker, providers, aggregateApis, windowControls,
+function Workspace({ active, accountPicker, providers, aggregateApis, windowControls, plugins,
   focused, onToggleFocus }: CodexGuiPageProps & GuiFocusMode) {
   const skinStyle = useDreamSkin(active);
   const [controller] = useState(getGuiController);
-  useConversationReadState(active, controller);
+  const [view, setView] = useState<GuiView>("conversation");
+  const conversationActive = active && view === "conversation";
+  useConversationReadState(conversationActive, controller);
+  const openTaskConversation = (threadId: string) => {
+    setView("conversation");
+    controller.filter("", false);
+    void controller.select(threadId);
+  };
   const composer = useRef<ComposerHandle>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900);
@@ -64,25 +77,31 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
   }, [active, controller, installer.version]);
   const current = state.selected ? state.conversations[state.selected] : undefined;
   const thread = current?.thread ?? state.threads.find((entry) => entry.id === state.selected);
+  const project = state.selected
+    ? state.projectOverrides[state.selected] ?? thread?.cwd ?? "" : state.settings.cwd;
   const terminal = useTerminalPanel(thread?.cwd ?? state.settings.cwd);
   const pending = state.approvals.filter((event) => event.params.threadId === state.selected);
-  const otherApproval = state.approvals.find((event) => event.params.threadId !== state.selected);
+  const navigationApproval = state.approvals.find((event) =>
+    view !== "conversation" || event.params.threadId !== state.selected);
   const running = state.sending || Object.values(state.conversations).some((value) => value.activeTurn);
   const canQuote = state.connection === "ready" && !state.sending && !state.archived
     && state.compacting !== state.selected;
   return <WorkspaceOperationContext.Provider value={{ busy: Boolean(state.workspaceBusy),
-    setBusy: controller.setWorkspaceBusy }}><DetailsWorkspace selected={state.selected} active={active}>
+    setBusy: controller.setWorkspaceBusy }}><DetailsWorkspace selected={state.selected} active={conversationActive}>
     <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}
       data-dream-skin={skinStyle ? "true" : undefined} style={skinStyle}>
     {!collapsed && <ThreadSidebar state={state} controller={controller} accountPicker={accountPicker}
-      focused={focused} onToggleFocus={onToggleFocus} />}
+      focused={focused} onToggleFocus={onToggleFocus} view={view} onNavigate={setView}
+      scheduledTasksAvailable={canManageCodexConnection} />}
     <div className={styles.workspace}>
       <header className={styles.header} data-tauri-drag-region={isDesktopApp || undefined}>
         <Button type="text" icon={collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           aria-label={collapsed ? "展开对话列表" : "收起对话列表"} onClick={() => setCollapsed(!collapsed)} />
         {collapsed && <FocusModeButton focused={focused} onToggleFocus={onToggleFocus} />}
         <div className={styles.heading} data-tauri-drag-region={isDesktopApp || undefined}>
-          <strong data-tauri-drag-region={isDesktopApp || undefined}>{thread ? threadTitle(thread) : "Codex GUI"}</strong>
+          <strong data-tauri-drag-region={isDesktopApp || undefined}>
+            {view === "conversation" && thread ? threadTitle(thread) : GUI_VIEW_TITLES[view]}
+          </strong>
         </div>
         <div className={styles.headerActions} data-tauri-drag-region={isDesktopApp || undefined}>
           {isDesktopApp && <MobileConnectionStatus />}
@@ -95,12 +114,12 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
             <Button type="text" icon={<Download size={16} />}>
               {installer.version ? `v${installer.version}` : "Codex"}</Button>
           </Popover>
-          {isDesktopApp && <Tooltip title={terminal.open ? "收起终端" : "打开终端"}
+          {isDesktopApp && view === "conversation" && <Tooltip title={terminal.open ? "收起终端" : "打开终端"}
             styles={{ root: { maxWidth: 400 } }}>
             <Button type="text" icon={<PanelBottom size={16} />} aria-label={terminal.open ? "收起终端" : "打开终端"}
               aria-expanded={terminal.open} onClick={terminal.toggle} />
           </Tooltip>}
-          <ConversationChangesButton value={current} />
+          {view === "conversation" && <ConversationChangesButton value={current} />}
         </div>
         {focused && windowControls && <div className={styles.focusWindowControls}>{windowControls}</div>}
       </header>
@@ -112,10 +131,19 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
         message={<span style={{ display: "block", maxWidth: 400 }}>
           电脑助手安装未完成。你可以继续对话，稍后到社区插件页安装或修复电脑助手。
         </span>} />}
-      {otherApproval && <button className={styles.pendingBanner}
-        onClick={() => void controller.select(otherApproval.params.threadId!)}>另一个对话需要你的确认，点击查看</button>}
+      {navigationApproval && <button className={styles.pendingBanner} onClick={() => {
+        openTaskConversation(navigationApproval.params.threadId!);
+      }}>有对话需要你的确认，点击查看</button>}
+      {view !== "conversation" && <div className={paneStyles.feature}>
+        <Suspense fallback={<div className={paneStyles.loading} role="status">正在加载…</div>}>
+          {view === "scheduled-tasks" ? <ScheduledTasksPage active={active} cwd={project}
+            onOpenThread={openTaskConversation} />
+            : <GuiPluginsPage {...plugins} active={active} />}
+        </Suspense>
+      </div>}
+      <div className={paneStyles.conversation} hidden={view !== "conversation"}>
       {!installer.version ? <Installer installer={installer} /> :
-        <Messages value={current} selected={state.selected} active={active}
+        <Messages value={current} selected={state.selected} active={conversationActive}
           onEdit={controller.messageEditor.submit} editDisabled={!canEditMessage(state)}
           onQuote={canQuote ? (quote) => composer.current?.addQuote(quote) ?? false : undefined}
           pendingRequest={state.pendingRequest} footer={<>
@@ -123,11 +151,12 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
           <AsyncQuestions value={current} onAnswer={controller.answerAsyncQuestion}
             disabled={state.connection !== "ready" || state.sending || state.archived || Boolean(state.workspaceBusy)
               || Boolean(state.deleting) || state.compacting === state.selected} />
-          <Composer ref={composer} state={state} controller={controller} active={active} />
+          <Composer ref={composer} state={state} controller={controller} active={conversationActive} />
         </>} />}
       {isDesktopApp && terminal.tabs.length > 0 && <Suspense fallback={null}>
-        <TerminalPanel panel={terminal} active={active} />
+        <TerminalPanel panel={terminal} active={conversationActive} />
       </Suspense>}
+      </div>
     </div>
     </div>
   </DetailsWorkspace></WorkspaceOperationContext.Provider>;

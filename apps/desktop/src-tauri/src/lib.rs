@@ -118,6 +118,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
         .manage(codex_gui::GuiState::default())
+        .manage(codex_gui::scheduled_tasks::ScheduledTasksState::default())
         .manage(std::sync::Arc::new(gui_terminal::TerminalState::default()))
         .manage(codex_gui::git::GitState::default())
         .manage(codex_gui::web::WebEventState::default())
@@ -200,6 +201,7 @@ pub fn run() {
                 }
                 eprintln!("failed to restore web version server: {error}");
             }
+            codex_gui::scheduled_tasks::start(app.handle());
             remote_control::start(app.handle().clone());
             Ok(())
         })
@@ -247,6 +249,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             codex_gui::codex_gui_connect,
+            codex_gui::scheduled_tasks::codex_gui_scheduled_tasks,
             codex_gui::clipboard::codex_gui_clipboard_files,
             codex_gui::account_selection::codex_gui_account_selection,
             codex_gui::account_selection::codex_gui_switch_account,

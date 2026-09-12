@@ -103,3 +103,26 @@
     width: min(280px, 35vw);
   }
 }
+
+.embedded {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+
+  .tabs { flex-wrap: wrap; padding: 3px; background: var(--bg); }
+  .tabs button { height: 32px; padding: 0 12px; font-size: 12px; }
+  .toolbarActions { flex: 1 1 auto; justify-content: flex-end; flex-wrap: wrap; }
+  .toolbarActions > button { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+  .search { width: min(220px, 100%); height: 32px; }
+  .search input { font-size: 12px; }
+}
+
+@media (max-width: 640px) {
+  .embedded {
+    .toolbarActions { justify-content: flex-start; width: 100%; }
+    .search { flex: 1 1 150px; width: auto; }
+  }
+}

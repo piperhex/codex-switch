@@ -27,7 +27,13 @@ const ACTION_TOAST = {
 } as const;
 
 export function OfficialPluginsMarket(props: OfficialPluginsMarketProps) {
-  return <CodexHomeScope active={props.active}><OfficialPluginsContent {...props} /></CodexHomeScope>;
+  if (props.homeId) return <OfficialPluginsContent key={props.homeId} {...props} homeId={props.homeId} />;
+  return <CodexHomeScope active={props.active}><ScopedOfficialPlugins {...props} /></CodexHomeScope>;
+}
+
+function ScopedOfficialPlugins(props: OfficialPluginsMarketProps) {
+  const homeId = useSelectedCodexHome();
+  return <OfficialPluginsContent {...props} homeId={homeId} showHomeSelector />;
 }
 
 function OfficialPluginsContent({
@@ -36,8 +42,10 @@ function OfficialPluginsContent({
   notify,
   onTabChange,
   t,
-}: OfficialPluginsMarketProps) {
-  const homeId = useSelectedCodexHome();
+  homeId,
+  embedded,
+  showHomeSelector = false,
+}: OfficialPluginsMarketProps & { homeId: string; showHomeSelector?: boolean }) {
   const [items, setItems] = useState<OfficialPluginItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +139,7 @@ function OfficialPluginsContent({
   return (
     <div className="skills-market-page">
       <SkillsMarketToolbar
+        embedded={embedded}
         active={active}
         activeTab={activeTab}
         loading={loading || busyAction !== null || !installer.version}
@@ -140,7 +149,7 @@ function OfficialPluginsContent({
         query={query}
         t={t}
         beforeSearch={hasLocalBackend && <CliInstallButton installer={installer} />}
-        homeSelector={<CodexHomeSelect disabled={busyAction !== null || installer.installing} />}
+        homeSelector={showHomeSelector && <CodexHomeSelect disabled={busyAction !== null || installer.installing} />}
       />
       {error && <div className="skills-market-error" role="alert">{error}</div>}
       {content}

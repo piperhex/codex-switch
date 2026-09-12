@@ -1,0 +1,81 @@
+.page {
+  flex: 1; min-height: 0; overflow: auto; background: var(--panel, #fff); color: var(--ink, #202123);
+}
+.toolbar { display: flex; justify-content: flex-end; padding: 12px 20px 0; }
+.create:global(.ant-btn) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border: 0; border-radius: 13px; background: #202123; color: #fff; box-shadow: none;
+  height: 36px; padding: 0 14px;
+  &:not(:disabled):hover { background: #343638 !important; color: #fff !important; }
+}
+.content { max-width: 1000px; margin: 0 auto; padding: 32px 38px 70px; }
+.content h1 { margin: 0 10px 10px; font-size: 34px; line-height: 1.35; font-weight: 650; letter-spacing: -0.6px; }
+.subtitle { margin: 0 10px 30px; color: var(--muted, #777); font-size: 17px; line-height: 1.6; }
+.search:global(.ant-input-affix-wrapper) {
+  min-height: 42px; border-radius: 999px; padding: 7px 15px; border-color: var(--line, #e2e2e2);
+  background: transparent; box-shadow: none; font-size: 16px;
+  :global(.ant-input-prefix) { margin-right: 12px; color: var(--muted, #777); }
+  :global(.ant-input) { background: transparent; }
+}
+.filters { display: flex; gap: 5px; margin: 32px 12px 12px; }
+.filters button {
+  border: 0; background: transparent; color: var(--muted, #929292); cursor: pointer;
+  border-radius: 13px; padding: 7px 11px; font: inherit; font-size: 16px; white-space: nowrap;
+  &:hover { background: var(--bg, #f5f5f5); }
+  &.selectedFilter { color: var(--ink, #202123); background: var(--bg, #f5f5f5); }
+}
+.taskList { padding: 0 10px 19px; min-height: 90px; }
+.taskRow { display: flex; gap: 14px; align-items: flex-start; padding: 15px 9px; border-radius: 10px;
+  &:hover { background: color-mix(in srgb, var(--bg, #f5f5f5) 55%, transparent); }
+}
+.taskIcon, .spinning { color: var(--muted, #9c9c9c); flex-shrink: 0; margin-top: 2px; }
+.taskContent { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; padding: 0;
+  border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer;
+}
+.taskTitle { font-size: 17px; line-height: 1.4; overflow-wrap: anywhere; }
+.taskSchedule { font-size: 15px; line-height: 1.5; color: var(--muted, #999); }
+.taskError { color: #c86548; font-size: 13px; line-height: 1.5; max-width: 400px; overflow-wrap: anywhere; }
+.paused .taskTitle { color: var(--muted, #888); }
+.taskMenu:global(.ant-btn) { flex-shrink: 0; height: 27px; width: 30px; color: var(--muted, #888); }
+.spinning { animation: spin 1s linear infinite; }
+.error { margin: 12px; :global(.ant-alert-message) { max-width: 400px; } }
+.empty { margin: 0; padding: 20px 10px; font-size: 14px; line-height: 1.6; color: var(--muted, #888); }
+.suggestions { border-top: 1px solid var(--line, #e7e7e7); padding-top: 19px; }
+.suggestions h2 { margin: 0 10px 15px; color: var(--muted, #777); font-size: 18px; font-weight: 500; }
+.suggestion {
+  display: flex; align-items: flex-start; width: 100%; gap: 14px; padding: 17px 19px;
+  margin: 0 0 9px; text-align: left; color: inherit; border: 0; border-radius: 12px;
+  background: transparent; cursor: pointer;
+  > svg { flex-shrink: 0; margin-top: 2px; }
+  &:hover { background: var(--bg, #f5f5f5); }
+}
+.suggestionTitle { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; font-size: 17px; line-height: 1.5;
+  > span { color: var(--muted, #999); font-size: 16px; }
+}
+.description { display: block; margin-top: 3px; color: var(--muted, #777); font-size: 15px; line-height: 1.55; }
+.briefing { color: #2599ff; }
+.review { color: #a348ff; }
+.monitor { color: #08a640; }
+.field { display: flex; flex-direction: column; gap: 7px; margin: 16px 0; font-size: 13px; }
+.scheduleFields { display: flex; flex-wrap: wrap; gap: 8px;
+  > :global(.ant-select) { min-width: 125px; flex: 1; }
+  > :global(.ant-input) { flex: 1; min-width: 125px; }
+}
+.interval { display: flex; align-items: center; gap: 8px; }
+.hint { color: var(--muted, #777); font-size: 12px; line-height: 1.7; }
+.editor :global(.ant-alert-message) { max-width: 400px; overflow-wrap: anywhere; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinning { animation: none; } }
+@media (max-width: 760px) {
+  .toolbar { padding: 10px 16px 0; }
+  .content { padding: 25px 16px 40px; }
+  .content h1 { font-size: 28px; margin-left: 4px; }
+  .subtitle { margin-left: 4px; font-size: 14px; margin-bottom: 24px; }
+  .filters { margin: 24px 0 10px; gap: 0; }
+  .filters button { font-size: 14px; padding: 7px 10px; }
+  .taskList { padding: 0 0 16px; }
+  .taskRow { padding-inline: 5px; gap: 10px; }
+  .suggestion { padding: 15px 5px; gap: 10px; }
+  .suggestionTitle, .taskTitle { font-size: 16px; }
+  .suggestionTitle > span, .description { font-size: 14px; }
+}

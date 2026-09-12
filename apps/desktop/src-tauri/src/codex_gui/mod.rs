@@ -29,6 +29,7 @@ mod project_files;
 mod prompt;
 mod protocol;
 pub(crate) mod releases;
+pub(crate) mod scheduled_tasks;
 #[cfg(test)]
 mod tests;
 mod text_preview;
@@ -125,43 +126,46 @@ pub(crate) async fn codex_gui_request(
     state: State<'_, GuiState>,
     request: GuiRequest,
 ) -> std::result::Result<GuiResponse, String> {
-    async {
-        let client = connected(&state).await?;
-        if let GuiRequest::TextPreview { thread_id, path } = request {
-            return text_preview::preview(&client, thread_id, path).await;
-        }
-        if let GuiRequest::ProjectFiles(options) = request {
-            return project_files::list(&client, options).await;
-        }
-        if let GuiRequest::ProjectDirectories { directory } = request {
-            return project_directories::list(directory).await;
-        }
-        if let GuiRequest::EditMessage(edit) = request {
-            return message_edit::submit(&client, edit).await;
-        }
-        if let GuiRequest::ImagePreview {
-            thread_id,
-            source,
-            variant,
-        } = request
-        {
-            return image_preview::preview(&client, thread_id, source, variant).await;
-        }
-        let projectless_root = client.projectless_root.clone();
-        let response_root = projectless_root.clone();
-        let (method, params) = tauri::async_runtime::spawn_blocking(move || {
-            let mut request = request;
-            workspaces::prepare_request(&mut request, &projectless_root)?;
-            request.into_rpc()
-        })
+    execute_request(&state, request)
         .await
-        .map_err(|_| GuiError::InvalidRequest)??;
-        let mut data = icons::resolve(method, client.request(method, params).await?).await?;
-        workspaces::hide_project_paths(&mut data, &response_root);
-        Ok(GuiResponse { data })
+        .map_err(|error| error.to_string())
+}
+
+/// Share request validation and typed failures with background GUI operations.
+async fn execute_request(state: &GuiState, request: GuiRequest) -> Result<GuiResponse> {
+    let client = connected(state).await?;
+    if let GuiRequest::TextPreview { thread_id, path } = request {
+        return text_preview::preview(&client, thread_id, path).await;
     }
+    if let GuiRequest::ProjectFiles(options) = request {
+        return project_files::list(&client, options).await;
+    }
+    if let GuiRequest::ProjectDirectories { directory } = request {
+        return project_directories::list(directory).await;
+    }
+    if let GuiRequest::EditMessage(edit) = request {
+        return message_edit::submit(&client, edit).await;
+    }
+    if let GuiRequest::ImagePreview {
+        thread_id,
+        source,
+        variant,
+    } = request
+    {
+        return image_preview::preview(&client, thread_id, source, variant).await;
+    }
+    let projectless_root = client.projectless_root.clone();
+    let response_root = projectless_root.clone();
+    let (method, params) = tauri::async_runtime::spawn_blocking(move || {
+        let mut request = request;
+        workspaces::prepare_request(&mut request, &projectless_root)?;
+        request.into_rpc()
+    })
     .await
-    .map_err(|error: GuiError| error.to_string())
+    .map_err(|_| GuiError::InvalidRequest)??;
+    let mut data = icons::resolve(method, client.request(method, params).await?).await?;
+    workspaces::hide_project_paths(&mut data, &response_root);
+    Ok(GuiResponse { data })
 }
 
 #[tauri::command]

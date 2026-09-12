@@ -21,3 +21,15 @@
 .modal label:last-of-type textarea { min-height: 0; height: auto; flex: 1; overflow-y: auto; resize: vertical; }
 .textField { min-height: 0; display: flex; flex: 1; flex-direction: column; }
 .textField textarea { min-height: 0; height: auto; flex: 1; overflow-y: auto; resize: vertical; }
+
+.scopeNote { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(205px, 100%), 1fr));
+  gap: 14px;
+
+  .card { gap: 8px; padding: 12px; border-radius: 12px; box-shadow: none; }
+  .card h3 { font-size: 13px; }
+  .card p { min-height: 54px; font-size: 11px; -webkit-line-clamp: 3; }
+  .actions { flex-wrap: wrap; }
+  .actions button { font-size: 11px; }
+}

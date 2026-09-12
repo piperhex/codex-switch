@@ -1,0 +1,49 @@
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 30px clamp(16px, 4vw, 48px) 48px;
+  color: var(--ink);
+  scrollbar-gutter: stable;
+}
+
+.content {
+  max-width: 1120px;
+  margin: 0 auto;
+
+  > h1 { margin: 0 0 24px; font-size: 28px; line-height: 1.3; font-weight: 650; }
+
+  :global(.skills-market-page) { padding: 0; gap: 20px; }
+  :global(.skills-market-grid) {
+    grid-template-columns: repeat(auto-fill, minmax(min(205px, 100%), 1fr));
+    gap: 14px;
+  }
+  :global(.skill-card) { border-radius: 12px; box-shadow: none; }
+  :global(.skill-card:hover) { box-shadow: 0 4px 14px #00000008; }
+  :global(.skill-card-preview) { height: 100px; }
+  :global(.skill-card-body) { min-height: 0; padding: 12px; gap: 9px; }
+  :global(.skill-card-title) { min-height: 22px; gap: 6px; }
+  :global(.skill-card-title h3) { font-size: 13px; }
+  :global(.skill-card-title button) { width: 24px; height: 24px; }
+  :global(.skill-card-body > p) { height: 42px; font-size: 11px; line-height: 1.3; color: var(--muted); }
+  :global(.skill-card-meta) { gap: 6px; }
+  :global(.skill-card-preview > div:has(> svg):not(.skill-card-default-preview)) {
+    width: 56px; height: 56px; border-radius: 16px;
+    > svg { width: 34px; height: 34px; }
+  }
+  :global(.official-plugin-icon) { width: 56px; height: 56px; border-radius: 16px; }
+  :global(.official-plugin-icon img) { width: 40px; height: 40px; }
+  :global(.skill-card-default-preview > svg) { width: 30px; height: 30px; }
+  :global(.skill-card-body [role="status"]) { font-size: 11px; }
+  :global(.skill-install-button), :global(.official-plugin-toggle), :global(.community-skill-toggle) {
+    min-height: 30px; height: auto; padding: 5px; gap: 5px; font-size: 11px;
+  }
+  :global(.skill-version), :global(.skill-official-badge) { padding: 3px 6px; font-size: 9px; }
+  :global(.skill-card .refresh-all) { min-height: 30px; padding: 5px 7px; font-size: 11px; }
+  :global(.skills-market-error) { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 640px) {
+  .page { padding-top: 22px; }
+  .content > h1 { margin-bottom: 18px; font-size: 24px; }
+}
