@@ -115,6 +115,16 @@
   flex-direction: column;
 }
 
+.requestModal :global(.ant-modal-header) {
+  padding-inline-end: 28px;
+}
+
+.requestModal :global(.ant-modal-title) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sessionModal :global(.ant-alert),
 .requestModal :global(.ant-alert) { margin-bottom: 12px; }
 
