@@ -18,7 +18,7 @@ export function ImageViewer({ thumbnail, description, load, close }: Props) {
     navigationBarTranslucent supportedOrientations={['portrait', 'portrait-upside-down',
       'landscape-left', 'landscape-right']}>
     <SafeAreaProvider>
-      <SafeAreaView style={styles.overlay}>
+      <View style={styles.overlay}>
         <View style={styles.stage} {...panHandlers} onAccessibilityEscape={close}>
           <Image source={{ uri: image.url ?? thumbnail }} accessibilityLabel={description}
             accessibilityHint="轻点关闭，双指缩放" accessibilityActions={[{ name: 'activate', label: '关闭预览' }]}
@@ -26,39 +26,43 @@ export function ImageViewer({ thumbnail, description, load, close }: Props) {
             style={[styles.image, { transform: [{ translateX: transform.x },
               { translateY: transform.y }, { scale: transform.scale }] }]} />
         </View>
-        <View pointerEvents="box-none" style={styles.footer}>
-          <View pointerEvents="box-none" style={styles.actions}>
-            {orientation.suggested && <Pressable accessibilityRole="button" accessibilityLabel="转到手机当前方向"
-              disabled={orientation.rotating} onPress={orientation.rotate} style={styles.rotate}>
-              <MaterialCommunityIcons name="screen-rotation" size={28} color="#fff" />
-            </Pressable>}
-            <Pressable accessibilityRole="button" accessibilityLabel="保存到相册"
-              accessibilityState={{ disabled: !image.url || image.error || saving.saving, busy: saving.saving }}
-              disabled={!image.url || image.error || saving.saving} onPress={saving.save}
-              style={[styles.save, (!image.url || image.error) && styles.disabled]}>
-              {saving.saving ? <ActivityIndicator color="#fff" />
-                : <MaterialCommunityIcons name="download" size={30} color="#fff" />}
-            </Pressable>
+        <SafeAreaView pointerEvents="box-none" style={styles.controls}>
+          <View pointerEvents="box-none" style={styles.footer}>
+            <View pointerEvents="box-none" style={styles.actions}>
+              {orientation.suggested && <Pressable accessibilityRole="button" accessibilityLabel="转到手机当前方向"
+                disabled={orientation.rotating} onPress={orientation.rotate} style={styles.rotate}>
+                <MaterialCommunityIcons name="screen-rotation" size={28} color="#fff" />
+              </Pressable>}
+              <Pressable accessibilityRole="button" accessibilityLabel="保存到相册"
+                accessibilityState={{ disabled: !image.url || image.error || saving.saving, busy: saving.saving }}
+                disabled={!image.url || image.error || saving.saving} onPress={saving.save}
+                style={[styles.save, (!image.url || image.error) && styles.disabled]}>
+                {saving.saving ? <ActivityIndicator color="#fff" />
+                  : <MaterialCommunityIcons name="download" size={30} color="#fff" />}
+              </Pressable>
+            </View>
+            <View pointerEvents="box-none" style={styles.notices}>
+              {!!message && <Text pointerEvents="none" accessibilityLiveRegion="polite"
+                style={styles.status}>{message}</Text>}
+              {!image.url && !image.error && <Text pointerEvents="none" style={styles.status}>正在加载原图…</Text>}
+              {image.error && <View style={styles.error}>
+                <Text style={styles.status}>原图加载失败</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="重新加载原图" onPress={image.retry}
+                  style={styles.retry}><Text style={styles.status}>重试</Text></Pressable>
+              </View>}
+            </View>
           </View>
-          <View pointerEvents="box-none" style={styles.notices}>
-            {!!message && <Text accessibilityLiveRegion="polite" style={styles.status}>{message}</Text>}
-            {!image.url && !image.error && <Text style={styles.status}>正在加载原图…</Text>}
-            {image.error && <View style={styles.error}>
-              <Text style={styles.status}>原图加载失败</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="重新加载原图" onPress={image.retry}
-                style={styles.retry}><Text style={styles.status}>重试</Text></Pressable>
-            </View>}
-          </View>
-        </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </View>
     </SafeAreaProvider>
   </Modal>;
 }
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: '#000' },
-  stage: { flex: 1, overflow: 'hidden' },
+  stage: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
+  controls: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end' },
   footer: { paddingHorizontal: 24, paddingBottom: 24, paddingTop: 12 },
   actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 56 },
   rotate: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },

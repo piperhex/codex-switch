@@ -44,6 +44,9 @@ export async function imagePreviewJourney() {
       await screenshot(`image-preview-${label}-portrait`);
       await pinch(label, 'out');
       await pinch(label, 'in');
+      const beforeGestures = await savedPictures();
+      await pinch(label, 'edges');
+      assert.deepEqual(await savedPictures(), beforeGestures, 'crossing the save button does not save an image');
       const before = await savedPictures();
       await tap('保存到相册');
       await waitFor(async () => (await savedPictures()).length === before.length + 1, 'original in system album');
