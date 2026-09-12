@@ -104,7 +104,7 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder 
     </View>} />
     {showInitialLoading && <View style={styles.messageLoadingOverlay}>
       <ActivityIndicator size="small" accessibilityLabel="正在加载聊天记录" />
-      <Text style={styles.subtitle}>正在加载聊天记录…</Text>
+      <Text style={[styles.subtitle, styles.messageLoadingText]}>正在加载聊天记录…</Text>
     </View>}
     </View>
     {selectedTool && <ChatToolDetails key={selectedTool.id} item={selectedTool}

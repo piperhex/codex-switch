@@ -40,6 +40,8 @@ export const styles = StyleSheet.create({
   messageFooter: { paddingTop: 20, gap: 12 },
   messageListLoading: { opacity: 0 },
   messageLoadingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  // Leave room for Android's fallback font instead of relying on the exact measured text width.
+  messageLoadingText: { width: '100%', maxWidth: 400, paddingHorizontal: 16, textAlign: 'center' },
   historyStatus: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 36 },
   userMessage: { alignSelf: 'flex-end', maxWidth: '92%', borderRadius: 18,
     backgroundColor: '#e6f1eb', paddingHorizontal: 15, paddingVertical: 10 },
