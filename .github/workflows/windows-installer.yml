@@ -1,0 +1,70 @@
+name: Windows installer regression
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "apps/desktop/src-tauri/windows/**"
+      - "apps/desktop/src-tauri/installer-helper/**"
+      - "apps/desktop/src-tauri/src/installer_lifecycle/protocol.rs"
+      - "apps/desktop/src-tauri/tauri.conf.json"
+      - "scripts/installer-fixture/**"
+      - "scripts/check-installer-fixture.mjs"
+      - "scripts/build-installer-helper*.mjs"
+      - "scripts/test-windows-*.ps1"
+      - "scripts/verify-windows-runtime*.mjs"
+      - "scripts/prepare-desktop-bundle.mjs"
+      - ".github/workflows/windows-installer.yml"
+  pull_request:
+    paths:
+      - "apps/desktop/src-tauri/windows/**"
+      - "apps/desktop/src-tauri/installer-helper/**"
+      - "apps/desktop/src-tauri/src/installer_lifecycle/protocol.rs"
+      - "apps/desktop/src-tauri/tauri.conf.json"
+      - "scripts/installer-fixture/**"
+      - "scripts/check-installer-fixture.mjs"
+      - "scripts/build-installer-helper*.mjs"
+      - "scripts/test-windows-*.ps1"
+      - "scripts/verify-windows-runtime*.mjs"
+      - "scripts/prepare-desktop-bundle.mjs"
+      - ".github/workflows/windows-installer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+      - name: Check the isolated process fixture
+        run: node scripts/check-installer-fixture.mjs --target x86_64-pc-windows-msvc
+      - name: Build the MSI shutdown guard
+        run: node scripts/build-installer-helper.mjs --target x86_64-pc-windows-msvc
+      - name: Test runtime dependency checks
+        run: node --test scripts/build-installer-helper.test.mjs scripts/verify-windows-runtime.test.mjs
+      - name: Install installer compilers
+        run: |
+          choco install nsis --no-progress -y
+          choco install wixtoolset --version=3.14.1 --no-progress -y
+      - name: Test native MSI and NSIS shutdown
+        shell: pwsh
+        run: |
+          $programs = ${env:ProgramFiles(x86)}
+          $wix = Get-ChildItem -LiteralPath $programs -Directory -Filter 'WiX Toolset v3*' |
+            Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $wix) { throw 'WiX 3 installation was not found.' }
+          ./scripts/test-windows-installer.ps1 -NoBuild -WixRoot (Join-Path $wix.FullName 'bin') `
+            -NsisCompiler (Join-Path $programs 'NSIS/makensis.exe')

@@ -1,8 +1,12 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { buildInstallerHelper } from "./build-installer-helper.mjs";
 import { packagedExecutable } from "./verify-tauri-assets.mjs";
+import { verifyWindowsRuntime } from "./verify-windows-runtime.mjs";
 
 if (process.platform === "win32") {
+  verifyWindowsRuntime(packagedExecutable);
+  // MSI still needs its embedded shutdown guard. NSIS calls Windows APIs directly
+  // and never embeds or executes this binary.
   const bytes = readFileSync(packagedExecutable);
   const peOffset = bytes.readUInt32LE(0x3c);
   const targets = new Map([
@@ -12,7 +16,5 @@ if (process.platform === "win32") {
   ]);
   const target = targets.get(bytes.readUInt16LE(peOffset + 4));
   if (!target) throw new Error("Unsupported Windows application architecture.");
-  const helper = buildInstallerHelper({ target }).replaceAll("$", "$$");
-  writeFileSync(new URL("../apps/desktop/src-tauri/target/installer-helper-path.nsh", import.meta.url),
-    `!define CSW_HELPER_PATH "${helper}"\n`);
+  buildInstallerHelper({ target });
 }

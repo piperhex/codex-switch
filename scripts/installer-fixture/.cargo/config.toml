@@ -1,0 +1,3 @@
+# Keep this test process runnable on Windows installations without the VC++ runtime.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]

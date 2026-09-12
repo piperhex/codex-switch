@@ -1,98 +1,117 @@
-!include "${__FILEDIR__}\..\target\installer-helper-path.nsh"
+!define CSW_RM_FORCE_SHUTDOWN 1
+!define CSW_ERROR_NOT_ENOUGH_MEMORY 8
+Var CswRmSession
+Var CswRmSessionActive
 
-!define CSW_INSTALLED_HELPER "$INSTDIR\csw-installer-helper.exe"
-!define CSW_HELPER_CLEANUP_ATTEMPTS 30
-!define CSW_HELPER_CLEANUP_DELAY_MS 100
-Var CswHelperPrepared
-
-!macro CswHelperRun operation
-  ClearErrors
-  ExecWait '"${CSW_INSTALLED_HELPER}" ${operation} "$INSTDIR\csw.exe"' $R0
-  ${If} ${Errors}
-    StrCpy $R0 1
+!macro CswRmOpen
+  Push $0
+  Push $1
+  Push $2
+  System::Call 'rstrtmgr::RmStartSession(*i .r0, i 0, w .r1) i .r2'
+  StrCpy $R0 $2
+  ${If} $R0 == 0
+    StrCpy $CswRmSession $0
+    ; Zero is a valid session handle, so track ownership separately.
+    StrCpy $CswRmSessionActive 1
   ${EndIf}
+  Pop $2
+  Pop $1
+  Pop $0
 !macroend
 
-!macro CswHelperStop
+!macro CswRmRegister resourcePath
+  Push $0
+  Push $1
+  Push $2
+  ; Register one Unicode file path, using the pointer width of the NSIS host.
+  System::Call '*(&w${NSIS_MAX_STRLEN} "${resourcePath}") p.r0'
+  System::Call '*(p r0) p.r1'
+  StrCpy $R0 ${CSW_ERROR_NOT_ENOUGH_MEMORY}
+  ${If} $0 P<> 0
+  ${AndIf} $1 P<> 0
+    System::Call 'rstrtmgr::RmRegisterResources(i $CswRmSession, i 1, p r1, i 0, p 0, i 0, p 0) i .r2'
+    StrCpy $R0 $2
+  ${EndIf}
+  System::Free $1
+  System::Free $0
+  Pop $2
+  Pop $1
+  Pop $0
+!macroend
+
+!macro CswRmStop resourcePath
   StrCpy $R0 0
-  ; A fresh installation has no process to stop and needs no helper executable.
-  ${If} ${FileExists} "$INSTDIR\csw.exe"
-    ${If} $CswHelperPrepared != 1
-      ; Always use this installer's embedded copy, never an existing executable.
-      ; Keep it in the installation directory while its guard is running.
-      SetOverwrite on
-      ClearErrors
-      File "/oname=${CSW_INSTALLED_HELPER}" "${CSW_HELPER_PATH}"
-      SetOverwrite lastused
-      ${If} ${Errors}
-        StrCpy $R0 1
-      ${Else}
-        StrCpy $CswHelperPrepared 1
-      ${EndIf}
+  ${If} ${FileExists} "${resourcePath}"
+    ; Restart Manager rejects additional resource registration after shutdown.
+    !insertmacro CswRmFinish
+    ${If} $R0 == 0
+      !insertmacro CswRmOpen
     ${EndIf}
-    ${If} $R0 = 0
-      !insertmacro CswHelperRun stop
+    ${If} $R0 == 0
+      !insertmacro CswRmRegister "${resourcePath}"
+    ${EndIf}
+    ${If} $R0 == 0
+      Push $0
+      System::Call 'rstrtmgr::RmShutdown(i $CswRmSession, i ${CSW_RM_FORCE_SHUTDOWN}, p 0) i .r0'
+      StrCpy $R0 $0
+      Pop $0
     ${EndIf}
   ${EndIf}
 !macroend
 
-!macro CswHelperCleanup
-  ; The gate can be released just before Windows closes the guard's image.
-  StrCpy $R1 ${CSW_HELPER_CLEANUP_ATTEMPTS}
-  ${Do}
-    ClearErrors
-    Delete "${CSW_INSTALLED_HELPER}"
-    ${IfNot} ${Errors}
-      StrCpy $CswHelperPrepared 0
-      ${ExitDo}
-    ${EndIf}
-    Sleep ${CSW_HELPER_CLEANUP_DELAY_MS}
-    IntOp $R1 $R1 - 1
-  ${LoopWhile} $R1 > 0
-  ${If} $CswHelperPrepared = 1
-    StrCpy $R0 1
-  ${EndIf}
-!macroend
-
-!macro CswHelperFinish
+!macro CswRmFinish
   StrCpy $R0 0
-  ${If} $CswHelperPrepared = 1
-    !insertmacro CswHelperRun finish
-    ${If} $R0 = 0
-      !insertmacro CswHelperCleanup
+  ${If} $CswRmSessionActive == 1
+    Push $0
+    System::Call 'rstrtmgr::RmEndSession(i $CswRmSession) i .r0'
+    StrCpy $R0 $0
+    Pop $0
+    ${If} $R0 == 0
+      StrCpy $CswRmSessionActive 0
     ${EndIf}
   ${EndIf}
 !macroend
 
-; Replace Tauri's name-wide process kill with the same exact-path shutdown used by MSI.
+!include "${__FILEDIR__}\installer-backup.nsh"
+
+; Restart Manager closes users of this installation's executable, including old
+; versions without shutdown support. Never use Tauri's name-wide process kill.
 !macroundef CheckIfAppIsRunning
 !macro CheckIfAppIsRunning executableName productName
-  !insertmacro CswHelperStop
+  !insertmacro CswBackupPrepare
   ${If} $R0 != 0
+    !insertmacro CswInstallerCancel
     Abort "Please exit Codex Switch, then try again."
   ${EndIf}
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
-  !insertmacro CswHelperFinish
+  !insertmacro CswInstallerComplete
   ${If} $R0 != 0
-    Abort "Please close this installer, then open Codex Switch again."
+    Abort "Please close this installer, then try again."
   ${EndIf}
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
-  !insertmacro CswHelperFinish
+  !insertmacro CswInstallerComplete
   ${If} $R0 != 0
     Abort "Please close this installer to finish."
   ${EndIf}
-  ; Tauri's earlier removal attempt runs while the helper still occupies this directory.
   RMDir "$INSTDIR"
 !macroend
 
 Function .onInstFailed
-  !insertmacro CswHelperFinish
+  !insertmacro CswInstallerCancel
 FunctionEnd
 
 Function un.onUninstFailed
-  !insertmacro CswHelperFinish
+  !insertmacro CswInstallerCancel
+FunctionEnd
+
+Function .onGUIEnd
+  !insertmacro CswInstallerCancel
+FunctionEnd
+
+Function un.onGUIEnd
+  !insertmacro CswInstallerCancel
 FunctionEnd

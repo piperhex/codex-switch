@@ -1,7 +1,8 @@
 # Windows installer helper
 
-The helper runs during installation, upgrade, and removal, including on machines
+The MSI helper runs during installation, upgrade, and removal, including on machines
 without the Visual C++ Redistributable. It must statically link the MSVC runtime.
+NSIS installers use Windows APIs directly and do not embed or execute this helper.
 
 From the repository root, build and check the resulting executable with:
 

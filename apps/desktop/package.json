@@ -16,7 +16,7 @@
     "build": "tsc && vite build",
     "check": "npm run build",
     "test": "vitest run --exclude src/pages/codexConfig/schema.test.mjs && node --test src/pages/codexConfig/schema.test.mjs",
-    "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo test --manifest-path src-tauri/Cargo.toml && node ../../scripts/check-installer-helper.mjs",
+    "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo test --manifest-path src-tauri/Cargo.toml && node ../../scripts/check-installer-helper.mjs && node ../../scripts/check-installer-fixture.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "dev:app": "tauri dev",
