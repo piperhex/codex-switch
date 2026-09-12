@@ -15,6 +15,7 @@ fn timeouts() -> Timeouts {
         upload_total: Duration::from_secs(5),
         response_headers: IDLE,
         response_idle: IDLE,
+        sse_response_idle: Some(IDLE),
     }
 }
 
@@ -230,3 +231,6 @@ fn active_response_outlives_header_deadline_but_idle_read_still_times_out() {
     drop(guard);
     proxy::proxy_sessions().lock().unwrap().remove(&session_id);
 }
+
+#[path = "sse_tests.rs"]
+mod sse;

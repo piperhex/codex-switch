@@ -11,6 +11,7 @@ import type {
 } from "../../types";
 
 export interface SettingsPageProps {
+  sseIdleTimeout: ReturnType<typeof import("../../hooks/useSseIdleTimeout").useSseIdleTimeout>;
   info: AppInfo | null;
   autoUpdateEnabled: boolean;
   onAutoUpdateChange: (enabled: boolean) => void;

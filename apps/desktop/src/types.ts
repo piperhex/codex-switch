@@ -500,6 +500,7 @@ export interface AppSettings {
   codexUsageSummaryEnabled?: boolean;
   autoDisableStatusCodes?: number[];
   upstream429RetryTimeoutSeconds?: number;
+  sseIdleTimeout?: import("./api/sseIdleTimeout").SseIdleTimeoutSettings;
   showUsageNetworkErrors?: boolean;
   gpt56SolContextWindow?: number;
   officialModelContextWindows?: Record<string, number>;

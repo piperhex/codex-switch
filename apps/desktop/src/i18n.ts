@@ -902,6 +902,12 @@ const translations = {
     "settings.codexUsageSummary.description":
       "Show today's Token usage, estimated cost, and available quota beside the Codex composer.",
     "settings.codexUsageSummary.enabled": "Show daily usage",
+    "settings.sseIdleTimeout.title": "Streaming response wait",
+    "settings.sseIdleTimeout.description":
+      "Applies to all proxied streaming responses. Turn off the limit to keep waiting during long reasoning pauses. "
+      + "Changes apply to new requests.",
+    "settings.sseIdleTimeout.enabled": "Limit waiting without new data",
+    "settings.sseIdleTimeout.duration": "Maximum wait without new data",
     "settings.upstream429Retry.title": "Upstream rate-limit retries",
     "settings.upstream429Retry.description":
       "For HTTP 429 responses, retry after 1, 3, 5 seconds and continue with increasing waits. "
@@ -3438,6 +3444,11 @@ const translations = {
     "settings.codexUsageSummary.description":
       "在 Codex 输入区旁显示今日 Token 用量、预估成本和可用额度。",
     "settings.codexUsageSummary.enabled": "显示今日用量",
+    "settings.sseIdleTimeout.title": "流式响应等待",
+    "settings.sseIdleTimeout.description":
+      "适用于所有代理的流式响应。关闭限制后，模型长时间思考时仍会继续等待。修改后对新请求生效。",
+    "settings.sseIdleTimeout.enabled": "限制无数据等待时间",
+    "settings.sseIdleTimeout.duration": "最长无数据等待时间",
     "settings.upstream429Retry.title": "上游限流重试",
     "settings.upstream429Retry.description":
       "上游返回 HTTP 429 后按 1、3、5 秒逐渐增加等待时间，默认最长重试 1 分钟；达到时限仍失败时，先按设置自动禁用账号，再返回错误。",

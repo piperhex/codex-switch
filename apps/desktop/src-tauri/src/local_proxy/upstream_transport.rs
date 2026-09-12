@@ -19,6 +19,7 @@ struct Timeouts {
     upload_total: Duration,
     response_headers: Duration,
     response_idle: Duration,
+    sse_response_idle: Option<Duration>,
 }
 
 impl Default for Timeouts {
@@ -28,6 +29,7 @@ impl Default for Timeouts {
             upload_total: MAX_UPLOAD_DURATION,
             response_headers: super::UPSTREAM_RESPONSE_IDLE_TIMEOUT,
             response_idle: super::UPSTREAM_RESPONSE_IDLE_TIMEOUT,
+            sse_response_idle: super::sse_idle_timeout::current(),
         }
     }
 }
@@ -150,7 +152,16 @@ impl Request {
             })?;
             sent_before_redirect |= !target.body.is_empty();
             if !target.follow(&response)? {
-                return Ok(Response::new(response, self.timeouts.response_idle));
+                let content_type = response
+                    .headers()
+                    .get(header::CONTENT_TYPE)
+                    .and_then(|v| v.to_str().ok());
+                let idle = if super::is_event_stream(content_type) {
+                    self.timeouts.sse_response_idle
+                } else {
+                    Some(self.timeouts.response_idle)
+                };
+                return Ok(Response::new(response, idle));
             }
         }
     }

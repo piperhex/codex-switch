@@ -22,6 +22,7 @@ pub(crate) mod lan_keys;
 mod quota_detection;
 mod quota_sse;
 mod session_titles;
+pub(crate) mod sse_idle_timeout;
 mod sse_transport;
 mod upstream_transport;
 

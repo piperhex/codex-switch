@@ -61,6 +61,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "contextWindow")?,
             ),
         )),
+        "set_sse_idle_timeout" => serialize(block_on(crate::local_proxy::sse_idle_timeout::set_sse_idle_timeout(
+            app, argument(&args, "settings")?,
+        ))),
         "set_upstream_429_retry_timeout" => serialize(block_on(
             crate::local_proxy::set_upstream_429_retry_timeout(
                 app,

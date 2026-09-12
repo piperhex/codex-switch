@@ -8,6 +8,7 @@ import {
   MIN_TOKEN_USAGE_WEEKS,
 } from "../../hooks/useTokenUsagePreferences";
 import { httpStatusOptions } from "../../utils/httpStatusOptions";
+import { SseIdleTimeoutCard } from "./SseIdleTimeoutCard";
 import { DurationTimePicker } from "./DurationTimePicker";
 import type { SettingsPageProps } from "./types";
 
@@ -218,6 +219,7 @@ export function UsageSettingsCards({ settings }: { settings: SettingsPageProps }
       <CodexUsageSummaryCard settings={settings} />
       <TokenUsageCard settings={settings} />
       <Upstream429RetryCard settings={settings} />
+      <SseIdleTimeoutCard settings={settings} />
       <UsageNetworkErrorsCard settings={settings} />
       <AutoDisableStatusCodesCard settings={settings} />
     </>

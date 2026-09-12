@@ -54,7 +54,8 @@ fn diagnostic_export_metadata<R: Runtime>(app: &tauri::AppHandle<R>) -> String {
         "os": std::env::consts::OS, "arch": std::env::consts::ARCH,
         "rotationBytes": DIAGNOSTIC_LOG_MAX_BYTES,
         "retainedFiles": 2,
-        "retryTimeoutSeconds": settings.map(|value| value.upstream_429_retry_timeout_seconds),
+        "retryTimeoutSeconds": settings.as_ref().map(|value| value.upstream_429_retry_timeout_seconds),
+        "sseIdleTimeout": settings.as_ref().map(|value| value.sse_idle_timeout),
         "responseIdleTimeoutSeconds": UPSTREAM_RESPONSE_IDLE_TIMEOUT.as_secs(),
         "connectTimeoutSeconds": UPSTREAM_CONNECT_TIMEOUT.as_secs()
     });

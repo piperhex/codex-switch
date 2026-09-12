@@ -5,16 +5,16 @@ use std::{
 };
 
 /// Pulls bytes only when the downstream reader asks for them. Each upstream read has
-/// its own idle timeout, so a healthy SSE stream has no total-duration deadline.
+/// its own optional idle timeout; SSE streams can wait without a deadline.
 pub(in crate::local_proxy) struct Response {
     response: reqwest::Response,
     pending: Bytes,
-    idle_timeout: Duration,
+    idle_timeout: Option<Duration>,
     finished: bool,
 }
 
 impl Response {
-    pub(super) fn new(response: reqwest::Response, idle_timeout: Duration) -> Self {
+    pub(super) fn new(response: reqwest::Response, idle_timeout: Option<Duration>) -> Self {
         Self {
             response,
             pending: Bytes::new(),
@@ -39,7 +39,10 @@ impl Response {
 
     fn next_chunk(&mut self) -> io::Result<Option<Bytes>> {
         tauri::async_runtime::block_on(async {
-            tokio::time::timeout(self.idle_timeout, self.response.chunk())
+            let Some(timeout) = self.idle_timeout else {
+                return self.response.chunk().await.map_err(io::Error::other);
+            };
+            tokio::time::timeout(timeout, self.response.chunk())
                 .await
                 .map_err(|_| {
                     io::Error::new(io::ErrorKind::TimedOut, "upstream response idle timeout")
