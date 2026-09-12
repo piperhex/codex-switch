@@ -52,8 +52,6 @@ export const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, flexShrink: 1 },
   composerModelText: { fontSize: 13, lineHeight: 20, paddingVertical: 2, color: palette.ink,
     includeFontPadding: true, textAlignVertical: 'center', flexShrink: 1 },
-  composerEmptyInput: { paddingHorizontal: 48 },
-  composerEmptyActions: { position: 'absolute', left: 8, right: 8, bottom: 8 },
   composerAdd: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
   composerAddText: { color: palette.ink, fontSize: 28, lineHeight: 32 },
   input: { minHeight: 40, maxHeight: 150, fontSize: 16, lineHeight: 23, color: palette.ink,

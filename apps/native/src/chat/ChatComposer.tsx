@@ -16,7 +16,6 @@ import { MAX_CHAT_ATTACHMENT_DATA } from '../../../../shared/remote-chat/compose
 import { composerAction, CONTINUE_MESSAGE } from '../../../../shared/remote-chat/composerAction';
 import { ChatPhotoPicker } from './ChatPhotoPicker';
 import { useChatPhotos } from './useChatPhotos';
-import { useChatKeyboard } from './useChatKeyboard';
 import { ChatCommandMenu } from './ChatCommandMenu';
 import { useComposerMenu } from './useComposerMenu';
 import type { SkillCatalogState } from './skillCatalog';
@@ -54,7 +53,6 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
   const [settings, setSettings] = useState(false);
   const [adding, setAdding] = useState(false);
   const [pausing, setPausing] = useState(false);
-  const keyboardVisible = useChatKeyboard();
   const [projectFiles, setProjectFiles] = useState<'files' | 'photos' | null>(null);
   const [attachmentError, setAttachmentError] = useState('');
   const anchor = useRef<View>(null);
@@ -66,8 +64,6 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
   const draft = useChatDraft({ threadId, sending, disabled: disabled || photos.busy || attachments.busy, selection, send });
   const menu = useComposerMenu({ draft, scope: `${threadId ?? ''}:${cwd}`, active,
     refresh: catalog.refresh, compact });
-  const compactField = !keyboardVisible && draft.text.length === 0
-    && photos.photos.length === 0 && !attachments.items.length;
   const hasDraft = draft.hasContent || photos.photos.length > 0 || attachments.items.length > 0;
   useEffect(() => { if (!active) { setSettings(false); setAdding(false); setProjectFiles(null); } }, [active]);
   useEffect(() => { setSettings(false); setAdding(false); setProjectFiles(null); setAttachmentError(''); }, [threadId]);
@@ -126,22 +122,22 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
       <ChatPhotoPicker photos={photos} disabled={sending} active={active} />
       <ComposerReferences items={attachments.items} disabled={attachmentBusy} remove={attachments.remove} />
       <TextInput ref={menu.input} accessibilityLabel="聊天消息"
-        style={[styles.input, compactField && styles.composerEmptyInput]}
+        style={styles.input}
         multiline value={draft.text} maxLength={100_000} selection={menu.selection}
         onSelectionChange={(event) => menu.setSelection(event.nativeEvent.selection)}
         onChangeText={draft.setText} placeholder={ready ? '发消息，输入 @ 选择插件…' : '连接后即可发送消息'} />
-      <View pointerEvents="box-none" style={[styles.composerActions, compactField && styles.composerEmptyActions]}>
+      <View pointerEvents="box-none" style={styles.composerActions}>
         <Pressable accessibilityRole="button" accessibilityLabel="添加内容" style={styles.composerAdd}
           accessibilityState={{ expanded: adding }} onPress={() => { menu.close(); setAdding((current) => !current); }}>
           <Text style={styles.composerAddText}>+</Text>
         </Pressable>
         <View style={styles.composerTrailing}>
-          {!compactField && <Pressable accessibilityRole="button" style={styles.composerModel}
+          <Pressable accessibilityRole="button" style={styles.composerModel}
             accessibilityLabel={`${composerLabel(models, selection)}，聊天设置`} onPress={() => setSettings(true)}>
             <Text numberOfLines={1} ellipsizeMode="head" style={styles.composerModelText}>
               {modelLabelTail(composerLabel(models, selection))}</Text>
             <Feather name="chevron-down" size={12} color={styles.composerModelText.color} />
-          </Pressable>}
+          </Pressable>
           <ComposerActionButton action={action} disabled={actionDisabled} busy={pausing || sending}
             onPress={() => { void submit(); }} />
         </View>

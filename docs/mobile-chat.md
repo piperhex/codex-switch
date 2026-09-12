@@ -207,6 +207,11 @@ npm run test:chat:android -w @codex-switch/desktop
 它检查首次 10 条、每次向上加载 10 条、加载图标、阅读位置、完成前的流式文字和处理中读秒，
 结果写入同一目录的 `history-report.json`。
 
+输入法与聊天位置专项回归使用同样的模拟器配置和新的测试服务，在仓库根目录运行
+`node apps/desktop/e2e/android-keyboard-regression.mjs`。
+它检查空输入框与草稿反复开关输入法时布局稳定、最新消息可见、旧消息阅读位置不变，
+以及输入法打开时的流式回复；结果写入同一目录的 `keyboard-report.json`。
+
 抽屉与旧版电脑兼容回归使用相同配置和新的测试服务，运行
 `npm run test:chat:android:drawer -w @codex-switch/desktop`。
 它模拟电脑拒绝新版历史接口，验证旧记录读取，以及边缘右滑打开、左滑收起、遮罩和返回键关闭。
