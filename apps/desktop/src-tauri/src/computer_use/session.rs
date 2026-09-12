@@ -40,7 +40,7 @@ pub(super) fn run(root: &Path, id: &str) -> Result<()> {
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
-    platform::hide_window(&mut command);
+    platform::configure_driver(&mut command);
     let mut driver = Driver(command.spawn().map_err(|_| ComputerError::Startup)?);
     loop {
         if !state::allowed(root, id, &record.generation) {

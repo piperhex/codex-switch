@@ -2,15 +2,15 @@
 
 Codex Switch's community marketplace includes **Computer Use 电脑助手**. It installs CUA Driver
 0.25.0 for the selected Codex Home and lets Codex GUI use its native desktop tools through STDIO MCP.
-Windows x64 and ARM64 are supported by the installer; x64 receives live verification. Other platforms
-show an unsupported state. CUA itself supports additional platforms, but their packaging and OS
-permission flows are not implemented here.
+The installer supports Windows x64/ARM64 and macOS 13+ on Intel and Apple Silicon. macOS uses the
+pinned universal binary archive. Older macOS versions and other operating systems show an unsupported state.
 
 ## Use
 
-1. Open Codex GUI in the Windows desktop application. On its first connection, **Computer Use 电脑助手**
+1. Open Codex GUI in the Windows or Mac desktop application. On its first connection, **Computer Use 电脑助手**
    is automatically installed in the GUI's private Codex Home before the conversation service starts.
-   The first installation downloads approximately 28 MB from GitHub; the GUI shows a preparation notice.
+   The first installation downloads approximately 28 MB on Windows or 42 MB on macOS from GitHub;
+   the GUI shows a preparation notice.
 2. Other Codex Homes can still install the assistant from the community plugin page.
 3. Open a new Codex GUI conversation using the same Home. For example: “打开计算器，计算 6 × 7，并确认结果。”
 4. The model can discover CUA tools, inspect applications, operate their controls and receive screenshots.
@@ -21,6 +21,22 @@ permission flows are not implemented here.
 An enabled card means the files and configuration are present, not that a particular conversation has
 completed an MCP handshake. Driver startup failures remain visible as tool/connection errors in Codex.
 Windows secure desktop, UAC prompts and elevated applications remain subject to Windows and CUA's limits.
+
+### macOS permissions
+
+Open the computer assistant card on the community plugin page and use **去开启** beside each missing
+permission. In **System Settings → Privacy & Security**, enable **Accessibility** and **Screen Recording**
+(called **Screen & System Audio Recording** on newer macOS versions) for **Codex Switch**. These let the
+assistant operate apps and inspect screenshots. The buttons request the corresponding macOS permission
+and open its settings page; only the user can grant it. Reopen the conversation afterwards, and restart
+Codex Switch if macOS asks you to quit it. Status polling never requests a grant or captures the screen.
+
+The managed driver inherits the app's TCC responsibility through its child-process chain and uses
+`CUA_DRIVER_HOST_BUNDLE_ID=dev.codex.switch` for attribution. It does not install or start a separate
+`CuaDriver.app` daemon. When developing or running the opt-in protocol script from a terminal/IDE,
+macOS can attribute permission to that launching app instead. Grant that app access for the test;
+verify the packaged Codex Switch separately. Direct MCP mode has no macOS cursor overlay/PiP facility;
+use screenshots to verify desktop actions.
 
 ## Lifecycle
 
@@ -33,10 +49,13 @@ Windows secure desktop, UAC prompts and elevated applications remain subject to 
   Both Tauri commands delegate blocking work to worker threads. Status polling only checks local files
   and serialized configuration; it neither starts a driver nor scans applications. The frontend permits
   one status request at a time and ignores stale responses after actions or unmounting.
-- The release version and each architecture's official SHA-256 are pinned in code. Downloads are bounded,
+- The release version and each package's official SHA-256 are pinned in code. Downloads are bounded,
   verified before extraction, and extracted through an exact filename allowlist into a staging directory.
   The installer uses the application's proxy configuration. It does not execute the upstream installer.
 - Binaries live under `%LOCALAPPDATA%/dev.codex.switch/computer-use/0.25.0-windows-<architecture>`.
+  On macOS they live under `~/Library/Application Support/dev.codex.switch/computer-use/0.25.0-darwin-universal`.
+  The flat macOS tarball is extracted through a filename allowlist; executable bits are restored,
+  while links, duplicates, missing members and oversized files are rejected.
   They are shared only as cached files. Uninstalling one Home retains this cache for other Homes and
   future reinstalls; it does not modify a separately installed CUA Driver or the user's PATH/autostart.
 - Each Home gets a `codex_switch_computer_use` MCP entry pointing to the current Codex Switch executable
@@ -79,12 +98,27 @@ When the Codex binary is supplied, it also verifies tool discovery through an ep
 conversation. It does not require a model request or change the user's Codex Home. Unit tests cover configuration
 preservation, conflicts, failed download recovery, generation revocation and corrupt archive rejection.
 
+On macOS, build the debug `csw` binary, then run the same protocol script with these variables set:
+
+```sh
+export CSW_CUA_DRIVER_DIRECTORY='<verified extracted CUA 0.25.0 universal binary directory>'
+export CSW_CUA_CODEX_BINARY='<GUI-managed codex path>'
+node --test scripts/computer-use-protocol.test.mjs
+```
+
+Grant desktop permissions to the launching terminal/IDE before running screenshot checks. Validate the
+packaged app on a Mac separately: install, grant both permissions from the card, open a new conversation,
+inspect a screenshot, operate Calculator, and disable one Home while another session remains connected.
+Native macOS CI checks compilation, installation logic and Unix executable permissions on both architectures;
+it does not grant TCC permissions or claim an interactive desktop test.
+
 ## Upstream
 
 - [CUA source and MIT license](https://github.com/trycua/cua)
 - [Pinned driver release](https://github.com/trycua/cua/releases/tag/cua-driver-rs-v0.25.0)
 - [Driver integration boundaries](https://github.com/trycua/cua/blob/cua-driver-rs-v0.25.0/libs/cua-driver/README.md)
 - [Windows MCP tools](https://cua.ai/docs/reference/cua-driver/mcp-tools-windows)
+- [macOS MCP tools](https://cua.ai/docs/reference/cua-driver/mcp-tools-macos)
 
 CUA is developed by Cua AI, Inc. Codex Switch supplies this integration; it is not the OpenAI
 Computer Use plugin. The driver binaries are downloaded unchanged from the pinned upstream release.

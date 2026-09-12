@@ -1,6 +1,6 @@
 ---
 name: codex-switch-computer-use
-description: Use CUA Driver to inspect and operate Windows desktop applications through the Codex Switch computer-use MCP tools. Use when the user asks to interact with native apps, view the desktop, click, type, scroll, drag, or use keyboard shortcuts.
+description: Inspect and operate Windows and macOS desktop apps through the Codex Switch computer-use MCP tools. Use for native app interactions, desktop screenshots, clicks, typing, scrolling, dragging, and keyboard shortcuts.
 ---
 
 <!-- managed:codex-switch-computer-use -->
@@ -9,6 +9,14 @@ description: Use CUA Driver to inspect and operate Windows desktop applications 
 
 Use the `codex_switch_computer_use` MCP server for desktop tasks. Read the available tool schemas
 before calling them; capabilities vary with the installed CUA release and the target application.
+
+On macOS, inspect `check_permissions` with `prompt: false` if a tool reports missing permissions.
+The managed driver uses Codex Switch's permissions. Direct the user to the computer assistant's
+community plugin card to enable Accessibility and Screen Recording for **Codex Switch**, then
+reopen the conversation (or restart the app if macOS requests it). Do not ask them to grant a
+separately installed CuaDriver app access. The standalone source bundle instead inherits the
+permissions of the app that launches it, such as a terminal or IDE.
+The managed macOS runtime has no cursor overlay; use screenshots to verify actions.
 
 1. Inspect the available applications with `list_apps` and identify the user's intended application.
 2. Use the driver's snapshot/screenshot tools to inspect the current window. Prefer fresh accessible

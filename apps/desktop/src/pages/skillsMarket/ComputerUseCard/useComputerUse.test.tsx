@@ -5,11 +5,12 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { ComputerUseStatus } from "../../../api/computerUse";
 import { useComputerUse } from "./useComputerUse";
 
-const api = vi.hoisted(() => ({ computerUseStatus: vi.fn(), computerUseAction: vi.fn() }));
+const api = vi.hoisted(() => ({ computerUseStatus: vi.fn(), computerUseAction: vi.fn(),
+  requestComputerUsePermission: vi.fn() }));
 vi.mock("../../../api/computerUse", () => api);
 
 const installed: ComputerUseStatus = { installed: true, enabled: true, needsRepair: false,
-  version: "0.25.0", supported: true };
+  version: "0.25.0", supported: true, permissions: null };
 let root: Root;
 let hook: ReturnType<typeof useComputerUse>;
 function Harness({ home = "first", active = true }: { home?: string; active?: boolean }) {
@@ -68,4 +69,23 @@ it("isolates pending status responses when the selected home remounts the card",
   await act(async () => root.render(<Harness key="second" home="second" />));
   await act(async () => finish(installed));
   expect(hook.status?.enabled).toBe(false);
+});
+
+it("requests macOS permissions only after an action and pauses polling while settings open", async () => {
+  let finish!: () => void;
+  api.requestComputerUsePermission.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+  await act(async () => root.render(<Harness />));
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
+  expect(api.requestComputerUsePermission).not.toHaveBeenCalled();
+  let pending!: Promise<boolean>;
+  await act(async () => { pending = hook.requestPermission("screenRecording"); });
+  expect(api.requestComputerUsePermission).toHaveBeenCalledWith("screenRecording");
+  const polls = api.computerUseStatus.mock.calls.length;
+  await act(async () => vi.advanceTimersByTimeAsync(10000));
+  expect(api.computerUseStatus).toHaveBeenCalledTimes(polls);
+  expect(hook.busy).toBe(true);
+  api.computerUseStatus.mockResolvedValue({ ...installed, permissions: { accessibility: true, screenRecording: true } });
+  await act(async () => { finish(); await pending; });
+  expect(hook.status?.permissions?.screenRecording).toBe(true);
+  expect(hook.busy).toBe(false);
 });

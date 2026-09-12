@@ -1,5 +1,6 @@
 use super::{
-    automatic, install, package, platform, state, ComputerError, Result, CHANGES, VERSION,
+    automatic, install, package, permissions, platform, state, ComputerError, Result, CHANGES,
+    VERSION,
 };
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -12,6 +13,7 @@ pub(crate) struct ComputerUseStatus {
     needs_repair: bool,
     supported: bool,
     version: &'static str,
+    permissions: Option<permissions::Permissions>,
 }
 
 #[derive(Deserialize)]
@@ -21,6 +23,16 @@ pub(crate) enum ComputerUseAction {
     Enable,
     Disable,
     Remove,
+}
+
+#[tauri::command]
+pub(crate) async fn computer_use_request_permission(
+    permission: permissions::Permission,
+) -> std::result::Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || permissions::request(permission))
+        .await
+        .map_err(|_| ComputerError::Permissions.to_string())?
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -82,5 +94,6 @@ fn status(root: &Path, home: &Path) -> Result<ComputerUseStatus> {
         needs_repair,
         supported,
         version: VERSION,
+        permissions: permissions::status(),
     })
 }

@@ -492,6 +492,7 @@ pub fn run() {
             chrome_plugin::commands::chrome_plugin_action,
             computer_use::commands::computer_use_status,
             computer_use::commands::computer_use_action,
+            computer_use::commands::computer_use_request_permission,
             skills_market::upload_market_skill,
             skills_market::install_market_skill,
             skills_market::remove_market_skill,

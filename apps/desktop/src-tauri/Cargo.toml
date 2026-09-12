@@ -75,6 +75,9 @@ sysinfo = "0.37"
 qrcode = "0.14.1"
 tauri = { version = "2", features = ["test"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",

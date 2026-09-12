@@ -99,6 +99,22 @@ it("keeps community toggle and removal in the GUI home", async () => {
   expect(backend.removeMarketSkill).toHaveBeenCalledWith(community.id, GUI_CODEX_HOME_ID);
 });
 
+it("shows missing macOS grants and opens only the permission the user selects", async () => {
+  backend.invoke.mockImplementation(async (command: string) => {
+    if (command === "computer_use_status") return { supported: true, installed: true, enabled: true,
+      needsRepair: false, version: "0.25.0", permissions: { accessibility: true, screenRecording: false } };
+    return { supported: true, installed: false, enabled: false, version: "1.0.0" };
+  });
+  await render();
+  const computer = card("Computer Use 电脑助手");
+  expect(computer.querySelector('[aria-label="开启辅助功能"]')).toBeNull();
+  const screenRecording = computer.querySelector<HTMLButtonElement>('[aria-label="开启屏幕录制"]')!;
+  expect(screenRecording).not.toBeNull();
+  expect(backend.invoke).not.toHaveBeenCalledWith("computer_use_request_permission", expect.anything());
+  await act(async () => screenRecording.click());
+  expect(backend.invoke).toHaveBeenCalledWith("computer_use_request_permission", { permission: "screenRecording" });
+});
+
 it("pins official listing, installation, toggling, and removal to the GUI home", async () => {
   await render();
   await selectTab("official");

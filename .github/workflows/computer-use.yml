@@ -1,0 +1,55 @@
+name: Computer Use macOS
+
+on:
+  push:
+    paths:
+      - "apps/desktop/src-tauri/src/computer_use/**"
+      - "apps/desktop/src-tauri/Cargo.*"
+      - "apps/desktop/src-tauri/Info.plist"
+      - "apps/desktop/src-tauri/resources/codex-switch-computer-use/**"
+      - ".github/workflows/computer-use.yml"
+  pull_request:
+    paths:
+      - "apps/desktop/src-tauri/src/computer_use/**"
+      - "apps/desktop/src-tauri/Cargo.*"
+      - "apps/desktop/src-tauri/Info.plist"
+      - "apps/desktop/src-tauri/resources/codex-switch-computer-use/**"
+      - ".github/workflows/computer-use.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./apps/desktop/src-tauri -> target"
+      - run: npm ci
+      - run: npm run build:desktop
+      - run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
+      - run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch_lib_tests computer_use
+      - name: Verify the pinned macOS release archive
+        env:
+          CSW_CUA_TEST_ARCHIVE: ${{ runner.temp }}/cua-driver.tar.gz
+        run: |
+          curl --fail --location --retry 3 --output "$CSW_CUA_TEST_ARCHIVE" \
+            https://github.com/trycua/cua/releases/download/cua-driver-rs-v0.25.0/cua-driver-rs-0.25.0-darwin-universal-binary.tar.gz
+          cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch_lib_tests \
+            verifies_and_extracts_pinned_macos_release -- --ignored

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { computerUseAction, computerUseStatus, type ComputerUseAction, type ComputerUseStatus }
+import { computerUseAction, computerUseStatus, requestComputerUsePermission,
+  type ComputerUseAction, type ComputerUsePermission, type ComputerUseStatus }
   from "../../../api/computerUse";
 
 const REFRESH_INTERVAL_MS = 5000;
@@ -37,7 +38,7 @@ export function useComputerUse(homeId: string, active: boolean) {
     return () => { clearInterval(timer); revision.current += 1; };
   }, [active, refresh]);
 
-  const run = async (action: ComputerUseAction) => {
+  const perform = async (operation: () => Promise<ComputerUseStatus>) => {
     if (changing.current) return false;
     changing.current = true;
     revision.current += 1;
@@ -45,7 +46,7 @@ export function useComputerUse(homeId: string, active: boolean) {
     setBusy(true);
     setError("");
     try {
-      const result = await computerUseAction(homeId, action);
+      const result = await operation();
       if (mounted.current) setStatus(result);
       return true;
     } catch (caught) {
@@ -57,5 +58,10 @@ export function useComputerUse(homeId: string, active: boolean) {
       if (mounted.current) setBusy(false);
     }
   };
-  return { status, error, busy, refresh, run };
+  const run = (action: ComputerUseAction) => perform(() => computerUseAction(homeId, action));
+  const requestPermission = (permission: ComputerUsePermission) => perform(async () => {
+    await requestComputerUsePermission(permission);
+    return computerUseStatus(homeId);
+  });
+  return { status, error, busy, refresh, run, requestPermission };
 }

@@ -1,8 +1,11 @@
 //! Managed CUA installation and per-home, revocable STDIO sessions.
+mod archive;
+mod assets;
 mod automatic;
 pub(crate) mod commands;
 mod install;
 mod package;
+mod permissions;
 mod platform;
 mod session;
 mod state;
@@ -20,8 +23,10 @@ const HELPER_ARGUMENT: &str = "--computer-use-mcp=";
 pub(crate) enum ComputerError {
     #[error("电脑助手操作未完成，请重试。")]
     Storage,
-    #[error("当前版本仅支持 Windows 64 位系统。")]
+    #[error("电脑助手支持 Windows 64 位和 macOS 13 及以上系统。")]
     Unsupported,
+    #[error("未能打开权限设置，请前往系统设置中的“隐私与安全性”重试。")]
+    Permissions,
     #[error("下载未完成，请检查网络后重试。")]
     Download,
     #[error("电脑助手文件校验失败，请重新安装。")]

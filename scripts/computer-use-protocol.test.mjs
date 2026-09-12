@@ -1,4 +1,4 @@
-// Opt-in real Windows CUA integration: uses temporary homes and never changes the user's configuration.
+// Opt-in Windows/macOS CUA integration: temporary homes, with desktop permissions granted beforehand.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
@@ -10,11 +10,15 @@ import { createInterface } from 'node:readline';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const executable = path.resolve('apps/desktop/src-tauri/target/debug/csw.exe');
+const supported = ['win32', 'darwin'].includes(process.platform) && ['x64', 'arm64'].includes(process.arch);
+const executable = path.resolve('apps/desktop/src-tauri/target/debug', process.platform === 'win32' ? 'csw.exe' : 'csw');
 const source = process.env.CSW_CUA_DRIVER_DIRECTORY;
 const codex = process.env.CSW_CUA_CODEX_BINARY;
 const version = '0.25.0';
 const timeoutMs = 30000;
+const cleanupOptions = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
+const target = process.platform === 'darwin' ? 'darwin-universal'
+  : `windows-${process.arch === 'arm64' ? 'arm64' : 'x86_64'}`;
 
 function rpc(child) {
   const waiting = new Map();
@@ -33,7 +37,9 @@ function rpc(child) {
 
 async function fixture(root, name) {
   const home = path.join(root, name);
-  const id = createHash('sha256').update(home.replaceAll('\\', '/').toLowerCase()).digest('hex');
+  const normalized = home.replaceAll('\\', '/').replace(/\/+$/, '');
+  const id = createHash('sha256').update(process.platform === 'win32' ? normalized.toLowerCase() : normalized)
+    .digest('hex');
   const argument = `--computer-use-mcp=${id}`;
   const record = { home, enabled: true, generation: randomUUID() };
   const recordPath = path.join(root, 'homes', `${id}.json`);
@@ -88,19 +94,21 @@ async function readyServer(call, threadId) {
 }
 
 test('real CUA MCP discovers tools, returns images and revokes only the selected home',
-  { skip: process.platform !== 'win32' || !source, timeout: 90000 }, async () => {
+  { skip: !supported || !source, timeout: 90000 }, async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'csw-computer-use-'));
     const children = [];
     try {
-      const architecture = process.arch === 'arm64' ? 'arm64' : 'x86_64';
-      await fs.cp(source, path.join(root, `${version}-windows-${architecture}`), { recursive: true });
-      const first = await fixture(root, 'first');
+      await fs.cp(source, path.join(root, `${version}-${target}`), { recursive: true });
+      const first = await fixture(root, 'FirstHome');
       const second = await fixture(root, 'second');
       const firstChild = start(root, first.argument); children.push(firstChild);
       const secondChild = start(root, second.argument); children.push(secondChild);
       const firstCall = await initialize(firstChild);
       const secondCall = await initialize(secondChild);
       const tools = (await firstCall('tools/list')).result.tools;
+      if (process.platform === 'darwin') {
+        assert.ok(tools.some(tool => tool.name === 'check_permissions'));
+      }
       for (const name of ['list_apps', 'get_window_state', 'click', 'type_text', 'get_desktop_state']) {
         assert.ok(tools.some(tool => tool.name === name), `Missing ${name}`);
       }
@@ -120,18 +128,18 @@ test('real CUA MCP discovers tools, returns images and revokes only the selected
       assert.equal((await once(denied, 'exit'))[0], 1);
     } finally {
       await Promise.all(children.map(stop));
-      await fs.rm(root, { recursive: true, force: true });
+      // Codex's child driver may still be exiting after its parent closes on Windows.
+      await fs.rm(root, cleanupOptions);
     }
   });
 
 test('the GUI-managed Codex CLI loads the computer-use tools from the selected home',
-  { skip: process.platform !== 'win32' || !source || !codex, timeout: 90000 }, async () => {
+  { skip: !supported || !source || !codex, timeout: 90000 }, async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'csw-cua-codex-'));
     let child;
     let selected;
     try {
-      const architecture = process.arch === 'arm64' ? 'arm64' : 'x86_64';
-      await fs.cp(source, path.join(root, `${version}-windows-${architecture}`), { recursive: true });
+      await fs.cp(source, path.join(root, `${version}-${target}`), { recursive: true });
       selected = await fixture(root, 'codex-home');
       await fs.writeFile(path.join(selected.record.home, 'auth.json'),
         JSON.stringify({ OPENAI_API_KEY: 'fixture-no-model-request' }));
@@ -153,6 +161,6 @@ test('the GUI-managed Codex CLI loads the computer-use tools from the selected h
     } finally {
       if (selected) { selected.record.enabled = false; await selected.save(); }
       if (child) await stop(child);
-      await fs.rm(root, { recursive: true, force: true });
+      await fs.rm(root, cleanupOptions);
     }
   });

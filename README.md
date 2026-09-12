@@ -90,7 +90,7 @@ Codex GUI 是内置的图形化对话工作区。选择项目后，用自然语�
 - 在官方账号模式下，可在额度耗尽后刷新账号、选择主用量窗口使用率最低的可用账号并切换凭据。
 - 桌面客户端可在运行界面的同时启动仅监听本机的网页版，也支持 `--headless --port` 无界面运行。
 - 内置 Skills 市场，可搜索、安装社区 Skill；登录云端账号后可发布或更新自己的版本化 Skill 包。
-- 内置 [Computer Use 电脑助手](docs/computer-use-plugin.md)，让 Codex GUI 通过 CUA 操作 Windows 应用，支持按 Codex Home 安装、停用和卸载。
+- 内置 [Computer Use 电脑助手](docs/computer-use-plugin.md)，让 Codex GUI 操作 Windows 和 Mac 应用，支持按 Codex Home 安装、停用和卸载。
 - 内置 300+ 套 Dream Skin 主题预设，支持一键应用、自定义背景、外观调整和恢复。
 - 设置按外观、窗口、用量、网络、隐私和存储分组，支持界面语言、主题色、关闭到托盘、
   隐私模式、悬浮球、账号刷新和 Token 统计范围等本地选项。

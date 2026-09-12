@@ -1,7 +1,7 @@
 {
   "name": "codex-switch-computer-use",
-  "version": "1.0.0",
-  "description": "Use CUA Driver to inspect and operate Windows desktop apps from Codex.",
+  "version": "1.1.0",
+  "description": "Use CUA Driver to inspect and operate Windows and macOS desktop apps from Codex.",
   "author": {
     "name": "Codex Switch"
   },
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Computer Use 电脑助手",
     "shortDescription": "让 Codex 查看屏幕、操作应用和完成桌面任务。",
-    "longDescription": "使用 CUA 操作 Windows 应用，支持截图、点击、输入、滚动和键盘快捷键。",
+    "longDescription": "让 Codex 操作 Windows 和 Mac 应用，支持截图、点击、输入、滚动和键盘快捷键。",
     "developerName": "Codex Switch",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
