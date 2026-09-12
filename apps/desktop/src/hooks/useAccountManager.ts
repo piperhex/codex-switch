@@ -26,6 +26,7 @@ import {
 } from "../api/backend";
 import type { Translate } from "../i18n";
 import type { Account, AccountDetailsDraft, AppInfo } from "../types";
+import { runSwitchFollowUp } from "./switchFollowUp";
 
 interface RefreshAllOptions {
   quiet?: boolean;
@@ -206,7 +207,7 @@ export function useAccountManager(
       }
       notify(t(hotSwitch ? "toast.accountSwitchedHot" : "toast.switched"));
       if (hasLocalBackend) await load();
-      await cloudSync?.pushAccount?.(id);
+      runSwitchFollowUp(() => cloudSync?.pushAccount?.(id));
       return true;
     } catch (error) {
       notify(String(error));
@@ -225,7 +226,7 @@ export function useAccountManager(
       }
       notify(t("toast.accountDeactivated"));
       if (hasLocalBackend) await load();
-      await cloudSync?.pushAccount?.(id);
+      runSwitchFollowUp(() => cloudSync?.pushAccount?.(id));
     } catch (error) {
       notify(String(error));
     } finally {

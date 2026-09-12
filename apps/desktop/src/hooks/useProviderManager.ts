@@ -46,6 +46,7 @@ import type {
   SystemPromptRule,
 } from "../types";
 import { useProviderData } from "./useProviderData";
+import { runSwitchFollowUp } from "./switchFollowUp";
 
 interface ProviderCloudSync {
   pushProvider?: (id: string) => Promise<void> | void;
@@ -248,12 +249,8 @@ export function useProviderManager(
       );
       await activateProvider(id);
       notify(t("toast.providerSwitchedHot"));
-      await Promise.all([
-        load(),
-        refreshesBalance
-          ? queryProviderBalance(id).catch(() => undefined)
-          : Promise.resolve(),
-      ]);
+      await load();
+      if (refreshesBalance) runSwitchFollowUp(() => queryProviderBalance(id));
       return true;
     } catch (error) {
       notify(providerErrorMessage(error, t));
@@ -297,7 +294,7 @@ export function useProviderManager(
       await switchProviderModel(id, model);
       notify(t("toast.providerModelSwitched"));
       await load();
-      await cloudSync?.pushProvider?.(id);
+      runSwitchFollowUp(() => cloudSync?.pushProvider?.(id));
     } catch (error) {
       notify(providerErrorMessage(error, t));
     } finally {
