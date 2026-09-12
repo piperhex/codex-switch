@@ -1,0 +1,58 @@
+.third-party-apps-setup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-bottom: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.third-party-apps-setup-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.third-party-apps-setup-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--green-dark);
+  background: var(--green-soft);
+}
+
+.third-party-apps-setup-copy { min-width: 0; max-width: 400px; }
+.third-party-apps-setup-copy h2 {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.third-party-apps-setup-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.third-party-apps-setup-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.third-party-apps-setup-actions .ant-btn { height: 34px; border-radius: 8px; font-size: 12px; }
+
+@media (max-width: 1000px) {
+  .third-party-apps-setup { align-items: flex-start; flex-direction: column; }
+  .third-party-apps-setup-actions { padding-left: 48px; }
+}
+
+@media (max-width: 480px) {
+  .third-party-apps-setup { padding: 16px; }
+  .third-party-apps-setup-actions { padding-left: 0; }
+}

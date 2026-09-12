@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button, Card, Modal, Popconfirm, Select, Space, Switch, Typography } from "antd";
+import { Button, Card, Modal, Select, Space, Switch, Typography } from "antd";
 import { Play, RefreshCw, SquareTerminal } from "lucide-react";
+import { ThirdPartyAppsSetupNotice } from "./ThirdPartyAppsSetupNotice";
 import type { Translate, TranslationKey } from "../i18n";
 import type {
   ClaudeSubagentModel,
@@ -154,31 +155,6 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
     <>
       {topbarHost && createPortal(
         <div className="third-party-apps-topbar-controls">
-          {!proxyRunning && (
-            <div className="third-party-apps-proxy-warning">
-              <Typography.Text type="warning">{t("thirdPartyApps.proxyRequired")}</Typography.Text>
-              <Popconfirm title={t("providers.proxy.startConfirmTitle")}
-                description={<span className="proxy-start-confirm-description">{t("providers.proxy.description")}</span>}
-                okText={t("providers.proxy.start")} cancelText={t("providers.proxy.cancel")}
-                disabled={proxyBusy || Boolean(proxyStartDisabledReason)} onConfirm={onStartProxy}>
-                <Button type="link" size="small" loading={proxyBusy}
-                  disabled={proxyBusy || Boolean(proxyStartDisabledReason)}>
-                  {t("thirdPartyApps.openProxy")}
-                </Button>
-              </Popconfirm>
-            </div>
-          )}
-          {proxyRunning && !hasProxyTarget && (
-            <div className="third-party-apps-proxy-warning">
-              <Typography.Text type="warning">{t("thirdPartyApps.targetRequired")}</Typography.Text>
-              <Button type="link" size="small" onClick={onOpenAccounts}>
-                {t("thirdPartyApps.openAccounts")}
-              </Button>
-              <Button type="link" size="small" onClick={onOpenProviders}>
-                {t("thirdPartyApps.openProviders")}
-              </Button>
-            </div>
-          )}
           <label className="third-party-apps-topbar-control">
             <Typography.Text strong>{t("thirdPartyApps.masterWrite")}</Typography.Text>
             <Switch checked={settings.enabled} loading={saving}
@@ -194,6 +170,11 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
         topbarHost,
       )}
       <div className="third-party-apps-page">
+        <ThirdPartyAppsSetupNotice
+          proxyRunning={proxyRunning} hasProxyTarget={hasProxyTarget} proxyBusy={proxyBusy}
+          proxyStartDisabledReason={proxyStartDisabledReason} onStartProxy={onStartProxy}
+          onOpenAccounts={onOpenAccounts} onOpenProviders={onOpenProviders} t={t}
+        />
         <Card className="third-party-apps-card">
           <div className="third-party-apps-list-heading">
             <Typography.Text strong>{t("thirdPartyApps.listTitle")}</Typography.Text>
