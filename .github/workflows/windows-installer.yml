@@ -58,7 +58,7 @@ jobs:
       - name: Install installer compilers
         run: |
           choco install nsis --no-progress -y
-          choco install wixtoolset --version=3.14.1 --no-progress -y
+          choco install wixtoolset --version=3.14.1.20250415 --no-progress -y
       - name: Test native MSI and NSIS shutdown
         shell: pwsh
         run: |
