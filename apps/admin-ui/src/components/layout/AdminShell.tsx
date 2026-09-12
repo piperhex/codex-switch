@@ -30,6 +30,7 @@ import { LANGUAGE_OPTIONS, type Language, type TranslationKey } from "../../i18n
 import { useI18n } from "../../i18n-context";
 import type { MenuKey, Permission, Profile } from "../../types";
 import { getLatestAndroidApkUrl } from "../../utils/releaseDownloads";
+import "./AdminShell.css";
 
 interface AdminShellProps {
   activeKey: MenuKey;
