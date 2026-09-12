@@ -117,9 +117,8 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     </div>
   </div>;
   return <><Popover trigger="click" placement="topLeft" open={open && props.active} content={panel}
-    arrow={false} align={{ offset: [0, -2] }}
-    styles={{ root: { width: panelWidth, maxWidth: MAX_ACCOUNT_PICKER_WIDTH },
-      body: { padding: 0, overflow: "hidden", borderRadius: 10 } }}
+    arrow={false} align={{ offset: [0, -2] }} classNames={{ root: styles.popup }}
+    styles={{ root: { width: panelWidth, maxWidth: MAX_ACCOUNT_PICKER_WIDTH } }}
     onOpenChange={(next) => {
       setOpen(next); if (next) { setQuery(""); setError(""); }
     }}>

@@ -67,6 +67,10 @@ test("gear opens an aligned 80vw settings dialog and saves GUI settings", async 
   const dialog = page.getByRole("dialog", { name: "GUI 自动切号设置" });
   await expect(dialog).toBeVisible();
   await expect.poll(async () => (await dialog.boundingBox())!.width).toBeCloseTo(1440 * 0.8, 0);
+  // The opening transform changes cell coordinates until the dialog settles.
+  await dialog.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map((animation) => animation.finished));
+  });
   const rows = dialog.locator("tbody tr");
   const firstCells = await rows.first().locator("td").all();
   const reference = await Promise.all(firstCells.map(async (cell) => (await cell.boundingBox())!));

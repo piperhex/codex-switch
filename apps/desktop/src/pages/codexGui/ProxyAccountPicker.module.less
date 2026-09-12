@@ -9,6 +9,17 @@
   &:hover { background: var(--green-selection-hover); }
   &:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 }
+.popup :global(.ant-popover-inner) {
+  padding: 0; overflow: hidden; border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: var(--panel, #fff);
+  box-shadow: 0 8px 24px #00000014, inset 0 1px 0 color-mix(in srgb, var(--panel) 70%, transparent);
+  @supports (backdrop-filter: blur(16px)) {
+    background: color-mix(in srgb, var(--panel, #fff) 82%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+  }
+}
 .panel {
   width: 100%; max-width: min(400px, calc(100vw - 24px)); box-sizing: border-box;
   padding: 12px 0; color: var(--ink); overflow-wrap: anywhere;
