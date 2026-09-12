@@ -112,7 +112,16 @@ export function TelemetryPage({
       title: t("telemetry.eventType"),
       dataIndex: "eventType",
       width: 180,
-      render: () => <Tag color="geekblue">{t("telemetry.event.baseUrlChanged")}</Tag>,
+      render: (eventType: TelemetryEvent["eventType"]) => {
+        switch (eventType) {
+          case "activity":
+            return <Tag color="green">{t("telemetry.event.activity")}</Tag>;
+          case "base_url_changed":
+            return <Tag color="geekblue">{t("telemetry.event.baseUrlChanged")}</Tag>;
+          default:
+            return <Tag>{t("telemetry.event.unknown")}</Tag>;
+        }
+      },
     },
   ];
 

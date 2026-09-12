@@ -271,7 +271,7 @@ export interface TelemetryEvent {
   id: string;
   deviceId: string;
   platform: TelemetryPlatform;
-  eventType: "base_url_changed";
+  eventType: "base_url_changed" | "activity";
   createdAt: string;
 }
 
