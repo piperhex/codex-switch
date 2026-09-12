@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-
-const PLATFORMS = ['windows', 'macos', 'linux', 'android', 'ios'] as const;
+import { DASHBOARD_QUERIES } from './dashboard-queries';
+import { buildDashboardTrend, platformCounts, InstallationTrendRow } from './dashboard-trend';
 
 interface CountRow {
   count: string;
@@ -40,54 +40,13 @@ export class DashboardService {
     const start = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
     start.setUTCDate(start.getUTCDate() - days + 1);
 
-    const [summaryRows, userRows, installationRows, platformRows, planRows] = await Promise.all([
-      this.dataSource.query<SummaryRow[]>(`
-        SELECT
-          (SELECT COUNT(*) FROM users)::text AS "totalUsers",
-          (SELECT COUNT(*) FROM users WHERE disabled = false)::text AS "activeUsers",
-          (SELECT COUNT(DISTINCT "deviceId") FROM device_telemetry_events
-            WHERE "eventType" = 'activity'
-              AND "createdAt" >= (date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'))::text AS "dailyActiveUsers",
-          (SELECT COUNT(*) FROM users WHERE "createdAt" >= $1)::text AS "newUsers",
-          (SELECT COUNT(*) FROM device_installations)::text AS "totalInstallations",
-          (SELECT COUNT(*) FROM device_installations WHERE "firstSeenAt" >= $1)::text AS "newInstallations",
-          (SELECT COUNT(*) FROM system_accounts)::text AS "officialAccounts",
-          (SELECT COUNT(DISTINCT "systemAccountId") FROM system_account_bindings)::text AS "boundOfficialAccounts",
-          (SELECT COUNT(*) FROM system_account_bindings)::text AS "totalBindings",
-          (SELECT COUNT(*) FROM user_feedback WHERE "lastRepliedAt" IS NULL)::text AS "pendingFeedback",
-          (SELECT COUNT(*) FROM user_feedback WHERE "lastRepliedAt" IS NOT NULL)::text AS "repliedFeedback",
-          (SELECT COUNT(*) FROM admin_approval_requests WHERE status = 'pending')::text AS "pendingApprovals"
-      `, [start]),
-      this.dataSource.query<DatedCountRow[]>(`
-        SELECT TO_CHAR(("createdAt" AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD') AS date,
-               COUNT(*)::text AS count
-        FROM users
-        WHERE "createdAt" >= $1
-        GROUP BY 1
-        ORDER BY 1
-      `, [start]),
-      this.dataSource.query<DatedCountRow[]>(`
-        SELECT TO_CHAR(("firstSeenAt" AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD') AS date,
-               COUNT(*)::text AS count
-        FROM device_installations
-        WHERE "firstSeenAt" >= $1
-        GROUP BY 1
-        ORDER BY 1
-      `, [start]),
-      this.dataSource.query<NamedCountRow[]>(`
-        SELECT platform AS name, COUNT(*)::text AS count
-        FROM device_installations
-        GROUP BY platform
-        ORDER BY COUNT(*) DESC
-      `),
-      this.dataSource.query<NamedCountRow[]>(`
-        SELECT COALESCE(NULLIF(TRIM(plan), ''), 'Unknown') AS name,
-               COUNT(*)::text AS count
-        FROM system_accounts
-        GROUP BY 1
-        ORDER BY COUNT(*) DESC, name ASC
-        LIMIT 8
-      `),
+    const [summaryRows, userRows, installationRows, platformRows, planRows, dailyActiveRows] = await Promise.all([
+      this.dataSource.query<SummaryRow[]>(DASHBOARD_QUERIES.SUMMARY, [start]),
+      this.dataSource.query<DatedCountRow[]>(DASHBOARD_QUERIES.USERS, [start]),
+      this.dataSource.query<InstallationTrendRow[]>(DASHBOARD_QUERIES.INSTALLATIONS, [start]),
+      this.dataSource.query<NamedCountRow[]>(DASHBOARD_QUERIES.PLATFORMS),
+      this.dataSource.query<NamedCountRow[]>(DASHBOARD_QUERIES.PLANS),
+      this.dataSource.query<NamedCountRow[]>(DASHBOARD_QUERIES.DAILY_ACTIVE),
     ]);
 
     const summary = summaryRows[0] ?? {
@@ -96,21 +55,10 @@ export class DashboardService {
       boundOfficialAccounts: '0', totalBindings: '0', pendingFeedback: '0',
       repliedFeedback: '0', pendingApprovals: '0',
     };
-    const usersByDate = new Map(userRows.map((row) => [row.date, Number(row.count)]));
-    const installationsByDate = new Map(
-      installationRows.map((row) => [row.date, Number(row.count)]),
-    );
-    const trend = Array.from({ length: days }, (_, index) => {
-      const date = new Date(start);
-      date.setUTCDate(start.getUTCDate() + index);
-      const key = this.utcDate(date);
-      return {
-        date: key,
-        users: usersByDate.get(key) ?? 0,
-        installations: installationsByDate.get(key) ?? 0,
-      };
+    const trend = buildDashboardTrend({
+      start, days, users: userRows, installations: installationRows,
+      totalInstallations: Number(summary.totalInstallations),
     });
-    const platformCounts = new Map(platformRows.map((row) => [row.name, Number(row.count)]));
 
     return {
       range: { days, startDate: this.utcDate(start), endDate },
@@ -118,7 +66,8 @@ export class DashboardService {
         Object.entries(summary).map(([key, value]) => [key, Number(value)]),
       ),
       trend,
-      platforms: PLATFORMS.map((name) => ({ name, value: platformCounts.get(name) ?? 0 })),
+      dailyActivePlatforms: platformCounts(dailyActiveRows),
+      platforms: platformCounts(platformRows),
       accountPlans: planRows.map((row) => ({ name: row.name, value: Number(row.count) })),
       feedback: {
         pending: Number(summary.pendingFeedback),

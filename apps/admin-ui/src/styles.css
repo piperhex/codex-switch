@@ -752,3 +752,28 @@ body {
     display: none;
   }
 }
+
+.dashboard-platform-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+  color: var(--dashboard-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-trend-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dashboard-panel-wide .dashboard-panel-heading {
+  flex-wrap: wrap;
+}
+
+.dashboard-trend-summary .ant-tag {
+  display: block;
+  margin-inline-end: 0;
+}

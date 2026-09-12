@@ -12,6 +12,7 @@ import {
   UserRoundCheck,
   Users,
 } from "lucide-react";
+import { dashboardPlatforms, dashboardTrendOption } from "./dashboard-trend";
 import { EChart } from "../components/charts/EChart";
 import { useI18n } from "../i18n-context";
 import type { DashboardOverview, MenuKey, Permission, TelemetryPlatform } from "../types";
@@ -64,52 +65,8 @@ export function DashboardPage({
     }) ?? []
   ), [data?.trend, language]);
 
-  const trendOption = useMemo<EChartsCoreOption>(() => ({
-    animationDuration: 450,
-    backgroundColor: "transparent",
-    color: ["#1769e0", "#16a085"],
-    tooltip: { trigger: "axis" },
-    legend: {
-      top: 0,
-      right: 4,
-      textStyle: { color: muted },
-      data: [t("dashboard.newUsers"), t("dashboard.newDevices")],
-    },
-    grid: { left: 18, right: 18, top: 46, bottom: 8, containLabel: true },
-    xAxis: {
-      type: "category",
-      boundaryGap: false,
-      data: dateLabels,
-      axisLine: { lineStyle: { color: gridLine } },
-      axisTick: { show: false },
-      axisLabel: { color: muted, hideOverlap: true },
-    },
-    yAxis: {
-      type: "value",
-      minInterval: 1,
-      axisLabel: { color: muted },
-      splitLine: { lineStyle: { color: gridLine } },
-    },
-    series: [
-      {
-        name: t("dashboard.newUsers"),
-        type: "line",
-        smooth: true,
-        showSymbol: false,
-        data: data?.trend.map((item) => item.users) ?? [],
-        lineStyle: { width: 3 },
-        areaStyle: { opacity: 0.1 },
-      },
-      {
-        name: t("dashboard.newDevices"),
-        type: "line",
-        smooth: true,
-        showSymbol: false,
-        data: data?.trend.map((item) => item.installations) ?? [],
-        lineStyle: { width: 3 },
-        areaStyle: { opacity: 0.08 },
-      },
-    ],
+  const trendOption = useMemo(() => dashboardTrendOption({
+    trend: data?.trend ?? [], dateLabels, gridLine, muted, t,
   }), [data?.trend, dateLabels, gridLine, muted, t]);
 
   const platformOption = useMemo<EChartsCoreOption>(() => ({
@@ -264,6 +221,13 @@ export function DashboardPage({
               ? <Skeleton.Input active size="small" />
               : <strong>{number.format(metric.value)}</strong>}
             <small>{metric.note}</small>
+            {metric.key === "daily-active-users" && <div className="dashboard-platform-counts">
+              {dashboardPlatforms.map((platform) => <span key={platform.name}>
+                {platform.label} {number.format(
+                  data?.dailyActivePlatforms?.find((item) => item.name === platform.name)?.value ?? 0,
+                )}
+              </span>)}
+            </div>}
           </div>
         ))}
       </div>
@@ -275,7 +239,10 @@ export function DashboardPage({
               <h2>{t("dashboard.growthTrend")}</h2>
               <span>{t("dashboard.growthTrendDescription", { period: periodLabel })}</span>
             </div>
-            <Tag color="blue">{data?.range.startDate ?? "—"} → {data?.range.endDate ?? "—"}</Tag>
+            <div className="dashboard-trend-summary">
+              <Tag>{t("dashboard.totalDevices")} {number.format(summary?.totalInstallations ?? 0)}</Tag>
+              <Tag color="blue">{data?.range.startDate ?? "—"} → {data?.range.endDate ?? "—"}</Tag>
+            </div>
           </div>
           <EChart
             className="dashboard-chart dashboard-trend-chart"

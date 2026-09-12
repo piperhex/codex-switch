@@ -155,7 +155,14 @@ export interface AdminDashboardOverview {
     repliedFeedback: number;
     pendingApprovals: number;
   };
-  trend: Array<{ date: string; users: number; installations: number }>;
+  trend: Array<{
+    date: string;
+    users: number;
+    installations: number;
+    totalInstallations: number;
+    platforms: Array<{ name: string; value: number }>;
+  }>;
+  dailyActivePlatforms: Array<{ name: string; value: number }>;
   platforms: Array<{ name: string; value: number }>;
   accountPlans: Array<{ name: string; value: number }>;
   feedback: { pending: number; replied: number };

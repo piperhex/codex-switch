@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { DailyActivePlatforms, DashboardGrowth } from './DashboardStats';
 import { adminRequest } from '../api/client';
 import { Toast } from '../components/AppToast';
 import { BottomSheet } from '../components/BottomSheet';
@@ -401,7 +402,7 @@ function DashboardPage({ session, onBack }: AdminAreaProps & { onBack: () => voi
       tone: 'green',
     },
     {
-      label: '设备安装',
+      label: '总设备',
       value: data?.summary.totalInstallations ?? 0,
       note: `新增 ${data?.summary.newInstallations ?? 0}`,
       tone: 'green',
@@ -419,8 +420,6 @@ function DashboardPage({ session, onBack }: AdminAreaProps & { onBack: () => voi
       tone: 'amber',
     },
   ];
-  const trend = data?.trend.slice(-10) ?? [];
-  const trendMax = Math.max(1, ...trend.map((item) => item.users + item.installations));
   const platformTotal = Math.max(1, ...(data?.platforms.map((item) => item.value) ?? [1]));
 
   return <PageShell page="dashboard" onBack={onBack}>
@@ -448,22 +447,17 @@ function DashboardPage({ session, onBack }: AdminAreaProps & { onBack: () => voi
             <Text style={styles.metricLabel}>{metric.label}</Text>
             <Text style={styles.metricValue}>{metric.value}</Text>
             <Text style={styles.metricNote}>{metric.note}</Text>
+            {metric.label === '日活跃用户' && <DailyActivePlatforms counts={data?.dailyActivePlatforms} />}
           </View>;
         })}
       </View>
 
       <Surface>
         <View style={styles.panelHeader}>
-          <View><Text style={styles.panelTitle}>增长趋势</Text><Text style={styles.panelSubtitle}>最近 10 个数据点</Text></View>
+          <View><Text style={styles.panelTitle}>增长趋势</Text></View>
           {data ? <Pill tone="gray">{data.range.startDate} – {data.range.endDate}</Pill> : null}
         </View>
-        {trend.length ? trend.map((item) => <View key={item.date} style={styles.chartRow}>
-          <Text style={styles.chartLabel}>{item.date.slice(5)}</Text>
-          <View style={styles.chartTrack}>
-            <View style={[styles.chartFill, { width: percentage(item.users + item.installations, trendMax) }]} />
-          </View>
-          <Text style={styles.chartValue}>+{item.users + item.installations}</Text>
-        </View>) : <Text style={styles.inlineEmpty}>暂无趋势数据</Text>}
+        <DashboardGrowth data={data} />
       </Surface>
 
       <Surface>
@@ -1361,11 +1355,6 @@ const styles = StyleSheet.create({
   panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
   panelTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '900' },
   panelSubtitle: { color: COLORS.faint, fontSize: 11, marginTop: 3 },
-  chartRow: { flexDirection: 'row', alignItems: 'center', minHeight: 31, gap: 9 },
-  chartLabel: { width: 38, color: COLORS.muted, fontSize: 10 },
-  chartTrack: { flex: 1, height: 8, backgroundColor: '#e8efeb', borderRadius: 5, overflow: 'hidden' },
-  chartFill: { height: '100%', borderRadius: 5, backgroundColor: COLORS.primary },
-  chartValue: { width: 30, textAlign: 'right', color: COLORS.ink, fontSize: 10, fontWeight: '800' },
   distributionRow: { marginBottom: 14 },
   distributionMeta: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 7 },
   distributionName: { color: COLORS.ink, fontSize: 12, fontWeight: '700' },

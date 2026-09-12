@@ -304,7 +304,10 @@ export interface DashboardOverview {
     date: string;
     users: number;
     installations: number;
+    totalInstallations: number;
+    platforms: Array<{ name: TelemetryPlatform; value: number }>;
   }>;
+  dailyActivePlatforms: Array<{ name: TelemetryPlatform; value: number }>;
   platforms: Array<{
     name: TelemetryPlatform;
     value: number;

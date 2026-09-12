@@ -30,7 +30,10 @@ describe('DashboardService', () => {
         { date: '2026-07-12', count: '1' },
         { date: '2026-07-18', count: '1' },
       ])
-      .mockResolvedValueOnce([{ date: '2026-07-17', count: '5' }])
+      .mockResolvedValueOnce([
+        { date: '2026-07-17', platform: 'windows', count: '3' },
+        { date: '2026-07-17', platform: 'android', count: '2' },
+      ])
       .mockResolvedValueOnce([
         { name: 'windows', count: '20' },
         { name: 'macos', count: '10' },
@@ -38,6 +41,10 @@ describe('DashboardService', () => {
       .mockResolvedValueOnce([
         { name: 'Pro', count: '5' },
         { name: 'Team', count: '3' },
+      ])
+      .mockResolvedValueOnce([
+        { name: 'windows', count: '4' },
+        { name: 'android', count: '2' },
       ]);
     const service = new DashboardService({ query } as unknown as DataSource);
 
@@ -56,8 +63,18 @@ describe('DashboardService', () => {
       pendingFeedback: 3,
     });
     expect(result.trend).toHaveLength(7);
-    expect(result.trend[0]).toEqual({ date: '2026-07-12', users: 1, installations: 0 });
-    expect(result.trend[5]).toEqual({ date: '2026-07-17', users: 0, installations: 5 });
+    expect(result.trend[0]).toMatchObject({ date: '2026-07-12', users: 1, installations: 0, totalInstallations: 25 });
+    expect(result.trend[5]).toMatchObject({ date: '2026-07-17', users: 0, installations: 5, totalInstallations: 30 });
+    expect(result.trend[6].totalInstallations).toBe(30);
+    expect(result.trend[0].platforms.every((platform) => platform.value === 0)).toBe(true);
+    expect(result.trend[5].platforms).toEqual([
+      { name: 'windows', value: 3 }, { name: 'macos', value: 0 }, { name: 'linux', value: 0 },
+      { name: 'android', value: 2 }, { name: 'ios', value: 0 },
+    ]);
+    expect(result.dailyActivePlatforms).toEqual([
+      { name: 'windows', value: 4 }, { name: 'macos', value: 0 }, { name: 'linux', value: 0 },
+      { name: 'android', value: 2 }, { name: 'ios', value: 0 },
+    ]);
     expect(result.platforms).toEqual([
       { name: 'windows', value: 20 },
       { name: 'macos', value: 10 },
@@ -66,7 +83,12 @@ describe('DashboardService', () => {
       { name: 'ios', value: 0 },
     ]);
     expect(result.feedback).toEqual({ pending: 3, replied: 7 });
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(query).toHaveBeenCalledTimes(6);
+    const activityQuery = query.mock.calls[5][0] as string;
+    expect(activityQuery).toContain('COUNT(DISTINCT "deviceId")');
+    expect(activityQuery).toContain(`"eventType" = 'activity'`);
+    expect(activityQuery).toContain("date_trunc('day', NOW() AT TIME ZONE 'UTC')");
+    expect(activityQuery).toContain('GROUP BY platform');
   });
 });
 
