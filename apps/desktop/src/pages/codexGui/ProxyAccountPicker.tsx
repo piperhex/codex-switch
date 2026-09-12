@@ -37,7 +37,7 @@ function AccountGroup({ title, choices, onSelect, disabled }: {
       aria-pressed={choice.selected} disabled={disabled || choice.disabled}
       onClick={() => { if (!choice.selected) onSelect(choice.id); }}>
       <span>
-        <span>{choice.name}</span>
+        <span className={styles.optionName} title={choice.name}>{choice.name}</span>
         {choice.usage ? <ProxyAccountDetails plan={choice.detail} usage={choice.usage} />
           : choice.detail && <small>{choice.detail}</small>}
         {choice.disabled && <small>此账号暂不支持代理</small>}
@@ -93,34 +93,33 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const panel = <div className={styles.panel} onKeyDown={(event) => {
     if (event.key === "Escape") { event.stopPropagation(); setOpen(false); trigger.current?.focus(); }
   }}>
-    <div className={styles.header}>
-      <div className={styles.heading}>
-        <strong>切换 GUI 账户</strong>
-        <div className={styles.headingActions}>
-          {(saving || props.loading) && <Spin size="small" />}
-          <button type="button" className={styles.settings} aria-label="自动切号设置" aria-haspopup="dialog"
-            disabled={saving || props.loading}
-            onClick={() => { setOpen(false); setSettingsOpen(true); }}><Settings size={16} /></button>
-        </div>
-      </div>
-      <p className={styles.hint}>仅用于 Codex GUI，其他应用保持各自的账户。</p>
-      <Input size="small" prefix={<Search size={13} />} placeholder="搜索账号或 Provider" aria-label="搜索账号或 Provider"
-        value={query} allowClear onChange={(event) => setQuery(event.target.value)} />
-      {!props.proxyRunning && <p className={styles.hint}>开启本地代理后，即可在这里切换。</p>}
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      {props.selectionError && <p className={styles.error} role="alert">{props.selectionError}</p>}
-    </div>
     <div className={styles.list} aria-busy={saving || props.loading}>
       <AccountGroup title="官方账号" choices={accounts} disabled={disabled}
         onSelect={(id) => void select(id, props.onSwitchAccount)} />
       <AccountGroup title="第三方 Provider" choices={providers} disabled={disabled}
         onSelect={(id) => void select(id, props.onSwitchProvider)} />
     </div>
+    <div className={styles.footer}>
+      <div className={styles.toolbar}>
+        <Input className={styles.search} size="small" prefix={<Search size={13} />}
+          placeholder="搜索账号或 Provider" aria-label="搜索账号或 Provider"
+          value={query} allowClear onChange={(event) => setQuery(event.target.value)} />
+        <div className={styles.actions}>
+          {(saving || props.loading) && <Spin size="small" />}
+          <button type="button" className={styles.settings} aria-label="自动切号设置" aria-haspopup="dialog"
+            disabled={saving || props.loading}
+            onClick={() => { setOpen(false); setSettingsOpen(true); }}><Settings size={16} /></button>
+        </div>
+      </div>
+      {!props.proxyRunning && <p className={styles.hint}>开启本地代理后，即可在这里切换。</p>}
+      {error && <p className={styles.error} role="alert">{error}</p>}
+      {props.selectionError && <p className={styles.error} role="alert">{props.selectionError}</p>}
+    </div>
   </div>;
   return <><Popover trigger="click" placement="topLeft" open={open && props.active} content={panel}
     arrow={false} align={{ offset: [0, -2] }}
     styles={{ root: { width: panelWidth, maxWidth: MAX_ACCOUNT_PICKER_WIDTH },
-      body: { padding: 0, overflow: "hidden", borderRadius: 0 } }}
+      body: { padding: 0, overflow: "hidden", borderRadius: 10 } }}
     onOpenChange={(next) => {
       setOpen(next); if (next) { setQuery(""); setError(""); }
     }}>

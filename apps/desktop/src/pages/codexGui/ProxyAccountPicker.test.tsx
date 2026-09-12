@@ -338,7 +338,7 @@ it("does not use an unrelated provider wallet for an aggregate API", async () =>
   expect(queryProviderBalance).not.toHaveBeenCalled();
 });
 
-it("opens independent auto-switch settings from the list header and closes them on page exit", async () => {
+it("opens independent auto-switch settings from the list footer and closes them on page exit", async () => {
   const settings: GuiAutoSwitchSettings = { enabled: false, switchOnQuotaExhaustion: true,
     minimumRemainingPercent: 0, mode: "sequential", fallbackProviderId: null, accounts: [] };
   vi.mocked(invoke).mockImplementation(async (command) => command === "codex_gui_auto_switch_settings"
