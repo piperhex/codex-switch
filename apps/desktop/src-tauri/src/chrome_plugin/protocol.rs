@@ -25,6 +25,7 @@ pub(super) enum Operation {
     Focus,
     Snapshot,
     Frames,
+    ConsoleLogs,
     Click,
     Fill,
     Type,

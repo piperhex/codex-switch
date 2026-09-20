@@ -1,9 +1,10 @@
 const TAB_OPERATIONS = new Set([
   'navigate', 'back', 'forward', 'reload', 'close', 'focus', 'snapshot', 'frames', 'click',
-  'fill', 'type', 'key', 'scroll', 'select', 'check', 'drag', 'screenshot', 'wait',
+  'fill', 'type', 'key', 'scroll', 'select', 'check', 'drag', 'screenshot', 'wait', 'console_logs',
 ]);
 const OPERATIONS = new Set(['status', 'tabs', 'open', ...TAB_OPERATIONS]);
 const MAX_TEXT_LENGTH = 20000;
+const MAX_CONSOLE_ENTRIES = 200;
 
 export function website(value) {
   let url;
@@ -43,6 +44,7 @@ export function validate(request) {
   if (operation === 'check' && typeof args.checked !== 'boolean') throw new Error('勾选状态无效。');
   if (operation === 'click') validateClick(args);
   if (operation === 'scroll') validateScroll(args);
+  if (operation === 'console_logs') validateConsoleLogs(args);
   if (operation === 'key' && !text(args.key, 60, false)) throw new Error('按键无效。');
   if (operation === 'wait' && (!text(args.text, 500, false)
     || (args.timeoutMs !== undefined && !finite(args.timeoutMs, 100, 20000)))) {
@@ -52,6 +54,15 @@ export function validate(request) {
     throw new Error('请先读取页面，再选择拖动位置。');
   }
   return { operation, args };
+}
+
+function validateConsoleLogs(args) {
+  if (args.level !== undefined && !['all', 'debug', 'log', 'info', 'warn', 'error'].includes(args.level)) {
+    throw new Error('请选择有效的日志级别。');
+  }
+  if (args.limit !== undefined && (!Number.isInteger(args.limit) || !finite(args.limit, 1, MAX_CONSOLE_ENTRIES))) {
+    throw new Error('日志条数应为 1 到 200 的整数。');
+  }
 }
 
 function validateClick(args) {

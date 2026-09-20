@@ -3,6 +3,7 @@ import { validate, website } from './validation.js';
 import { withTab } from './driver.js';
 import { groupNewTab } from './tab-groups.js';
 import { snapshot, frames, invalidate } from './snapshot.js';
+import { consoleLogs } from './console-logs.js';
 import * as actions from './actions.js';
 
 const MAX_SCREENSHOT_CHARACTERS = 12 * 1024 * 1024;
@@ -66,6 +67,7 @@ async function tabAction(context, operation, args) {
 async function pageAction(driver, operation, args) {
   if (operation === 'snapshot') return snapshot(driver, args);
   if (operation === 'frames') return { frames: await frames(driver) };
+  if (operation === 'console_logs') return consoleLogs(driver, args);
   if (operation === 'fill' || operation === 'type') return actions.fill(driver, args, operation === 'fill');
   if (['click', 'key', 'scroll', 'select', 'check', 'drag'].includes(operation)) return actions[operation](driver, args);
   if (operation === 'screenshot') {

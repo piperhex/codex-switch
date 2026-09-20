@@ -10,12 +10,23 @@ export function createFrameSessions(target, guard) {
   return {
     initialize: async () => { autoAttach(state); await settle(state); },
     documents: () => documents(state),
+    listen: (frameId, listener) => listen(state, frameId, listener),
     send: (method, params = {}, frameId) => {
       if (frameId && !state.frameSessions.has(frameId)) throw new Error('页面框架已变化，请重新读取页面。');
       return command(state, { method, params, sessionId: state.frameSessions.get(frameId) });
     },
     dispose: () => chrome.debugger.onEvent.removeListener(listener),
   };
+}
+
+function listen(state, frameId, listener) {
+  if (!state.frameSessions.has(frameId)) throw new Error('页面框架已变化，请重新读取页面。');
+  const sessionId = state.frameSessions.get(frameId);
+  const handler = (source, method, params) => {
+    if (source.tabId === state.target.tabId && source.sessionId === sessionId) listener(method, params);
+  };
+  chrome.debugger.onEvent.addListener(handler);
+  return () => chrome.debugger.onEvent.removeListener(handler);
 }
 
 function onEvent(state, { source, method, params }) {

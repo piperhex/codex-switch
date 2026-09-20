@@ -275,6 +275,47 @@
       }
     },
     {
+      "name": "browser_console_logs",
+      "description": "Read retained console messages and uncaught JavaScript errors for the main frame or a specified frame. Returns the newest matching entries in chronological order, with timestamps, source locations and bounded stacks. Object arguments use descriptions. Chrome may clear or evict older logs; this is not a persistent recording and does not include network/worker logs. Does not clear logs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browserId": {
+            "type": "string",
+            "description": "ID returned by browser_list. Never guess or switch profiles silently."
+          },
+          "tabId": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "frameId": {
+            "type": "string",
+            "description": "Optional frame ID returned by browser_frames. Defaults to the main frame only."
+          },
+          "level": {
+            "type": "string",
+            "enum": ["all", "debug", "log", "info", "warn", "error"],
+            "default": "all",
+            "description": "Return all levels or only the selected level."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 100,
+            "description": "Maximum number of recent matching entries. Output size is also bounded."
+          }
+        },
+        "required": ["browserId", "tabId"],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
       "name": "browser_frames",
       "description": "List document frames in the selected tab.",
       "inputSchema": {

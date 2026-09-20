@@ -106,7 +106,8 @@ test('the compiled application exposes MCP over redirected standard streams',asy
     const call=rpc(child);
     assert.equal((await call('initialize')).result.serverInfo.name,'codex-switch-chrome');
     const names=(await call('tools/list')).result.tools.map(tool=>tool.name);
-    for(const name of ['browser_list','browser_tabs','browser_snapshot','browser_click','browser_fill','browser_screenshot']) {
+    for(const name of ['browser_list','browser_tabs','browser_snapshot','browser_click',
+      'browser_fill','browser_screenshot','browser_console_logs']) {
       assert.ok(names.includes(name));
     }
   } finally {
@@ -126,7 +127,9 @@ test('compiled Native Messaging and MCP helpers authenticate, relay, revoke, and
     framedMessages(host.stdout,message=>{
       incoming.push(message);
       if (message.type === 'cancel' || message.request.operation === 'open') return;
-      const result = message.request.operation === 'status' ? {paused:false} : {tabs:[{tabId:42,title:'fixture'}]};
+      const replies = {status:{paused:false},tabs:{tabs:[{tabId:42,title:'fixture'}]},
+        console_logs:{tabId:42,frameId:'main',entries:[{level:'error',text:'fixture error'}],truncated:false}};
+      const result = replies[message.request.operation];
       host.stdin.write(frame({type:'reply',id:message.id,result,error:null}));
     });
     host.stdin.write(frame({type:'ready',name:'Protocol fixture'}));
@@ -140,6 +143,12 @@ test('compiled Native Messaging and MCP helpers authenticate, relay, revoke, and
     assert.equal(JSON.parse(list.result.content[0].text).browsers[0].browserId,live.id);
     const tabs = await call('tools/call',{name:'browser_tabs',arguments:{browserId:live.id}});
     assert.equal(JSON.parse(tabs.result.content[0].text).tabs[0].tabId,42);
+    const logs = await call('tools/call',{name:'browser_console_logs',
+      arguments:{browserId:live.id,tabId:42,level:'error',limit:10}});
+    assert.equal(logs.result.isError,false);
+    assert.equal(JSON.parse(logs.result.content[0].text).entries[0].text,'fixture error');
+    assert.deepEqual(incoming.at(-1).request,
+      {operation:'console_logs',args:{tabId:42,level:'error',limit:10}});
     const before = incoming.length;
     const forged = await bridge(live.port,{clientId:first.clientId,token:second.record.token,
       request:{operation:'tabs',args:{}}});

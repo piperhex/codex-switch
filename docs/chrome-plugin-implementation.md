@@ -67,11 +67,25 @@ reinstalling or selecting the extension directory again is unnecessary. Later up
 
 ## Supported operations
 
-The MCP server exposes 21 tools for connected profiles, existing tabs, opening/navigating/focusing/
+The MCP server exposes 22 tools for connected profiles, existing tabs, opening/navigating/focusing/
 closing tabs, history, reload, accessible page snapshots, frames, click/double-click, fill, typing,
-keyboard shortcuts, scrolling, selection, checkboxes, drag/drop, screenshots and waiting for text.
+keyboard shortcuts, scrolling, selection, checkboxes, drag/drop, screenshots, console logs and waiting for text.
 Snapshots provide element references that expire when the document changes. Same-origin, cross-site
 and nested frames are supported, including out-of-process Chrome child sessions.
+
+`browser_console_logs` (extension 1.3.0) reads retained console messages and uncaught JavaScript errors,
+including unhandled promise rejections. It returns the main document's logs by default; use `frameId`
+from `browser_frames` for a specific iframe. `level` selects `all`, `debug`, `log`, `info`, `warn` or
+`error`; `limit` returns up to 1–200 recent matching entries (default 100). Results include millisecond
+Unix timestamps, one-based source lines/columns and bounded stacks. Object arguments use Chrome's
+descriptions, without expanding properties. Output is bounded by both count and serialized size;
+`truncated` reports omitted entries or shortened fields.
+
+This is an on-demand read of Chrome's retained messages, not a persistent recording. Reading does
+not clear messages. Navigation, `console.clear()` and Chrome's own retention limits can remove
+older messages. Network/worker logs and extension isolated worlds are not included. Each read
+checks access to the selected document, isolates its frame/session and rejects document changes.
+It uses the existing short-lived debugger connection and adds no permissions or persistent storage.
 
 File upload/download, JavaScript dialogs and arbitrary JavaScript execution are not exposed as tools.
 This is an independent implementation of the core browser workflow, not exhaustive feature parity
@@ -109,6 +123,19 @@ webpage content as untrusted, preserve user tabs and respect permission decision
 are masked in accessible snapshots; screenshots can still contain visible page content.
 
 ## Verification
+
+### 2026-09-20 console log reading
+
+Real Chrome for Testing checks in an isolated Windows profile verified logs emitted before the
+first tool call, all console levels, assertions, uncaught errors and promise rejections. Repeated
+reads preserve messages; filtering and limits return the expected entries. Same-process and
+cross-site iframes return only their own logs. Button-generated logs remain readable after the
+action's debugger connection closes; clearing logs and navigating do not return old messages.
+Reading leaves the minimized window and selected tab unchanged.
+
+Extension regression tests also cover invalid options, frame/tab/session isolation, ignoring
+extension worlds, output bounds, navigation/context replacement, permission checks, cancellation
+and listener cleanup. The compiled MCP protocol test checks tool discovery and `console_logs` relay.
 
 ### 2026-09-16 default grouped pages
 
@@ -216,6 +243,8 @@ node scripts/chrome-plugin-tab-groups.test.mjs
 node scripts/chrome-plugin-tab-indicator.test.mjs
 node --test scripts/chrome-plugin-update.test.mjs
 node --test scripts/chrome-plugin-driver.test.mjs
+node --test scripts/chrome-plugin-console.test.mjs
+node scripts/chrome-plugin-console.e2e.mjs
 cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml --bin csw
 node --test scripts/chrome-plugin-protocol.test.mjs
 ```

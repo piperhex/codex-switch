@@ -18,7 +18,7 @@ pub(crate) use automatic::refresh_on_startup;
 static INSTALL_CHANGES: Mutex<()> = Mutex::new(());
 
 const HOST_NAME: &str = "dev.codex_switch.chrome";
-const PLUGIN_VERSION: &str = "1.2.2";
+const PLUGIN_VERSION: &str = "1.3.0";
 const MCP_SERVER: &str = "codex_switch_chrome";
 
 #[derive(Debug, thiserror::Error)]

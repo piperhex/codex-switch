@@ -38,7 +38,7 @@ async function run(context, args, operation) {
     viewportOverridden = await prepareBackgroundPage({ tab, send: sessions.send });
     await markControlledTab(tab.id);
     await sessions.initialize();
-    const driver = { tab, send: sessions.send, documents: sessions.documents, context, guard };
+    const driver = { tab, send: sessions.send, documents: sessions.documents, listen: sessions.listen, context, guard };
     const result = await operation(driver);
     await settleRendering(driver);
     return result;
