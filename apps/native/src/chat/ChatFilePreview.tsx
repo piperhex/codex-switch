@@ -7,6 +7,7 @@ import { BottomSheet } from '../components/BottomSheet';
 import { SheetScrollView } from '../components/SheetScrollView';
 import { ChatCodeBlock } from './ChatCodeBlock';
 import { ChatImageFilePreview } from './ChatImageFilePreview';
+import { ChatHtmlPreview, isHtmlPath } from './ChatHtmlPreview';
 import { fileLanguage } from './ChatCodeHighlight';
 import { styles } from './styles';
 
@@ -37,6 +38,7 @@ function FilePreview({ file, threadId, ready, load, files, close }: PreviewProps
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const binary = BINARY_FILE.test(file.path);
+  const html = isHtmlPath(file.path);
   const download = useFileDownload({ client: files, threadId, ready, path: file.path,
     target: nativeDownloadTarget, success: '文件已保存到下载文件夹' });
   useEffect(() => {
@@ -52,7 +54,7 @@ function FilePreview({ file, threadId, ready, load, files, close }: PreviewProps
     actions={[{ label: download.label, onPress: download.busy ? download.cancel : download.start,
       tone: 'primary', disabled: !download.busy && (!ready || !threadId) },
     ...(error ? [{ label: '重新预览', onPress: () => setAttempt(attempt + 1), disabled: !ready }] : [])]}>
-    <SheetScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
+    <SheetScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingBottom: result && html ? 0 : 20 }}>
       {!ready && !result && <Text style={styles.subtitle}>请连接电脑后查看文件。</Text>}
       {binary && <Text style={styles.subtitle}>下载后即可用相应的应用打开。</Text>}
       {ready && !binary && !result && !error && <ActivityIndicator accessibilityLabel="正在读取文件" />}
@@ -61,12 +63,13 @@ function FilePreview({ file, threadId, ready, load, files, close }: PreviewProps
       {!!download.message && <Text accessibilityLiveRegion="polite" style={[styles.subtitle,
         { maxWidth: 400 }]}>{download.message}</Text>}
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-      {result && <>
+      {result && !html && <>
         <Text style={styles.subtitle}>当前文件内容{file.line ? ` · 引用第 ${file.line} 行` : ''}</Text>
         <ChatCodeBlock text={result.text} label="完整文本" language={fileLanguage(file.path)}
           lineNumbers copyLabel="复制文件内容" />
       </>}
     </SheetScrollView>
+    {result && html && <ChatHtmlPreview text={result.text} />}
   </BottomSheet>;
 }
 

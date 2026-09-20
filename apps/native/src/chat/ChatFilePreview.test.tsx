@@ -9,6 +9,7 @@ import { VideoViewer } from './video/VideoViewer';
 const state = vi.hoisted(() => ({
   file: null as FileReference | null, provider: true, ready: true,
   original: undefined as string | undefined, imageError: false, load: vi.fn(),
+  text: undefined as { path: string; text: string } | undefined,
 }));
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof React>(),
@@ -16,7 +17,7 @@ vi.mock('react', async importOriginal => ({
   useEffect: vi.fn(),
   useState: (initial: unknown) => state.provider
     ? [state.file, (file: FileReference | null) => { state.file = file; }]
-    : [initial, vi.fn()],
+    : [initial === undefined ? state.text : initial, vi.fn()],
   useContext: () => ({ threadId: 'thread-with-image', ready: state.ready, offline: true, load: state.load }),
 }));
 vi.mock('react-native', () => ({ ActivityIndicator: 'Spinner', Modal: 'Modal', Pressable: 'Button',
@@ -30,8 +31,12 @@ vi.mock('@expo/vector-icons', () => ({ MaterialCommunityIcons: 'Icon' }));
 vi.mock('../components/BottomSheet', () => ({ BottomSheet: 'Sheet' }));
 vi.mock('../components/SheetScrollView', () => ({ SheetScrollView: 'ScrollView' }));
 vi.mock('./ChatCodeBlock', () => ({ ChatCodeBlock: 'Code' }));
+vi.mock('./ChatHtmlPreview', () => ({ ChatHtmlPreview: 'Html', isHtmlPath: (path: string) => /\.html?$/i.test(path) }));
 vi.mock('./ChatCodeHighlight', () => ({ fileLanguage: () => 'text' }));
 vi.mock('./fileDownloadTarget', () => ({ nativeDownloadTarget: {} }));
+vi.mock('../../../../shared/remote-chat/useFileDownload', () => ({ useFileDownload: () => ({
+  label: '下载', busy: false, start: vi.fn(), cancel: vi.fn(),
+}) }));
 vi.mock('./video/VideoViewer', () => ({ VideoViewer: 'Video' }));
 vi.mock('./useImageGestures', () => ({ useImageGestures: () => ({ gesture: {}, animatedStyle: {} }) }));
 vi.mock('./useImageOrientation', () => ({ useImageOrientation: () => ({ displayed: 'portrait' }) }));
@@ -63,6 +68,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.file = null; state.provider = true; state.ready = true;
   state.original = undefined; state.imageError = false;
+  state.text = undefined;
   state.load.mockResolvedValue(original);
 });
 
@@ -104,6 +110,17 @@ function descendants(value: unknown): React.ReactElement<Record<string, unknown>
   if (!React.isValidElement<Record<string, unknown>>(value)) return [];
   return [value, ...descendants(value.props.children)];
 }
+
+it.each(['./index.html', './INDEX.HTM'])('renders HTML files directly while retaining the download action: %s', path => {
+  state.text = { path, text: '<html><body>Preview</body></html>' };
+  const preview = openFile(path);
+  const component = preview.type as (props: typeof preview.props) => React.ReactElement;
+  const sheet = component(preview.props);
+  const nodes = descendants(sheet);
+  expect(nodes.find(node => node.type === 'Html')?.props.text).toBe(state.text.text);
+  expect(nodes.some(node => node.type === 'Code')).toBe(false);
+  expect((sheet.props as { actions: { label: string }[] }).actions[0].label).toBe('下载');
+});
 
 it('keeps loading visible without mounting an empty image, then displays the fetched original', () => {
   const props = { description: 'mobile.png', load: state.load, close: vi.fn() };
