@@ -21,6 +21,7 @@ mod gui_forwarding;
 mod gui_routing;
 pub(crate) mod lan_keys;
 mod lan_usage_capture;
+mod official_input;
 mod quota_detection;
 mod quota_sse;
 mod session_titles;
@@ -90,6 +91,7 @@ mod tests {
     include!("tests/part_01.rs");
     include!("tests/part_02.rs");
     include!("tests/part_03.rs");
+    include!("tests/official_input.rs");
     include!("tests/part_04.rs");
     include!("tests/part_05.rs");
     include!("tests/part_06.rs");

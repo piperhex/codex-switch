@@ -137,6 +137,7 @@ fn official_body_for_upstream_with_tier(
     };
     let removed_incompatible_reasoning =
         remove_incompatible_official_reasoning_from_input(&mut value);
+    let removed_incompatible_message_ids = official_input::remove_incompatible_message_ids(&mut value);
     // ChatGPT's OAuth-backed Codex endpoint rejects the token-limit field that
     // OpenCode's Responses adapter sends. Codex itself leaves this field out,
     // so omit it when forwarding third-party requests to the official service.
@@ -145,6 +146,7 @@ fn official_body_for_upstream_with_tier(
         .is_some_and(|object| object.remove("max_output_tokens").is_some());
     if requested_model(&value).is_some()
         && !removed_incompatible_reasoning
+        && !removed_incompatible_message_ids
         && !removed_unsupported_output_limit
         && service_tier.is_none()
     {
