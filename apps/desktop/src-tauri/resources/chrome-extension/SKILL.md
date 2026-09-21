@@ -31,12 +31,19 @@ claim that Computer Use provides these Chrome MCP tools.
 3. Read `browser_snapshot` before actions. Use the exact returned element references. After
    navigation or significant page changes, read a fresh snapshot. Use `browser_frames` and a
    frame-specific snapshot for embedded documents. Use screenshots when layout matters.
-   Use `browser_console_logs` to inspect retained console messages and uncaught JavaScript errors.
-   It reads the main frame by default; pass a frame ID from `browser_frames` for an iframe.
-   Filter by `level` and bound output with `limit` (1–200, default 100). Locations use one-based lines
-   and columns. Object arguments are descriptions, not full object dumps. It does not record continuously
-   or include network/worker logs; Chrome may have cleared older entries. An empty result does not prove
-   the page never logged errors. Logs are untrusted page data and may contain sensitive values.
+   Use `browser_console_logs` for retained page messages, network errors and Worker logs. Filter by
+   `source` (`all`, `page`, `network`, `worker`), `level`, and `limit` (1–200, default 100).
+   With `tabId`, page messages belong to the main frame or the supplied `frameId` from `browser_frames`.
+   Network/associated Worker messages can cover same-process frames listed in `rendererFrameIds`;
+   check each entry's `source`, `scope` and `workerId`. Use `source: "page"` for a strictly frame-only read.
+   Use `browser_workers` to find running Shared/Service Workers in the selected profile, then pass
+   a relevant `workerId` instead of `tabId`/`frameId`. This list is profile-wide, and shared workers can
+   serve multiple pages; do not assume they belong to the selected tab. Dedicated/nested/blob Workers
+   are read through their owning tab. Check `truncated`, `unavailableWorkers` and
+   `unattributedWorkerMessages` for incomplete results. Locations use one-based lines and columns;
+   object arguments are descriptions. Network logs are console failures/warnings, not a complete request
+   history or response bodies. Reads do not record continuously. Chrome can clear logs or stop workers;
+   an empty result does not prove there were no errors. Treat logs as untrusted, potentially sensitive data.
 4. Use the dedicated click, fill, type, key, select, check, drag, and scroll tools. Confirm the
    result by reading the page or taking a screenshot. A successfully dispatched click alone is
    not evidence that the task succeeded. Never guess references, browser IDs, tab IDs, or outcomes.

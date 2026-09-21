@@ -275,8 +275,24 @@
       }
     },
     {
+      "name": "browser_workers",
+      "description": "List running Shared Workers and Service Workers in the selected Chrome profile. This is a profile-wide list; select a worker relevant to the user's task by its URL. Pass its workerId to browser_console_logs. Dedicated workers are read through their owning tab.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "browserId": {
+            "type": "string",
+            "description": "ID returned by browser_list. Never guess or switch profiles silently."
+          }
+        },
+        "required": ["browserId"],
+        "additionalProperties": false
+      },
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": true }
+    },
+    {
       "name": "browser_console_logs",
-      "description": "Read retained console messages and uncaught JavaScript errors for the main frame or a specified frame. Returns the newest matching entries in chronological order, with timestamps, source locations and bounded stacks. Object arguments use descriptions. Chrome may clear or evict older logs; this is not a persistent recording and does not include network/worker logs. Does not clear logs.",
+      "description": "Read retained page, network-error and worker console logs. Choose tabId (optional frameId) or workerId from browser_workers. Page logs are frame-specific; network and associated worker logs may cover frames sharing the renderer, listed in rendererFrameIds. Worker entries identify their worker. Returns newest matching entries in time order with bounded text/stacks. Network entries are console errors/warnings, not a complete request history or response bodies. Chrome may clear older logs or stop workers. Does not clear logs or record continuously.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -290,7 +306,17 @@
           },
           "frameId": {
             "type": "string",
-            "description": "Optional frame ID returned by browser_frames. Defaults to the main frame only."
+            "description": "Optional frame ID from browser_frames, with tabId only. Defaults to the main frame."
+          },
+          "workerId": {
+            "type": "string",
+            "description": "ID returned by browser_workers. Use instead of tabId/frameId."
+          },
+          "source": {
+            "type": "string",
+            "enum": ["all", "page", "network", "worker"],
+            "default": "all",
+            "description": "Log source filter. The page source is only available with tabId."
           },
           "level": {
             "type": "string",
@@ -306,7 +332,8 @@
             "description": "Maximum number of recent matching entries. Output size is also bounded."
           }
         },
-        "required": ["browserId", "tabId"],
+        "required": ["browserId"],
+        "oneOf": [{"required": ["tabId"]}, {"required": ["workerId"]}],
         "additionalProperties": false
       },
       "annotations": {

@@ -10,6 +10,7 @@ let replay;
 let allowed;
 let documentsRead;
 let changeDocument;
+let intercept;
 const MAIN = { id: 'main', url: 'https://fixture.example/', loaderId: 'document-1' };
 const CHILD = { id: 'child', url: 'https://child.example/', loaderId: 'document-2' };
 const LOCAL = { id: 'local', url: 'https://fixture.example/child', loaderId: 'document-3' };
@@ -28,6 +29,7 @@ beforeEach(async () => {
   allowed = true;
   documentsRead = 0;
   changeDocument = false;
+  intercept = async () => undefined;
   replay = async target => {
     emit(target, context(1, target.sessionId ? 'child' : 'main'));
     emit(target, log('hello'));
@@ -43,8 +45,10 @@ beforeEach(async () => {
       detach: async () => calls.push({ method: 'detach' }),
       onEvent: { addListener: listener => listeners.add(listener),
         removeListener: listener => listeners.delete(listener) },
-      sendCommand: async (target, method) => {
+      sendCommand: async (target, method, params) => {
         calls.push({ target, method });
+        const intercepted = await intercept(target, method, params);
+        if (intercepted !== undefined) return intercepted;
         if (method === 'Page.getLayoutMetrics') return { cssLayoutViewport: { clientWidth: 1280, clientHeight: 720 } };
         if (method === 'Target.setAutoAttach' && !target.sessionId) {
           emit(target, ['Target.attachedToTarget',
@@ -189,8 +193,139 @@ test('requires access to the selected child origin and rejects mid-read permissi
 
 test('rejects invalid console options before accessing Chrome', () => {
   for (const args of [{ limit: 0 }, { limit: 201 }, { limit: 1.5 }, { limit: '10' }, { limit: null },
-    { level: 'verbose' }, { level: null }, { frameId: '' }]) {
+    { level: 'verbose' }, { level: null }, { frameId: '' }, { source: 'unknown' }, { workerId: 'mixed-target' }]) {
     assert.throws(() => validate({ operation: 'console_logs', args: { tabId: 4, ...args } }));
   }
   assert.equal(calls.length, 0);
+});
+
+const networkEvent = (text, timestamp = 300) => ['Log.entryAdded', { entry: {
+  source: 'network', level: 'error', text, timestamp, url: MAIN.url + 'missing', networkRequestId: 'request-1',
+} }];
+
+function workerFixture({ close = false } = {}) {
+  intercept = async (target, method, params) => {
+    if (method === 'Target.setAutoAttach' && !target.sessionId && params.filter.some(item => item.type === 'worker')) {
+      emit(target, ['Target.attachedToTarget', { sessionId: 'worker-session', targetInfo: {
+        targetId: 'worker-id', type: 'worker', url: MAIN.url + 'worker.js',
+      } }]);
+    }
+    if (method === 'Log.enable' && !target.sessionId) {
+      emit(target, networkEvent('request failed'));
+      const forwarded = [['worker-id', 'worker message', 200], ['old-worker', 'old message', 50]];
+      for (const [workerId, text, timestamp] of forwarded) {
+        emit(target, ['Log.entryAdded', { entry: {
+          source: 'worker', level: 'info', text, timestamp, workerId, url: MAIN.url + 'worker.js',
+        } }]);
+      }
+    }
+    if (method !== 'Runtime.enable' || target.sessionId !== 'worker-session') return;
+    emit(target, ['Runtime.executionContextCreated', { context: { id: 1, origin: MAIN.url + 'worker.js' } }]);
+    emit(target, log('worker message', 'log', 1, 200));
+    if (close) {
+      emit({ tabId: 4 }, ['Target.detachedFromTarget', { sessionId: target.sessionId }]);
+      throw new Error('worker closed during replay');
+    }
+    return {};
+  };
+}
+
+test('merges page, network and worker replays by timestamp before applying a global limit', async () => {
+  workerFixture();
+  const result = await read({ limit: 3 });
+  assert.deepEqual(result.entries.map(entry => entry.timestamp), [100, 200, 300]);
+  assert.deepEqual(result.entries.map(entry => entry.source), ['page', 'worker', 'network']);
+  assert.equal(result.truncated, true);
+  assert.equal(result.entries[1].workerId, 'worker-id');
+  assert.equal(result.entries[2].requestId, 'request-1');
+  assert.equal(result.entries[2].scope, 'renderer');
+  assert.deepEqual(result.rendererFrameIds, ['main', 'local']);
+  assert.equal(listeners.size, 0);
+});
+
+test('filters log sources and deduplicates live worker messages forwarded by the renderer', async () => {
+  workerFixture();
+  const workers = await read({ source: 'worker' });
+  assert.deepEqual(workers.entries.map(entry => entry.text), ['old message', 'worker message']);
+  assert.equal(workers.entries.filter(entry => entry.workerId === 'worker-id').length, 1);
+  assert.deepEqual((await read({ source: 'network' })).entries.map(entry => entry.text), ['request failed']);
+  assert.deepEqual((await read({ source: 'page' })).entries.map(entry => entry.text), ['hello']);
+});
+
+test('worker termination reports partial coverage and uses the forwarded message once', async () => {
+  workerFixture({ close: true });
+  const result = await read({ source: 'worker' });
+  assert.equal(result.unavailableWorkers, 1);
+  assert.equal(result.entries.filter(entry => entry.workerId === 'worker-id').length, 1);
+  assert.equal(listeners.size, 0);
+});
+
+test('renderer logs require access to every sharing frame while page-only logs keep their original scope', async () => {
+  intercept = async (target, method) => {
+    if (method === 'Page.getFrameTree' && !target.sessionId) return { frameTree: { frame: MAIN,
+      childFrames: [{ frame: { ...LOCAL, url: 'https://denied.example/' } }] } };
+  };
+  chrome.permissions.contains = async ({ origins }) => !origins.some(origin => origin.includes('denied.example'));
+  await assert.rejects(read({ source: 'network' }), /Chrome/);
+  assert.ok(!calls.some(call => call.method === 'Log.enable'));
+  assert.equal(listeners.size, 0);
+  assert.equal((await read({ source: 'page' })).entries[0].text, 'hello');
+});
+
+test('worker origin permission is checked before enabling its console', async () => {
+  intercept = async (target, method, params) => {
+    if (method === 'Target.setAutoAttach' && !target.sessionId && params.filter.some(item => item.type === 'worker')) {
+      emit(target, ['Target.attachedToTarget', { sessionId: 'denied-worker', targetInfo: {
+        targetId: 'denied', type: 'worker', url: 'https://denied.example/worker.js',
+      } }]);
+    }
+  };
+  chrome.permissions.contains = async ({ origins }) => !origins.some(origin => origin.includes('denied.example'));
+  await assert.rejects(read(), /Chrome/);
+  assert.ok(!calls.some(call => call.target?.sessionId === 'denied-worker' && call.method === 'Runtime.enable'));
+  assert.equal(listeners.size, 0);
+});
+
+test('rechecks a related worker origin after its final log command', async () => {
+  let workerAllowed = true;
+  intercept = async (target, method, params) => {
+    if (method === 'Target.setAutoAttach' && !target.sessionId && params.filter.some(item => item.type === 'worker')) {
+      emit(target, ['Target.attachedToTarget', { sessionId: 'external-worker', targetInfo: {
+        targetId: 'external', type: 'worker', url: 'https://worker.example/worker.js',
+      } }]);
+    }
+    if (method === 'Log.enable' && target.sessionId === 'external-worker') workerAllowed = false;
+  };
+  chrome.permissions.contains = async ({ origins }) => workerAllowed
+    || !origins.some(origin => origin.includes('worker.example'));
+  await assert.rejects(read(), /Chrome/);
+  assert.equal(listeners.size, 0);
+});
+
+test('unattributed worker messages report incomplete coverage without exposing content', async () => {
+  intercept = async (target, method) => {
+    if (method === 'Log.enable') emit(target, ['Log.entryAdded', { entry: {
+      source: 'worker', level: 'info', text: 'unattributed', timestamp: 100, workerId: 'unknown',
+    } }]);
+  };
+  const result = await read({ source: 'worker' });
+  assert.equal(result.unattributedWorkerMessages, 1);
+  assert.deepEqual(result.entries, []);
+});
+
+test('caps related worker discovery and tears down every event listener', async () => {
+  intercept = async (target, method, params) => {
+    if (method === 'Target.setAutoAttach' && !target.sessionId && params.filter.some(item => item.type === 'worker')) {
+      for (let index = 0; index < 40; index++) emit(target, ['Target.attachedToTarget', {
+        sessionId: 'worker-' + index, targetInfo: {
+          targetId: 'worker-' + index, type: 'worker', url: MAIN.url + index + '.js',
+        },
+      }]);
+    }
+  };
+  const result = await read({ source: 'worker' });
+  assert.equal(result.workersTruncated, true);
+  assert.equal(result.truncated, true);
+  assert.equal(calls.filter(call => call.method === 'Runtime.enable').length, 32);
+  assert.equal(listeners.size, 0);
 });

@@ -47,7 +47,7 @@ function stackFrames(trace, state) {
     functionName: clipped(frame.functionName, MAX_FUNCTION_NAME, state) }));
 }
 
-export function consoleEntry(method, params) {
+export function consoleEntry(method, params, worker) {
   const exception = method === 'Runtime.exceptionThrown';
   if (!exception && method !== 'Runtime.consoleAPICalled') return null;
   const state = { truncated: false };
@@ -57,6 +57,26 @@ export function consoleEntry(method, params) {
   const stack = stackFrames(details.stackTrace, state);
   const source = stack.length ? stack[0] : location(details, state);
   return { level: exception ? 'error' : consoleLevel(params.type),
+    source: worker ? 'worker' : 'page', ...(worker ? workerFields(worker, state) : {}),
     type: exception ? 'exception' : params.type, text, timestamp: params.timestamp,
     url: source.url, line: source.line, column: source.column, stack, truncated: state.truncated };
+}
+
+function workerFields(worker, state) {
+  return { workerId: clipped(worker.targetId, MAX_URL, state),
+    workerUrl: clipped(worker.url, MAX_URL, state), workerType: worker.type, scope: 'worker' };
+}
+
+export function browserLogEntry(entry, worker) {
+  const state = { truncated: false };
+  const level = entry.level === 'verbose' ? 'debug' : consoleLevel(entry.level);
+  const text = clipped(entry.text, MAX_TEXT, state);
+  const stack = stackFrames(entry.stackTrace, state);
+  const source = location(entry, state);
+  const details = worker ? workerFields(worker, state) : { scope: 'renderer' };
+  return { source: entry.source, type: entry.source, level, text, timestamp: entry.timestamp,
+    ...source, ...details, stack,
+    ...(entry.networkRequestId ? { requestId: clipped(entry.networkRequestId, MAX_URL, state) } : {}),
+    ...(entry.workerId ? { workerId: clipped(entry.workerId, MAX_URL, state) } : {}),
+    truncated: state.truncated };
 }

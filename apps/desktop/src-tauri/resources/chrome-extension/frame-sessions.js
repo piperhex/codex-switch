@@ -11,12 +11,25 @@ export function createFrameSessions(target, guard) {
     initialize: async () => { autoAttach(state); await settle(state); },
     documents: () => documents(state),
     listen: (frameId, listener) => listen(state, frameId, listener),
+    debuggee: (frameId) => debuggee(state, frameId),
+    relatedFrames: (frameId) => relatedFrames(state, frameId),
     send: (method, params = {}, frameId) => {
       if (frameId && !state.frameSessions.has(frameId)) throw new Error('页面框架已变化，请重新读取页面。');
       return command(state, { method, params, sessionId: state.frameSessions.get(frameId) });
     },
     dispose: () => chrome.debugger.onEvent.removeListener(listener),
   };
+}
+
+function debuggee(state, frameId) {
+  if (!state.frameSessions.has(frameId)) throw new Error('页面框架已变化，请重新读取页面。');
+  const sessionId = state.frameSessions.get(frameId);
+  return { ...state.target, ...(sessionId ? { sessionId } : {}) };
+}
+
+function relatedFrames(state, frameId) {
+  const { sessionId } = debuggee(state, frameId);
+  return [...state.frameSessions].filter(([, owner]) => owner === sessionId).map(([id]) => id);
 }
 
 function listen(state, frameId, listener) {

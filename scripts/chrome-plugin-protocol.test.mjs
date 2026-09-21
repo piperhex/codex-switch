@@ -107,7 +107,7 @@ test('the compiled application exposes MCP over redirected standard streams',asy
     assert.equal((await call('initialize')).result.serverInfo.name,'codex-switch-chrome');
     const names=(await call('tools/list')).result.tools.map(tool=>tool.name);
     for(const name of ['browser_list','browser_tabs','browser_snapshot','browser_click',
-      'browser_fill','browser_screenshot','browser_console_logs']) {
+      'browser_fill','browser_screenshot','browser_console_logs','browser_workers']) {
       assert.ok(names.includes(name));
     }
   } finally {
@@ -128,6 +128,7 @@ test('compiled Native Messaging and MCP helpers authenticate, relay, revoke, and
       incoming.push(message);
       if (message.type === 'cancel' || message.request.operation === 'open') return;
       const replies = {status:{paused:false},tabs:{tabs:[{tabId:42,title:'fixture'}]},
+        workers:{workers:[{workerId:'worker-1',url:'https://example.com/sw.js'}],scope:'profile'},
         console_logs:{tabId:42,frameId:'main',entries:[{level:'error',text:'fixture error'}],truncated:false}};
       const result = replies[message.request.operation];
       host.stdin.write(frame({type:'reply',id:message.id,result,error:null}));
@@ -149,6 +150,13 @@ test('compiled Native Messaging and MCP helpers authenticate, relay, revoke, and
     assert.equal(JSON.parse(logs.result.content[0].text).entries[0].text,'fixture error');
     assert.deepEqual(incoming.at(-1).request,
       {operation:'console_logs',args:{tabId:42,level:'error',limit:10}});
+    const workers = await call('tools/call',{name:'browser_workers',arguments:{browserId:live.id}});
+    assert.equal(JSON.parse(workers.result.content[0].text).workers[0].workerId,'worker-1');
+    const workerLogs = await call('tools/call',{name:'browser_console_logs',
+      arguments:{browserId:live.id,workerId:'worker-1',source:'worker'}});
+    assert.equal(workerLogs.result.isError,false);
+    assert.deepEqual(incoming.at(-1).request,
+      {operation:'console_logs',args:{workerId:'worker-1',source:'worker'}});
     const before = incoming.length;
     const forged = await bridge(live.port,{clientId:first.clientId,token:second.record.token,
       request:{operation:'tabs',args:{}}});

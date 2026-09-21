@@ -3,7 +3,8 @@ import { validate, website } from './validation.js';
 import { withTab } from './driver.js';
 import { groupNewTab } from './tab-groups.js';
 import { snapshot, frames, invalidate } from './snapshot.js';
-import { consoleLogs } from './console-logs.js';
+import { consoleLogs, standaloneWorkerLogs } from './console-logs.js';
+import { listWorkers, withWorker } from './worker-driver.js';
 import * as actions from './actions.js';
 
 const MAX_SCREENSHOT_CHARACTERS = 12 * 1024 * 1024;
@@ -13,6 +14,10 @@ export async function execute(context, request) {
   if (operation === 'status') return status();
   assertRunning(context.signal);
   if (operation === 'tabs') return listTabs();
+  if (operation === 'workers') return listWorkers();
+  if (operation === 'console_logs' && args.workerId) {
+    return withWorker(context, args, connection => standaloneWorkerLogs(connection, args));
+  }
   if (operation === 'open') return open(context, args);
   if (['navigate', 'close', 'focus'].includes(operation)) return tabAction(context, operation, args);
   return withTab(context, args, (driver) => pageAction(driver, operation, args));
@@ -69,7 +74,9 @@ async function pageAction(driver, operation, args) {
   if (operation === 'frames') return { frames: await frames(driver) };
   if (operation === 'console_logs') return consoleLogs(driver, args);
   if (operation === 'fill' || operation === 'type') return actions.fill(driver, args, operation === 'fill');
-  if (['click', 'key', 'scroll', 'select', 'check', 'drag'].includes(operation)) return actions[operation](driver, args);
+  if (['click', 'key', 'scroll', 'select', 'check', 'drag'].includes(operation)) {
+    return actions[operation](driver, args);
+  }
   if (operation === 'screenshot') {
     const result = await driver.send('Page.captureScreenshot', { format: 'jpeg', quality: 80,
       captureBeyondViewport: false, fromSurface: true });

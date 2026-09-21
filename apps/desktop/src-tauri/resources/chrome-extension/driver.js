@@ -2,6 +2,7 @@ import { authorize, assertRunning } from './permissions.js';
 import { createFrameSessions } from './frame-sessions.js';
 import { markControlledTab, clearControlledTabs } from './tab-indicator.js';
 import { prepareBackgroundPage, restoreBackgroundPage, settleRendering } from './rendering.js';
+import { stopWorkers } from './worker-driver.js';
 
 const queues = new Map();
 const attached = new Set();
@@ -38,7 +39,8 @@ async function run(context, args, operation) {
     viewportOverridden = await prepareBackgroundPage({ tab, send: sessions.send });
     await markControlledTab(tab.id);
     await sessions.initialize();
-    const driver = { tab, send: sessions.send, documents: sessions.documents, listen: sessions.listen, context, guard };
+    const driver = { tab, send: sessions.send, documents: sessions.documents, listen: sessions.listen, context, guard,
+      debuggee: sessions.debuggee, relatedFrames: sessions.relatedFrames };
     const result = await operation(driver);
     await settleRendering(driver);
     return result;
@@ -53,6 +55,7 @@ async function run(context, args, operation) {
 }
 
 export async function stopDebugging() {
+  await stopWorkers();
   await Promise.all([...attached].map((tabId) => chrome.debugger.detach({ tabId }).catch(() => {})));
   attached.clear();
   await clearControlledTabs();

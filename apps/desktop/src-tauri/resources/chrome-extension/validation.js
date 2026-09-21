@@ -1,8 +1,8 @@
 const TAB_OPERATIONS = new Set([
   'navigate', 'back', 'forward', 'reload', 'close', 'focus', 'snapshot', 'frames', 'click',
-  'fill', 'type', 'key', 'scroll', 'select', 'check', 'drag', 'screenshot', 'wait', 'console_logs',
+  'fill', 'type', 'key', 'scroll', 'select', 'check', 'drag', 'screenshot', 'wait',
 ]);
-const OPERATIONS = new Set(['status', 'tabs', 'open', ...TAB_OPERATIONS]);
+const OPERATIONS = new Set(['status', 'tabs', 'open', 'workers', 'console_logs', ...TAB_OPERATIONS]);
 const MAX_TEXT_LENGTH = 20000;
 const MAX_CONSOLE_ENTRIES = 200;
 
@@ -57,12 +57,27 @@ export function validate(request) {
 }
 
 function validateConsoleLogs(args) {
+  validateLogTarget(args);
+  if (args.source !== undefined && !['all', 'page', 'network', 'worker'].includes(args.source)) {
+    throw new Error('请选择有效的日志来源。');
+  }
   if (args.level !== undefined && !['all', 'debug', 'log', 'info', 'warn', 'error'].includes(args.level)) {
     throw new Error('请选择有效的日志级别。');
   }
   if (args.limit !== undefined && (!Number.isInteger(args.limit) || !finite(args.limit, 1, MAX_CONSOLE_ENTRIES))) {
     throw new Error('日志条数应为 1 到 200 的整数。');
   }
+}
+
+function validateLogTarget(args) {
+  if (args.workerId !== undefined) {
+    if (!text(args.workerId, 100, false) || args.tabId !== undefined || args.frameId !== undefined) {
+      throw new Error('请选择一个标签页或 Worker。');
+    }
+    if (args.source === 'page') throw new Error('Worker 不包含页面日志，请选择其他日志来源。');
+    return;
+  }
+  if (!Number.isSafeInteger(args.tabId) || args.tabId < 0) throw new Error('请先选择浏览器标签页。');
 }
 
 function validateClick(args) {

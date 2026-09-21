@@ -26,6 +26,7 @@ pub(super) enum Operation {
     Snapshot,
     Frames,
     ConsoleLogs,
+    Workers,
     Click,
     Fill,
     Type,

@@ -67,15 +67,16 @@ reinstalling or selecting the extension directory again is unnecessary. Later up
 
 ## Supported operations
 
-The MCP server exposes 22 tools for connected profiles, existing tabs, opening/navigating/focusing/
+The MCP server exposes 23 tools for connected profiles, existing tabs, opening/navigating/focusing/
 closing tabs, history, reload, accessible page snapshots, frames, click/double-click, fill, typing,
-keyboard shortcuts, scrolling, selection, checkboxes, drag/drop, screenshots, console logs and waiting for text.
+keyboard shortcuts, scrolling, selection, checkboxes, drag/drop, screenshots, console logs, workers and waiting for text.
 Snapshots provide element references that expire when the document changes. Same-origin, cross-site
 and nested frames are supported, including out-of-process Chrome child sessions.
 
-`browser_console_logs` (extension 1.3.0) reads retained console messages and uncaught JavaScript errors,
-including unhandled promise rejections. It returns the main document's logs by default; use `frameId`
-from `browser_frames` for a specific iframe. `level` selects `all`, `debug`, `log`, `info`, `warn` or
+`browser_console_logs` (extension 1.4.0) reads retained page messages, uncaught JavaScript errors,
+network console errors and associated Worker logs. `source` selects `all` (default), `page`, `network`
+or `worker`. Page messages belong to the main document by default; use `frameId` from `browser_frames`
+for a specific iframe. `level` selects `all`, `debug`, `log`, `info`, `warn` or
 `error`; `limit` returns up to 1–200 recent matching entries (default 100). Results include millisecond
 Unix timestamps, one-based source lines/columns and bounded stacks. Object arguments use Chrome's
 descriptions, without expanding properties. Output is bounded by both count and serialized size;
@@ -83,9 +84,28 @@ descriptions, without expanding properties. Output is bounded by both count and 
 
 This is an on-demand read of Chrome's retained messages, not a persistent recording. Reading does
 not clear messages. Navigation, `console.clear()` and Chrome's own retention limits can remove
-older messages. Network/worker logs and extension isolated worlds are not included. Each read
-checks access to the selected document, isolates its frame/session and rejects document changes.
-It uses the existing short-lived debugger connection and adds no permissions or persistent storage.
+older messages. Network entries cover console failures/warnings such as HTTP errors and failed
+connections; they are not a complete request history and do not include request/response bodies.
+Chrome does not supply a frame ID on retained browser log entries, so these entries have
+`scope: "renderer"`. Every document sharing that renderer must be authorized; their IDs appear in
+`rendererFrameIds`. Use `source: "page"` to read only the selected frame's JavaScript messages.
+
+Related dedicated, nested, blob and Service Workers are read through tab-scoped child sessions.
+`browser_workers` lists running Shared/Service Workers across the selected profile, excluding
+extension/internal workers. Select a relevant `workerId` from that list and pass it instead of
+`tabId`/`frameId` to read that worker directly. Shared/Service Worker logs can involve multiple pages;
+their messages have `scope: "worker"` and a worker ID, rather than being attributed to one document.
+The list is limited to 100 workers, with bounded URLs/titles and a `truncated` flag.
+
+Worker origins are authorized separately; blob workers use their embedded website origin.
+Extension isolated worlds and workers with opaque/unidentifiable origins are excluded. Up to 32
+related workers are read per call. Live-worker replays replace their forwarded renderer messages
+to avoid duplicates; terminated workers can still have retained forwarded entries. Stopped workers
+are counted in `unavailableWorkers`; forwarded messages without an identifiable website are
+counted in `unattributedWorkerMessages`. `workersTruncated`/`forwardedTruncated` also contribute to
+the overall truncation flag. Entries are merged by timestamp before the global count/size limits.
+Reads reject document changes, recheck access and release listeners/debugger connections on failure,
+pause or cancellation. This adds no permissions or persistent storage.
 
 File upload/download, JavaScript dialogs and arbitrary JavaScript execution are not exposed as tools.
 This is an independent implementation of the core browser workflow, not exhaustive feature parity
@@ -123,6 +143,15 @@ webpage content as untrusted, preserve user tabs and respect permission decision
 are masked in accessible snapshots; screenshots can still contain visible page content.
 
 ## Verification
+
+### 2026-09-21 network and Worker logs
+
+The isolated Windows Chrome fixture covers retained 404, dropped-connection and CORS request
+failures; dedicated, nested, blob, Shared and Service Worker console output; uncaught worker errors
+and promise rejections; unrelated-tab and cross-site frame isolation; forwarded-log deduplication;
+global timestamp ordering and limits; worker termination; and navigation. Unit tests exercise
+renderer-wide authorization, worker origin checks, forbidden worker targets, cancellation and cleanup.
+The compiled MCP fixture checks worker discovery and direct-worker request routing.
 
 ### 2026-09-20 console log reading
 
@@ -245,6 +274,8 @@ node --test scripts/chrome-plugin-update.test.mjs
 node --test scripts/chrome-plugin-driver.test.mjs
 node --test scripts/chrome-plugin-console.test.mjs
 node scripts/chrome-plugin-console.e2e.mjs
+node --test scripts/chrome-plugin-workers.test.mjs
+node scripts/chrome-plugin-diagnostics.e2e.mjs
 cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml --bin csw
 node --test scripts/chrome-plugin-protocol.test.mjs
 ```
