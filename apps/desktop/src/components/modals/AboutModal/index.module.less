@@ -1,19 +1,18 @@
 @import "./hero.less";
 
 .styleScope:global(.modal-backdrop) {
+  --about-viewport-height: calc(100dvh - var(--window-titlebar-height, 0px));
+  inset-block-start: var(--window-titlebar-height, 0px);
   padding: 24px;
-  background:
-    radial-gradient(ellipse at 0 0, #b9cfaf99, transparent 32%),
-    radial-gradient(ellipse at 95% 78%, #9bd3b680, transparent 32%),
-    linear-gradient(125deg, #063e36b3, #247d6eb3);
-  backdrop-filter: blur(18px);
+  background: rgba(12, 23, 16, .16);
+  backdrop-filter: none;
 }
 
 .styleScope :global {
   .modal.about-modal {
-    // Keep the reference proportions within the desktop window, including its minimum size.
-    width: min(1312px, calc(100vw - 64px), calc((100dvh - 64px) * 1.317));
-    max-height: calc(100dvh - 48px);
+    // Keep the reference proportions within the space below the titlebar, including at the minimum window size.
+    width: min(1312px, calc(100vw - 64px), calc((var(--about-viewport-height) - 64px) * 1.317));
+    max-height: calc(var(--about-viewport-height) - 48px);
     padding: 0;
     overflow: auto;
     container-type: inline-size;
@@ -213,7 +212,7 @@
   }
 
   .modal.about-modal:lang(en) {
-    width: min(1312px, calc(100vw - 64px), calc((100dvh - 64px) * 1.28));
+    width: min(1312px, calc(100vw - 64px), calc((var(--about-viewport-height) - 64px) * 1.28));
 
     .about-principle-copy { padding-top: 2.4cqw; }
     .about-principle p { margin-top: .8cqw; font-size: 1.18cqw; line-height: 1.5; }
