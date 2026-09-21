@@ -33,13 +33,20 @@ function QuestionField({ question, value, disabled, update, submit }: QuestionPr
   </View>;
 }
 
-function QuestionCard({ item, disabled, error, answer }: Omit<Props, 'thread'> & { item: Item }) {
+function QuestionCard({ item, disabled, error, answer, onCancel }: Omit<Props, 'thread'> & {
+  item: Item; onCancel: () => void;
+}) {
   const questions = item.questions ?? [];
   const [open, setOpen] = useState(false);
   const [answers, setAnswers] = useState(() => questions.map((question) => question.options?.[0] ?? ''));
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState('');
   const submitting = useRef(false);
+  const cancel = () => {
+    if (submitting.current) return;
+    setOpen(false);
+    onCancel();
+  };
   const submit = async () => {
     if (submitting.current || disabled || answers.some((value) => !value.trim())) return;
     submitting.current = true; setBusy(true); setFailure('');
@@ -59,8 +66,11 @@ function QuestionCard({ item, disabled, error, answer }: Omit<Props, 'thread'> &
       <Ionicons name="chevron-forward" size={15} color={palette.muted} />
     </Pressable>
     <BottomSheet fullWidthContent visible={open} tall title="需要你的补充" onClose={() => setOpen(false)}
-      dismissible={!busy} dragFromHeaderOnly actions={[{ label: '提交回答', tone: 'primary', loading: busy,
-        disabled: disabled || answers.some((value) => !value.trim()), onPress: submit }]}>
+      dismissible={!busy} dragFromHeaderOnly actions={[
+        { label: '取消回答', disabled: busy, onPress: cancel },
+        { label: '提交回答', tone: 'primary', loading: busy,
+          disabled: disabled || answers.some((value) => !value.trim()), onPress: submit },
+      ]}>
       <SheetScrollView style={questionStyles.scroll} contentContainerStyle={questionStyles.content}
         keyboardShouldPersistTaps="handled">
         {questions.map((question, index) => <QuestionField key={index} question={question}
@@ -74,11 +84,14 @@ function QuestionCard({ item, disabled, error, answer }: Omit<Props, 'thread'> &
 }
 
 export function ChatAsyncQuestions({ thread, ...props }: Props) {
-  const questions = pendingQuestions(thread);
+  const [cancelled, setCancelled] = useState<Set<string>>(() => new Set());
+  const questionKey = (item: Item) => JSON.stringify([thread?.id, item.id]);
+  const questions = pendingQuestions(thread).filter((item) => !cancelled.has(questionKey(item)));
   if (!questions.length) return null;
   return <ScrollView style={questionStyles.entries} contentContainerStyle={questionStyles.entryContent}
     keyboardShouldPersistTaps="handled">
-    {questions.map((item) => <QuestionCard key={`${thread?.id}:${item.id}`} item={item} {...props} />)}
+    {questions.map((item) => <QuestionCard key={questionKey(item)} item={item} {...props}
+      onCancel={() => setCancelled((previous) => new Set(previous).add(questionKey(item)))} />)}
   </ScrollView>;
 }
 
