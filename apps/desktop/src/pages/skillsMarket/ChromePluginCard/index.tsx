@@ -46,7 +46,7 @@ export function ChromePluginCard({ homeId, active, onBusyChange }: Props) {
       <div className={styles.cardActions}>
         <button className="refresh-all" disabled={busy || !status?.supported || !status.installed}
           onClick={() => setSetup(true)}>
-          <Settings2 size={15} />连接设置
+          <Settings2 size={15} />安装与连接
         </button>
         <button className={`official-plugin-toggle${status?.enabled ? " active" : ""}`}
           disabled={busy || !status?.supported}

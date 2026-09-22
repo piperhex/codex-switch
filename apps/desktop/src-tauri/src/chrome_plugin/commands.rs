@@ -29,6 +29,7 @@ pub(crate) enum ChromePluginAction {
     Enable,
     Disable,
     Remove,
+    OpenStore,
     OpenFolder,
     OpenExtensions,
 }
@@ -68,6 +69,7 @@ pub(crate) async fn chrome_plugin_action(
             ChromePluginAction::Enable => install::install(&root, &home, &executable)?,
             ChromePluginAction::Disable => install::disable(&root, &home, &executable)?,
             ChromePluginAction::Remove => install::remove(&root, &home)?,
+            ChromePluginAction::OpenStore => registration::open_store()?,
             ChromePluginAction::OpenExtensions => {
                 app.clipboard()
                     .write_text("chrome://extensions/")

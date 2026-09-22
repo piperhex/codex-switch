@@ -7,13 +7,14 @@ The plugin is available in the desktop application's community marketplace for t
 ## Installation and use
 
 1. Open the plugin marketplace for the intended Codex Home. The built-in Chrome assistant is prepared automatically.
-2. Follow the setup dialog to load the exported extension through Chrome's normal extension interface.
+2. Open **安装与连接** and use **前往 Chrome 应用商店** to install the
+   [published browser assistant](https://chromewebstore.google.com/detail/codex-switch-%E6%B5%8F%E8%A7%88%E5%99%A8%E5%8A%A9%E6%89%8B/ocngjhjonejkndmlkjmbgjdlghkdhpjj).
 3. Confirm that the card reports a connected browser, then send a message using that home.
    Existing GUI conversations reload changed MCP configuration before their next turn.
 4. Accept Chrome's website permissions when installing the extension. All HTTP(S) websites are allowed
    by default. Turn off "Allow all websites" in the popup to use per-site session or remembered grants.
 5. Use the extension popup to pause control, revoke a site's permission, rename the browser profile,
-   or reconnect. The card shows connection settings and disable/enable controls together on one row.
+   or reconnect. The card shows installation/connection settings and disable/enable controls together on one row.
    Explicitly disabled installations remain disabled when the card is reopened or the app is upgraded.
 
 Controlled webpages display a green cursor favicon. Pausing control, revoking access or navigating
@@ -36,15 +37,17 @@ GUI conversations support the upstream MCP tool confirmation form with single-us
 site access and tool approval remain separate controls. Chrome webpage tasks prefer the Chrome skill,
 which explicitly checks tool availability instead of assuming that an installed skill provides tools.
 
-The setup button copies `chrome://extensions/` and opens Chrome. Paste into the address bar and
-press Enter to reach extension management. Chrome rejects that internal address in external startup
-arguments, even when the browser process launches successfully. Copy or launch failures remain visible
-inside the setup dialog, and the address is also displayed for manual entry.
-The setup dialog is 680 pixels wide and adapts to narrow windows. Click the extension directory path
-to copy it before selecting the unpacked extension folder in Chrome.
+The primary setup button opens the official listing directly in Chrome, without changing the clipboard.
+Store installations receive updates through Chrome Web Store. The setup dialog is 448 pixels wide,
+with at most 400 pixels of content, and adapts to narrow windows. Launch failures remain visible inside the dialog.
 
-Chrome 125 or newer is required. The desktop supplies an unpacked extension, so its first-time setup
-includes a manual Chrome loading step. Exporting the files alone does
+An optional collapsed manual-install section retains unpacked installation for development or when the
+store cannot be used. Its launch button copies `chrome://extensions/` and opens Chrome; paste into the
+address bar and press Enter to reach extension management. Chrome rejects that internal address in
+external startup arguments. Click the extension directory path to copy it before selecting the unpacked
+extension folder in Chrome. Users who installed from the store do not need a second unpacked copy.
+
+Chrome 125 or newer is required. Preparing the connection and exporting the bundled files alone does
 not mean the browser extension has been installed. No browser installation policies are changed.
 
 ## Desktop upgrades and unpacked extension updates

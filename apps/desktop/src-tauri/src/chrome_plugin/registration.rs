@@ -5,6 +5,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
+const CHROME_WEB_STORE_URL: &str = concat!(
+    "https://chromewebstore.google.com/detail/",
+    "codex-switch-%E6%B5%8F%E8%A7%88%E5%99%A8%E5%8A%A9%E6%89%8B/",
+    "ocngjhjonejkndmlkjmbgjdlghkdhpjj"
+);
+
 fn manifest(root: &Path) -> PathBuf {
     root.join(format!("{HOST_NAME}.json"))
 }
@@ -33,7 +39,11 @@ pub(super) fn supported() -> bool {
 pub(super) fn open_extensions() -> Result<()> {
     // Chrome rejects chrome://extensions/ in external startup arguments. The caller
     // copies that address so the user can paste it into a normal browser window.
-    platform::open_extensions()
+    platform::open_url("about:blank")
+}
+
+pub(super) fn open_store() -> Result<()> {
+    platform::open_url(CHROME_WEB_STORE_URL)
 }
 
 #[cfg(windows)]
@@ -43,7 +53,7 @@ mod platform {
     fn key() -> String {
         format!("Software\\Google\\Chrome\\NativeMessagingHosts\\{HOST_NAME}")
     }
-    pub(super) fn open_extensions() -> Result<()> {
+    pub(super) fn open_url(url: &str) -> Result<()> {
         use std::os::windows::process::CommandExt;
         let executable = ["PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"]
             .into_iter()
@@ -53,7 +63,7 @@ mod platform {
             .find(|path| path.is_file())
             .ok_or(BrowserError::ChromeNotFound)?;
         std::process::Command::new(executable)
-            .args(["--new-window", "about:blank"])
+            .args(["--new-window", url])
             .creation_flags(0x0800_0000)
             .spawn()
             .map(|_| ())
@@ -93,14 +103,14 @@ mod platform {
         };
         Ok(home.join(folder).join(format!("{HOST_NAME}.json")))
     }
-    pub(super) fn open_extensions() -> Result<()> {
+    pub(super) fn open_url(url: &str) -> Result<()> {
         let mut command = if cfg!(target_os = "macos") {
             let mut command = std::process::Command::new("open");
-            command.args(["-a", "Google Chrome", "about:blank"]);
+            command.args(["-a", "Google Chrome", url]);
             command
         } else {
             let mut command = std::process::Command::new("google-chrome");
-            command.args(["--new-window", "about:blank"]);
+            command.args(["--new-window", url]);
             command
         };
         command
@@ -134,7 +144,7 @@ mod platform {
     pub(super) fn unregister(_: &Path) -> Result<()> {
         Err(BrowserError::Unsupported)
     }
-    pub(super) fn open_extensions() -> Result<()> {
+    pub(super) fn open_url(_: &str) -> Result<()> {
         Err(BrowserError::Unsupported)
     }
 }

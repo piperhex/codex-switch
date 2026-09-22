@@ -28,7 +28,7 @@ enum BrowserError {
     #[cfg(windows)]
     #[error("未找到 Chrome，请先安装 Chrome 浏览器。")]
     ChromeNotFound,
-    #[error("未能打开 Chrome，请手动打开，在地址栏粘贴并回车。")]
+    #[error("未能打开 Chrome，请确认浏览器可正常启动后重试。")]
     ChromeLaunch,
     #[error("浏览器插件操作未完成，请重试。")]
     Storage,

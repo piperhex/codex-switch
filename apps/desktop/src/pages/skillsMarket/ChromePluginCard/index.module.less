@@ -8,7 +8,7 @@
 .cardActions { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 8px;
   > button { min-width: 0; justify-content: center; white-space: nowrap; }
 }
-.setup { overflow-wrap: anywhere;
+.setup { max-width: 400px; overflow-wrap: anywhere;
   ol { padding-left: 20px; line-height: 1.8; }
   p { margin: 10px 0; }
 }
@@ -23,4 +23,7 @@
 .setupActions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
 .hint { font-size: 12px; color: var(--muted); }
 .feedback { max-width: 400px; }
+.manualInstall { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line);
+  summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+}
 :global(:root[data-theme="dark"]) .preview { background: linear-gradient(145deg, #244e42, #397f6c); }
