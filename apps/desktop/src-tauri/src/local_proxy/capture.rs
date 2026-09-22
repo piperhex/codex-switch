@@ -17,7 +17,10 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
         update_proxy_session_response_account(&mut context, &payload);
         return Ok(payload);
     }
-    context.service_tier = payload.token_usage_service_tier.clone();
+    context.service_tier = UsageServiceTier::new(
+        payload.token_usage_service_tier.clone(),
+        payload.token_usage_account.is_some(),
+    );
     if context.provider_id.is_none() && payload.token_usage_account.is_none() {
         if let Ok(paths) = resolve_paths(app) {
             if let Some(provider_id) = read_state(&paths).active_provider_id {
@@ -43,12 +46,13 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
     update_proxy_session_response_account(&mut context, &payload);
     payload.body = match payload.body {
         UpstreamBody::Buffered(body) => {
-            context.service_tier = extract_service_tier_from_bytes(
-                &body,
-                context.content_type.as_deref(),
-                context.expects_event_stream,
-            )
-            .or(context.service_tier);
+            context
+                .service_tier
+                .observe_response(extract_service_tier_from_bytes(
+                    &body,
+                    context.content_type.as_deref(),
+                    context.expects_event_stream,
+                ));
             let usage = extract_token_usage_from_bytes(
                 &body,
                 context.content_type.as_deref(),
@@ -135,9 +139,9 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
             return;
         }
         if let Ok(value) = serde_json::from_str::<Value>(&data) {
-            if let Some(tier) = extract_service_tier_from_value(&value) {
-                self.context.service_tier = Some(tier);
-            }
+            self.context
+                .service_tier
+                .observe_response(extract_service_tier_from_value(&value));
             merge_token_usage_event(&mut self.usage, &value);
             if is_terminal_usage_event(&value) {
                 // A terminal event completes accounting even if the upstream keeps its socket open.
@@ -164,12 +168,13 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
             }
         } else if self.usage.is_none() {
             self.complete = buffered_usage_complete(&self.body);
-            self.context.service_tier = extract_service_tier_from_bytes(
-                &self.body,
-                self.context.content_type.as_deref(),
-                self.context.expects_event_stream,
-            )
-            .or(self.context.service_tier.take());
+            self.context
+                .service_tier
+                .observe_response(extract_service_tier_from_bytes(
+                    &self.body,
+                    self.context.content_type.as_deref(),
+                    self.context.expects_event_stream,
+                ));
             self.usage = extract_token_usage_from_bytes(
                 &self.body,
                 self.context.content_type.as_deref(),
@@ -456,7 +461,7 @@ fn record_token_usage_entry<R: Runtime>(
             .as_ref()
             .map(|account| account.account_email.clone()),
         model: context.model.clone(),
-        service_tier: context.service_tier.clone(),
+        service_tier: context.service_tier.for_estimate().map(str::to_owned),
         duration_ms: Some(duration_ms),
         input_tokens: usage.input_tokens,
         output_tokens: usage.output_tokens,
@@ -470,7 +475,9 @@ fn record_token_usage_entry<R: Runtime>(
         LanUsageAccounting::Incomplete => Some(false),
         LanUsageAccounting::Failed => None,
     };
-    if let (Some(key_id), Some(usage_complete)) = (context.lan_api_key_id.as_deref(), usage_complete) {
+    if let (Some(key_id), Some(usage_complete)) =
+        (context.lan_api_key_id.as_deref(), usage_complete)
+    {
         if let Err(error) = lan_keys::record_usage(app, key_id, &entry, usage_complete) {
             log_proxy_error!("failed to record LAN API key usage: {error}");
         }
