@@ -38,6 +38,11 @@ const welcome: Thread = { id: 'demo-chat', name: '移动端聊天体验', previe
     { id: 'answer', type: 'agentMessage', text: '可以，今天先完成这三件事：\n\n1. 检查项目进度\n2. 处理需要确认的事项'
       + '\n3. 验证手机与电脑之间的同步\n\n你可以直接从手机继续这个任务。' },
   ] }] };
+const fixtureDevice = new URLSearchParams(location.search).get('device');
+if (fixtureDevice) {
+  welcome.id = `demo-chat-${fixtureDevice}`;
+  welcome.name = new URLSearchParams(location.search).get('title') || fixtureDevice;
+}
 const threads = new Map([[welcome.id, welcome]]);
 const archived = new Set<string>();
 const approvals = new Map<string, { event: GuiEvent; thread: Thread; turn: Turn; link: ChatLink }>();

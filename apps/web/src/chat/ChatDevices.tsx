@@ -1,13 +1,15 @@
 import { t, useLanguage } from '../i18n';
 import { AdaptiveSheet } from '../components/AdaptiveSheet';
-import type { RemoteDevice } from '../types';
+import type { ChatComputer } from '../../../../shared/remote-chat/devices';
 
-export function ChatDevices({ devices, choose, onClose }: {
-  devices: RemoteDevice[]; choose: (id: string) => void; onClose: () => void;
+export function ChatDevices({ devices, choose, chooseLocal, onClose }: {
+  devices: ChatComputer[]; choose: (id: string) => void; onClose: () => void; chooseLocal?: () => void;
 }) {
   useLanguage();
   return <AdaptiveSheet open title={t("选择电脑")} width={400} onClose={onClose}>
     <div className="chat-settings">
+      {chooseLocal && <button type="button" className="chat-setting-entry" onClick={chooseLocal}>
+        <strong>本机</strong></button>}
       {devices.map((device) => <button type="button" key={device.deviceId} className="chat-setting-entry"
         disabled={!device.online} onClick={() => choose(device.deviceId)}>
         <strong>{device.name}</strong><span>{device.online ? t("在线") : t("离线")}</span>

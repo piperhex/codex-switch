@@ -1,0 +1,221 @@
+use std::{
+    io::ErrorKind,
+    net::TcpStream,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::{Duration, Instant},
+};
+
+use tauri::ipc::Channel;
+use tokio::sync::{mpsc, watch};
+use tungstenite::{stream::MaybeTlsStream, Error as SocketError, Message, WebSocket};
+
+use super::{
+    bridge::{Batch, Bridge},
+    client::{ClientCommand, OpenRequest},
+    config::Config,
+    protocol::{ChatError, Envelope, Event, FRAME_LIMIT},
+};
+
+type Socket = WebSocket<MaybeTlsStream<TcpStream>>;
+type Lifecycle = (watch::Receiver<Option<Config>>, Arc<AtomicBool>);
+const POLL_INTERVAL: Duration = Duration::from_millis(20);
+const PING_INTERVAL: Duration = Duration::from_secs(20);
+const RECEIVE_TIMEOUT: Duration = Duration::from_secs(60);
+const COMMANDS_PER_TICK: usize = 64;
+
+pub(super) fn run(
+    request: OpenRequest,
+    events: Channel<Batch>,
+    commands: mpsc::Receiver<ClientCommand>,
+    life: Lifecycle,
+) {
+    let code = connect(&request, events.clone(), commands, life).unwrap_or(1006);
+    // A final close bypasses a pending batch so a stopped renderer cannot retain the socket.
+    if events
+        .send(Batch {
+            sequence: 0,
+            events: vec![Envelope {
+                generation: 0,
+                event: Event::Closed { code },
+            }],
+        })
+        .is_err()
+    {
+        // The owning WebView has already gone away; no receiver remains to notify.
+    }
+}
+
+fn connect(
+    request: &OpenRequest,
+    events: Channel<Batch>,
+    commands: mpsc::Receiver<ClientCommand>,
+    life: Lifecycle,
+) -> Result<u16, ChatError> {
+    let config = life.0.borrow().clone().ok_or(ChatError::Transport)?;
+    if !request.matches(&config) {
+        return Ok(4001);
+    }
+    let mut socket = dial(&config.websocket_url)?;
+    if life.1.load(Ordering::Acquire) {
+        return Ok(1000);
+    }
+    if !life
+        .0
+        .borrow()
+        .as_ref()
+        .is_some_and(|current| config.same_owner(current))
+    {
+        return Ok(4001);
+    }
+    let auth = serde_json::json!({ "type": "authenticate", "role": "mobile", "accessToken": config.access_token,
+        "deviceId": request.device_id, "publicKey": request.public_key, "transportVersion": 2, "resume": request.resume });
+    socket
+        .send(Message::Text(auth.to_string().into()))
+        .map_err(|_| ChatError::Transport)?;
+    let bridge = Bridge::new(
+        request.client_id.clone(),
+        Box::new(move |batch| events.send(batch).is_ok()),
+    );
+    let now = Instant::now();
+    ClientRuntime {
+        socket,
+        bridge,
+        received: now,
+        pinged: now,
+        session_id: request
+            .resume
+            .as_ref()
+            .map(|resume| resume.session_id.clone()),
+    }
+    .poll(commands, life, config)
+}
+
+struct ClientRuntime {
+    socket: Socket,
+    bridge: Bridge,
+    received: Instant,
+    pinged: Instant,
+    session_id: Option<String>,
+}
+
+impl ClientRuntime {
+    fn poll(
+        mut self,
+        mut commands: mpsc::Receiver<ClientCommand>,
+        life: Lifecycle,
+        config: Config,
+    ) -> Result<u16, ChatError> {
+        loop {
+            if !life
+                .0
+                .borrow()
+                .as_ref()
+                .is_some_and(|current| config.same_owner(current))
+            {
+                return Ok(4001);
+            }
+            self.commands(&mut commands)?;
+            // IPC acknowledges queue admission; finish queued peer-close frames before teardown.
+            if life.1.load(Ordering::Acquire) && commands.is_empty() {
+                return Ok(1000);
+            }
+            if !self.bridge.flush() || self.received.elapsed() > RECEIVE_TIMEOUT {
+                return Err(ChatError::Transport);
+            }
+            if self.pinged.elapsed() >= PING_INTERVAL {
+                self.socket
+                    .send(Message::Ping(Vec::new().into()))
+                    .map_err(|_| ChatError::Transport)?;
+                self.pinged = Instant::now();
+            }
+            if let Some(code) = self.receive()? {
+                return Ok(code);
+            }
+        }
+    }
+
+    fn commands(&mut self, commands: &mut mpsc::Receiver<ClientCommand>) -> Result<(), ChatError> {
+        for _ in 0..COMMANDS_PER_TICK {
+            match commands.try_recv() {
+                Ok(ClientCommand::Ack(sequence)) => self.bridge.acknowledge(sequence),
+                Ok(ClientCommand::Send(message)) => {
+                    if self.session_id.as_deref() != Some(message.session_id()) {
+                        return Err(ChatError::InvalidFrame);
+                    }
+                    let text =
+                        serde_json::to_string(&message).map_err(|_| ChatError::InvalidFrame)?;
+                    self.socket
+                        .send(Message::Text(text.into()))
+                        .map_err(|_| ChatError::Transport)?;
+                }
+                Err(mpsc::error::TryRecvError::Empty) => break,
+                Err(mpsc::error::TryRecvError::Disconnected) => return Err(ChatError::Transport),
+            }
+        }
+        Ok(())
+    }
+
+    fn receive(&mut self) -> Result<Option<u16>, ChatError> {
+        match self.socket.read() {
+            Ok(Message::Text(text)) => {
+                self.received = Instant::now();
+                self.message(text.to_string())?;
+            }
+            Ok(Message::Close(frame)) => {
+                return Ok(Some(frame.map_or(1000, |frame| frame.code.into())))
+            }
+            Ok(Message::Ping(payload)) => {
+                self.received = Instant::now();
+                self.socket
+                    .send(Message::Pong(payload))
+                    .map_err(|_| ChatError::Transport)?;
+            }
+            Ok(_) => self.received = Instant::now(),
+            Err(SocketError::Io(error))
+                if matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {}
+            Err(_) => return Err(ChatError::Transport),
+        }
+        Ok(None)
+    }
+
+    fn message(&mut self, data: String) -> Result<(), ChatError> {
+        let frame: serde_json::Value =
+            serde_json::from_str(&data).map_err(|_| ChatError::InvalidFrame)?;
+        if matches!(frame["type"].as_str(), Some("paired" | "resumed")) {
+            self.session_id = frame["sessionId"].as_str().map(str::to_owned);
+        }
+        if !self.bridge.enqueue(Envelope {
+            generation: 0,
+            event: Event::Message { data },
+        }) {
+            return Err(ChatError::Transport);
+        }
+        Ok(())
+    }
+}
+
+fn dial(url: &str) -> Result<Socket, ChatError> {
+    let (mut socket, _) =
+        crate::remote_websocket::connect_remote_websocket(url).map_err(|_| ChatError::Transport)?;
+    let stream = match socket.get_mut() {
+        MaybeTlsStream::Plain(stream) => stream,
+        MaybeTlsStream::Rustls(stream) => &mut stream.sock,
+        _ => return Err(ChatError::Transport),
+    };
+    stream
+        .set_read_timeout(Some(POLL_INTERVAL))
+        .map_err(|_| ChatError::Transport)?;
+    stream
+        .set_write_timeout(Some(Duration::from_secs(5)))
+        .map_err(|_| ChatError::Transport)?;
+    socket.set_config(|config| {
+        config.max_message_size = Some(FRAME_LIMIT);
+        config.max_frame_size = Some(FRAME_LIMIT);
+        config.max_write_buffer_size = 2 * FRAME_LIMIT;
+        config.write_buffer_size = 0;
+    });
+    Ok(socket)
+}

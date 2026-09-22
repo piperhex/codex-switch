@@ -8,10 +8,10 @@ import { useThreadListScroll } from './useThreadListScroll';
 
 interface Props {
   state: ChatState; controller: ChatController; newChat: (project?: ChatProject) => void; onClose: () => void;
-  openSearch: () => void; profile: ReactNode;
+  openSearch: () => void; profile: ReactNode; accountPicker?: ReactNode;
 }
 
-export function ChatThreads({ state, controller, newChat, onClose, openSearch, profile }: Props) {
+export function ChatThreads({ state, controller, newChat, onClose, openSearch, profile, accountPicker }: Props) {
   useLanguage();
   const { groups, toggle, toggleCollapse } = useThreadGroups(state);
   const pagination = useThreadListScroll(state, controller);
@@ -68,5 +68,6 @@ export function ChatThreads({ state, controller, newChat, onClose, openSearch, p
     </div>
     <div className="chat-drawer-footer"><button className="chat-new-button" type="button"
       disabled={state.sending} onClick={() => newChat()}><Plus size={20} />{t("新聊天")}</button>{profile}</div>
+    {accountPicker}
   </>;
 }

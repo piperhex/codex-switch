@@ -14,7 +14,21 @@ reply. Shared automatic fallback and concurrent account routing do not change th
 The GUI's remaining quota and Provider model choices follow its own selection. All connected GUI browsers
 share this selection, and upstream Codex Switch Providers continue to use the live Codex model catalog.
 
-The gear at the top right of the account list opens **Codex GUI 设置**, with top tabs for **自动切号**
+In the desktop app, the account bar also shows the selected computer. Open it and choose **切换电脑**
+to select **本机** or another online computer signed in to the same Codex Switch cloud account.
+The conversation list, messages, project selection, model settings and account choices then belong to
+that computer. Use **切换账户** in the same menu to open its account list and select an official account
+or Provider. The target computer must have its local proxy running to switch its GUI account.
+Its account selection is shared with other clients connected to that computer.
+
+Switching computers leaves existing tasks running on their original computer. Returning to **本机**
+restores the local GUI workspace. An interrupted remote connection shows its connection state and retries;
+it never redirects messages or account changes to the local computer. Offline computers remain visible
+but cannot be selected. Logging out or changing cloud accounts closes the previous remote workspace.
+Cloud credentials and token renewal stay in the native desktop backend; the UI exchanges public peer
+keys and encrypted chat frames through the existing direct connection and relay protocol.
+
+The gear in the local account list opens **Codex GUI 设置**, with top tabs for **自动切号**
 and **界面**. The appearance tab changes the conversation font size from 12–24 px (14 px by default),
 with an immediate preview and a reset button. Messages, the composer, code, tool output, and file diffs
 follow the saved size; other Codex Switch pages keep their own typography. Font changes are saved locally

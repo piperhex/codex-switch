@@ -2,6 +2,8 @@
 //! WebRTC and the encrypted application protocol still run in the main WebView.
 
 mod bridge;
+mod client;
+mod client_runtime;
 mod config;
 mod protocol;
 mod runtime;
@@ -15,6 +17,7 @@ use tauri::{ipc::Channel, AppHandle, Manager, WebviewWindow};
 use tokio::sync::mpsc;
 
 use bridge::Batch;
+pub(crate) use client::*;
 use protocol::{Command, Outgoing};
 
 struct ChatState(mpsc::Sender<Command>);
@@ -127,6 +130,7 @@ pub(crate) fn start<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
     app.manage(ChatState(sender));
     let upload_policy =
         std::sync::Arc::clone(&app.state::<crate::codex_gui::GuiState>().upload_policy);
-    let configs = config::watch(app);
+    let configs = config::watch(app.clone());
+    client::start(&app, configs.clone());
     std::thread::spawn(move || runtime::run(receiver, configs, upload_policy));
 }
