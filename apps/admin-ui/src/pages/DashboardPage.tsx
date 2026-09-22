@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { dashboardPlatforms, dashboardTrendOption } from "./dashboard-trend";
 import { DailyActiveTable } from "./DailyActiveTable";
+import { ChatTrafficPanel } from "./ChatTrafficPanel";
 import { EChart } from "../components/charts/EChart";
 import { useI18n } from "../i18n-context";
 import type { DashboardOverview, MenuKey, Permission, TelemetryPlatform } from "../types";
@@ -232,6 +233,8 @@ export function DashboardPage({
           </div>
         ))}
       </div>
+
+      <ChatTrafficPanel data={data?.chatTraffic} dark={dark} loading={loading} />
 
       <DailyActiveTable data={data?.dailyActiveTrend ?? []} loading={loading} />
 

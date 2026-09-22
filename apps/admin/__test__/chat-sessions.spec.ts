@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import { DEFAULT_CHAT_POLICY } from '@/modules/chat-settings/chat-policy';
 import type { ChatSettingsService } from '@/modules/chat-settings/chat-settings.service';
+import type { ChatTrafficService } from '@/modules/chat-traffic/chat-traffic.service';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type WebSocket from 'ws';
 import { ChatSessions } from '@/modules/devices/chat/chat-sessions';
@@ -88,7 +89,8 @@ describe('chat authentication lifecycle', () => {
     vi.useFakeTimers();
     const auth = { authenticate: async () => identity('desktop') } as unknown as ChatAuthService;
     const read = vi.fn().mockResolvedValue(DEFAULT_CHAT_POLICY);
-    const gateway = new ChatGateway(auth, new ChatStunService(), { read } as unknown as ChatSettingsService);
+    const gateway = new ChatGateway(auth, new ChatStunService(), { read } as unknown as ChatSettingsService,
+      { record: vi.fn() } as unknown as ChatTrafficService);
     const socket = new Socket();
     gateway.handleConnection(socket.ws());
     socket.emit('message', Buffer.from('{"type":"authenticate"}'), false);
@@ -128,7 +130,8 @@ describe('chat authentication lifecycle', () => {
     let finish: (identity: ChatIdentity) => void = () => undefined;
     const auth = { authenticate: vi.fn().mockImplementation(() => new Promise((resolve) => { finish = resolve; })) };
     const settings = { read: async () => ({ ...DEFAULT_CHAT_POLICY }) } as ChatSettingsService;
-    const gateway = new ChatGateway(auth as unknown as ChatAuthService, new ChatStunService(), settings);
+    const gateway = new ChatGateway(auth as unknown as ChatAuthService, new ChatStunService(), settings,
+      { record: vi.fn() } as unknown as ChatTrafficService);
     const socket = new Socket();
     gateway.handleConnection(socket.ws());
     socket.emit('message', Buffer.from('{"type":"authenticate"}'), false);

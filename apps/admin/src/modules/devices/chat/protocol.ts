@@ -48,11 +48,15 @@ export function signal(value: unknown) {
   throw new Error('Invalid signal');
 }
 
-export function send(client: WebSocket, message: object) {
+export function send(client: WebSocket, message: object, onSent?: (bytes: number) => void) {
   if (client.readyState !== 1) return;
   if (client.bufferedAmount > CHAT_BUFFER_LIMIT) {
     client.close(4008, 'Connection is too slow');
     return;
   }
-  client.send(JSON.stringify(message), (error) => { if (error) client.terminate(); });
+  const serialized = JSON.stringify(message);
+  client.send(serialized, (error) => {
+    if (error) { client.terminate(); return; }
+    onSent?.(Buffer.byteLength(serialized));
+  });
 }

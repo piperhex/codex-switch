@@ -5,6 +5,7 @@ import { ChatGateway } from '@/modules/devices/chat/chat.gateway';
 import type { ChatAuthService } from '@/modules/devices/chat/chat-auth.service';
 import type { ChatStunService } from '@/modules/devices/chat/stun.service';
 import type { ChatSettingsService } from '@/modules/chat-settings/chat-settings.service';
+import type { ChatTrafficService } from '@/modules/chat-traffic/chat-traffic.service';
 import { DEFAULT_CHAT_POLICY, type ChatPolicy } from '@/modules/chat-settings/chat-policy';
 
 class Socket extends EventEmitter {
@@ -27,8 +28,10 @@ async function connected(initial: Partial<ChatPolicy> = {}) {
   const auth = { authenticate: async (message: { role: string }) => ({ ownerId: 'owner', deviceId: 'pc',
     role: message.role, expiresAt: Date.now() + 3600000 }) };
   const settings = { read: async () => policy };
+  const record = vi.fn();
   gateway = new ChatGateway(auth as unknown as ChatAuthService,
-    { iceServers: () => [] } as unknown as ChatStunService, settings as unknown as ChatSettingsService);
+    { iceServers: () => [] } as unknown as ChatStunService, settings as unknown as ChatSettingsService,
+    { record } as unknown as ChatTrafficService);
   const pc = new Socket();
   const phone = new Socket();
   for (const [socket, role] of [[pc, 'desktop'], [phone, 'mobile']] as const) {
@@ -40,7 +43,7 @@ async function connected(initial: Partial<ChatPolicy> = {}) {
   await vi.advanceTimersByTimeAsync(11000);
   phone.receive({ type: 'relay-request', sessionId, reason: 'timeout' });
   await vi.advanceTimersByTimeAsync(1000);
-  return { pc, phone, send: (payload = 'ab') => pc.receive({ type: 'relay', sessionId, payload }),
+  return { pc, phone, record, send: (payload = 'ab') => pc.receive({ type: 'relay', sessionId, payload }),
     policy: (patch: Partial<ChatPolicy>) => { policy = { ...policy, ...patch }; } };
 }
 
@@ -50,6 +53,11 @@ it('forwards bursts beyond both old per-second limits by default', async () => {
   await vi.advanceTimersByTimeAsync(0);
   expect(harness.pc.readyState).toBe(WebSocket.OPEN);
   expect(harness.phone.sent.filter((message) => message.type === 'relay')).toHaveLength(500);
+  expect(harness.record).toHaveBeenCalledTimes(500);
+  expect(harness.record.mock.calls.reduce((total, [bytes]) => total + Number(bytes), 0)).toBe(
+    harness.phone.sent.filter((message) => message.type === 'relay')
+      .reduce((total, message) => total + Buffer.byteLength(JSON.stringify(message)), 0),
+  );
 });
 
 it.each([

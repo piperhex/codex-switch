@@ -18,6 +18,8 @@ function resume(value: unknown): Resume {
 
 /** Resume proofs stay in endpoint memory and are accepted only after normal account/device authentication. */
 export class HotSessions {
+  constructor(private readonly onRelaySent?: (bytes: number) => void) {}
+
   private readonly sessions = new Map<string, Session>();
   private readonly closed = new Map<string, { sockets: WebSocket[]; at: number }>();
 
@@ -115,7 +117,7 @@ export class HotSessions {
     }
     if (message.type === 'relay' && typeof message.payload === 'string'
       && /^[a-f0-9]+$/.test(message.payload) && message.payload.length <= 40_000) {
-      if (target) send(target, { type: 'relay', sessionId: session.id, payload: message.payload });
+      if (target) send(target, { type: 'relay', sessionId: session.id, payload: message.payload }, this.onRelaySent);
       return true;
     }
     throw new Error('Invalid hot standby frame');

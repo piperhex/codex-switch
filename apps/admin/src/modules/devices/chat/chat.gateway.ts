@@ -1,4 +1,5 @@
 import { ChatSettingsService } from '../../chat-settings/chat-settings.service';
+import { ChatTrafficService } from '../../chat-traffic/chat-traffic.service';
 import { DEFAULT_CHAT_POLICY } from '../../chat-settings/chat-policy';
 import { OnModuleDestroy } from '@nestjs/common';
 import { OnGatewayConnection, OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
@@ -26,7 +27,7 @@ interface Connection {
 @WebSocketGateway({ path: '/device-chat', maxPayload: CHAT_FRAME_LIMIT, perMessageDeflate: false })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy {
   private readonly connections = new Map<WebSocket, Connection>();
-  private readonly sessions = new ChatSessions();
+  private readonly sessions: ChatSessions;
   private readonly heartbeat = setInterval(() => this.tick(), 25_000);
 
   private refreshingPolicy = false;
@@ -34,7 +35,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   private readonly policyTimer = setInterval(() => { void this.refreshPolicy(); }, POLICY_REFRESH_MS);
 
   constructor(private readonly auth: ChatAuthService, private readonly stun: ChatStunService,
-    private readonly settings: ChatSettingsService) {
+    private readonly settings: ChatSettingsService, traffic: ChatTrafficService) {
+    this.sessions = new ChatSessions((bytes) => traffic.record(bytes));
     this.policyTimer.unref();
     this.heartbeat.unref();
   }

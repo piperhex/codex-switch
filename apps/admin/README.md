@@ -4,6 +4,8 @@ NestJS backend for Codex Switch cloud login, account and Provider synchronizatio
 
 Mobile chat uses `/device-chat` for authenticated rendezvous and encrypted fallback relay, plus UDP STUN discovery.
 See [mobile chat deployment and verification](../../docs/mobile-chat.md) before enabling the new clients.
+For dashboard relay totals and daily/hourly charts, apply `sql/20260922-chat-relay-traffic.sql` before updating
+the backend when schema synchronization is disabled. See [chat relay traffic statistics](../../docs/chat-relay-traffic.md).
 
 ## Stack
 

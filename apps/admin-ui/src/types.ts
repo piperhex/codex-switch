@@ -1,3 +1,5 @@
+import type { ChatTrafficOverview } from "./chat-traffic-types";
+
 export type Role = string;
 export type UserStatus = "active" | "disabled";
 export type Permission = string;
@@ -282,6 +284,7 @@ export interface TelemetryFilters {
 }
 
 export interface DashboardOverview {
+  chatTraffic: ChatTrafficOverview;
   dailyActiveTrend: Array<{
     date: string;
     total: number;

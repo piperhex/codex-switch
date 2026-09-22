@@ -10,8 +10,12 @@ import {
 export class ChatSessions {
   private readonly desktops = new Map<string, WebSocket>();
   private readonly desktopInfo = new Map<WebSocket, { expiresAt: number; version: number }>();
-  private readonly hot = new HotSessions();
+  private readonly hot: HotSessions;
   private readonly sessions = new Map<string, ChatSession>();
+
+  constructor(private readonly onRelaySent?: (bytes: number) => void) {
+    this.hot = new HotSessions(onRelaySent);
+  }
 
   join(client: WebSocket, identity: ChatIdentity, message: Record<string, unknown>, iceServers: object[]) {
     this.hot.prune();
@@ -73,7 +77,7 @@ export class ChatSessions {
     }
     if (message.type === 'relay' && session.relay && typeof message.payload === 'string'
       && /^[a-f0-9]+$/.test(message.payload) && message.payload.length <= 40_000) {
-      send(target, { type: 'relay', sessionId, payload: message.payload });
+      send(target, { type: 'relay', sessionId, payload: message.payload }, this.onRelaySent);
       return;
     }
     if (message.type === 'peer-close') {

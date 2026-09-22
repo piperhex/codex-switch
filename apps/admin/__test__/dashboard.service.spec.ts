@@ -2,6 +2,7 @@ import type { DataSource } from 'typeorm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DashboardController } from '@/modules/dashboard/dashboard.controller';
 import { DashboardService } from '@/modules/dashboard/dashboard.service';
+import type { ChatTrafficService } from '@/modules/chat-traffic/chat-traffic.service';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -50,7 +51,8 @@ describe('DashboardService', () => {
         { date: '2026-07-18', platform: 'windows', count: '4' },
         { date: '2026-07-18', platform: 'android', count: '2' },
       ]);
-    const service = new DashboardService({ query } as unknown as DataSource);
+    const traffic = { getOverview: vi.fn().mockResolvedValue({ totalBytes: 1234, daily: [] }) };
+    const service = new DashboardService({ query } as unknown as DataSource, traffic as unknown as ChatTrafficService);
 
     const result = await service.getOverview(7);
 
@@ -87,6 +89,8 @@ describe('DashboardService', () => {
       { name: 'ios', value: 0 },
     ]);
     expect(result.feedback).toEqual({ pending: 3, replied: 7 });
+    expect(result.chatTraffic).toEqual({ totalBytes: 1234, daily: [] });
+    expect(traffic.getOverview).toHaveBeenCalledWith(7);
     expect(result.dailyActiveTrend).toHaveLength(7);
     expect(result.dailyActiveTrend[0].total).toBe(0);
     expect(result.dailyActiveTrend[6]).toEqual({
