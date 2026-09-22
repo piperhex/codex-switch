@@ -14,6 +14,12 @@ reply. Shared automatic fallback and concurrent account routing do not change th
 The GUI's remaining quota and Provider model choices follow its own selection. All connected GUI browsers
 share this selection, and upstream Codex Switch Providers continue to use the live Codex model catalog.
 
+The **今日** cost is a daily estimate across recorded requests. For official Codex accounts, each request
+uses the speed selected when it was sent; Fast mode applies the configured multiplier (2.5 by default).
+Changing speed affects subsequent requests. A generic `default` tier in an official Codex response does
+not remove that request's Fast-mode estimate. API Providers use the reported response tier when available,
+including a downgrade to normal speed. These estimates are not a statement of actual subscription charges.
+
 In the desktop app, the account bar also shows the selected computer. Open it and choose **切换电脑**
 to select **本机** or another online computer signed in to the same Codex Switch cloud account.
 The conversation list, messages, project selection, model settings and account choices then belong to

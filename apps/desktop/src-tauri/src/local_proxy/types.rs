@@ -209,7 +209,7 @@ struct TokenUsageContext {
     provider: String,
     provider_id: Option<String>,
     model: String,
-    service_tier: Option<String>,
+    service_tier: UsageServiceTier,
     request_hash: String,
     started_at: Instant,
     content_type: Option<String>,

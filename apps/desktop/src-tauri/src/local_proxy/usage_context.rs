@@ -56,7 +56,7 @@ fn token_usage_context(request: TokenUsageRequest<'_>) -> Option<TokenUsageConte
         provider,
         provider_id,
         model,
-        service_tier: None,
+        service_tier: UsageServiceTier::default(),
         request_hash: short_hash_bytes(request.body),
         started_at: request.started_at,
         content_type: None,

@@ -25,13 +25,13 @@ impl CaptureUsageFixture {
         }
     }
 
-    fn reader(&self, chunks: &[&str]) -> TokenUsageCaptureReader<tauri::test::MockRuntime> {
-        let context = TokenUsageContext {
+    fn context(&self) -> TokenUsageContext {
+        TokenUsageContext {
             ts: unix_now(),
             provider: "Capture test".to_string(),
             provider_id: Some("capture-test".to_string()),
             model: "gpt-test".to_string(),
-            service_tier: None,
+            service_tier: UsageServiceTier::default(),
             request_hash: uuid::Uuid::new_v4().to_string(),
             started_at: Instant::now(),
             content_type: Some("text/event-stream".to_string()),
@@ -40,14 +40,17 @@ impl CaptureUsageFixture {
             session_id: None,
             session_request_id: None,
             lan_api_key_id: None,
-        };
+        }
+    }
+
+    fn reader(&self, chunks: &[&str]) -> TokenUsageCaptureReader<tauri::test::MockRuntime> {
         let inner = CaptureUsageChunkReader {
             chunks: chunks
                 .iter()
                 .map(|chunk| chunk.as_bytes().to_vec())
                 .collect(),
         };
-        TokenUsageCaptureReader::new(Box::new(inner), self.app.handle().clone(), context)
+        TokenUsageCaptureReader::new(Box::new(inner), self.app.handle().clone(), self.context())
     }
 
     fn entries(&self) -> Vec<TokenUsageEntry> {

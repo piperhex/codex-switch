@@ -28,11 +28,13 @@ mod session_titles;
 pub(crate) mod sse_idle_timeout;
 mod sse_transport;
 mod upstream_transport;
+mod usage_service_tier;
 
 pub(crate) use lan_keys::{
     delete_local_proxy_lan_api_key, list_local_proxy_lan_api_keys, save_local_proxy_lan_api_key,
 };
 use quota_detection::is_official_quota_exhaustion;
+use usage_service_tier::UsageServiceTier;
 
 include!("constants.rs");
 include!("types.rs");
@@ -108,6 +110,7 @@ mod tests {
     include!("tests/token_usage_breakdown.rs");
     include!("tests/token_usage_responsiveness.rs");
     include!("tests/token_usage_capture.rs");
+    include!("tests/official_service_tier_capture.rs");
     include!("tests/auto_switch_retry.rs");
     include!("tests/retry_target.rs");
     include!("tests/auto_switch_responsiveness.rs");
