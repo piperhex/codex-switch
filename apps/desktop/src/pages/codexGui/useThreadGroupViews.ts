@@ -26,9 +26,15 @@ export function useThreadGroupViews() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ collapsed })); }
     catch { /* Keep the current in-memory view if storage is full or unavailable. */ }
   }, [collapsed]);
-  const toggle = (field: keyof GroupViews, key: string) => setViews((current) => ({
-    ...current,
-    [field]: current[field].includes(key) ? current[field].filter((value) => value !== key) : [...current[field], key],
-  }));
+  const toggle = (field: keyof GroupViews, key: string) => setViews((current) => {
+    const nextViews = {
+      ...current,
+      [field]: current[field].includes(key) ? current[field].filter((value) => value !== key) : [...current[field], key],
+    };
+    if (field === "collapsed" && nextViews.collapsed.includes(key)) {
+      nextViews.expanded = current.expanded.filter((value) => value !== key);
+    }
+    return nextViews;
+  });
   return { views, toggle };
 }

@@ -23,6 +23,13 @@ export function useThreadGroups(state: ChatState) {
       data: isCollapsed ? [] : visibleThreads };
   }), [state.threads, state.sidebar, state.selected?.id, filtering, expanded, collapsed]);
   const toggle = (cwd: string) => setExpanded(previous => toggleProject(previous, cwd));
-  const toggleCollapse = (cwd: string) => setCollapsed(previous => toggleProject(previous, cwd));
+  const toggleCollapse = (cwd: string) => {
+    setCollapsed(previous => toggleProject(previous, cwd));
+    setExpanded(previous => {
+      const next = new Set(previous);
+      next.delete(cwd);
+      return next;
+    });
+  };
   return { groups, toggle, toggleCollapse };
 }

@@ -8,7 +8,7 @@ const threads = (count: number): Thread[] => [
 ];
 const activate = (button: Locator, touch: boolean) => touch ? button.tap() : button.click();
 
-test('collapses projects independently by name and restores the previous preview or expanded list',
+test('collapses projects independently by name and resets expanded conversations to the five-chat preview',
   async ({ page, isMobile }, info) => {
     await page.route('**/thread-page?*', route => route.fulfill({ json: { data: threads(7), nextCursor: null } }));
     await page.goto('./e2e/thread-pagination-harness.html');
@@ -30,13 +30,14 @@ test('collapses projects independently by name and restores the previous preview
     await expect(project.locator('.chat-thread')).toHaveCount(0);
     await page.screenshot({ path: info.outputPath('collapsed-project.png'), animations: 'disabled' });
     await activate(heading, isMobile);
-    await expect(project.locator('.chat-thread')).toHaveCount(7);
+    await expect(project.locator('.chat-thread')).toHaveCount(5);
+    await expect(project.getByRole('button', { name: '展开显示：project' })).toHaveAttribute('aria-expanded', 'false');
     if (!isMobile) {
       await heading.focus();
       await page.keyboard.press('Space');
       await expect(project.locator('.chat-thread')).toHaveCount(0);
       await page.keyboard.press('Enter');
-      await expect(project.locator('.chat-thread')).toHaveCount(7);
+      await expect(project.locator('.chat-thread')).toHaveCount(5);
     }
   });
 
