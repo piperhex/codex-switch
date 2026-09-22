@@ -1,0 +1,256 @@
+package devices
+
+import (
+	"errors"
+	"log/slog"
+	"sync"
+	"time"
+
+	"github.com/codex-switch/admin-go/internal/content"
+	"github.com/codex-switch/admin-go/internal/platform"
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+)
+
+type chatConnection struct {
+	identity      *chatIdentity
+	bytes, frames int
+	windowStart   time.Time
+	timer         *time.Timer
+}
+type ChatGateway struct {
+	service     *Service
+	sessions    *chatSessions
+	traffic     *trafficCounter
+	mu          sync.Mutex
+	connections map[*peer]*chatConnection
+	policy      platform.JSON
+	ice         []platform.JSON
+	done        chan struct{}
+	stopped     chan struct{}
+	stun        *stunServer
+}
+
+func newChatGateway(service *Service) (*ChatGateway, error) {
+	ice, err := iceServers(service.deps.Config)
+	if err != nil {
+		return nil, err
+	}
+	stun, err := startSTUN(service.deps.Config)
+	if err != nil {
+		return nil, err
+	}
+	traffic := newTrafficCounter(service.deps.DB)
+	gateway := &ChatGateway{service: service, sessions: newChatSessions(traffic.record), traffic: traffic,
+		connections: map[*peer]*chatConnection{}, policy: platform.JSON{"relayMaxMbPerSecond": float64(-1),
+			"relayMaxFramesPerSecond": float64(
+				-1,
+			)}, ice: ice, done: make(chan struct{}), stopped: make(chan struct{}), stun: stun}
+	service.deps.FlushTraffic = traffic.flush
+	go gateway.maintain()
+	return gateway, nil
+}
+
+func (g *ChatGateway) serve(c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
+	conn.SetReadLimit(chatFrameLimit)
+	client := newPeer(conn)
+	state := &chatConnection{windowStart: time.Now()}
+	state.timer = time.AfterFunc(authTimeout, func() { client.close(4001, "Authentication timed out") })
+	g.mu.Lock()
+	g.connections[client] = state
+	g.mu.Unlock()
+	defer g.disconnect(client)
+	for {
+		kind, data, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		if kind != websocket.TextMessage {
+			g.reject(client)
+			return
+		}
+		message, err := parseObject(data)
+		if err == nil {
+			err = g.receive(client, state, message, len(data))
+		}
+		if err != nil {
+			g.reject(client)
+			return
+		}
+	}
+}
+
+func (g *ChatGateway) receive(client *peer, state *chatConnection, message platform.JSON, size int) error {
+	if err := g.checkRate(state, size); err != nil {
+		return err
+	}
+	if state.identity != nil {
+		if !state.identity.expires.After(time.Now()) {
+			return errors.New("expired token")
+		}
+		return g.sessions.route(client, message)
+	}
+	identity, err := g.authenticate(message)
+	if err != nil {
+		return err
+	}
+	policy, err := content.ReadChatPolicy(g.service.deps.DB)
+	if err != nil {
+		return err
+	}
+	g.mu.Lock()
+	if client.closed.Load() {
+		g.mu.Unlock()
+		return errors.New("closed connection")
+	}
+	g.policy = policy
+	state.identity = &identity
+	state.timer.Stop()
+	state.timer = time.AfterFunc(time.Until(identity.expires), func() {
+		g.sessions.disconnect(client, true)
+		client.close(4001, "Session expired")
+	})
+	g.mu.Unlock()
+	client.send(platform.JSON{"type": "chat-policy", "policy": policy}, nil)
+	return g.sessions.join(client, identity, message, g.ice)
+}
+
+func (g *ChatGateway) authenticate(message platform.JSON) (chatIdentity, error) {
+	identity := chatIdentity{}
+	token, ok := message["accessToken"].(string)
+	if !ok || len(token) > 8192 || message["type"] != "authenticate" {
+		return identity, errors.New("invalid authentication")
+	}
+	role, _ := message["role"].(string)
+	if role != "desktop" && role != "mobile" {
+		return identity, errors.New("invalid role")
+	}
+	owner, expires, err := socketIdentity(g.service.deps, token)
+	if err != nil || !expires.After(time.Now()) {
+		return identity, errors.New("expired token")
+	}
+	id, err := identifier(message["deviceId"])
+	if err != nil {
+		return identity, err
+	}
+	if _, err := g.service.owned(owner, id); err != nil {
+		return identity, err
+	}
+	return chatIdentity{owner, id, role, expires}, nil
+}
+
+func (g *ChatGateway) checkRate(state *chatConnection, size int) error {
+	if time.Since(state.windowStart) >= time.Second {
+		state.bytes, state.frames, state.windowStart = 0, 0, time.Now()
+	}
+	state.bytes += size
+	state.frames++
+	g.mu.Lock()
+	megabytes, frames := policyNumber(
+		g.policy["relayMaxMbPerSecond"],
+	), policyNumber(
+		g.policy["relayMaxFramesPerSecond"],
+	)
+	g.mu.Unlock()
+	if (megabytes != -1 && float64(state.bytes)/(1024*1024) > megabytes) ||
+		(frames != -1 && float64(state.frames) > frames) {
+		return errors.New("rate exceeded")
+	}
+	return nil
+}
+
+func policyNumber(value interface{}) float64 {
+	switch value := value.(type) {
+	case float64:
+		return value
+	case int:
+		return float64(value)
+	default:
+		return -1
+	}
+}
+
+func (g *ChatGateway) reject(client *peer) {
+	g.sessions.disconnect(client, true)
+	client.close(4001, "Chat connection rejected")
+}
+
+func (g *ChatGateway) disconnect(client *peer) {
+	g.mu.Lock()
+	if state := g.connections[client]; state != nil {
+		state.timer.Stop()
+	}
+	delete(g.connections, client)
+	g.mu.Unlock()
+	client.terminate()
+	g.sessions.disconnect(client, false)
+}
+
+func (g *ChatGateway) maintain() {
+	defer close(g.stopped)
+	timer := time.NewTicker(5 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case <-g.done:
+			return
+		case <-timer.C:
+			g.sessions.prune()
+			g.refreshPolicy()
+			if err := g.traffic.flush(); err != nil {
+				slog.Warn("chat traffic flush will be retried", "error", err)
+			}
+		}
+	}
+}
+
+func (g *ChatGateway) refreshPolicy() {
+	g.mu.Lock()
+	active := len(g.connections) > 0
+	g.mu.Unlock()
+	if !active {
+		return
+	}
+	policy, err := content.ReadChatPolicy(g.service.deps.DB)
+	if err != nil {
+		return
+	} // Keep the last confirmed policy during a database outage.
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.policy = policy
+	for client, state := range g.connections {
+		if state.identity != nil && state.identity.expires.After(time.Now()) {
+			client.send(platform.JSON{"type": "chat-policy", "policy": policy}, nil)
+		}
+	}
+}
+
+type Runtime struct {
+	control *ControlGateway
+	chat    *ChatGateway
+}
+
+func (runtime *Runtime) Close() error {
+	runtime.control.mu.Lock()
+	for client := range runtime.control.sessions {
+		client.close(1001, "Server shutting down")
+	}
+	runtime.control.mu.Unlock()
+	g := runtime.chat
+	close(g.done)
+	<-g.stopped
+	g.mu.Lock()
+	for client, state := range g.connections {
+		state.timer.Stop()
+		client.close(1001, "Server shutting down")
+	}
+	g.mu.Unlock()
+	if g.stun != nil {
+		g.stun.close()
+	}
+	return g.traffic.flush()
+}

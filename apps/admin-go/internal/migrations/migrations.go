@@ -1,0 +1,32 @@
+// Package migrations initializes new databases with the exact legacy PostgreSQL schema.
+package migrations
+
+import (
+	_ "embed"
+	"strings"
+
+	"gorm.io/gorm"
+)
+
+//go:embed 001_legacy_schema.sql
+var initialSchema string
+
+// InitializeEmpty never changes existing tables, constraints, indexes, or customer data.
+// Existing deployments continue to apply the versioned apps/admin/sql migrations.
+func InitializeEmpty(db *gorm.DB) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", int64(710983103)).Error; err != nil {
+			return err
+		}
+		var exists bool
+		if err := tx.Raw("SELECT to_regclass('public.users') IS NOT NULL").Scan(&exists).Error; err != nil {
+			return err
+		}
+		if exists {
+			return nil
+		}
+		schema := strings.ReplaceAll(initialSchema, "\nSET ", "\nSET LOCAL ")
+		schema = strings.ReplaceAll(schema, "set_config('search_path', '', false)", "set_config('search_path', 'public', true)")
+		return tx.Exec(schema).Error
+	})
+}

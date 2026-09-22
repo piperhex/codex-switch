@@ -1,0 +1,17 @@
+services:
+  admin-go:
+    image: codex-switch/admin-go:local
+    build:
+      context: ../..
+      dockerfile: apps/admin-go/Dockerfile
+    env_file: .env
+    restart: unless-stopped
+    stop_grace_period: 35s
+    ports:
+      - "${ADMIN_GO_BIND:-127.0.0.1}:${ADMIN_GO_PORT:-8080}:8080"
+      - "3478:3478/udp"
+    networks: [existing]
+networks:
+  existing:
+    external: true
+    name: ${ADMIN_GO_NETWORK:-codex-switch_default}

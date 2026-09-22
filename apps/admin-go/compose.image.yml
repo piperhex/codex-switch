@@ -1,0 +1,5 @@
+# Verify the source-built production image and its own bundled UI assets.
+services:
+  admin-go:
+    image: codex-admin-go:parity
+    volumes: !override ["./testdata:/fixtures:ro"]

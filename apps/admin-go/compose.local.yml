@@ -1,0 +1,4 @@
+services:
+  admin-go:
+    build:
+      dockerfile: apps/admin-go/testdata/Dockerfile.local

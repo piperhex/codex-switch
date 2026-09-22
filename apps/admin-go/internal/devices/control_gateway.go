@@ -1,0 +1,262 @@
+package devices
+
+import (
+	"errors"
+	"log/slog"
+	"regexp"
+	"sync"
+	"time"
+
+	"github.com/codex-switch/admin-go/internal/platform"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+)
+
+type controlSession struct{ owner, device, kind string }
+type pendingCommand struct {
+	owner, device string
+	result        chan error
+}
+type ControlGateway struct {
+	service     *Service
+	mu          sync.Mutex
+	sessions    map[*peer]controlSession
+	sockets     map[string]*peer
+	subscribers map[string]map[*peer]bool
+	pending     map[string]pendingCommand
+}
+
+func newControlGateway(service *Service) *ControlGateway {
+	return &ControlGateway{service: service, sessions: map[*peer]controlSession{}, sockets: map[string]*peer{},
+		subscribers: map[string]map[*peer]bool{}, pending: map[string]pendingCommand{}}
+}
+
+func (g *ControlGateway) serve(c *gin.Context) {
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
+	conn.SetReadLimit(100 * 1024 * 1024) // Matches ws' device gateway default, separate from chat's 48 KiB cap.
+	client := newPeer(conn)
+	timer := time.AfterFunc(authTimeout, func() { client.close(4001, "Authentication timed out") })
+	defer timer.Stop()
+	defer client.terminate()
+	defer g.disconnect(client)
+	for {
+		_, raw, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		message, err := parseObject(raw)
+		if err == nil {
+			err = g.receive(client, message, timer)
+		}
+		if err != nil {
+			client.close(4001, "Invalid message")
+			return
+		}
+	}
+}
+
+func (g *ControlGateway) receive(client *peer, message platform.JSON, timer *time.Timer) error {
+	g.mu.Lock()
+	session, authenticated := g.sessions[client]
+	g.mu.Unlock()
+	if !authenticated {
+		if message["type"] == "authenticate" {
+			return g.authenticateDevice(client, message, timer)
+		}
+		if message["type"] == "subscribe-devices" {
+			return g.subscribe(client, message, timer)
+		}
+		return errors.New("authentication required")
+	}
+	if session.kind != "device" || message["type"] != "switch-result" {
+		return nil
+	}
+	command, _ := message["commandId"].(string)
+	g.mu.Lock()
+	pending, exists := g.pending[command]
+	if !exists || pending.owner != session.owner || pending.device != session.device {
+		g.mu.Unlock()
+		return nil
+	}
+	delete(g.pending, command)
+	g.mu.Unlock()
+	var result error
+	if !javascriptTruthy(message["success"]) {
+		detail, _ := message["error"].(string)
+		if detail == "" {
+			detail = "The device command failed"
+		}
+		result = errors.New(detail)
+	}
+	pending.result <- result
+	return g.service.touch(session.device)
+}
+
+func javascriptTruthy(value interface{}) bool {
+	switch typed := value.(type) {
+	case nil:
+		return false
+	case bool:
+		return typed
+	case string:
+		return typed != ""
+	case float64:
+		return typed != 0
+	default:
+		return true
+	}
+}
+
+var deviceIDPattern = regexp.MustCompile(
+	`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`,
+)
+
+func (g *ControlGateway) authenticateDevice(client *peer, message platform.JSON, timer *time.Timer) error {
+	token, _ := message["accessToken"].(string)
+	owner, _, err := socketIdentity(g.service.deps, token)
+	if err != nil {
+		return err
+	}
+	id, _ := message["deviceId"].(string)
+	if !deviceIDPattern.MatchString(id) {
+		return errors.New("invalid device id")
+	}
+	device, err := g.service.register(owner, message)
+	if err != nil {
+		return err
+	}
+	if client.closed.Load() {
+		return errors.New("connection closed")
+	}
+	timer.Stop()
+	g.mu.Lock()
+	previous := g.sockets[owner+":"+id]
+	g.sessions[client] = controlSession{owner, id, "device"}
+	g.sockets[owner+":"+id] = client
+	g.mu.Unlock()
+	if previous != nil && previous != client {
+		previous.close(4000, "Replaced by a newer connection")
+	}
+	client.send(platform.JSON{"type": "authenticated", "deviceId": id}, nil)
+	g.broadcast(owner, platform.JSON{"type": "device-online", "device": deviceStatus{*device, true}})
+	return nil
+}
+
+func (g *ControlGateway) subscribe(client *peer, message platform.JSON, timer *time.Timer) error {
+	token, _ := message["accessToken"].(string)
+	owner, _, err := socketIdentity(g.service.deps, token)
+	if err != nil {
+		return err
+	}
+	timer.Stop()
+	g.mu.Lock()
+	g.sessions[client] = controlSession{owner: owner, kind: "subscriber"}
+	if g.subscribers[owner] == nil {
+		g.subscribers[owner] = map[*peer]bool{}
+	}
+	g.subscribers[owner][client] = true
+	g.mu.Unlock()
+	devices, err := g.statuses(owner)
+	if err != nil {
+		return err
+	}
+	client.send(platform.JSON{"type": "devices-snapshot", "devices": devices}, nil)
+	return nil
+}
+
+func (g *ControlGateway) online(owner, id string) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	client := g.sockets[owner+":"+id]
+	return client != nil && !client.closed.Load()
+}
+
+func (g *ControlGateway) broadcast(owner string, message platform.JSON) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for client := range g.subscribers[owner] {
+		client.send(message, nil)
+	}
+}
+
+func (g *ControlGateway) command(owner, id string, command platform.JSON) error {
+	commandID := uuid.NewString()
+	g.mu.Lock()
+	client := g.sockets[owner+":"+id]
+	if client == nil || client.closed.Load() {
+		g.mu.Unlock()
+		return errors.New("Device is offline")
+	}
+	result := make(chan error, 1)
+	g.pending[commandID] = pendingCommand{owner, id, result}
+	command["commandId"] = commandID
+	client.send(command, nil)
+	g.mu.Unlock()
+	timer := time.NewTimer(25 * time.Second)
+	defer timer.Stop()
+	defer func() { g.mu.Lock(); delete(g.pending, commandID); g.mu.Unlock() }()
+	select {
+	case err := <-result:
+		return err
+	case <-timer.C:
+		return errors.New("Timed out while waiting for the device command")
+	}
+}
+
+func (g *ControlGateway) disconnect(client *peer) {
+	g.mu.Lock()
+	session, exists := g.sessions[client]
+	delete(g.sessions, client)
+	if !exists {
+		g.mu.Unlock()
+		return
+	}
+	if session.kind == "subscriber" {
+		delete(g.subscribers[session.owner], client)
+		if len(g.subscribers[session.owner]) == 0 {
+			delete(g.subscribers, session.owner)
+		}
+		g.mu.Unlock()
+		return
+	}
+	wasCurrent := g.sockets[session.owner+":"+session.device] == client
+	if wasCurrent {
+		delete(g.sockets, session.owner+":"+session.device)
+	}
+	for id, pending := range g.pending {
+		if pending.owner != session.owner || pending.device != session.device {
+			continue
+		}
+		delete(g.pending, id)
+		pending.result <- errors.New("Device disconnected before the command completed")
+	}
+	g.mu.Unlock()
+	if !wasCurrent {
+		return
+	}
+	if err := g.service.touch(session.device); err != nil {
+		slog.Warn("device last seen update failed", "error", err)
+	}
+	g.broadcast(session.owner, platform.JSON{"type": "device-offline", "deviceId": session.device,
+		"lastSeenAt": time.Now().UTC()})
+}
+
+type deviceStatus struct {
+	Device
+	Online bool `json:"online"`
+}
+
+func (g *ControlGateway) statuses(owner string) ([]deviceStatus, error) {
+	devices, err := g.service.list(owner)
+	result := make([]deviceStatus, 0, len(devices))
+	for _, device := range devices {
+		if device.Capabilities == nil {
+			device.Capabilities = []string{}
+		}
+		result = append(result, deviceStatus{device, g.online(owner, device.DeviceID)})
+	}
+	return result, err
+}
