@@ -73,13 +73,23 @@ keyboard shortcuts, scrolling, selection, checkboxes, drag/drop, screenshots, co
 Snapshots provide element references that expire when the document changes. Same-origin, cross-site
 and nested frames are supported, including out-of-process Chrome child sessions.
 
-`browser_console_logs` (extension 1.4.0) reads retained page messages, uncaught JavaScript errors,
-network console errors and associated Worker logs. `source` selects `all` (default), `page`, `network`
-or `worker`. Page messages belong to the main document by default; use `frameId` from `browser_frames`
+`browser_console_logs` (extension 1.5.0) reads retained page messages, uncaught JavaScript errors,
+network console errors, associated Worker logs and browser diagnostics. `source` selects `all` (default),
+`page`, `network`, `worker` or `browser`. Browser diagnostics include security, deprecation, intervention
+and rendering warnings; `type` preserves Chrome's category. Page messages belong to the main document;
+use `frameId` from `browser_frames`
 for a specific iframe. `level` selects `all`, `debug`, `log`, `info`, `warn` or
 `error`; `limit` returns up to 1–200 recent matching entries (default 100). Results include millisecond
-Unix timestamps, one-based source lines/columns and bounded stacks. Object arguments use Chrome's
-descriptions, without expanding properties. Output is bounded by both count and serialized size;
+Unix timestamps, one-based source lines/columns and bounded stacks, including inline async parents.
+`since` includes entries at or after a Unix millisecond timestamp; `text` matches a case-sensitive
+substring in the returned message or source URL. Filters apply before the count and size limits.
+`since` is a time filter, not a lossless event cursor; entries with identical timestamps can repeat.
+Object arguments use bounded previews. When Chrome omits them, up to 20 plain objects/arrays per
+runtime are inspected through own data descriptors, without invoking getters or custom formatters.
+`objectPreviewTiming: "read"` identifies current values, which can differ from values at log time.
+Previews retain up to 10 properties and two levels; large arrays omit indexed expansion. Unsupported
+objects keep their descriptions. Unavailable/limited previews and async parents set `truncated`.
+Output is bounded by both count and serialized size;
 `truncated` reports omitted entries or shortened fields.
 
 This is an on-demand read of Chrome's retained messages, not a persistent recording. Reading does
@@ -105,7 +115,35 @@ are counted in `unavailableWorkers`; forwarded messages without an identifiable 
 counted in `unattributedWorkerMessages`. `workersTruncated`/`forwardedTruncated` also contribute to
 the overall truncation flag. Entries are merged by timestamp before the global count/size limits.
 Reads reject document changes, recheck access and release listeners/debugger connections on failure,
-pause or cancellation. This adds no permissions or persistent storage.
+pause or cancellation. Diagnostic reads skip input focus emulation, viewport overrides and rendering
+waits. This adds no permissions or persistent storage.
+
+### Installed ChatGPT extension comparison (2026-09-22)
+
+The locally installed ChatGPT extension `hehggadaopoacecdllhhajmbjkdcmajg`, version `1.26.901.11451`,
+was inspected read-only. Its bundled background implementation exposes `tab_cdp_call` and
+`tab_cdp_events`, forwards debugger events/detachment, and retains debugger connections. This is
+static evidence of its transport capabilities, not an end-to-end test of every ChatGPT debugging tool.
+No vendor code is copied or required by this integration.
+
+The following differences remain after the diagnostic improvements:
+
+| Debugging workflow | Codex Switch behavior |
+| --- | --- |
+| Continuous events and sequence cursor | On-demand retained logs; `since` narrows reads but cannot recover discarded logs. |
+| Raw DevTools calls | Dedicated operations only; no arbitrary protocol commands or breakpoint controls. |
+| Full network inspection | Console network failures only; no request timeline, headers or response bodies. |
+| Object inspection | Bounded data previews; no interactive expansion or getter execution. |
+| Async stacks | Includes inline parents; unavailable parent IDs are reported as truncated, not fetched. |
+
+The extension transport permits broader developer workflows in the reference integration. Matching
+those workflows would require an explicit session lifecycle and domain-specific access controls here;
+they are not implied by the retained-log tool.
+
+The Windows regression fixture checks a real CSP warning, plain-object/array preview contents,
+getter non-execution, time/text filters, same-process and cross-site frame logs, and unchanged window
+state/focus after each operation. It re-minimizes the task-created window after initial loading, as
+Windows can asynchronously activate a newly created browser window during startup.
 
 File upload/download, JavaScript dialogs and arbitrary JavaScript execution are not exposed as tools.
 This is an independent implementation of the core browser workflow, not exhaustive feature parity
@@ -273,6 +311,7 @@ node scripts/chrome-plugin-tab-indicator.test.mjs
 node --test scripts/chrome-plugin-update.test.mjs
 node --test scripts/chrome-plugin-driver.test.mjs
 node --test scripts/chrome-plugin-console.test.mjs
+node --test scripts/chrome-plugin-console-format.test.mjs
 node scripts/chrome-plugin-console.e2e.mjs
 node --test scripts/chrome-plugin-workers.test.mjs
 node scripts/chrome-plugin-diagnostics.e2e.mjs

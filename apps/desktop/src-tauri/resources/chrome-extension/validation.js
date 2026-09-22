@@ -5,6 +5,7 @@ const TAB_OPERATIONS = new Set([
 const OPERATIONS = new Set(['status', 'tabs', 'open', 'workers', 'console_logs', ...TAB_OPERATIONS]);
 const MAX_TEXT_LENGTH = 20000;
 const MAX_CONSOLE_ENTRIES = 200;
+const MAX_CONSOLE_FILTER_LENGTH = 500;
 
 export function website(value) {
   let url;
@@ -58,7 +59,7 @@ export function validate(request) {
 
 function validateConsoleLogs(args) {
   validateLogTarget(args);
-  if (args.source !== undefined && !['all', 'page', 'network', 'worker'].includes(args.source)) {
+  if (args.source !== undefined && !['all', 'page', 'network', 'worker', 'browser'].includes(args.source)) {
     throw new Error('请选择有效的日志来源。');
   }
   if (args.level !== undefined && !['all', 'debug', 'log', 'info', 'warn', 'error'].includes(args.level)) {
@@ -66,6 +67,12 @@ function validateConsoleLogs(args) {
   }
   if (args.limit !== undefined && (!Number.isInteger(args.limit) || !finite(args.limit, 1, MAX_CONSOLE_ENTRIES))) {
     throw new Error('日志条数应为 1 到 200 的整数。');
+  }
+  if (args.since !== undefined && !finite(args.since, 0, Number.MAX_SAFE_INTEGER)) {
+    throw new Error('请选择有效的日志起始时间。');
+  }
+  if (args.text !== undefined && !text(args.text, MAX_CONSOLE_FILTER_LENGTH, false)) {
+    throw new Error('请输入 1 到 500 个字符作为日志关键词。');
   }
 }
 

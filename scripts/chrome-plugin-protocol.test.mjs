@@ -140,16 +140,20 @@ test('compiled Native Messaging and MCP helpers authenticate, relay, revoke, and
     assert.equal((await call('initialize')).result.serverInfo.name,'codex-switch-chrome');
     const definitions = (await call('tools/list')).result.tools;
     assert.ok(definitions.some(tool=>tool.name==='browser_screenshot'));
+    const logOptions = definitions.find(tool=>tool.name==='browser_console_logs').inputSchema.properties;
+    assert.ok(logOptions.source.enum.includes('browser'));
+    assert.equal(logOptions.since.type,'number');
+    assert.equal(logOptions.text.maxLength,500);
     const list = await call('tools/call',{name:'browser_list',arguments:{}});
     assert.equal(JSON.parse(list.result.content[0].text).browsers[0].browserId,live.id);
     const tabs = await call('tools/call',{name:'browser_tabs',arguments:{browserId:live.id}});
     assert.equal(JSON.parse(tabs.result.content[0].text).tabs[0].tabId,42);
     const logs = await call('tools/call',{name:'browser_console_logs',
-      arguments:{browserId:live.id,tabId:42,level:'error',limit:10}});
+      arguments:{browserId:live.id,tabId:42,level:'error',limit:10,source:'browser',since:100,text:'fixture'}});
     assert.equal(logs.result.isError,false);
     assert.equal(JSON.parse(logs.result.content[0].text).entries[0].text,'fixture error');
     assert.deepEqual(incoming.at(-1).request,
-      {operation:'console_logs',args:{tabId:42,level:'error',limit:10}});
+      {operation:'console_logs',args:{tabId:42,level:'error',limit:10,source:'browser',since:100,text:'fixture'}});
     const workers = await call('tools/call',{name:'browser_workers',arguments:{browserId:live.id}});
     assert.equal(JSON.parse(workers.result.content[0].text).workers[0].workerId,'worker-1');
     const workerLogs = await call('tools/call',{name:'browser_console_logs',

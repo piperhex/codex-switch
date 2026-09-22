@@ -32,6 +32,7 @@ const ASSETS: &[(&str, &[u8])] = assets![
     "console-format.js",
     "console-buffer.js",
     "console-runtime.js",
+    "console-objects.js",
     "console-scope.js",
     "console-target.js",
     "console-workers.js",

@@ -94,6 +94,7 @@ test('reads retained console messages and exceptions, formats values and one-bas
   assert.equal(listeners.size, 0);
   assert.equal(calls.at(-1).method, 'detach');
   assert.ok(!calls.some(call => ['Runtime.discardConsoleEntries', 'Runtime.callFunctionOn'].includes(call.method)));
+  assert.ok(!calls.some(call => call.method.startsWith('Emulation.') || call.method === 'Runtime.evaluate'));
 });
 
 test('filters levels before keeping the newest entries, with empty reads supported', async () => {
@@ -189,6 +190,25 @@ test('requires access to the selected child origin and rejects mid-read permissi
   replay = async target => { emit(target, context(1, 'main')); emit(target, log('private')); allowed = false; };
   await assert.rejects(read(), /Chrome/);
   assert.equal(listeners.size, 0);
+});
+
+test('object inspection is frame-scoped and revocation during inspection never returns log contents', async () => {
+  replay = async target => {
+    emit(target, context(1, 'child'));
+    const event = log('private');
+    event[1].args.push({ type: 'object', objectId: 'child-object', description: 'Object' });
+    emit(target, event);
+  };
+  intercept = async (target, method, params) => {
+    if (method !== 'Runtime.getProperties') return;
+    assert.equal(target.sessionId, 'remote');
+    assert.equal(params.objectId, 'child-object');
+    allowed = false;
+    return { result: [{ name: 'secret', enumerable: true, value: { type: 'string', value: 'private' } }] };
+  };
+  await assert.rejects(read({ frameId: 'child', source: 'page' }), /Chrome/);
+  assert.equal(listeners.size, 0);
+  assert.equal(calls.at(-1).method, 'detach');
 });
 
 test('rejects invalid console options before accessing Chrome', () => {
@@ -311,6 +331,27 @@ test('unattributed worker messages report incomplete coverage without exposing c
   const result = await read({ source: 'worker' });
   assert.equal(result.unattributedWorkerMessages, 1);
   assert.deepEqual(result.entries, []);
+});
+
+test('reads browser warnings through the authorized renderer and keeps source filtering separate', async () => {
+  intercept = async (target, method) => {
+    if (method !== 'Log.enable') return;
+    for (const source of ['security', 'deprecation', 'violation', 'network']) {
+      emit(target, ['Log.entryAdded', { entry: {
+        source, level: 'warning', text: source + ' diagnostic', timestamp: 200, url: MAIN.url,
+      } }]);
+    }
+  };
+  const result = await read({ source: 'browser', text: 'diagnostic', since: 200, level: 'warn' });
+  assert.deepEqual(result.entries.map(entry => entry.type), ['security', 'deprecation', 'violation']);
+  assert.ok(result.entries.every(entry => entry.source === 'browser' && entry.scope === 'renderer'));
+  assert.deepEqual(result.rendererFrameIds, ['main', 'local']);
+  assert.ok(!calls.some(call => call.method === 'Runtime.enable'));
+  assert.deepEqual((await read({ source: 'network' })).entries.map(entry => entry.type), ['network']);
+  assert.deepEqual((await read({ source: 'page' })).entries.map(entry => entry.text), ['hello']);
+  chrome.permissions.contains = async ({ origins }) => !origins.some(origin => origin.includes('fixture.example'));
+  await assert.rejects(read({ source: 'browser' }), /Chrome/);
+  assert.equal(listeners.size, 0);
 });
 
 test('caps related worker discovery and tears down every event listener', async () => {

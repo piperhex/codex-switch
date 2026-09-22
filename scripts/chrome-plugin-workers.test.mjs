@@ -87,6 +87,23 @@ test('standalone source filtering only enables the needed domains', async () => 
   assert.ok(!calls.some(call => call.method === 'Log.enable'));
 });
 
+test('worker browser diagnostics retain ownership and apply filters without enabling page runtime', async () => {
+  command = async (target, method) => {
+    if (method === 'Log.enable') emit(target, 'Log.entryAdded', { entry: {
+      source: 'deprecation', level: 'warning', text: 'deprecated worker API', timestamp: 200,
+    } });
+    return {};
+  };
+  const result = await run({ workerId: 'shared', source: 'browser', since: 200, text: 'deprecated' });
+  assert.equal(result.entries.length, 1);
+  assert.equal(result.entries[0].type, 'deprecation');
+  assert.equal(result.entries[0].workerId, 'shared');
+  assert.equal(result.entries[0].source, 'browser');
+  assert.ok(!calls.some(call => call.method === 'Runtime.enable'));
+  assert.equal((await run({ workerId: 'shared', source: 'browser', since: 201 })).entries.length, 0);
+  assert.equal(listeners.size, 0);
+});
+
 test('rejects missing, forbidden and changed worker targets before returning logs', async () => {
   for (const workerId of ['missing', 'extension', 'opaque', 'frame']) await assert.rejects(run({ workerId }), /Worker/);
   assert.equal(calls.length, 0);

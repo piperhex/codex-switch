@@ -42,6 +42,15 @@ test('prepares background input and waits for rendering before releasing the deb
   assert.equal(listeners.size, 0);
 });
 
+test('diagnostic reads avoid focus emulation and rendering waits but still recheck access', async () => {
+  const read = operation => withTab({ clientId: 'test' }, { tabId: 4 }, operation, { prepareInput: false });
+  assert.equal(await read(async () => 'logs'), 'logs');
+  assert.deepEqual(calls, ['attach', 'Target.setAutoAttach', 'detach']);
+  await assert.rejects(read(async () => { allowed = false; return 'private logs'; }), /Chrome/);
+  assert.equal(calls.at(-1), 'detach');
+  assert.equal(listeners.size, 0);
+});
+
 test('a zero-sized minimized page gets a temporary viewport without restoring or focusing its window', async () => {
   const commands = [];
   send = async (method, params) => {

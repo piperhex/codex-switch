@@ -20,7 +20,8 @@ export async function execute(context, request) {
   }
   if (operation === 'open') return open(context, args);
   if (['navigate', 'close', 'focus'].includes(operation)) return tabAction(context, operation, args);
-  return withTab(context, args, (driver) => pageAction(driver, operation, args));
+  return withTab(context, args, (driver) => pageAction(driver, operation, args),
+    { prepareInput: operation !== 'console_logs' });
 }
 
 async function listTabs() {

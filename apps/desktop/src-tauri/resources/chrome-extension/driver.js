@@ -7,15 +7,15 @@ import { stopWorkers } from './worker-driver.js';
 const queues = new Map();
 const attached = new Set();
 
-export async function withTab(context, args, operation) {
+export async function withTab(context, args, operation, options = {}) {
   const previous = queues.get(args.tabId) ?? Promise.resolve();
-  const current = previous.catch(() => {}).then(() => run(context, args, operation));
+  const current = previous.catch(() => {}).then(() => run(context, args, operation, options));
   queues.set(args.tabId, current);
   try { return await current; }
   finally { if (queues.get(args.tabId) === current) queues.delete(args.tabId); }
 }
 
-async function run(context, args, operation) {
+async function run(context, args, operation, { prepareInput = true }) {
   const tab = await chrome.tabs.get(args.tabId);
   await authorize(tab.url, context.clientId, context.signal);
   const target = { tabId: tab.id };
@@ -35,19 +35,20 @@ async function run(context, args, operation) {
   let viewportOverridden = false;
   try {
     await guard();
-    // Prepare the renderer for trusted input without activating its tab or bringing Chrome forward.
-    viewportOverridden = await prepareBackgroundPage({ tab, send: sessions.send });
+    // Log reads need no focus emulation, viewport changes or page JavaScript execution.
+    if (prepareInput) viewportOverridden = await prepareBackgroundPage({ tab, send: sessions.send });
     await markControlledTab(tab.id);
     await sessions.initialize();
     const driver = { tab, send: sessions.send, documents: sessions.documents, listen: sessions.listen, context, guard,
       debuggee: sessions.debuggee, relatedFrames: sessions.relatedFrames };
     const result = await operation(driver);
-    await settleRendering(driver);
+    if (prepareInput) await settleRendering(driver);
+    await guard();
     return result;
   } finally {
     context.signal?.removeEventListener('abort', abort);
     sessions.dispose();
-    await restoreBackgroundPage(target, viewportOverridden);
+    if (prepareInput) await restoreBackgroundPage(target, viewportOverridden);
     attached.delete(tab.id);
     // The browser can detach first when the tab closes or the user stops debugging.
     await chrome.debugger.detach(target).catch(() => {});

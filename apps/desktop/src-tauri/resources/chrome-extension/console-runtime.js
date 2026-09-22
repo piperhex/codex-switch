@@ -1,8 +1,20 @@
 import { consoleEntry, browserLogEntry } from './console-format.js';
+import { createObjectReader } from './console-objects.js';
 
-export function runtimeCollector({ frameId, worker, add }) {
+export function runtimeCollector({ frameId, worker, add, send }) {
   const contexts = new Set();
+  const readObject = createObjectReader(send);
+  const pending = new Set();
+  let error;
   let changed = false;
+  let collecting = true;
+  function collect(method, params) {
+    if (method === 'Runtime.exceptionThrown') { add(consoleEntry(method, params, worker)); return; }
+    const values = (params.args ?? []).map(readObject);
+    const task = Promise.all(values).then(args => add(consoleEntry(method, { ...params, args }, worker)))
+      .catch(failure => { error ??= failure; }).finally(() => pending.delete(task));
+    pending.add(task);
+  }
   function onEvent(method, params) {
     if (method === 'Runtime.executionContextCreated') {
       const { id, auxData } = params.context;
@@ -16,14 +28,19 @@ export function runtimeCollector({ frameId, worker, add }) {
     }
     if (!['Runtime.exceptionThrown', 'Runtime.consoleAPICalled'].includes(method)) return;
     const details = method === 'Runtime.exceptionThrown' ? params.exceptionDetails : params;
-    if (contexts.has(details.executionContextId)) add(consoleEntry(method, params, worker));
+    if (collecting && contexts.has(details.executionContextId)) collect(method, params);
   }
-  return { onEvent, contextChanged: () => changed };
+  return { onEvent, contextChanged: () => changed, flush: async () => {
+    collecting = false;
+    await Promise.all([...pending]);
+    if (error) throw error;
+  } };
 }
 
-export function networkCollector(add, worker) {
+export function browserCollector(add, worker) {
   return (method, params) => {
-    if (method === 'Log.entryAdded' && params.entry.source === 'network') {
+    // Worker console forwarding is merged separately to avoid duplicates and authorize its origin.
+    if (method === 'Log.entryAdded' && params.entry.source !== 'worker') {
       add(browserLogEntry(params.entry, worker));
     }
   };

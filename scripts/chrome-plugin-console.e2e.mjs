@@ -26,6 +26,10 @@ const content = await fs.readFile('scripts/fixtures/chrome-plugin-console.html')
 const fixtureScript = `
 const marker = location.pathname;
 console.log('loaded', marker, 42, undefined, NaN, { fixture: true });
+globalThis.previewGetterReads = 0;
+console.log('object preview', marker, { status: 'failed', attempts: 2,
+  get computed() { globalThis.previewGetterReads++; return 'should not be evaluated'; } });
+console.log('array preview', marker, ['one', 2]);
 console.debug('debug', marker);
 console.info('info', marker);
 console.warn('warning', marker);
@@ -36,6 +40,7 @@ Promise.reject(new Error('rejected ' + marker));
 document.querySelector('#emit').onclick = () => console.log('clicked', marker);
 document.querySelector('#clear').onclick = () => { console.clear(); console.log('after-clear', marker); };
 if (marker === '/main') {
+  const blockedImage = new Image(); blockedImage.src = '/blocked-policy.png';
   for (const url of ['/local', location.href.replace('127.0.0.1', 'localhost').replace('/main', '/remote')]) {
     const frame = document.createElement('iframe'); frame.src = url; document.body.append(frame);
   }
@@ -44,7 +49,7 @@ if (marker === '/main') {
 const server = http.createServer((request, response) => {
   const script = request.url === '/console-fixture.js';
   response.writeHead(200, { 'Content-Type': script ? 'application/javascript' : 'text/html; charset=utf-8',
-    'Cache-Control': 'no-store' });
+    'Cache-Control': 'no-store', 'Content-Security-Policy': "img-src 'none'" });
   response.end(script ? fixtureScript : content);
 }).listen(0, '127.0.0.1');
 await once(server, 'listening');
@@ -74,18 +79,46 @@ function checkEntries(result, marker) {
   const loaded = result.entries.find(entry => entry.text.startsWith('loaded'));
   assert.ok(loaded.url.endsWith('/console-fixture.js'));
   assert.ok(loaded.line > 0 && loaded.column > 0 && loaded.timestamp > 0);
+  const object = result.entries.find(entry => entry.text.startsWith('object preview'));
+  assert.match(object.text, /status: "failed"/);
+  assert.match(object.text, /attempts: 2/);
+  assert.match(result.entries.find(entry => entry.text.startsWith('array preview')).text, /one/);
+}
+
+async function checkDiagnostics(run, first) {
+  const warnings = await run('console_logs', { source: 'browser', text: 'blocked-policy.png' });
+  assert.ok(warnings.entries.some(entry => entry.type === 'security' && entry.scope === 'renderer'));
+  assert.ok(warnings.entries.every(entry => entry.source === 'browser'));
+  const since = first.entries.find(entry => entry.text.startsWith('object preview')).timestamp;
+  const recent = await run('console_logs', { source: 'page', since, text: 'preview', limit: 1 });
+  assert.equal(recent.entries.length, 1);
+  assert.ok(recent.entries[0].text.startsWith('array preview'));
+  assert.ok(recent.entries[0].timestamp >= since);
+  assert.equal(recent.truncated, true);
 }
 
 async function checkConsole(window) {
   const { tabId } = await browser.evaluate(`run('open',${JSON.stringify({ url })})`);
   await waitForLoad(tabId);
-  const run = (operation, args = {}) => browser.evaluate(
-    `run(${JSON.stringify(operation)},${JSON.stringify({ tabId, ...args })})`);
+  // Finish Windows' asynchronous first-window activation before measuring background operations.
+  await browser.evaluate(`chrome.windows.update(${window.id},{state:'minimized'})`);
   const beforeWindow = await browser.evaluate(`chrome.windows.get(${window.id})`);
   const beforeTabs = await browser.evaluate(`chrome.tabs.query({active:true,windowId:${window.id}})`);
-  const first = await run('console_logs');
+  const run = async (operation, args = {}) => {
+    const result = await browser.evaluate(`run(${JSON.stringify(operation)},${JSON.stringify({ tabId, ...args })})`);
+    const state = await browser.evaluate(`chrome.windows.get(${window.id})`);
+    assert.equal(state.state, beforeWindow.state, operation + ' window state');
+    assert.equal(state.focused, beforeWindow.focused, operation + ' window focus');
+    return result;
+  };
+  const first = await run('console_logs', { source: 'page' });
   checkEntries(first, '/main');
-  assert.deepEqual((await run('console_logs')).entries, first.entries, 'Reading must not clear retained messages');
+  assert.deepEqual((await run('console_logs', { source: 'page' })).entries, first.entries,
+    'Reading must not clear retained messages');
+  await checkDiagnostics(run, first);
+  const getterReads = await browser.evaluate(`chrome.scripting.executeScript({target:{tabId:${tabId}},
+    world:'MAIN',func:()=>globalThis.previewGetterReads})`);
+  assert.equal(getterReads[0].result, 0, 'Reading object previews must not invoke getters');
   const errors = await run('console_logs', { level: 'error', limit: 2 });
   assert.equal(errors.entries.length, 2);
   assert.equal(errors.truncated, true);
@@ -94,7 +127,7 @@ async function checkConsole(window) {
   for (const marker of ['/local', '/remote']) {
     const frame = frames.find(item => item.url.endsWith(marker));
     assert.ok(frame, `Missing ${marker} frame`);
-    checkEntries(await run('console_logs', { frameId: frame.frameId }), marker);
+    checkEntries(await run('console_logs', { frameId: frame.frameId, source: 'page' }), marker);
   }
   await checkActions(run);
   const afterWindow = await browser.evaluate(`chrome.windows.get(${window.id})`);
@@ -104,7 +137,7 @@ async function checkConsole(window) {
   assert.equal(afterTabs[0].id, beforeTabs[0].id);
   await run('navigate', { url: url.replace('/main', '/next') });
   await waitForLoad(tabId);
-  checkEntries(await run('console_logs'), '/next');
+  checkEntries(await run('console_logs', { source: 'page' }), '/next');
   await run('close');
 }
 
