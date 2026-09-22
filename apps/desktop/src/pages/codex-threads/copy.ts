@@ -12,7 +12,7 @@ export const threadCopy = {
     export: "导出会话",
     import: "导入会话",
     moveToBin: "移动到回收站",
-    moveToHome: "迁移到 Codex Home",
+    moveToHome: "对话迁移",
     homeMigrationTarget: "选择目标 Codex Home",
     homeMigrationHint: "将所选 {count} 条会话移至另一个 Codex Home，保留对话记录和项目路径。"
       + "关联会话会一并迁移，目标已有的会话会跳过，原目录仍需使用的历史记录会保留。请先结束相关任务。",
@@ -98,7 +98,7 @@ export const threadCopy = {
     export: "Export sessions",
     import: "Import sessions",
     moveToBin: "Move to Trash",
-    moveToHome: "Move to Codex Home",
+    moveToHome: "Conversation migration",
     homeMigrationTarget: "Choose a destination Codex Home",
     homeMigrationHint: "Move {count} selected sessions to another Codex Home, keeping their history and project paths. "
       + "Related sessions are included. Existing sessions and required source history are kept. Finish related tasks first.",
