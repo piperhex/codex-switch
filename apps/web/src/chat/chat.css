@@ -9,7 +9,7 @@ html:has(.app-shell.chat-active), body:has(.app-shell.chat-active) { overscroll-
 .chat-active .content-shell { min-height: 0; flex: 1; display: flex; flex-direction: column; }
 .chat-active .desktop-topbar { flex-shrink: 0; }
 .chat-active .main-content { display: flex; flex: 1; min-height: 0; }
-.chat-page, .chat-settings, .chat-drawer {
+.chat-page, .chat-settings, .chat-drawer, .chat-markdown-preview {
   --chat-green: #14806f; --chat-ink: #13231c; --chat-muted: #6f8177; --chat-border: #dce8df;
   --chat-background: #f4f4f4; --chat-pale: #e6f8f1;
 }

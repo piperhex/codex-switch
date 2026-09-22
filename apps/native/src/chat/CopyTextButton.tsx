@@ -58,12 +58,16 @@ function useTextCopy(text: string) {
   return { status, request, saving, error, copy, save, close: () => setRequest(null) };
 }
 
-export function CopyTextButton({ text, label = '复制' }: { text: string; label?: string }) {
+export function CopyTextButton({ text, label = '复制', variant = 'inline' }: {
+  text: string; label?: string; variant?: 'inline' | 'labeled';
+}) {
   const copy = useTextCopy(text);
-  return <View style={copyStyles.inline}><Pressable accessibilityRole="button" accessibilityLabel={label}
-    style={copyStyles.button} hitSlop={8}
+  const labeled = variant === 'labeled';
+  return <View style={!labeled && copyStyles.inline}><Pressable accessibilityRole="button" accessibilityLabel={label}
+    style={labeled ? copyStyles.labeledButton : copyStyles.button} hitSlop={8}
     disabled={copy.saving} onPress={() => void copy.copy()}>
-    <Feather name={copy.status === '已复制' ? 'check' : 'copy'} size={15} color={palette.muted} /></Pressable>
+    <Feather name={copy.status === '已复制' ? 'check' : 'copy'} size={15} color={palette.muted} />
+    {labeled && <Text style={copyStyles.label}>{copy.status || label}</Text>}</Pressable>
     {copy.request && <BottomSheet visible title="保存完整内容" onClose={copy.close} dismissible={!copy.saving}
       actions={[{ label: '保存完整内容', onPress: copy.save, loading: copy.saving, disabled: copy.saving }]}>
       <Text style={[styles.messageText, { maxWidth: 400 }]}>{copy.request.reason === 'too-large'
@@ -74,6 +78,8 @@ export function CopyTextButton({ text, label = '复制' }: { text: string; label
 }
 
 const copyStyles = StyleSheet.create({
+  labeledButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8 },
+  label: { color: palette.muted, fontSize: 14 },
   // Explicit dimensions let Android lay out this view as one inline attachment in a TextView.
   inline: { width: INLINE_COPY_WIDTH, height: 20 },
   // The inline view ends at the text baseline; the icon's visible bottom also needs the font's descent.

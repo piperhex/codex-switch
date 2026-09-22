@@ -3,7 +3,8 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e', testMatch: ['**/chat.pw.ts', '**/queue.pw.ts', '**/chat-parity.pw.ts',
     '**/chat-swipe.pw.ts', '**/chat-display.pw.ts', '**/thread-pagination.pw.ts', '**/project-collapse.pw.ts',
-    '**/skill-menu.pw.ts', '**/i18n-chat.pw.ts', '**/chat-history-scroll.pw.ts', '**/image-editor.pw.ts'],
+    '**/skill-menu.pw.ts', '**/i18n-chat.pw.ts', '**/chat-history-scroll.pw.ts', '**/image-editor.pw.ts',
+    '**/file-preview.pw.ts'],
   workers: 1, timeout: 150_000,
   outputDir: '../../.codex-tmp/h5-chat-playwright',
   reporter: [['list'], ['html', { outputFolder: '../../.codex-tmp/h5-chat-report', open: 'never' }]],

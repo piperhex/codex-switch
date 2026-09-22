@@ -31,6 +31,7 @@ vi.mock('@expo/vector-icons', () => ({ MaterialCommunityIcons: 'Icon' }));
 vi.mock('../components/BottomSheet', () => ({ BottomSheet: 'Sheet' }));
 vi.mock('../components/SheetScrollView', () => ({ SheetScrollView: 'ScrollView' }));
 vi.mock('./ChatCodeBlock', () => ({ ChatCodeBlock: 'Code' }));
+vi.mock('./ChatMarkdownPreview', () => ({ ChatMarkdownPreview: 'MarkdownPreview' }));
 vi.mock('./ChatHtmlPreview', () => ({ ChatHtmlPreview: 'Html', isHtmlPath: (path: string) => /\.html?$/i.test(path) }));
 vi.mock('./ChatCodeHighlight', () => ({ fileLanguage: () => 'text' }));
 vi.mock('./fileDownloadTarget', () => ({ nativeDownloadTarget: {} }));
@@ -119,6 +120,17 @@ it.each(['./index.html', './INDEX.HTM'])('renders HTML files directly while reta
   const nodes = descendants(sheet);
   expect(nodes.find(node => node.type === 'Html')?.props.text).toBe(state.text.text);
   expect(nodes.some(node => node.type === 'Code')).toBe(false);
+  expect((sheet.props as { actions: { label: string }[] }).actions[0].label).toBe('下载');
+});
+
+it.each(['./verification.md', 'C:/docs/README.MARKDOWN'])('opens Markdown with rendering and download: %s', path => {
+  state.text = { path, text: '# 检查结果\n\n- 已完成\n' };
+  const preview = openFile(`${path}#L3`);
+  const component = preview.type as (props: typeof preview.props) => React.ReactElement;
+  const sheet = component(preview.props);
+  const nodes = descendants(sheet);
+  expect(nodes.find(node => node.type === 'MarkdownPreview')?.props).toMatchObject({ text: state.text.text, line: 3 });
+  expect(nodes.some(node => node.type === 'Code' || node.type === 'Html')).toBe(false);
   expect((sheet.props as { actions: { label: string }[] }).actions[0].label).toBe('下载');
 });
 

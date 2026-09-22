@@ -1,4 +1,9 @@
 export const chat = {
+  '显示方式': 'Display mode',
+  '预览': 'Preview',
+  '原文': 'Source',
+  '复制原文': 'Copy source',
+  '（空文件）': '(Empty file)',
   '模型与推理强度': 'Model and reasoning effort',
   '模型与推理强度：{model} {effort}': 'Model and reasoning effort: {model} {effort}',
   '返回推理强度设置': 'Back to reasoning effort',

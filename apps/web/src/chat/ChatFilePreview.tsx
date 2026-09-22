@@ -2,10 +2,11 @@ import { t, useLanguage } from '../i18n';
 import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { AdaptiveSheet } from '../components/AdaptiveSheet';
-import type { TextPreview } from '../../../../shared/remote-chat/textPreview';
+import { isMarkdownPath, type TextPreview } from '../../../../shared/remote-chat/textPreview';
 import type { FileClient } from '../../../../shared/remote-chat/fileDownload';
 import { isVideoPath } from '../../../../shared/remote-chat/video';
 import { ChatCodeBlock } from './ChatCodeBlock';
+import { ChatMarkdownPreview } from './ChatMarkdownPreview';
 import { ChatImage } from './ChatImage';
 import { loadVideoPreview } from './videoPreview';
 import { useFileDownload } from '../../../../shared/remote-chat/useFileDownload';
@@ -30,8 +31,9 @@ function TextFile({ path, context, line }: { path: string; context: FilePreviewC
   if (!result) return <p role="status" className="chat-muted">{t("正在读取文件…")}</p>;
   // Keep arbitrary HTML and scripts inert, just like source files on the phone.
   return <>{line && <p className="chat-muted">{t('引用位置：第 {line} 行', { line })}</p>}
-    <ChatCodeBlock text={result.text} language={path.split('.').at(-1)} label={path.split(/[\\/]/).at(-1)}
-      copyLabel={t("复制文件内容")} /></>;
+    {isMarkdownPath(path) ? <ChatMarkdownPreview text={result.text} />
+      : <ChatCodeBlock text={result.text} language={path.split('.').at(-1)} label={path.split(/[\\/]/).at(-1)}
+        copyLabel={t("复制文件内容")} />}</>;
 }
 function VideoFile({ path, context }: { path: string; context: FilePreviewContext }) {
   useLanguage();
@@ -76,6 +78,6 @@ export function ChatFilePreview({ path, line, context, onClose }: {
       {!!download.message && <p role="status" className="chat-muted" style={{ maxWidth: 400 }}>{t(download.message)}</p>}
       {image ? <ChatImage source={path} description={t("文件预览")} />
       : isVideoPath(path) ? <VideoFile path={path} context={context} />
-        : <TextFile path={path} context={context} line={line} />}</div>
+        : <TextFile key={path} path={path} context={context} line={line} />}</div>
   </AdaptiveSheet>;
 }
