@@ -1,10 +1,9 @@
 import { Button, Popconfirm, Popover, Switch, Tag, Tooltip } from "antd";
-import { ChevronDown, Power, PowerOff, RadioTower, Shuffle } from "lucide-react";
+import { Cable, ChevronDown, Power, PowerOff, RadioTower, Shuffle } from "lucide-react";
 import type { Translate } from "../i18n";
 import type {
   Account, ImageModelTarget, ImageRouteKind, LocalProxyStatus, Provider,
 } from "../types";
-import { ProxySessionManager } from "./ProxySessionManager";
 import { ImageModelRouteSelect } from "./ImageModelRouteSelect";
 
 interface LocalProxyCardProps {
@@ -14,6 +13,7 @@ interface LocalProxyCardProps {
   proxyBusy: boolean;
   onStartProxy: () => void;
   onStopProxy: () => void;
+  onOpenSessions: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
   onCustomAutoSwitchPriorityEnabledChange: (enabled: boolean) => void;
   onCustomAutoSwitchThresholdEnabledChange: (enabled: boolean) => void;
@@ -31,6 +31,7 @@ export function LocalProxyCard({
   proxyBusy,
   onStartProxy,
   onStopProxy,
+  onOpenSessions,
   onAutoSwitchChange,
   onCustomAutoSwitchPriorityEnabledChange,
   onCustomAutoSwitchThresholdEnabledChange,
@@ -95,7 +96,9 @@ export function LocalProxyCard({
             {actionButton}
           </Popconfirm>
         )}
-        {proxyRunning && <ProxySessionManager t={t} />}
+        {proxyRunning && <Button size="small" icon={<Cable size={14} />} onClick={onOpenSessions}>
+          {t("providers.proxy.sessions")}
+        </Button>}
         {proxyRunning && (
           <>
             <Popover trigger="hover" placement="bottom" mouseEnterDelay={0.08} mouseLeaveDelay={0.12}

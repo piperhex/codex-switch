@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bot,
+  Cable,
   FolderOpen,
   FileSliders,
   MessageSquareText,
@@ -17,6 +18,7 @@ import type { Translate } from "../../i18n";
 export type DashboardPage =
   | "accounts"
   | "providers"
+  | "proxySessions"
   | "codexGui"
   | "tokens"
   | "dreamSkin"
@@ -41,6 +43,7 @@ const NAVIGATION_ITEMS = [
   { page: "accounts", icon: UserRound, labelKey: "nav.accounts" },
   { page: "sessions", icon: FolderOpen, labelKey: "nav.sessions" },
   { page: "providers", icon: Server, labelKey: "nav.providers" },
+  { page: "proxySessions", icon: Cable, labelKey: "nav.proxySessions" },
   { page: "codexGui", icon: SquareTerminal, labelKey: "nav.codexGui" },
 ] as const;
 

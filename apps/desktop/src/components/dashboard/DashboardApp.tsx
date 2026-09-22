@@ -55,6 +55,7 @@ import { TokenUsageHeatmap } from "../TokenUsageHeatmap";
 import { TokenUsageDashboard } from "../TokenUsageDashboard";
 import { TotpWindowButton } from "../TotpWindowButton";
 import { ProxySessionManager } from "../ProxySessionManager";
+import proxySessionStyles from "../ProxySessionManager/index.module.less";
 import { ErrorLogsPage } from "../../pages/ErrorLogsPage";
 import { CloudLoginModal } from "../modals/CloudLoginModal";
 import { CloudAccountModal } from "../modals/CloudAccountModal";
@@ -183,6 +184,7 @@ type SystemMenuAction =
   | "dream-skin"
   | "skills"
   | "sessions"
+  | "proxy-sessions"
   | "system-prompts"
   | "settings"
   | "refresh-all"
@@ -222,6 +224,7 @@ async function refreshProviderBalances(providers: Provider[]) {
 }
 
 function dashboardEyebrow(page: DashboardPage, t: Translate) {
+  if (page === "proxySessions") return t("topbar.proxySessionsEyebrow");
   if (page === "errorLogs") return t("errorLogs.eyebrow");
   if (page === "codexConfig") return "CODEX / CONFIGURATION";
   if (page === "providers") return t("topbar.providersEyebrow");
@@ -236,6 +239,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
   accountCount: number;
   providerCount: number;
 }) {
+  if (page === "proxySessions") return t("providers.proxy.sessionsTitle");
   if (page === "errorLogs") return t("errorLogs.title");
   if (page === "codexConfig") return t("nav.codexConfig");
   if (page === "settings") return t("topbar.settings");
@@ -987,6 +991,9 @@ export function DashboardApp() {
       case "sessions":
         setPage("sessions");
         break;
+      case "proxy-sessions":
+        setPage("proxySessions");
+        break;
       case "system-prompts":
         setPage("systemPrompts");
         break;
@@ -1164,10 +1171,11 @@ export function DashboardApp() {
     : null;
   const proxyTopbarActions = (
     <ProxyTopbarActions manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
-      t={t} />
+      onOpenSessions={() => setPage("proxySessions")} t={t} />
   );
   const accountProxyTopbarActions = (
     <ProxyTopbarActions manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
+      onOpenSessions={() => setPage("proxySessions")}
       trailingAction={<>
         {managedAccountGroups.length > 0 && <AccountGroupManager accounts={manager.accounts}
           concurrentGroup={providerManager.localProxy?.concurrentAccountGroup ?? null}
@@ -1244,7 +1252,6 @@ export function DashboardApp() {
               onPageChange={setPage} page={page} t={t} variant="sidebar"
               sidebarTools={(
                 <>
-                  {titlebarProxyRunning && <ProxySessionManager t={t} triggerVariant="sidebar" />}
                   <button type="button" className={page === "errorLogs" ? "selected" : ""}
                     aria-current={page === "errorLogs" ? "page" : undefined}
                     aria-label={t("errorLogs.open")} title={t("errorLogs.open")}
@@ -1287,6 +1294,7 @@ export function DashboardApp() {
         <main className={page === "accounts" ? "accounts-main"
           : page === "codexGui" ? codexGuiStyles.main
           : page === "providers" ? "providers-main"
+          : page === "proxySessions" ? proxySessionStyles.main
           : page === "claudeCode" ? "claude-code-main"
           : page === "tokens" ? "tokens-main"
             : page === "dreamSkin" ? "dream-skin-main"
@@ -1373,6 +1381,7 @@ export function DashboardApp() {
           )}
 
           {page === "errorLogs" && <ErrorLogsPage language={language} t={t} />}
+          {page === "proxySessions" && <ProxySessionManager t={t} />}
           <section className="page-panel" hidden={page !== "dreamSkin"}>
             {page === "dreamSkin" && <MemoDreamSkinPage t={t} notify={notify} />}
           </section>

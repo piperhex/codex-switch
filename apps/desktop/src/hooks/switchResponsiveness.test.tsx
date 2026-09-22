@@ -159,7 +159,7 @@ it("reports local activation failures without starting follow-up requests", asyn
   expect(providers.busyProviderId).toBeNull();
 });
 
-it("keeps the open session view polling and closable while switch follow-ups remain pending", async () => {
+it("keeps the session page polling and allows leaving while switch follow-ups remain pending", async () => {
   vi.useFakeTimers();
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addListener() {}, removeListener() {} })));
@@ -174,7 +174,6 @@ it("keeps the open session view polling and closable while switch follow-ups rem
   await act(async () => root.render(<ConfigProvider theme={{ token: { motion: false } }}>
     <Fixture /><ProxySessionManager t={t} />
   </ConfigProvider>));
-  await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
   expect(backend.loadProxySessions).toHaveBeenCalledOnce();
   const upload = deferred<void>();
   const balance = deferred<Awaited<ReturnType<typeof backend.queryProviderBalance>>>();
@@ -188,10 +187,10 @@ it("keeps the open session view polling and closable while switch follow-ups rem
   expect(providers.busyProviderId).toBeNull();
   await act(async () => vi.advanceTimersByTimeAsync(6_000));
   expect(backend.loadProxySessions).toHaveBeenCalledTimes(4);
-  const close = [...document.querySelectorAll<HTMLButtonElement>("button")]
-    .find((button) => button.textContent === "providers.proxy.sessionsClose")!;
-  await act(async () => close.click());
-  expect(document.querySelector<HTMLElement>(".ant-modal-wrap")?.style.display).toBe("none");
+  await act(async () => root.render(<ConfigProvider theme={{ token: { motion: false } }}>
+    <Fixture />
+  </ConfigProvider>));
+  expect(container.querySelector("table")).toBeNull();
   await act(async () => vi.advanceTimersByTimeAsync(4_000));
   expect(backend.loadProxySessions).toHaveBeenCalledTimes(4);
   await act(async () => {

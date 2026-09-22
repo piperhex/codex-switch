@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from "react";
-import { Popover, Switch, Tooltip } from "antd";
-import { ChevronDown, Settings, Shuffle } from "lucide-react";
+import { Button, Popover, Switch, Tooltip } from "antd";
+import { Cable, ChevronDown, Settings, Shuffle } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { useProviderManager } from "../../hooks/useProviderManager";
-import { ProxySessionManager } from "../ProxySessionManager";
 import { AutoResetSettingsModal } from "./AutoResetSettingsModal";
 
 interface ProxyTopbarActionsProps {
   manager: ReturnType<typeof useProviderManager>;
+  onOpenSessions: () => void;
   showSessionManager?: boolean;
   trailingAction?: ReactNode;
   t: Translate;
@@ -15,6 +15,7 @@ interface ProxyTopbarActionsProps {
 
 export function ProxyTopbarActions({
   manager,
+  onOpenSessions,
   showSessionManager = true,
   t,
   trailingAction,
@@ -78,8 +79,10 @@ export function ProxyTopbarActions({
       {resetSettingsOpen && <AutoResetSettingsModal t={t}
         concurrent={Boolean(localProxy?.concurrentAccountRoutingEnabled)}
         onClose={() => setResetSettingsOpen(false)} />}
-      {proxyRunning && showSessionManager && <ProxySessionManager t={t}
-        triggerClassName="refresh-all proxy-topbar-action" />}
+      {proxyRunning && showSessionManager && <Button size="small" icon={<Cable size={14} />}
+        className="refresh-all proxy-topbar-action" onClick={onOpenSessions}>
+        {t("providers.proxy.sessions")}
+      </Button>}
       {trailingAction && <span className="account-security-actions">
         {trailingAction}
       </span>}

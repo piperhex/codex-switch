@@ -178,7 +178,6 @@ it("copies each endpoint and keeps the local endpoint available when address loa
 
 it("stays interactive while an active session poll and address scan are pending", async () => {
   await render({}, false);
-  await act(async () => button("providers.proxy.sessions").click());
   let completePoll!: (sessions: ProxySession[]) => void;
   vi.mocked(loadProxySessions).mockImplementationOnce(() => new Promise((resolve) => { completePoll = resolve; }));
   await act(async () => vi.advanceTimersByTime(2_000));

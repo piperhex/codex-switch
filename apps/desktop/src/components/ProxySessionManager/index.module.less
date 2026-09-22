@@ -1,3 +1,21 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+  scrollbar-gutter: auto;
+}
+
+.main > :global(.topbar) { flex-shrink: 0; }
+
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 18px var(--page-x) 20px;
+}
+
 .columnSettings {
   width: 190px;
   max-width: 400px;
@@ -77,7 +95,12 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  margin-bottom: 12px;
 }
+
+.tableActions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 
 .description {
   margin: 0 0 14px;
@@ -86,7 +109,7 @@
   line-height: 1.6;
 }
 
-.tableHeading .description { flex: 1; }
+.tableHeading .description { flex: 1; min-width: 200px; margin: 0; }
 
 .sessionRetentionControl {
   display: inline-flex;
@@ -100,14 +123,12 @@
   cursor: pointer;
 }
 
-.sessionModal :global(.ant-modal-content),
 .requestModal :global(.ant-modal-content) {
   height: 80vh;
   display: flex;
   flex-direction: column;
 }
 
-.sessionModal :global(.ant-modal-body),
 .requestModal :global(.ant-modal-body) {
   min-height: 0;
   flex: 1;
@@ -125,7 +146,7 @@
   white-space: nowrap;
 }
 
-.sessionModal :global(.ant-alert),
+.page > :global(.ant-alert),
 .requestModal :global(.ant-alert) { margin-bottom: 12px; }
 
 .sessionTable {
