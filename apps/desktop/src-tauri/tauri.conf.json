@@ -17,7 +17,7 @@
         "title": "Codex Switch",
         "width": 1370,
         "height": 760,
-        "minWidth": 960,
+        "minWidth": 1200,
         "minHeight": 680,
         "center": true,
         "backgroundThrottling": "disabled",

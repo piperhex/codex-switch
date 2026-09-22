@@ -21,7 +21,8 @@ const DEFAULT_HEIGHT: f64 = 760.0;
 const DEFAULT_WIDTH_RATIO: f64 = 0.8;
 #[cfg(not(target_os = "macos"))]
 const MAX_DEFAULT_WIDTH: f64 = 1600.0;
-const MIN_WIDTH: f64 = 960.0;
+// Keep this in sync with the main window's minWidth in tauri.conf.json.
+const MIN_WIDTH: f64 = 1200.0;
 const MIN_HEIGHT: f64 = 680.0;
 const SCREEN_MARGIN: f64 = 24.0;
 
@@ -378,7 +379,7 @@ mod tests {
                 height: 1040,
             },
         ];
-        let saved = state(1500, 100, 1000, 700);
+        let saved = state(1500, 100, 1280, 700);
 
         assert_eq!(fit_to_work_areas(saved, &screens), Some(saved));
     }
@@ -409,7 +410,7 @@ mod tests {
         }];
 
         assert_eq!(
-            fit_to_work_areas(state(2500, 100, 1000, 700), &screens),
+            fit_to_work_areas(state(2500, 100, 1280, 700), &screens),
             None
         );
     }
@@ -444,6 +445,7 @@ mod tests {
 
     #[test]
     fn uses_eighty_percent_of_the_screen_for_the_macos_default() {
-        assert_eq!(proportional_default_size(1440.0, 900.0), (1152.0, 720.0));
+        assert_eq!(proportional_default_size(1600.0, 900.0), (1280.0, 720.0));
+        assert_eq!(proportional_default_size(1440.0, 900.0), (MIN_WIDTH, 720.0));
     }
 }

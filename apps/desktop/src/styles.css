@@ -70,6 +70,12 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .window-titlebar-drag-region { min-width: 32px; flex: 1 1 auto; }
 .window-titlebar-tools { flex: 0 0 auto; margin-right: 40px; display: flex; align-items: center; }
 .window-titlebar-tools .menu-tools { gap: 6px; }
+/* Let long account names shrink before they push the native window controls out of view. */
+.custom-titlebar-shell .window-titlebar-tools { min-width: 0; flex-shrink: 1; }
+.custom-titlebar-shell .window-titlebar-tools .window-titlebar-proxy { flex-shrink: 0; }
+.custom-titlebar-shell .window-titlebar-tools .menu-tools { min-width: 0; flex-shrink: 1; }
+.custom-titlebar-shell .window-titlebar-tools .menu-tools > :not(.cloud-avatar-button) { flex-shrink: 0; }
+.custom-titlebar-shell .window-titlebar-tools .cloud-avatar-button { min-width: 0; flex-shrink: 1; }
 .window-titlebar-content {
   z-index: 30;
   height: auto;
