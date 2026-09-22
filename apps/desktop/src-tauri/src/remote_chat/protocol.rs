@@ -91,6 +91,7 @@ pub(super) enum Event {
     Reset,
     Disconnected,
     Ready,
+    Closed { code: u16 },
     Message { data: String },
 }
 

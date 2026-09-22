@@ -30,7 +30,7 @@ const rpc = new ChatRpc({ prefix: 'browser', send: (request) => link.send(reques
 function connectSocket() {
   socket = new WebSocket(query.get('socket')!);
   socket.onopen = () => socket.send(JSON.stringify({ type: 'authenticate', role: desktop ? 'desktop' : 'mobile',
-  deviceId: 'computer', publicKey: keys.publicKey }));
+  deviceId: query.get('device') || 'computer', publicKey: keys.publicKey }));
   socket.onmessage = receive;
   socket.onclose = () => {
     link?.close();

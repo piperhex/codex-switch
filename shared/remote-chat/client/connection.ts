@@ -2,6 +2,7 @@ import { CHAT_POLICY_MESSAGE, setChatConnectionMode, setChatPolicy } from '../po
 import { keyPair } from '../cipher';
 import { ChatLink } from '../link';
 import { ChatRpc } from '../rpc';
+import { browserChatSocket, type ChatSocket } from './socket';
 import { hasUpload, uploadProgress, type UploadProgress } from '../uploadProgress';
 import { authorizationError, CONNECTION_ERRORS, socketConnectionError } from '../connectionErrors';
 import {
@@ -18,6 +19,7 @@ export interface ConnectionEvents {
 }
 
 interface ConnectionOptions extends ConnectionEvents {
+  createSocket?: (url: string) => ChatSocket;
   deviceId: string;
   authorize: () => Promise<{ baseUrl: string; accessToken: string }>;
   randomBytes: (length: number) => Uint8Array;
@@ -28,7 +30,7 @@ const CONNECTION_TIMEOUT_MS = 30_000;
 const SOCKET_CLOSE_GRACE_MS = 250;
 
 export class ChatConnection {
-  private socket?: WebSocket;
+  private socket?: ChatSocket;
   private link?: ChatLink;
   private rpc?: ChatRpc;
   private timer?: ReturnType<typeof setTimeout>;
@@ -64,7 +66,8 @@ export class ChatConnection {
       const session = await this.options.authorize();
       if (!this.active || generation !== this.generation) return;
       const keys = keyPair(this.options.randomBytes);
-      const socket = new WebSocket(chatSocketUrl(session.baseUrl));
+      const url = chatSocketUrl(session.baseUrl);
+      const socket = (this.options.createSocket ?? browserChatSocket)(url);
       this.socket = socket;
       this.bindSocket({ socket, keys, generation, accessToken: session.accessToken });
     } catch (error) {
@@ -75,7 +78,7 @@ export class ChatConnection {
   }
 
   private bindSocket({ socket, keys, generation, accessToken }: {
-    socket: WebSocket; keys: ReturnType<typeof keyPair>; generation: number; accessToken: string;
+    socket: ChatSocket; keys: ReturnType<typeof keyPair>; generation: number; accessToken: string;
   }) {
     socket.onopen = () => {
       if (generation !== this.generation) { socket.close(); return; }

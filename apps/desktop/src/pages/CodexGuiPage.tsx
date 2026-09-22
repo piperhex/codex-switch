@@ -38,6 +38,7 @@ const TerminalPanel = lazy(() => import("./codexGui/terminal/TerminalPanel"));
 type CodexGuiPageProps = {
   active: boolean; accountPicker: ReactNode; providers: Provider[]; aggregateApis: AggregateApi[];
   windowControls?: ReactNode; plugins: Omit<SkillsMarketPageProps, "active">;
+  focusMode?: GuiFocusMode;
 };
 
 export function CodexGuiPage(props: CodexGuiPageProps) {
@@ -45,12 +46,12 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
   const models = useMemo(() => providerModels(props.providers, props.aggregateApis),
     [props.providers, props.aggregateApis]);
   useEffect(() => { guiComposer.setProviderModels(models); }, [models]);
-  const focusMode = useGuiLayout(active);
+  const focusMode = useGuiLayout(active, !props.focusMode);
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
   if (!visited) return null;
   if (!hasLocalBackend) return <div className={styles.install}><h2>Codex GUI</h2><p>请打开 Codex Switch 提供的网页地址，开始对话。</p></div>;
-  return <Workspace {...props} {...focusMode} />;
+  return <Workspace {...props} {...(props.focusMode ?? focusMode)} />;
 }
 
 function Workspace({ active, accountPicker, providers, aggregateApis, windowControls, plugins,

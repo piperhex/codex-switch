@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Input, Popover, Spin } from "antd";
-import { Check, ChevronsUpDown, Search, Server, Settings, UserRound } from "lucide-react";
+import { Input, Spin } from "antd";
+import { Search, Server, Settings, UserRound } from "lucide-react";
 import type { Account, AggregateApi, Provider } from "../../types";
 import { maskAccountEmail } from "../../utils/accountPrivacy";
-import { ProxyAccountDetails } from "./ProxyAccountDetails";
+import { GuiAccountGroup, type GuiAccountChoice } from "./GuiAccountGroup";
+import { GuiAccountMenu } from "./GuiAccountMenu";
+import type { GuiComputerNavigation } from "./remote/types";
 import { ProxyAccountSummary } from "./ProxyAccountSummary";
 import { GuiAutoSwitchSettingsDialog } from "./GuiAutoSwitchSettingsDialog";
-import { MAX_ACCOUNT_PICKER_WIDTH, useAccountPickerWidth } from "./useAccountPickerWidth";
 import styles from "./ProxyAccountPicker.module.less";
 
 export interface ProxyAccountPickerProps {
   active: boolean;
+  computers?: GuiComputerNavigation;
   privacyMode: boolean;
   accounts: Account[];
   providers: Provider[];
@@ -23,30 +25,6 @@ export interface ProxyAccountPickerProps {
   onSwitchProvider: (id: string) => Promise<boolean>;
 }
 
-type Choice = {
-  id: string; name: string; detail: string; selected: boolean; disabled?: boolean; usage?: Account["usage"];
-};
-
-function AccountGroup({ title, choices, onSelect, disabled }: {
-  title: string; choices: Choice[]; onSelect: (id: string) => void; disabled: boolean;
-}) {
-  return <section className={styles.group} aria-label={title}>
-    <h3>{title}</h3>
-    {choices.length ? choices.map((choice) => <button key={choice.id} type="button"
-      className={`${styles.option} ${choice.selected ? styles.selected : ""}`}
-      aria-pressed={choice.selected} disabled={disabled || choice.disabled}
-      onClick={() => { if (!choice.selected) onSelect(choice.id); }}>
-      <span>
-        <span className={styles.optionName} title={choice.name}>{choice.name}</span>
-        {choice.usage ? <ProxyAccountDetails plan={choice.detail} usage={choice.usage} />
-          : choice.detail && <small>{choice.detail}</small>}
-        {choice.disabled && <small>此账号暂不支持代理</small>}
-      </span>
-      {choice.selected && <Check size={15} aria-label="当前使用" />}
-    </button>) : <p className={styles.hint}>暂无匹配项</p>}
-  </section>;
-}
-
 export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -55,7 +33,6 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const [error, setError] = useState("");
   const switching = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
-  const panelWidth = useAccountPickerWidth(trigger, props.active);
   const provider = props.providers.find((entry) => entry.active);
   const aggregate = props.aggregateApis.find((entry) => entry.active);
   const account = props.accounts.find((entry) => entry.active);
@@ -63,7 +40,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const email = account?.email && (props.privacyMode ? maskAccountEmail(account.email) : account.email);
   const name = aggregate?.name || provider?.name || email || "选择 GUI 账户";
   const disabled = props.busy || props.loading || saving || !props.proxyRunning;
-  const matches = (choice: Choice) =>
+  const matches = (choice: GuiAccountChoice) =>
     `${choice.name} ${choice.detail}`.toLowerCase().includes(query.trim().toLowerCase());
   // `official` describes account-pool provenance, not whether the account can use the official API.
   const accounts = props.accounts.map((entry) => ({
@@ -90,13 +67,13 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     } catch { setError("切换未完成，请重试。"); }
     finally { switching.current = false; setSaving(false); }
   };
-  const panel = <div className={styles.panel} onKeyDown={(event) => {
+  const panel = <div onKeyDown={(event) => {
     if (event.key === "Escape") { event.stopPropagation(); setOpen(false); trigger.current?.focus(); }
   }}>
     <div className={styles.list} aria-busy={saving || props.loading}>
-      <AccountGroup title="官方账号" choices={accounts} disabled={disabled}
+      <GuiAccountGroup title="官方账号" choices={accounts} disabled={disabled}
         onSelect={(id) => void select(id, props.onSwitchAccount)} />
-      <AccountGroup title="第三方 Provider" choices={providers} disabled={disabled}
+      <GuiAccountGroup title="第三方 Provider" choices={providers} disabled={disabled}
         onSelect={(id) => void select(id, props.onSwitchProvider)} />
     </div>
     <div className={styles.footer}>
@@ -116,20 +93,12 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
       {props.selectionError && <p className={styles.error} role="alert">{props.selectionError}</p>}
     </div>
   </div>;
-  return <><Popover trigger="click" placement="topLeft" open={open && props.active} content={panel}
-    arrow={false} align={{ offset: [0, -2] }} classNames={{ root: styles.popup }}
-    styles={{ root: { width: panelWidth, maxWidth: MAX_ACCOUNT_PICKER_WIDTH } }}
-    onOpenChange={(next) => {
-      setOpen(next); if (next) { setQuery(""); setError(""); }
-    }}>
-    <button ref={trigger} type="button" className={styles.trigger} aria-expanded={open && props.active}
-      aria-label={`切换 GUI 账户：${name}`}>
-      {saving ? <Spin size="small" /> : thirdParty ? <Server size={17} /> : <UserRound size={17} />}
-      <ProxyAccountSummary name={name} account={account} provider={aggregate ? undefined : provider}
-        thirdParty={thirdParty} running={props.proxyRunning} active={props.active} />
-      <ChevronsUpDown size={14} />
-    </button>
-  </Popover>
+  return <><GuiAccountMenu active={props.active} open={open} name={name} trigger={trigger}
+    computers={props.computers} busy={saving} accounts={panel}
+    icon={saving ? <Spin size="small" /> : thirdParty ? <Server size={17} /> : <UserRound size={17} />}
+    summary={<ProxyAccountSummary name={name} account={account} provider={aggregate ? undefined : provider}
+      thirdParty={thirdParty} running={props.proxyRunning} active={props.active} />}
+    onOpenChange={(next) => { setOpen(next); if (next) { setQuery(""); setError(""); } }} />
     {settingsOpen && props.active && <GuiAutoSwitchSettingsDialog accounts={props.accounts} providers={props.providers}
       privacyMode={props.privacyMode} onClose={() => { setSettingsOpen(false); trigger.current?.focus(); }} />}
   </>;
