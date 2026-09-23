@@ -492,6 +492,8 @@ pub fn run() {
             cloud::get_cloud_auth_state,
             cloud::get_saved_cloud_login,
             cloud::fetch_cloud_announcement,
+            cloud::fetch_cloud_title_settings,
+            cloud::fetch_cloud_home_presets,
             cloud::fetch_cloud_currency_rates,
             cloud::fetch_cloud_token_cost_presets,
             cloud::fetch_cloud_faqs,

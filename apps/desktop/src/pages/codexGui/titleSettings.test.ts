@@ -3,7 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { loadCloudAuthState } from '../../api/backend';
 import { GuiTitleSettings } from './titleSettings';
 
-vi.mock('../../api/backend', () => ({ DEFAULT_CLOUD_BASE_URL: 'https://default.test', loadCloudAuthState: vi.fn() }));
+vi.mock('../../api/backend', () => ({
+  DEFAULT_CLOUD_BASE_URL: 'https://default.test', hasLocalBackend: false, loadCloudAuthState: vi.fn(),
+}));
 const fetcher = vi.fn();
 beforeEach(() => {
   vi.resetAllMocks();

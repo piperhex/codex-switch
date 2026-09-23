@@ -715,6 +715,7 @@ export async function updateCodexHomes(homes: CodexHomeEntry[]): Promise<AppSett
 
 export async function loadCodexHomePresets(baseUrl: string): Promise<CodexHomePreset[]> {
   const platform = navigator.platform.toLowerCase().includes("mac") ? "macos" : "windows";
+  if (hasLocalBackend) return invoke<CodexHomePreset[]>("fetch_cloud_home_presets", { baseUrl, platform });
   const response = await fetch(
     `${baseUrl.replace(/\/+$/, "")}/codex-home-presets?platform=${platform}`,
     { headers: { Accept: "application/json" }, cache: "no-store" },
