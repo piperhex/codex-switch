@@ -17,7 +17,7 @@ vi.mock("../../api/backend", () => ({
 }));
 
 vi.mock("../../api/errorLogs", () => ({
-  listErrorLogs: vi.fn().mockResolvedValue({ entries: [], hasMore: false }),
+  listErrorLogs: vi.fn().mockResolvedValue({ entries: [], hasMore: false, total: 0, page: 1, snapshotId: null }),
   clearErrorLogs: vi.fn(),
 }));
 
@@ -129,7 +129,8 @@ it("stops request detail polling when switching diagnostics tabs", async () => {
 });
 
 it("opens error logs by default and stops their polling when switching tabs during a request", async () => {
-  const load = vi.mocked(listErrorLogs).mockResolvedValue({ entries: [], hasMore: false });
+  const load = vi.mocked(listErrorLogs)
+    .mockResolvedValue({ entries: [], hasMore: false, total: 0, page: 1, snapshotId: null });
   vi.mocked(loadProxySessions).mockResolvedValue([session]);
   await act(async () => root.render(<Fixture />));
   await act(async () => button("logDiagnostics.title").click());
@@ -143,7 +144,7 @@ it("opens error logs by default and stops their polling when switching tabs duri
   expect(load).toHaveBeenCalledTimes(2);
   await act(async () => tab("nav.proxySessions").click());
   expect(tab("nav.proxySessions").getAttribute("aria-selected")).toBe("true");
-  await act(async () => completePoll({ entries: [], hasMore: false }));
+  await act(async () => completePoll({ entries: [], hasMore: false, total: 0, page: 1, snapshotId: null }));
   await act(async () => vi.advanceTimersByTime(4_000));
   expect(load).toHaveBeenCalledTimes(2);
 

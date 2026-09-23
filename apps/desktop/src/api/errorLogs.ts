@@ -13,16 +13,20 @@ export interface ErrorLogEntry {
 export interface ErrorLogPage {
   entries: ErrorLogEntry[];
   hasMore: boolean;
+  total: number;
+  page: number;
+  snapshotId: number | null;
 }
 
 interface ErrorLogQuery {
   limit?: number;
   beforeId?: number;
   source?: ErrorLogSource;
+  pagination?: { page: number; snapshotId?: number | null };
 }
 
 export async function listErrorLogs(query: ErrorLogQuery = {}): Promise<ErrorLogPage> {
-  if (!hasLocalBackend) return { entries: [], hasMore: false };
+  if (!hasLocalBackend) return { entries: [], hasMore: false, total: 0, page: 1, snapshotId: null };
   return invoke<ErrorLogPage>("list_error_logs", { ...query });
 }
 

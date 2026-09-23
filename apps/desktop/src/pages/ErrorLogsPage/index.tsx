@@ -3,7 +3,7 @@ import { RefreshCw, Trash2 } from "lucide-react";
 import type { ErrorLogEntry } from "../../api/errorLogs";
 import type { Language, Translate } from "../../i18n";
 import { useErrorLogs, type ErrorLogFilter } from "./useErrorLogs";
-import { ERROR_LOG_RETENTION_LIMIT } from "./logEntries";
+import { ERROR_LOG_RETENTION_LIMIT, LOG_PAGE_SIZE_OPTIONS } from "./pagination";
 import styles from "./index.module.less";
 
 interface ErrorLogsPageProps {
@@ -40,7 +40,7 @@ function logColumns({ language, t }: ErrorLogsPageProps): TableColumnsType<Error
 }
 
 function LogToolbar({ logs, t }: { logs: ReturnType<typeof useErrorLogs>; t: Translate }) {
-  const busy = logs.operation !== null;
+  const busy = logs.operation !== null && logs.operation !== "poll";
   return (
     <div className={styles.toolbar}>
       <Segmented<ErrorLogFilter> value={logs.filter} disabled={busy} onChange={logs.setFilter}
@@ -51,10 +51,11 @@ function LogToolbar({ logs, t }: { logs: ReturnType<typeof useErrorLogs>; t: Tra
         ]} />
       <div className={styles.actions}>
         <Button size="small" icon={<RefreshCw size={14} />} loading={logs.operation === "refresh"}
-          disabled={busy} onClick={() => void logs.load()}>{t("errorLogs.refresh")}</Button>
+          disabled={busy} onClick={logs.refresh}>{t("errorLogs.refresh")}</Button>
         <Popconfirm title={t("errorLogs.clearTitle")} description={t("errorLogs.clearDescription")}
           okText={t("errorLogs.clear")} cancelText={t("errorLogs.cancel")}
-          okButtonProps={{ danger: true }} styles={{ root: { maxWidth: 400 }, body: { maxWidth: 400 } }}
+          okButtonProps={{ danger: true, disabled: logs.operation !== null }}
+          styles={{ root: { maxWidth: 400 }, body: { maxWidth: 400 } }}
           onConfirm={() => logs.clear()} onOpenChange={logs.setPollingPaused} disabled={busy}>
           <Button size="small" danger icon={<Trash2 size={14} />} loading={logs.operation === "clear"}
             disabled={busy}>{t("errorLogs.clear")}</Button>
@@ -66,20 +67,19 @@ function LogToolbar({ logs, t }: { logs: ReturnType<typeof useErrorLogs>; t: Tra
 
 export function ErrorLogsPage({ language, t }: ErrorLogsPageProps) {
   const logs = useErrorLogs();
-  const busy = logs.operation !== null;
+  const busy = logs.operation !== null && logs.operation !== "poll";
   return (
     <section className={styles.page} aria-label={t("errorLogs.title")}>
       <LogToolbar logs={logs} t={t} />
       {logs.error && <Alert type="error" showIcon className={styles.error}
         message={t(logs.error === "clear" ? "errorLogs.clearFailed" : "errorLogs.loadFailed")} />}
-      <Table<ErrorLogEntry> rowKey="id" size="small" tableLayout="fixed" columns={logColumns({ language, t })}
-        dataSource={logs.entries} pagination={false} loading={!logs.entries.length && busy}
-        locale={{ emptyText: t("errorLogs.empty") }} scroll={{ x: 700 }} />
-      <div className={styles.footer}>
-        <span>{t("errorLogs.count", { count: logs.entries.length, limit: ERROR_LOG_RETENTION_LIMIT })}</span>
-        {logs.hasMore && <Button size="small" loading={logs.operation === "more"} disabled={busy}
-          onClick={() => void logs.load("more")}>{t("errorLogs.loadMore")}</Button>}
-      </div>
+      <Table<ErrorLogEntry> className={styles.table} rowKey="id" size="small" tableLayout="fixed"
+        columns={logColumns({ language, t })} dataSource={logs.entries} loading={busy}
+        pagination={{ current: logs.page, pageSize: logs.pageSize, total: logs.total,
+          pageSizeOptions: LOG_PAGE_SIZE_OPTIONS, showSizeChanger: true, size: "small", disabled: busy,
+          showTotal: (total) => t("errorLogs.count", { count: total, limit: ERROR_LOG_RETENTION_LIMIT }),
+          onChange: logs.changePage }}
+        locale={{ emptyText: t("errorLogs.empty") }} scroll={{ x: 700, y: "100%" }} />
     </section>
   );
 }

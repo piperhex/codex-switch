@@ -52,35 +52,62 @@ pub(super) fn insert(connection: &mut Connection, entry: NewEntry) -> Result<(),
 }
 
 pub(super) fn list(connection: &Connection, query: ListQuery) -> Result<ErrorLogPage, LogError> {
+    let transaction = connection.unchecked_transaction()?;
+    let page = list_snapshot(&transaction, query)?;
+    transaction.commit()?;
+    Ok(page)
+}
+
+fn list_snapshot(connection: &Connection, query: ListQuery) -> Result<ErrorLogPage, LogError> {
+    let source = query.source.map(ErrorLogSource::as_str);
+    let (total, newest_id): (u32, Option<i64>) = connection.query_row(
+        "SELECT COUNT(*), MAX(id) FROM error_logs
+         WHERE (?1 IS NULL OR id < ?1) AND (?2 IS NULL OR source = ?2)
+         AND (?3 IS NULL OR id <= ?3)",
+        params![query.before_id, source, query.snapshot_id],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    // Clearing logs or retention can remove the last page between requests.
+    let offset = query
+        .offset
+        .min(total.saturating_sub(1) / query.limit * query.limit);
     let mut statement = connection.prepare(
         "SELECT id, created_at, source, message, status_code FROM error_logs
          WHERE (?1 IS NULL OR id < ?1) AND (?2 IS NULL OR source = ?2)
-         ORDER BY id DESC LIMIT ?3",
+         AND (?3 IS NULL OR id <= ?3) ORDER BY id DESC LIMIT ?4 OFFSET ?5",
     )?;
     let entries = statement.query_map(
         params![
             query.before_id,
-            query.source.map(ErrorLogSource::as_str),
-            query.limit + 1
+            source,
+            query.snapshot_id,
+            query.limit,
+            offset
         ],
-        |row| {
-            Ok(ErrorLogEntry {
-                id: row.get(0)?,
-                created_at: row.get(1)?,
-                source: if row.get::<_, String>(2)? == "proxy" {
-                    ErrorLogSource::Proxy
-                } else {
-                    ErrorLogSource::Toast
-                },
-                message: row.get(3)?,
-                status_code: row.get(4)?,
-            })
-        },
+        read_entry,
     )?;
-    let mut entries = entries.collect::<Result<Vec<_>, _>>()?;
-    let has_more = entries.len() > query.limit as usize;
-    entries.truncate(query.limit as usize);
-    Ok(ErrorLogPage { entries, has_more })
+    let entries = entries.collect::<Result<Vec<_>, _>>()?;
+    Ok(ErrorLogPage {
+        has_more: offset + (entries.len() as u32) < total,
+        entries,
+        total,
+        page: offset / query.limit + 1,
+        snapshot_id: query.snapshot_id.or(newest_id),
+    })
+}
+
+fn read_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<ErrorLogEntry> {
+    Ok(ErrorLogEntry {
+        id: row.get(0)?,
+        created_at: row.get(1)?,
+        source: if row.get::<_, String>(2)? == "proxy" {
+            ErrorLogSource::Proxy
+        } else {
+            ErrorLogSource::Toast
+        },
+        message: row.get(3)?,
+        status_code: row.get(4)?,
+    })
 }
 
 pub(super) fn clear(connection: &Connection) -> Result<(), LogError> {

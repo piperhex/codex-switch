@@ -1,4 +1,12 @@
-.page { min-width: 0; padding: 16px 16px 0; }
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 16px;
+}
 
 .toolbar {
   display: flex;
@@ -7,20 +15,27 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 14px;
+  flex-shrink: 0;
 }
 
 .actions { display: flex; align-items: center; gap: 8px; }
-.error { margin-bottom: 12px; }
+.error { margin-bottom: 12px; flex-shrink: 0; }
 .message { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
 
-.footer {
+.table { min-height: 0; flex: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
+
+.table > :global(.ant-spin-nested-loading),
+.table > :global(.ant-spin-nested-loading) > :global(.ant-spin-container),
+.table :global(.ant-table-container) { height: 100%; }
+
+.table > :global(.ant-spin-nested-loading) > :global(.ant-spin-container),
+.table :global(.ant-table-container) {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 32px;
-  padding-top: 12px;
-  color: var(--muted);
-  font-size: 12px;
+  flex-direction: column;
+  min-height: 0;
 }
+
+.table :global(.ant-table) { flex: 1; min-height: 0; }
+.table :global(.ant-table-body) { flex: 1; min-height: 0; max-height: none !important; }
+.table :global(.ant-table-pagination) { flex-shrink: 0; margin: 8px 12px; }
+.table :global(.ant-pagination-total-text) { margin-inline-end: auto; color: var(--muted); font-size: 12px; }

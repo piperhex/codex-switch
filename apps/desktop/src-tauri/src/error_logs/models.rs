@@ -37,6 +37,17 @@ pub(crate) struct ErrorLogEntry {
 pub(crate) struct ErrorLogPage {
     pub(crate) entries: Vec<ErrorLogEntry>,
     pub(crate) has_more: bool,
+    pub(crate) total: u32,
+    pub(crate) page: u32,
+    pub(crate) snapshot_id: Option<i64>,
+}
+
+/// Numbered pages remain anchored while newer records arrive.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ErrorLogPagination {
+    pub(crate) page: u32,
+    pub(crate) snapshot_id: Option<i64>,
 }
 
 pub(super) struct NewEntry {
@@ -51,6 +62,8 @@ pub(super) struct ListQuery {
     pub(super) limit: u32,
     pub(super) before_id: Option<i64>,
     pub(super) source: Option<ErrorLogSource>,
+    pub(super) offset: u32,
+    pub(super) snapshot_id: Option<i64>,
 }
 
 impl ListQuery {
@@ -67,7 +80,28 @@ impl ListQuery {
             limit,
             before_id,
             source,
+            offset: 0,
+            snapshot_id: None,
         })
+    }
+
+    pub(super) fn with_pagination(
+        mut self,
+        pagination: Option<ErrorLogPagination>,
+    ) -> Result<Self, LogError> {
+        let Some(pagination) = pagination else {
+            return Ok(self);
+        };
+        if self.before_id.is_some()
+            || pagination.page == 0
+            || pagination.page > MAX_ENTRIES as u32
+            || pagination.snapshot_id.is_some_and(|id| id <= 0)
+        {
+            return Err(LogError::InvalidQuery);
+        }
+        self.offset = (pagination.page - 1) * self.limit;
+        self.snapshot_id = pagination.snapshot_id;
+        Ok(self)
     }
 }
 

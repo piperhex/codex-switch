@@ -8,6 +8,7 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             argument(&args, "limit")?,
             argument(&args, "beforeId")?,
             argument(&args, "source")?,
+            argument(&args, "pagination")?,
         ))),
         "clear_error_logs" => serialize(block_on(crate::error_logs::clear_error_logs())),
         "record_toast_log" => serialize(block_on(crate::error_logs::record_toast_log(

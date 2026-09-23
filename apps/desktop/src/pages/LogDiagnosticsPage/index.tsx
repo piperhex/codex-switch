@@ -28,7 +28,7 @@ export function LogDiagnosticsPage({ activeTab, language, onTabChange, t }: LogD
       onChange={(key) => onTabChange(key as LogDiagnosticsTab)} items={[
         {
           key: "errorLogs", label: t("errorLogs.title"),
-          children: <div className={styles.logs}><ErrorLogsPage language={language} t={t} /></div>,
+          children: <ErrorLogsPage language={language} t={t} />,
         },
         {
           key: "proxySessions", label: t("nav.proxySessions"),

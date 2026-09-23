@@ -2,14 +2,14 @@ use std::{fs, path::PathBuf};
 
 use super::{database, models::*, sanitize, worker::LogService};
 
-struct Fixture(PathBuf);
+pub(super) struct Fixture(PathBuf);
 
 impl Fixture {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self(std::env::temp_dir().join(format!("codex-switch-error-logs-{}", uuid::Uuid::new_v4())))
     }
 
-    fn database_path(&self) -> PathBuf {
+    pub(super) fn database_path(&self) -> PathBuf {
         self.0.join("logs.sqlite")
     }
 }
@@ -22,7 +22,7 @@ impl Drop for Fixture {
     }
 }
 
-fn entry(source: ErrorLogSource, message: &str) -> NewEntry {
+pub(super) fn entry(source: ErrorLogSource, message: &str) -> NewEntry {
     NewEntry {
         created_at: "2026-09-07T01:02:03Z".to_string(),
         source,

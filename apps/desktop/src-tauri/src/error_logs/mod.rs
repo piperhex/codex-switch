@@ -2,6 +2,8 @@
 
 mod database;
 mod models;
+#[cfg(test)]
+mod pagination_tests;
 mod sanitize;
 #[cfg(test)]
 mod tests;
@@ -10,7 +12,7 @@ mod worker;
 use std::sync::OnceLock;
 use tauri::{AppHandle, Manager, Runtime};
 
-pub(crate) use models::{ErrorLogPage, ErrorLogSource};
+pub(crate) use models::{ErrorLogPage, ErrorLogPagination, ErrorLogSource};
 use models::{ListQuery, LogError};
 use worker::LogService;
 
@@ -59,6 +61,8 @@ pub(crate) fn export_proxy_errors() -> Result<ErrorLogPage, String> {
                 limit: models::MAX_ENTRIES as u32,
                 before_id: None,
                 source: Some(ErrorLogSource::Proxy),
+                offset: 0,
+                snapshot_id: None,
             })
         })
         .map_err(|error| error.to_string())
@@ -69,8 +73,11 @@ pub(crate) async fn list_error_logs(
     limit: Option<u32>,
     before_id: Option<i64>,
     source: Option<ErrorLogSource>,
+    pagination: Option<ErrorLogPagination>,
 ) -> Result<ErrorLogPage, String> {
-    let query = ListQuery::new(limit, before_id, source).map_err(|error| error.to_string())?;
+    let query = ListQuery::new(limit, before_id, source)
+        .and_then(|query| query.with_pagination(pagination))
+        .map_err(|error| error.to_string())?;
     background(move || service()?.list(query)).await
 }
 
