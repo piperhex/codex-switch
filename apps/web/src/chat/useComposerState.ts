@@ -1,5 +1,5 @@
 import { t } from '../i18n';
-import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useChatDraft } from '../../../../shared/remote-chat/client/useChatDraft';
 import { useQueueEditor } from '../../../../shared/remote-chat/client/useQueueEditor';
 import { useGoalMode } from '../../../../shared/remote-chat/client/useGoalMode';
@@ -11,6 +11,7 @@ import { useComposerAttachments } from './useComposerAttachments';
 import { useComposerMenu } from './useComposerMenu';
 import type { ComposerProps } from './composerProps';
 import { pickChatImages } from './pickChatImages';
+import { useComposerPaste } from './useComposerPaste';
 
 export function useComposerState(props: ComposerProps) {
   const { threadId, active, ready, sending, settingsBusy, compacting, selection, send, goals, running } = props;
@@ -31,17 +32,17 @@ export function useComposerState(props: ComposerProps) {
       menu.setSelection({ start: message.text.length, end: message.text.length });
       requestAnimationFrame(() => menu.input.current?.focus());
     } });
-  const busy = sending || draft.picking || attachments.busy || queueEditor.loading;
-  const paste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-    const files = Array.from(event.clipboardData.files);
-    if (!files.length) return;
-    event.preventDefault();
-    if (!active || busy) return;
-    const images = files.filter(file => file.type.startsWith('image/'));
-    const documents = files.filter(file => !file.type.startsWith('image/'));
-    if (images.length) void draft.addImages(remaining => pickChatImages(images, remaining));
-    if (documents.length) void attachments.pick(documents);
-  };
+  const paste = useComposerPaste({ scope: threadId, active,
+    busy: sending || draft.picking || attachments.busy || queueEditor.loading,
+    readClipboardImages: props.readClipboardImages, addFiles: async files => {
+      const images = files.filter(file => file.type.startsWith('image/'));
+      const documents = files.filter(file => !file.type.startsWith('image/'));
+      await Promise.all([
+        images.length ? draft.addImages(remaining => pickChatImages(images, remaining)) : undefined,
+        documents.length ? attachments.pick(documents) : undefined,
+      ]);
+    } });
+  const busy = sending || draft.picking || attachments.busy || queueEditor.loading || paste.reading;
   const compact = !goalMode.enabled && !props.goal && !draft.text.length && !hasContent && !busy;
   const action = composerAction({ running: running && !hasContent,
     interrupted: !!props.interrupted && !goalMode.enabled, hasDraft: hasContent });
@@ -101,5 +102,6 @@ export function useComposerState(props: ComposerProps) {
     else goalMode.exit();
   };
   return { draft, attachments, goalMode, menu, queueEditor, busy, compact, action, actionDisabled, pausing,
-    error: error || attachments.error || draft.error, submit, removeGoal, paste };
+    error: error || paste.error || attachments.error || draft.error, submit, removeGoal,
+    paste: paste.paste, pasteKeyDown: paste.pasteKeyDown, readingClipboard: paste.reading };
 }

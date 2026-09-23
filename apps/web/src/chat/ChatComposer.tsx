@@ -96,7 +96,8 @@ export function ChatComposer(props: ComposerProps) {
         <button type="button" className="chat-button" disabled={settingsBusy}
           onClick={() => { void updateSettings(selection); }}>{t('重新保存')}</button></p>}
       {props.compacting && <p role="status" className="chat-muted">{t("正在压缩上下文…")}</p>}
-      {(draft.picking || attachments.busy) && <p role="status" className="chat-muted">{t("正在添加附件…")}</p>}
+      {(draft.picking || attachments.busy || state.readingClipboard)
+        && <p role="status" className="chat-muted">{t("正在添加附件…")}</p>}
       <ChatUploadProgress progress={uploadProgress} reconnecting={!ready} />
       {(adding || menu.open) && <div className="chat-composer-popover" onKeyDown={event => {
         if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229) return;
@@ -127,6 +128,7 @@ export function ChatComposer(props: ComposerProps) {
             placeholder={ready ? (goalMode.enabled ? t("描述想完成的目标…") : placeholder) : t("连接后发消息")}
             onKeyDown={event => {
               if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229) return;
+              state.pasteKeyDown(event);
               if (event.key === 'Escape') { menu.close(); setAdding(false); return; }
               if (event.key !== 'Enter' || event.shiftKey || event.altKey) return;
               if (!desktop && !(event.ctrlKey || event.metaKey)) return;

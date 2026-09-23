@@ -1,4 +1,5 @@
 import type { Channel } from '@tauri-apps/api/core';
+import previewImage from '../src-tauri/icons/32x32.png?inline';
 
 const endpoint = new URLSearchParams(location.search).get('socket')!;
 const sockets = new Map<string, WebSocket>();
@@ -11,6 +12,9 @@ const devices = [
 let callbackId = 0;
 let beats = 0;
 let holdDirectory = false;
+let clipboardImages: { mimeType: string; data: string }[] = [];
+let holdClipboard = false;
+const pendingClipboard: (() => void)[] = [];
 const pendingDirectories: (() => void)[] = [];
 setInterval(() => { beats++; }, 20);
 
@@ -20,6 +24,13 @@ type NativeArgs = { request: { clientId: string; deviceId: string; publicKey: st
 
 async function invoke(command: string, args: NativeArgs) {
   commands.push(command);
+  if (command === 'get_dream_skin_status') return { installed: true, session: 'running', activeThemeId: 'fixture',
+    activeThemeAppearance: 'light', activeThemeOverlayOpacity: 0.85 };
+  if (command === 'get_dream_skin_theme_preview') return previewImage;
+  if (command === 'codex_gui_remote_clipboard_images') {
+    if (holdClipboard) await new Promise<void>(resolve => pendingClipboard.push(resolve));
+    return clipboardImages;
+  }
   if (command === 'codex_gui_devices') {
     if (holdDirectory) await new Promise<void>(resolve => pendingDirectories.push(resolve));
     return { currentDeviceId: 'this-computer', identity: { baseUrl: 'https://fixture.test', userId: 'owner' }, devices };
@@ -43,11 +54,15 @@ async function invoke(command: string, args: NativeArgs) {
 
 Object.assign(window, { __TAURI_INTERNALS__: { invoke, transformCallback: () => ++callbackId, unregisterCallback: () => {} },
   remoteGuiFixture: { commands, beats: () => beats, pauseDirectory: () => { holdDirectory = true; },
+    copyImage: () => { clipboardImages = [{ mimeType: 'image/png', data: previewImage.split(',')[1] }]; },
+    pauseClipboard: () => { holdClipboard = true; },
+    releaseClipboard: () => { holdClipboard = false; pendingClipboard.splice(0).forEach(resolve => resolve()); },
     releaseDirectory: () => { holdDirectory = false; pendingDirectories.splice(0).forEach(resolve => resolve()); } } });
 await import('./remote-gui-harness');
 
 declare global {
   interface Window { remoteGuiFixture: {
     commands: string[]; beats: () => number; pauseDirectory: () => void; releaseDirectory: () => void;
+    copyImage: () => void; pauseClipboard: () => void; releaseClipboard: () => void;
   } }
 }

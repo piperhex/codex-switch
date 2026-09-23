@@ -25,10 +25,10 @@ async function prepareImage(file: File) {
   if (isDirectChat() && /^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
     return draftImage(await readOriginal(file));
   }
-  const url = URL.createObjectURL(file);
   try {
     const image = new Image();
-    image.src = url;
+    // Desktop WebViews allow inline images but deliberately disallow blob: image sources.
+    image.src = await readOriginal(file);
     await image.decode();
     const compressed = await compressChatImage(async (edge, quality) => {
       const scale = Math.min(1, edge / Math.max(image.naturalWidth, image.naturalHeight));
@@ -47,7 +47,7 @@ async function prepareImage(file: File) {
   } catch (error) {
     if (error instanceof ChatImageError || error instanceof ImagePolicyError) throw new ChatImageError(error.message);
     throw new ChatImageError(t("这张图片暂时无法读取，请换一张 JPG 或 PNG 图片。"));
-  } finally { URL.revokeObjectURL(url); }
+  }
 }
 
 export async function pickChatImages(files: File[], remaining: number): Promise<DraftImage[]> {

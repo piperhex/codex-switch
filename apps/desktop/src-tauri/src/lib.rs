@@ -287,6 +287,7 @@ pub fn run() {
             remote_chat::remote_chat_ack,
             remote_chat::remote_chat_reconnect,
             remote_chat::remote_chat_detach,
+            codex_gui::clipboard_images::codex_gui_remote_clipboard_images,
             remote_chat::gui_remote_open,
             remote_chat::gui_remote_send,
             remote_chat::gui_remote_ack,

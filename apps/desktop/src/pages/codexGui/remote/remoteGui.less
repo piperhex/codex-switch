@@ -1,16 +1,80 @@
-.gui-remote-workspace {
+// Scoped to the remote workspace: the mounted local GUI keeps its own layout and conversation state.
+.gui-remote-workspace.chat-page {
   --chat-green: var(--green); --chat-ink: var(--ink); --chat-muted: var(--muted); --chat-border: var(--line);
-  --chat-background: var(--panel); --chat-pale: var(--green-selection); height: 100%;
-  font-size: var(--gui-font-size, 14px);
-  .chat-sidebar { flex-basis: 236px; background: var(--bg); }
-  .chat-sidebar-heading { min-height: 42px; padding: 8px 18px; }
-  .chat-header { background: var(--panel); min-height: 50px; padding: 8px 16px; }
-  .chat-header h2 { font-size: 14px; }
-  .chat-thread { min-height: 36px; padding: 8px; font-size: 12px; }
-  .chat-project-toggle { min-height: 32px; padding: 8px; }
-  .chat-drawer-footer { padding: 8px 14px; }
-  .chat-search-trigger, .chat-new-button, .chat-button, .chat-composer, .chat-composer textarea,
-  .chat-composer-shell, .chat-markdown pre { background: var(--panel); color: var(--ink); }
-  .chat-new-button { min-height: 32px; padding: 6px 10px; font-size: 12px; }
-  .chat-connection { max-width: 300px; }
+  --chat-background: var(--panel); --chat-pale: var(--green-selection);
+  display: flex; height: 100%; font-size: var(--gui-font-size, 14px); line-height: 1.8;
+  .chat-conversation { background: transparent; }
+  .chat-message-region { color: var(--ink); font: inherit; }
+  .chat-sidebar { flex-basis: 236px; background: transparent; border: 0; }
+  .gui-remote-sidebar { flex: 1; min-width: 0; }
+  .gui-remote-sidebar h2 { font-size: calc(var(--gui-font-size, 14px) - 1px); font-weight: 600; }
+  .chat-header { min-height: 38px; height: 38px; padding: 4px 14px; gap: 6px;
+    border-bottom: 1px solid var(--line); background: transparent;
+    > .chat-back { min-width: 26px; width: 26px; height: 26px; padding: 0; align-self: center;
+      svg { width: 14px; height: 14px; } }
+    > .chat-grow { display: flex; align-items: center; gap: 12px; }
+    h2 { flex: 1; margin: 0; font-size: calc(var(--gui-font-size, 14px) - 1px); line-height: 1.4; }
+    .chat-connection-info { max-width: min(40%, 300px); }
+    .chat-connection { margin: 0; font-size: calc(var(--gui-font-size, 14px) - 2px); }
+  }
+  &:has(.chat-sidebar) .chat-header > .ant-btn { display: none; }
+  .chat-messages { padding: 0; }
+  .chat-message-content { max-width: 900px; padding: 28px 32px; }
+  .chat-markdown { font-size: var(--gui-font-size, 14px); line-height: 1.8;
+    p { margin: 12px 0; }
+    pre { background: transparent; padding: 16px; border-radius: 10px; }
+    code { font-size: calc(var(--gui-font-size, 14px) - 2px); }
+    :not(pre) > code { background: var(--bg); }
+  }
+  .chat-user-message-wrap { max-width: 85%; }
+  .chat-user-message { color: var(--ink); background: var(--bg); border-radius: 24px;
+    max-width: 100%; padding: 10px 16px; box-shadow: none; }
+  .chat-code-block, .chat-capsule { background: var(--bg); border-color: var(--line); }
+  .chat-code-block > header { color: var(--ink); }
+  .chat-text-action, .chat-turn-duration, .chat-activity, .chat-process-prose, .chat-desktop-work button {
+    color: var(--muted); font-size: calc(var(--gui-font-size, 14px) - 2px); }
+  .chat-processing-status { width: min(100%, 920px); padding: 8px 38px; align-self: center;
+    font-size: calc(var(--gui-font-size, 14px) - 2px); }
+  .gui-remote-project { width: min(100%, 920px); padding: 0 28px; align-self: center; flex-shrink: 0;
+    button:disabled { opacity: 1; color: var(--muted); cursor: default; }
+  }
+  .chat-composer-dock { --chat-border: var(--line); --chat-green: var(--green); --chat-muted: var(--muted);
+    width: min(100%, 920px); padding: 0 28px 14px; align-self: center; }
+  .chat-composer { color: var(--ink); background: var(--panel); font-size: var(--gui-font-size, 14px); }
+  .chat-composer textarea { background: transparent; color: var(--ink); font-size: var(--gui-font-size, 14px); }
+  .chat-composer textarea::placeholder { color: var(--muted); }
+  .chat-composer-hint { font-size: calc(var(--gui-font-size, 14px) - 4px); }
+  .chat-composer-access, .chat-composer .chat-model, .chat-composer-status {
+    font-size: calc(var(--gui-font-size, 14px) - 2px); }
+  .chat-button, .chat-composer-popover, .chat-approval { background: var(--panel); color: var(--ink); }
+  .chat-composer-popover { max-width: min(400px, calc(100vw - 32px)); }
+  .chat-composer-submit { background: var(--green); }
+  .chat-composer .chat-composer-submit:disabled {
+    color: color-mix(in srgb, var(--ink) 25%, transparent);
+    background: color-mix(in srgb, var(--ink) 4%, transparent);
+  }
+  .chat-command-menu header, .composer-model-panel, .chat-composer-access-menu {
+    color: var(--ink); background: var(--panel); border-color: var(--line); }
+  .chat-add-menu button, .chat-menu-options button, .composer-model-option { color: var(--ink); }
+  .chat-add-menu svg { background: var(--bg); }
+  .chat-add-menu button:hover, .chat-menu-options button:hover,
+  .composer-model-option:hover, .chat-composer-access-menu button:hover { background: var(--green-selection); }
+  .chat-menu-options small, .composer-model-name, .composer-model-hint, .chat-composer-access-menu small,
+  .chat-composer-access-heading { color: var(--muted); }
+  &[data-dream-skin='true'] .chat-composer { background: color-mix(in srgb, var(--panel) 92%, transparent); }
+}
+@media (max-width: 1150px) {
+  .gui-remote-workspace.chat-page {
+    .chat-sidebar { flex-basis: 200px; }
+    .chat-message-content { padding: 20px; }
+    .chat-composer-dock, .gui-remote-project { padding-inline: 16px; }
+  }
+}
+@media (max-width: 860px) {
+  .gui-remote-workspace.chat-page {
+    .chat-header .chat-connection-info { max-width: 45%; }
+    .chat-message-content { padding: 18px 14px; }
+    .chat-composer-dock, .gui-remote-project { padding-inline: 10px; }
+    .chat-composer-dock { padding-bottom: 10px; }
+  }
 }

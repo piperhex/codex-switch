@@ -31,11 +31,20 @@ export interface ConnectedChatProps {
   device?: ChatComputer; devices: ChatComputer[]; active: boolean;
   scope: string; email: string; chooseDevice: (id: string) => void;
   chooseLocal?: () => void; accountPicker?: ReactNode; headerActions?: ReactNode;
+  renderSidebar?: (actions: ChatSidebarActions) => ReactNode;
+  composerHeader?: ReactNode;
+  readClipboardImages?: () => Promise<File[]>;
+}
+
+export interface ChatSidebarActions {
+  newChat: (project?: ChatProject) => void;
+  onClose: () => void;
+  openSearch: () => void;
 }
 
 /** Conversation UI shared by the web client and the desktop's remote workspace. */
 export function ConnectedChat({ chat, device, devices, active, scope, email, chooseDevice,
-  chooseLocal, accountPicker, headerActions }: ConnectedChatProps) {
+  chooseLocal, accountPicker, headerActions, renderSidebar, composerHeader, readClipboardImages }: ConnectedChatProps) {
   useLanguage();
   const { state, controller, foreground } = chat;
   const [drawer, setDrawer] = useState(false);
@@ -98,7 +107,8 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
       scope={scope}
       disabled={!ready || state.sending || state.settingsBusy || state.selectedArchived || state.queueBusy
         || state.compacting === state.selected?.id} answer={controller.answerAsyncQuestion} />
-    <ChatComposer queue={queueProps(state, controller)}
+    {composerHeader}
+    <ChatComposer queue={queueProps(state, controller)} readClipboardImages={readClipboardImages}
       goals={controller.goals} goal={state.selected ? state.goals?.[state.selected.id] : null} goalBusy={!!state.goalBusy}
       contextSettings={controller.contextSettings} cwd={cwd} catalog={catalog}
       compactReason={compactUnavailableReason(state)} compacting={!!state.compacting
@@ -113,12 +123,13 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
       interrupted={state.selected?.turns?.at(-1)?.status === 'interrupted'}
       send={(input) => controller.send(input)} interrupt={() => controller.interrupt()} />
     </div>
-    <ChatSidebar desktop={desktop} open={listOpen} onClose={closeList}>
-      <ChatThreads state={state} controller={controller} newChat={newChat} onClose={selectedFromList}
+    <ChatSidebar desktop={desktop} open={listOpen} onClose={closeList} customHeading={Boolean(renderSidebar)}>
+      {renderSidebar ? renderSidebar({ newChat, onClose: selectedFromList, openSearch: () => setSearching(true) })
+        : <ChatThreads state={state} controller={controller} newChat={newChat} onClose={selectedFromList}
         openSearch={() => setSearching(true)} accountPicker={accountPicker} profile={!accountPicker && <ChatProfileMenu client={controller.guiAccounts}
           deviceName={device?.name ?? t("选择电脑")} email={email} ready={ready}
           chooseDevice={() => { setDrawer(false); setPickingDevice(true); }}
-          openTokenSummary={() => { setDrawer(false); setTokenSummary(true); }} />} />
+          openTokenSummary={() => { setDrawer(false); setTokenSummary(true); }} />} />}
     </ChatSidebar>
     {searching && <ChatSearch state={state} controller={controller} onClose={() => setSearching(false)}
       select={thread => { setSearching(false); setDrawer(false); void controller.select(thread); }} />}

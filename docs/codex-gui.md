@@ -34,6 +34,17 @@ but cannot be selected. Logging out or changing cloud accounts closes the previo
 Cloud credentials and token renewal stay in the native desktop backend; the UI exchanges public peer
 keys and encrypted chat frames through the existing direct connection and relay protocol.
 
+The desktop remote workspace uses the viewing computer's GUI font size and Dream Skin appearance,
+including dark themes. Its project sidebar, recent/archived filter, message spacing, project bar and
+composer follow the local GUI layout. Remote-only controls continue to address the selected computer;
+local plugin, installer and terminal actions are not exposed as remote actions.
+
+Screenshot paste and copied image files both add image previews before sending. Copied files are read
+off the UI thread and sent as image bytes, never as paths on the viewing computer. Relay image preparation
+uses inline data URLs compatible with the packaged WebView image policy. The send button waits for
+clipboard reads to finish; changing computers or conversations discards late clipboard results.
+Switching computers keeps the local workspace mounted so its running reply and unsent draft survive.
+
 The gear in the local account list opens **Codex GUI 设置**, with top tabs for **自动切号**
 and **界面**. The appearance tab changes the conversation font size from 12–24 px (14 px by default),
 with an immediate preview and a reset button. Messages, the composer, code, tool output, and file diffs

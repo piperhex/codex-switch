@@ -11,6 +11,7 @@ import type { RemoteComposerCatalog } from '../../../../shared/remote-chat/compo
 import type { ProjectFilesRequest, ProjectFilesResponse } from '../../../../shared/remote-chat/projectFiles';
 
 export interface ComposerProps {
+  readClipboardImages?: () => Promise<File[]>;
   uploadProgress?: UploadProgress;
   queue?: QueueProps;
   tokenUsage?: ThreadTokenUsage;
