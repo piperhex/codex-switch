@@ -14,6 +14,9 @@ var initialSchema string
 //go:embed 002_token_cost_presets.sql
 var tokenPricingSchema string
 
+//go:embed 003_user_login_locks.sql
+var loginLockSchema string
+
 // InitializeEmpty never changes existing tables, constraints, indexes, or customer data.
 // Existing deployments continue to apply the versioned apps/admin-go/sql migrations.
 func InitializeEmpty(db *gorm.DB) error {
@@ -33,6 +36,9 @@ func InitializeEmpty(db *gorm.DB) error {
 		if err := tx.Exec(schema).Error; err != nil {
 			return err
 		}
-		return tx.Exec(tokenPricingSchema).Error
+		if err := tx.Exec(tokenPricingSchema).Error; err != nil {
+			return err
+		}
+		return tx.Exec(loginLockSchema).Error
 	})
 }

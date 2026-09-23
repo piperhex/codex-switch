@@ -70,6 +70,10 @@ Get-FileHash -LiteralPath $archive -Algorithm SHA256
 模型计价预设需要 `sql/20260923-token-cost-presets.sql`。已有库确认缺少
 `token_cost_preset_settings` 时，在备份后执行该增量脚本；它只新增配置表，不修改用户数据。
 
+密码登录锁定需要 `sql/20260923-user-login-locks.sql`。更新应用前，在备份后为已有库执行该脚本，
+新增 `user_login_locks` 表以保存账号的连续错误次数和锁定截止时间。脚本可重复执行，不修改已有用户。
+应用镜像回滚时保留该表即可；旧镜像不会执行新的登录锁定规则。
+
 全新空数据库第一次启动可以临时在 `.env` 设置 `POSTGRES_DB_SYNCHRONIZE=true`，
 由 Go 初始化完整结构；初始化成功后改回 `false`，仅重建 Go 服务。
 不要将 `internal/migrations/001_legacy_schema.sql` 直接导入已有库。

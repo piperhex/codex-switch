@@ -127,13 +127,24 @@ func (s *service) patchUser(id string, request userPatch) (*user, error) {
 	if request.Role != nil && *request.Role != "" {
 		u.Role = *request.Role
 	}
-	if err = s.deps.DB.Save(u).Error; err != nil {
+	if err = s.saveUser(u, request.Password != nil); err != nil {
 		return nil, err
 	}
 	if request.Password == nil {
 		u.PasswordHash = ""
 	}
 	return u, nil
+}
+func (s *service) saveUser(u *user, passwordChanged bool) error {
+	return s.deps.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(u).Error; err != nil {
+			return err
+		}
+		if passwordChanged {
+			return clearLoginLock(tx, u.ID)
+		}
+		return nil
+	})
 }
 func (s *service) listUsers(c *gin.Context) (interface{}, error) {
 	db := s.deps.DB.Model(&user{}).Omit("passwordHash")
@@ -247,7 +258,13 @@ func (s *service) changePassword(c *gin.Context) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = s.deps.DB.Model(u).Update("passwordHash", encoded).Error; err != nil {
+	err = s.deps.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(u).Update("passwordHash", encoded).Error; err != nil {
+			return err
+		}
+		return clearLoginLock(tx, u.ID)
+	})
+	if err != nil {
 		return nil, err
 	}
 	return ok(), s.record(

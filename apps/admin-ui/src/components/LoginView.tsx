@@ -45,10 +45,18 @@ export function LoginView({ onAuth }: LoginViewProps) {
         body: JSON.stringify(body),
       });
       const data = await response.json().catch(() => ({}));
+      const retrySeconds = Number(response.headers.get("Retry-After"));
+      if (path === "/auth/login" && response.status === 429 && retrySeconds > 0) {
+        throw new Error(t("login.locked", { minutes: Math.ceil(retrySeconds / 60) }));
+      }
       if (!response.ok) throw new Error(data.message || response.statusText);
       onAuth(data as AuthTokens);
     } catch (error) {
-      message.error((error as Error).message);
+      message.error({
+        content: <span style={{ display: "inline-block", maxWidth: 400, whiteSpace: "normal" }}>
+          {(error as Error).message}
+        </span>,
+      });
     } finally {
       setLoading(false);
     }

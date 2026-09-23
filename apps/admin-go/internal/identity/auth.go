@@ -160,18 +160,22 @@ func (s *service) login(c *gin.Context) (interface{}, error) {
 	if err := bind(c, &request); err != nil {
 		return nil, err
 	}
-	var u user
-	err := s.deps.DB.Where("email = ?", normalizedEmail(request.Email)).First(&u).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	var outcome loginOutcome
+	err := s.deps.DB.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
+		var err error
+		outcome, err = s.attemptLogin(tx, request)
+		return err
+	})
+	if err != nil {
 		return nil, err
 	}
-	if err != nil || u.Disabled || !passwordMatches(u.PasswordHash, request.Password) {
+	if outcome.LockedUntil != nil {
+		return nil, loginLockedError(c, outcome.LockedUntil.Sub(now()))
+	}
+	if outcome.Invalid {
 		return nil, platform.NewError(401, "Invalid email or password")
 	}
-	if err = s.deps.DB.Model(&u).Update("lastLoginAt", now()).Error; err != nil {
-		return nil, err
-	}
-	return s.issueTokens(s.deps.DB, &u)
+	return outcome.Tokens, nil
 }
 func (s *service) register(c *gin.Context) (interface{}, error) {
 	var request authRequest
@@ -257,6 +261,9 @@ func (s *service) resetPassword(c *gin.Context) (interface{}, error) {
 	}
 	err = s.deps.DB.Transaction(func(tx *gorm.DB) error {
 		if e := tx.Model(&u).Update("passwordHash", encoded).Error; e != nil {
+			return e
+		}
+		if e := clearLoginLock(tx, u.ID); e != nil {
 			return e
 		}
 		return tx.Model(&refreshToken{}).

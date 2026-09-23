@@ -2,6 +2,26 @@
 
 生产后端为 admin-go，部署步骤见 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
+## Password Login Lockout
+
+`POST /auth/login` locks an account for 15 minutes after five consecutive incorrect passwords.
+After the lock expires, each further incorrect password doubles the next lock (30, 60, 120 minutes,
+and so on). Attempts made during a lock do not extend it, and even a correct password must wait
+until it expires. Successful login or a successful password change/reset clears the history.
+Existing authenticated sessions remain usable. All clients and application instances share the
+same account state in PostgreSQL; restarting the service does not reset it.
+
+Locked responses use HTTP 429, a readable message and a `Retry-After` header containing the
+remaining seconds (rounded up). Unknown and disabled accounts keep the generic HTTP 401 response.
+The first four incorrect passwords also keep that response. Doubling saturates only at the
+maximum duration representable by Go (approximately 292 years), preventing integer overflow.
+
+Existing installations must apply `sql/20260923-user-login-locks.sql` before updating the app.
+New empty databases include this table automatically. From `apps/admin-go`, run
+`go test -tags integration ./internal/identity` with the local parity PostgreSQL and Redis running
+to verify lockouts, recovery and simultaneous attempts using disposable fixture accounts.
+These Go-only behaviors intentionally extend the frozen legacy authentication contract.
+
 ## Registration Email Verification
 
 Every public or invitation-based registration requires a six-digit email verification code. Codes

@@ -25,7 +25,8 @@ function serviceContainer(service) {
 function schema(postgres, database, legacyOnly = false) {
   return docker('exec', postgres, 'pg_dump', '-U', 'parity', '-d', database,
     '--schema-only', '--no-owner', '--no-privileges',
-    ...(legacyOnly ? ['--exclude-table=public.token_cost_preset_settings'] : []))
+    ...(legacyOnly ? ['--exclude-table=public.token_cost_preset_settings',
+      '--exclude-table=public.user_login_locks'] : []))
     .split('\n').filter((line) => !line.startsWith('\\restrict ') && !line.startsWith('\\unrestrict '))
     .join('\n');
 }
@@ -80,9 +81,9 @@ export async function runMigrations() {
     try {
       const tables = await fresh.query(`SELECT count(*)::int AS total FROM information_schema.tables
         WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`);
-      assert.equal(tables.rows[0].total, 31);
+      assert.equal(tables.rows[0].total, 32);
       assert.equal(schema(postgres, bootstrapDatabase), schema(postgres, 'admin_go'),
-        'new and upgraded databases must have identical pricing tables');
+        'new and upgraded databases must have identical Go tables');
       const pricing = { models: [], sentinel: 'preserve saved pricing' };
       await fresh.query("INSERT INTO token_cost_preset_settings (id, presets) VALUES ('current', $1)", [pricing]);
       const migration = readFileSync(new URL('../sql/20260923-token-cost-presets.sql', import.meta.url), 'utf8');
