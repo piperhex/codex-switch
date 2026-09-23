@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
 const sourcePaths = {
+  "../../../../shared/token-cost-presets": "../shared/token-cost-presets.ts",
   "./tokenCost": "../apps/desktop/src/utils/tokenCost.ts",
   "./tokenCostPresets": "../apps/desktop/src/utils/tokenCostPresets.ts",
   "./tokenCostFastMode": "../apps/desktop/src/utils/tokenCostFastMode.ts",
@@ -26,6 +27,10 @@ const verifiedRates = {
   "gpt-5.6-sol": [4, 0.4, 20],
   "gpt-5.6-terra": [2, 0.2, 12],
   "gpt-6-astra": [10, 1, 50],
+  "gpt-6-sol": [2, 0.2, 10],
+  "gpt-6-luna": [0.1, 0.01, 0.5],
+  "gpt-5.3-codex": [1.75, 0.175, 14],
+  "gpt-5.6-cyber": [12.5, 1.25, 75],
 };
 
 function createHarness({ brokenStorage = false } = {}) {
@@ -46,7 +51,7 @@ function createHarness({ brokenStorage = false } = {}) {
     const exports = {};
     modules.set(name, exports);
     runInNewContext(`(function(require, exports) { ${compiled[name]}\n })`, {
-      window, CustomEvent: class extends Event {},
+      window, URL, CustomEvent: class extends Event {},
     })(require, exports);
     return exports;
   };
@@ -72,7 +77,7 @@ function closeTo(actual, expected) {
   assert.ok(Math.abs(actual - expected) < 1e-10, `Expected ${expected}, received ${actual}`);
 }
 
-test("contains the six verified official presets and a priced Sol default", () => {
+test("contains the verified official presets and a priced Sol default", () => {
   const { presets } = createHarness();
   assert.equal(presets.TOKEN_COST_PRESETS.length, Object.keys(verifiedRates).length);
   for (const [model, rates] of Object.entries(verifiedRates)) {
@@ -88,7 +93,7 @@ test("contains the six verified official presets and a priced Sol default", () =
 test("official preset prices apply to custom, OpenAI, and unassociated usage", () => {
   const { cost } = createHarness();
   for (const [model, [input, cachedInput, output]] of Object.entries(verifiedRates)) {
-    const expected = model === "gpt-5.4-mini"
+    const expected = ["gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.6-cyber"].includes(model)
       ? 0.8 * input + 0.2 * cachedInput + 0.1 * output
       : 1.6 * input + 0.4 * cachedInput + 0.15 * output;
     closeTo(cost.estimateTokenCost(entry(model), [provider()]), expected);
@@ -182,7 +187,7 @@ test("versioned preset models retain their most specific price", () => {
     const versioned = ` ${model.toUpperCase()}-2026-09-01 `;
     assert.equal(presets.findTokenCostPreset(versioned).model, model);
     const [input, cachedInput, output] = verifiedRates[model];
-    const expected = model === "gpt-5.4-mini"
+    const expected = ["gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.6-cyber"].includes(model)
       ? 0.8 * input + 0.2 * cachedInput + 0.1 * output
       : 1.6 * input + 0.4 * cachedInput + 0.15 * output;
     closeTo(cost.estimateTokenCost(entry(versioned), [provider()]), expected);
@@ -204,13 +209,13 @@ test("versioned model names still use provider-specific custom rules", () => {
   closeTo(cost.estimateTokenCost(entry("GPT-5.6-SOL-2026-09-01"), [provider()]), 3.85);
 });
 
-test("fast requests use a default 2.5 multiplier for priority and fast tier names", () => {
+test("fast requests use a default model multiplier for priority and fast tier names", () => {
   const { cost, fastMode } = createHarness();
-  assert.equal(fastMode.DEFAULT_FAST_MODE_COST_MULTIPLIER, 2.5);
+  assert.equal(fastMode.DEFAULT_FAST_MODE_COST_MULTIPLIER, 2);
   assert.equal(fastMode.MAX_FAST_MODE_COST_MULTIPLIER, 100);
-  assert.equal(fastMode.loadFastModeCostMultiplier(), 2.5);
+  assert.equal(fastMode.loadFastModeCostMultiplier(), null);
   for (const serviceTier of ["priority", "fast"]) {
-    closeTo(cost.estimateTokenCost({ ...entry("gpt-5.6-sol"), serviceTier }, [provider()]), 23.9);
+    closeTo(cost.estimateTokenCost({ ...entry("gpt-5.6-sol"), serviceTier }, [provider()]), 19.12);
   }
 });
 
@@ -236,7 +241,7 @@ test("mixed normal, fast, and legacy usage is priced separately for each request
     entry(),
   ];
   const total = entries.reduce((sum, usage) => sum + cost.estimateTokenCost(usage, [provider()]), 0);
-  closeTo(total, 66.92);
+  closeTo(total, 57.36);
 });
 
 test("fast multipliers apply after preset, provider, custom-rule, and reference prices", () => {
@@ -283,19 +288,19 @@ test("malformed and inaccessible multiplier storage uses the default fast multip
   for (const invalid of ["", "not-a-number", "{invalid", "0", "-1", "101", "Infinity", "NaN"]) {
     const { cost, fastMode, stored } = createHarness();
     stored.set(fastMode.FAST_MODE_COST_MULTIPLIER_STORAGE_KEY, invalid);
-    assert.equal(fastMode.loadFastModeCostMultiplier(), 2.5);
-    closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 23.9);
+    assert.equal(fastMode.loadFastModeCostMultiplier(), null);
+    closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 19.12);
   }
   const { cost, fastMode } = createHarness({ brokenStorage: true });
-  assert.equal(fastMode.loadFastModeCostMultiplier(), 2.5);
-  closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 23.9);
+  assert.equal(fastMode.loadFastModeCostMultiplier(), null);
+  closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 19.12);
 });
 
 test("estimating fast-mode costs does not mutate token counts or the usage entry", () => {
   const { cost } = createHarness();
   const usage = Object.freeze({ ...entry(), serviceTier: "priority", totalTokens: 1_100_000 });
   const before = structuredClone(usage);
-  closeTo(cost.estimateTokenCost(usage, [provider()]), 23.9);
+  closeTo(cost.estimateTokenCost(usage, [provider()]), 19.12);
   assert.deepEqual(usage, before);
 });
 
@@ -331,7 +336,7 @@ test("mixed short and long requests stack fast costs separately without changing
     Object.freeze({ ...base, inputTokens: 300_000, serviceTier: "fast" }),
   ];
   const before = structuredClone(entries);
-  closeTo(entries.reduce((sum, item) => sum + cost.estimateTokenCost(item, []), 0), 3.853);
+  closeTo(entries.reduce((sum, item) => sum + cost.estimateTokenCost(item, []), 0), 3.358);
   assert.deepEqual(entries, before);
 });
 
@@ -346,7 +351,7 @@ test("context threshold and each cost component multiplier are independently con
   const usage = { ...entry(), inputTokens: 300_000, cachedTokens: 200_000, outputTokens: 1_000 };
   closeTo(cost.estimateTokenCost(usage, []), 0.5);
   closeTo(cost.estimateTokenCost({ ...usage, inputTokens: 300_001 }, []), 1.560012);
-  closeTo(cost.estimateTokenCost({ ...usage, inputTokens: 300_001, serviceTier: "priority" }, []), 3.90003);
+  closeTo(cost.estimateTokenCost({ ...usage, inputTokens: 300_001, serviceTier: "priority" }, []), 3.120024);
   longContext.saveLongContextCostSettings({ ...settings, enabled: false });
   closeTo(cost.estimateTokenCost(entry(), []), 5.28);
 });
@@ -396,4 +401,12 @@ test("malformed and unavailable context settings storage uses official defaults"
   }
   const { cost } = createHarness({ brokenStorage: true });
   closeTo(cost.estimateTokenCost(entry(), []), 9.56);
+});
+
+test("admin and desktop ship identical verified pricing defaults", () => {
+  const admin = JSON.parse(readFileSync(
+    new URL("../apps/admin-go/internal/tokenpricing/defaults.json", import.meta.url), "utf8",
+  ));
+  assert.deepEqual(admin, catalog);
+  assert.equal(catalog.models.find((model) => model.model === "gpt-5.6-cyber").fastModeMultiplier, null);
 });

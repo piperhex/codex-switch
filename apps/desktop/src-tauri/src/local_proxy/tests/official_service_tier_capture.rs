@@ -90,8 +90,8 @@ fn official_fast_mode_capture_persists_the_multiplier_used_by_gui_costs() {
         TierCaptureTransport::StreamedSse,
     ] {
         for (official, requested, expected_tier, expected_cost) in [
-            (true, "priority", "priority", 0.4),
-            (true, "fast", "fast", 0.4),
+            (true, "priority", "priority", 0.32),
+            (true, "fast", "fast", 0.32),
             (true, "default", "default", 0.16),
             (false, "priority", "default", 0.16),
         ] {

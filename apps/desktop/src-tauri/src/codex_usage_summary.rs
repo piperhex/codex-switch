@@ -231,7 +231,7 @@ mod tests {
         let normal_entry = usage_entry("gpt-5.6-sol");
         let summary = summarize_defaults(&[normal_entry, fast_entry], None, None);
         assert_eq!(summary.total_tokens, 2_200_000);
-        assert!((summary.estimated_cost_usd - 33.46).abs() < 1e-10);
+        assert!((summary.estimated_cost_usd - 28.68).abs() < 1e-10);
     }
 
     #[test]
@@ -323,7 +323,7 @@ mod tests {
         fast_long.service_tier = Some("fast".to_string());
         let summary = summarize_defaults(&[short, long, fast_short, fast_long], None, None);
         assert_eq!(summary.total_tokens, 2_620_000);
-        assert!((summary.estimated_cost_usd - 35.7).abs() < 1e-10);
+        assert!((summary.estimated_cost_usd - 30.6).abs() < 1e-10);
     }
 
     #[test]

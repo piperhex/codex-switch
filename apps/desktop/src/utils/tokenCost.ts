@@ -89,7 +89,7 @@ export function estimateTokenCost(entry: TokenUsageEntry, providers: Provider[])
     (inputTokens - cachedTokens) * rate.input * context.input
     + cachedTokens * rate.cachedInput * context.cachedInput
     + outputTokens * rate.output * context.output
-  ) / TOKENS_PER_MILLION * costMultiplierForServiceTier(entry.serviceTier);
+  ) / TOKENS_PER_MILLION * costMultiplierForServiceTier(entry.serviceTier, entry.model);
 }
 
 export function loadCustomTokenCostRules(): CustomTokenCostRule[] {

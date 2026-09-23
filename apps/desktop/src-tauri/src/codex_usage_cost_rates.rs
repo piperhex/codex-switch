@@ -12,7 +12,11 @@ use crate::{
     storage::Paths,
 };
 
+mod catalog;
 mod long_context;
+
+pub(crate) use catalog::RemoteCostPresetDocument;
+use catalog::{CostPreset, CostPresetCatalog};
 
 use long_context::LongContextCostSettings;
 
@@ -35,8 +39,12 @@ static PRESET_CATALOG: LazyLock<CostPresetCatalog> = LazyLock::new(|| {
 pub(crate) struct CostRates {
     #[serde(default = "default_reference_model")]
     reference_model: String,
-    #[serde(default = "default_fast_mode_multiplier")]
-    fast_mode_multiplier: f64,
+    #[serde(default)]
+    fast_mode_multiplier: Option<f64>,
+    #[serde(default)]
+    model_fast_mode_multipliers: BTreeMap<String, Option<f64>>,
+    #[serde(default)]
+    preset_catalog: Option<CostPresetCatalog>,
     #[serde(default)]
     long_context: LongContextCostSettings,
     #[serde(default)]
@@ -49,7 +57,9 @@ impl Default for CostRates {
     fn default() -> Self {
         Self {
             reference_model: default_reference_model(),
-            fast_mode_multiplier: default_fast_mode_multiplier(),
+            fast_mode_multiplier: None,
+            model_fast_mode_multipliers: BTreeMap::new(),
+            preset_catalog: None,
             long_context: LongContextCostSettings::default(),
             custom_rules: Vec::new(),
             model_token_costs: BTreeMap::new(),
@@ -57,67 +67,8 @@ impl Default for CostRates {
     }
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CostPresetCatalog {
-    default_reference_model: String,
-    default_fast_mode_cost_multiplier: f64,
-    max_fast_mode_cost_multiplier: f64,
-    default_long_context_cost_settings: LongContextCostSettings,
-    max_long_context_threshold_tokens: u64,
-    max_long_context_cost_multiplier: f64,
-    models: Vec<CostPreset>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CostPreset {
-    model: String,
-    #[serde(default)]
-    aliases: Vec<String>,
-    long_context_pricing: bool,
-    #[serde(flatten)]
-    rate: CostRate,
-}
-
-impl CostPresetCatalog {
-    fn rate_for_reference(&self, model: &str) -> Option<CostRate> {
-        self.preset_for_reference(model).map(|preset| preset.rate)
-    }
-
-    fn preset_for_reference(&self, model: &str) -> Option<&CostPreset> {
-        self.models.iter().find(|preset| preset.model == model)
-    }
-
-    fn rate_for_model(&self, model: &str) -> Option<CostRate> {
-        self.preset_for_model(model).map(|preset| preset.rate)
-    }
-
-    fn preset_for_model(&self, model: &str) -> Option<&CostPreset> {
-        let normalized = model.trim().to_lowercase();
-        self.models
-            .iter()
-            .filter(|preset| {
-                normalized == preset.model
-                    || preset.aliases.contains(&normalized)
-                    || normalized.starts_with(&format!("{}-", preset.model))
-            })
-            .max_by_key(|preset| preset.model.len())
-    }
-
-    fn default_rate(&self) -> CostRate {
-        // The bundled catalog must provide the default it declares; covered by catalog tests.
-        self.rate_for_reference(&self.default_reference_model)
-            .expect("The bundled token-cost catalog must contain its default reference model")
-    }
-}
-
 fn default_reference_model() -> String {
     PRESET_CATALOG.default_reference_model.clone()
-}
-
-fn default_fast_mode_multiplier() -> f64 {
-    PRESET_CATALOG.default_fast_mode_cost_multiplier
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -182,6 +133,7 @@ impl CostRates {
         entry: &TokenUsageEntry,
         provider: Option<&ProviderProfile>,
     ) -> f64 {
+        let catalog = self.catalog();
         let provider_id = provider
             .map(|provider| provider.id.as_str())
             .or(entry.provider_id.as_deref());
@@ -193,17 +145,42 @@ impl CostRates {
         let rate = self
             .custom_rate(provider_id, &entry.model)
             .or(configured)
-            .or_else(|| PRESET_CATALOG.rate_for_model(&entry.model))
-            .or_else(|| PRESET_CATALOG.rate_for_reference(&self.reference_model))
-            .unwrap_or_else(|| PRESET_CATALOG.default_rate());
+            .or_else(|| catalog.rate_for_model(&entry.model))
+            .or_else(|| catalog.rate_for_reference(&self.reference_model))
+            .unwrap_or_else(|| catalog.default_rate());
         let multiplier = match entry.service_tier.as_deref() {
-            Some("priority" | "fast") => self.fast_mode_multiplier,
+            Some("priority" | "fast") => self.fast_multiplier_for_model(&entry.model),
             _ => 1.0,
         };
         self.long_context
-            .adjust_rate(rate, entry, &self.reference_model)
+            .adjust_rate(rate, entry, self.preset_for_entry(&entry.model))
             .estimate(entry)
             * multiplier
+    }
+
+    fn catalog(&self) -> &CostPresetCatalog {
+        self.preset_catalog.as_ref().unwrap_or(&PRESET_CATALOG)
+    }
+
+    fn preset_for_entry(&self, model: &str) -> Option<&CostPreset> {
+        let catalog = self.catalog();
+        catalog
+            .preset_for_model(model)
+            .or_else(|| catalog.preset_for_reference(&self.reference_model))
+            .or_else(|| catalog.preset_for_reference(&catalog.default_reference_model))
+    }
+
+    fn fast_multiplier_for_model(&self, model: &str) -> f64 {
+        let preset = self.preset_for_entry(model);
+        let model_multiplier = preset
+            .and_then(|preset| preset.fast_mode_multiplier)
+            .unwrap_or(1.0);
+        let custom = preset.and_then(|preset| self.model_fast_mode_multipliers.get(&preset.model));
+        match custom {
+            Some(Some(multiplier)) => *multiplier,
+            Some(None) => model_multiplier,
+            None => self.fast_mode_multiplier.unwrap_or(model_multiplier),
+        }
     }
 
     fn custom_rate(&self, provider_id: Option<&str>, model: &str) -> Option<CostRate> {
@@ -243,13 +220,24 @@ impl CostRates {
                     .iter()
                     .all(|(model, rate)| valid_identifier(model) && valid_rate(*rate))
         });
-        let reference_valid = PRESET_CATALOG
+        let reference_valid = self
+            .catalog()
             .rate_for_reference(&self.reference_model)
             .is_some();
-        let multiplier_valid = self.fast_mode_multiplier.is_finite()
-            && self.fast_mode_multiplier > 0.0
-            && self.fast_mode_multiplier <= PRESET_CATALOG.max_fast_mode_cost_multiplier;
+        let multiplier_valid = self.fast_mode_multiplier.is_none_or(valid_fast_multiplier)
+            && self.model_fast_mode_multipliers.len() <= MAX_RULES
+            && self
+                .model_fast_mode_multipliers
+                .iter()
+                .all(|(model, value)| {
+                    valid_identifier(model) && value.is_none_or(valid_fast_multiplier)
+                });
+        let catalog_valid = self
+            .preset_catalog
+            .as_ref()
+            .is_none_or(CostPresetCatalog::is_valid);
         if reference_valid
+            && catalog_valid
             && multiplier_valid
             && self.long_context.is_valid()
             && rule_count_valid
@@ -262,6 +250,10 @@ impl CostRates {
             Err(CostRatesError::Invalid)
         }
     }
+}
+
+fn valid_fast_multiplier(value: f64) -> bool {
+    value.is_finite() && value > 0.0 && value <= PRESET_CATALOG.max_fast_mode_cost_multiplier
 }
 
 fn valid_identifier(value: &str) -> bool {

@@ -10,6 +10,7 @@ import {
   DEFAULT_REFERENCE_MODEL,
   findTokenCostPreset,
   TOKEN_COST_PRESETS,
+  TOKEN_COST_REFERENCE_MODEL_EVENT,
   UNPRICED_PRESET_MODELS,
 } from "../utils/tokenCostPresets";
 
@@ -34,6 +35,12 @@ function firstProviderModel(provider: Provider | undefined, rules: CustomTokenCo
 }
 
 export function useCustomTokenCostEditor({ open, providers, referenceModel }: EditorOptions) {
+  const [catalogVersion, setCatalogVersion] = useState(0);
+  useEffect(() => {
+    const refresh = () => setCatalogVersion((value) => value + 1);
+    window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
+    return () => window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
+  }, []);
   const [providerId, setProviderId] = useState("");
   const [model, setModel] = useState("");
   const [rules, setRules] = useState<CustomTokenCostRule[]>(loadCustomTokenCostRules);
@@ -46,7 +53,7 @@ export function useCustomTokenCostEditor({ open, providers, referenceModel }: Ed
     ...TOKEN_COST_PRESETS.map((preset) => preset.model),
     ...UNPRICED_PRESET_MODELS,
     model,
-  ].map((value) => value.trim()).filter(Boolean))], [model, providerId, rules, selectedProvider]);
+  ].map((value) => value.trim()).filter(Boolean))], [model, providerId, rules, selectedProvider, catalogVersion]);
   const customRule = findCustomTokenCostRule(rules, providerId, model);
   const configuredRate = selectedProvider?.kind === "custom" ? selectedProvider.modelTokenCosts?.[model] : undefined;
   const providerRates = typeof configuredRate === "number" && Number.isFinite(configuredRate) && configuredRate >= 0

@@ -1,4 +1,4 @@
-use super::{CostRate, TokenUsageEntry, PRESET_CATALOG};
+use super::{CostPreset, CostRate, TokenUsageEntry, PRESET_CATALOG};
 use serde::{Deserialize, Serialize};
 
 /// Long-context pricing applies to every token component of an eligible request.
@@ -39,18 +39,12 @@ impl LongContextCostSettings {
         &self,
         rate: CostRate,
         entry: &TokenUsageEntry,
-        reference_model: &str,
+        preset: Option<&CostPreset>,
     ) -> CostRate {
         if !self.enabled || entry.input_tokens.unwrap_or(0) <= self.threshold_tokens {
             return rate;
         }
         // Eligibility follows the actual model even when its prices are overridden.
-        let preset = PRESET_CATALOG
-            .preset_for_model(&entry.model)
-            .or_else(|| PRESET_CATALOG.preset_for_reference(reference_model))
-            .or_else(|| {
-                PRESET_CATALOG.preset_for_reference(&PRESET_CATALOG.default_reference_model)
-            });
         if !preset.is_some_and(|preset| preset.long_context_pricing) {
             return rate;
         }

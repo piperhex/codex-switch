@@ -63,12 +63,12 @@ fn separate_custom_multipliers_stack_with_fast_mode() {
     let mut entry = usage_entry("gpt-5.6-sol");
     assert!((rates.estimate_cost(&entry, None) - 14.64).abs() < 1e-10);
     entry.service_tier = Some("priority".to_string());
-    assert!((rates.estimate_cost(&entry, None) - 36.6).abs() < 1e-10);
+    assert!((rates.estimate_cost(&entry, None) - 29.28).abs() < 1e-10);
     rates.long_context.enabled = false;
-    assert!((rates.estimate_cost(&entry, None) - 13.2).abs() < 1e-10);
+    assert!((rates.estimate_cost(&entry, None) - 10.56).abs() < 1e-10);
     rates.long_context.enabled = true;
     rates.long_context.threshold_tokens = 1_000_000;
-    assert!((rates.estimate_cost(&entry, None) - 13.2).abs() < 1e-10);
+    assert!((rates.estimate_cost(&entry, None) - 10.56).abs() < 1e-10);
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn preset_eligibility_preserves_mini_prices_and_versioned_names() {
         let entry = usage_entry(&format!("{}-dated", preset.model));
         let base = preset.rate.estimate(&entry);
         let cost = rates.estimate_cost(&entry, None);
-        if preset.model == "gpt-5.4-mini" {
+        if ["gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.6-cyber"].contains(&preset.model.as_str()) {
             assert!(!preset.long_context_pricing);
             assert_eq!(cost, base);
         } else {

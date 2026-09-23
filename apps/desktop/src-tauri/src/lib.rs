@@ -492,6 +492,7 @@ pub fn run() {
             cloud::get_saved_cloud_login,
             cloud::fetch_cloud_announcement,
             cloud::fetch_cloud_currency_rates,
+            cloud::fetch_cloud_token_cost_presets,
             cloud::fetch_cloud_faqs,
             cloud::fetch_cloud_notifications,
             cloud::report_announcement_click,

@@ -12,6 +12,8 @@ const sides = ['legacy', 'modern'];
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isoPattern = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
 const sensitiveRuntimeKeys = new Set(['accessToken', 'refreshToken', 'passwordHash']);
+// Go-only features are covered by token-pricing-smoke.mjs, not the frozen Nest contract.
+const goOnlyPermissions = new Set(['admin.token-pricing.read', 'admin.token-pricing.manage']);
 
 export async function request(base, method, path, options = {}) {
   const headers = { ...options.headers };
@@ -50,7 +52,11 @@ function normalized(value, context, key = '') {
     return value;
   }
   if (Array.isArray(value)) {
-    const result = value.map((item) => normalized(item, context));
+    const legacyValues = value.filter((item) => {
+      if (key === 'permissions' && typeof item === 'string') return !goOnlyPermissions.has(item);
+      return !(item && typeof item === 'object' && goOnlyPermissions.has(item.code));
+    });
+    const result = legacyValues.map((item) => normalized(item, context));
     // Permissions are a set; TypeORM and GORM do not promise join-row ordering.
     return key === 'permissions' ? result.sort() : result;
   }

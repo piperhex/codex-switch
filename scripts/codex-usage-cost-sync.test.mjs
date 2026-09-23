@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
 const sourcePaths = {
+  "../../../../shared/token-cost-presets": "../shared/token-cost-presets.ts",
   "./tokenCost": "../apps/desktop/src/utils/tokenCost.ts",
   "./tokenCostPresets": "../apps/desktop/src/utils/tokenCostPresets.ts",
   "./tokenCostFastMode": "../apps/desktop/src/utils/tokenCostFastMode.ts",
@@ -50,7 +51,7 @@ function createHarness({ desktop = true } = {}) {
     const exports = {};
     modules.set(name, exports);
     runInNewContext(`(function(require, exports) { ${compiled[name]}\n })`, {
-      window, CustomEvent: class extends Event {}, console: { warn: value => warnings.push(value) },
+      window, URL, CustomEvent: class extends Event {}, console: { warn: value => warnings.push(value) },
     })(require, exports);
     return exports;
   };
@@ -83,7 +84,7 @@ test("coalesces edits during an active request and sends the latest prices", asy
   assert.equal(harness.calls[1].rates.customRules[0].input, 4);
   assert.equal(harness.calls[0].rates.referenceModel, "gpt-5.6-sol");
   assert.equal(harness.calls[1].rates.referenceModel, "gpt-5.6-terra");
-  assert.equal(harness.calls[0].rates.fastModeMultiplier, 2.5);
+  assert.equal(harness.calls[0].rates.fastModeMultiplier, null);
   assert.equal(harness.calls[1].rates.fastModeMultiplier, 3);
   assert.equal(harness.calls[0].rates.longContext.thresholdTokens, 272_000);
   assert.equal(harness.calls[1].rates.longContext.thresholdTokens, 300_000);

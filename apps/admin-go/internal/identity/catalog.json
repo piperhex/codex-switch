@@ -239,6 +239,18 @@
       "group": "content",
       "name": "Manage Codex Home presets",
       "description": "Configure suggested paths for Windows and macOS."
+    },
+    {
+      "code": "admin.token-pricing.read",
+      "group": "content",
+      "name": "read model pricing",
+      "description": "Model pricing presets and Fast mode multipliers."
+    },
+    {
+      "code": "admin.token-pricing.manage",
+      "group": "content",
+      "name": "manage model pricing",
+      "description": "Model pricing presets and Fast mode multipliers."
     }
   ],
   "userPermissions": [
@@ -312,6 +324,9 @@
     ],
     "admin.codex-home-presets.manage": [
       "admin.codex-home-presets.read"
+    ],
+    "admin.token-pricing.manage": [
+      "admin.token-pricing.read"
     ]
   }
 }

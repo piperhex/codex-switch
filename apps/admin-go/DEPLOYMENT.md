@@ -67,6 +67,9 @@ Get-FileHash -LiteralPath $archive -Algorithm SHA256
 只有确认缺失且兼容的升级才按版本顺序执行；目录移动不代表需要重新运行已应用的 SQL。
 生产保持 `POSTGRES_DB_SYNCHRONIZE=false`。它不是增量迁移开关，不能升级已有数据库。
 
+模型计价预设需要 `sql/20260923-token-cost-presets.sql`。已有库确认缺少
+`token_cost_preset_settings` 时，在备份后执行该增量脚本；它只新增配置表，不修改用户数据。
+
 全新空数据库第一次启动可以临时在 `.env` 设置 `POSTGRES_DB_SYNCHRONIZE=true`，
 由 Go 初始化完整结构；初始化成功后改回 `false`，仅重建 Go 服务。
 不要将 `internal/migrations/001_legacy_schema.sql` 直接导入已有库。
@@ -113,6 +116,7 @@ Go 上游为 `http://codex-switch-admin-go:8080`，Web 上游为 `http://codex-s
 DB-backed Kong 通过已确认的 Admin API 管理；声明式 Kong 应持久化修改原配置。
 
 `/auth`、`/admin` 等公开路径和受保护的 `/sync`、`/devices`、`/admin/api` 都指向同一 Go 进程。
+公开路由还需包含 `/token-cost-presets`，供 PC 启动时读取计价预设；保持 `strip_path=false`。
 `/device-switch`、`/device-chat` 必须保留 WebSocket Upgrade；首帧在 Go 内校验 JWT。
 JWT 插件使用 `key_claim_name=iss`、`claims_to_verify=exp`、`run_on_preflight=false`。
 `/web` 指向独立 Web 服务并启用 `strip_path=true`。

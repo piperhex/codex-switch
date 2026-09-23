@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -21,9 +22,10 @@ function serviceContainer(service) {
   return id;
 }
 
-function schema(postgres, database) {
+function schema(postgres, database, legacyOnly = false) {
   return docker('exec', postgres, 'pg_dump', '-U', 'parity', '-d', database,
-    '--schema-only', '--no-owner', '--no-privileges')
+    '--schema-only', '--no-owner', '--no-privileges',
+    ...(legacyOnly ? ['--exclude-table=public.token_cost_preset_settings'] : []))
     .split('\n').filter((line) => !line.startsWith('\\restrict ') && !line.startsWith('\\unrestrict '))
     .join('\n');
 }
@@ -63,7 +65,7 @@ export async function runMigrations() {
   const postgres = serviceContainer('postgres');
   const config = JSON.parse(docker('inspect', serviceContainer('admin-go')))[0];
   const original = schema(postgres, 'legacy');
-  assert.equal(schema(postgres, 'admin_go'), original, 'existing Go database must retain every legacy schema object');
+  assert.equal(schema(postgres, 'admin_go', true), original, 'existing Go database must retain every legacy schema object');
   console.log('PASS existing PostgreSQL columns, defaults, indexes and constraints match');
   await stopBootstrap();
   const admin = await database('legacy');
@@ -72,13 +74,23 @@ export async function runMigrations() {
     await admin.query(`DROP DATABASE IF EXISTS ${bootstrapDatabase} WITH (FORCE)`);
     await admin.query(`CREATE DATABASE ${bootstrapDatabase}`);
     await startBootstrap(config);
-    assert.equal(schema(postgres, bootstrapDatabase), original, 'empty-database initialization must reproduce legacy schema');
+    assert.equal(schema(postgres, bootstrapDatabase, true), original, 'empty-database initialization must reproduce legacy schema');
     console.log('PASS empty database initialized with the complete legacy schema');
     const fresh = await database(bootstrapDatabase);
     try {
       const tables = await fresh.query(`SELECT count(*)::int AS total FROM information_schema.tables
         WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`);
-      assert.equal(tables.rows[0].total, 30);
+      assert.equal(tables.rows[0].total, 31);
+      assert.equal(schema(postgres, bootstrapDatabase), schema(postgres, 'admin_go'),
+        'new and upgraded databases must have identical pricing tables');
+      const pricing = { models: [], sentinel: 'preserve saved pricing' };
+      await fresh.query("INSERT INTO token_cost_preset_settings (id, presets) VALUES ('current', $1)", [pricing]);
+      const migration = readFileSync(new URL('../sql/20260923-token-cost-presets.sql', import.meta.url), 'utf8');
+      await fresh.query(migration);
+      await fresh.query(migration);
+      assert.deepEqual((await fresh.query('SELECT presets FROM token_cost_preset_settings')).rows,
+        [{ presets: pricing }]);
+      console.log('PASS pricing migration is additive and preserves saved presets on rerun');
       await fresh.query('CREATE TABLE migration_sentinel (id integer PRIMARY KEY, message text NOT NULL)');
       await fresh.query('INSERT INTO migration_sentinel VALUES (1,$1)', ['retain customer data']);
       const withSentinel = schema(postgres, bootstrapDatabase);

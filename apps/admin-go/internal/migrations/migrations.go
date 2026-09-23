@@ -11,6 +11,9 @@ import (
 //go:embed 001_legacy_schema.sql
 var initialSchema string
 
+//go:embed 002_token_cost_presets.sql
+var tokenPricingSchema string
+
 // InitializeEmpty never changes existing tables, constraints, indexes, or customer data.
 // Existing deployments continue to apply the versioned apps/admin-go/sql migrations.
 func InitializeEmpty(db *gorm.DB) error {
@@ -27,6 +30,9 @@ func InitializeEmpty(db *gorm.DB) error {
 		}
 		schema := strings.ReplaceAll(initialSchema, "\nSET ", "\nSET LOCAL ")
 		schema = strings.ReplaceAll(schema, "set_config('search_path', '', false)", "set_config('search_path', 'public', true)")
-		return tx.Exec(schema).Error
+		if err := tx.Exec(schema).Error; err != nil {
+			return err
+		}
+		return tx.Exec(tokenPricingSchema).Error
 	})
 }

@@ -1,62 +1,42 @@
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState } from "react";
 import { InputNumber } from "antd";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { ExternalLink } from "lucide-react";
-import { isDesktopApp } from "../api/backend";
 import type { Translate } from "../i18n";
 import {
-  DEFAULT_FAST_MODE_COST_MULTIPLIER,
-  MAX_FAST_MODE_COST_MULTIPLIER,
-  isValidFastModeCostMultiplier,
-  loadFastModeCostMultiplier,
-  saveFastModeCostMultiplier,
+  FAST_MODE_COST_MULTIPLIER_EVENT, MODEL_FAST_MODE_COST_STORAGE_KEY,
+  MAX_FAST_MODE_COST_MULTIPLIER, modelFastModeCostOverride, saveModelFastModeCostMultiplier,
 } from "../utils/tokenCostFastMode";
 
-const CODEX_QUOTA_GUIDE_URL = "https://learn.chatgpt.com/docs/agent-configuration/speed";
-const MULTIPLIER_INPUT_STEP = 0.1;
-const MULTIPLIER_INPUT_PRECISION = 2;
+interface Props {
+  model: string;
+  presetMultiplier: number | null;
+  t: Translate;
+}
 
-export function TokenCostFastModeSettings({ t }: { t: Translate }) {
-  const [multiplier, setMultiplier] = useState<number | null>(loadFastModeCostMultiplier);
-  const [error, setError] = useState<"saveError" | "linkError" | null>(null);
-  const valid = isValidFastModeCostMultiplier(multiplier);
-  const updateMultiplier = (value: number | null) => {
-    setMultiplier(value);
-    setError(null);
-    if (!isValidFastModeCostMultiplier(value)) return;
-    try {
-      saveFastModeCostMultiplier(value);
-    } catch {
-      setError("saveError");
-    }
+export function TokenCostFastModeSettings({ model, presetMultiplier, t }: Props) {
+  const [value, setValue] = useState(() => modelFastModeCostOverride(model));
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    const refresh = () => setValue(modelFastModeCostOverride(model));
+    const storage = (event: StorageEvent) => {
+      if (event.key === null || event.key === MODEL_FAST_MODE_COST_STORAGE_KEY) refresh();
+    };
+    window.addEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+    window.addEventListener("storage", storage);
+    return () => {
+      window.removeEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+      window.removeEventListener("storage", storage);
+    };
+  }, [model]);
+  const save = (next: number | null) => {
+    setValue(next);
+    try { saveModelFastModeCostMultiplier(model, next); setError(false); }
+    catch { setError(true); }
   };
-  const openQuotaGuide = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!isDesktopApp) return;
-    event.preventDefault();
-    setError(null);
-    void openUrl(CODEX_QUOTA_GUIDE_URL).catch(() => setError("linkError"));
-  };
-
-  return <div className="custom-token-cost-fast-mode custom-token-cost-field">
-    <div className="custom-token-cost-fast-mode-heading">
-      <label htmlFor="token-cost-fast-mode-multiplier">{t("tokenCost.fastMode.multiplier")}</label>
-      <a href={CODEX_QUOTA_GUIDE_URL} target="_blank" rel="noopener noreferrer"
-        className="custom-token-cost-source" onClick={openQuotaGuide}>
-        {t("tokenCost.fastMode.officialGuide")}<ExternalLink size={11} aria-hidden="true" />
-      </a>
-    </div>
-    <InputNumber id="token-cost-fast-mode-multiplier" value={multiplier} onChange={updateMultiplier}
-      min={MULTIPLIER_INPUT_STEP} max={MAX_FAST_MODE_COST_MULTIPLIER} step={MULTIPLIER_INPUT_STEP}
-      precision={MULTIPLIER_INPUT_PRECISION} status={!valid || error === "saveError" ? "error" : undefined}
-      aria-invalid={!valid} aria-describedby="token-cost-fast-mode-hint" />
-    <small id="token-cost-fast-mode-hint">
-      {t("tokenCost.fastMode.hint", { multiplier: DEFAULT_FAST_MODE_COST_MULTIPLIER })}
-    </small>
-    {!valid && <small className="custom-token-cost-fast-mode-error" role="alert">
-      {t("tokenCost.fastMode.invalid", { max: MAX_FAST_MODE_COST_MULTIPLIER })}
-    </small>}
-    {error && <small className="custom-token-cost-fast-mode-error" role="alert">
-      {t(`tokenCost.fastMode.${error}`)}
-    </small>}
+  return <div style={{ maxWidth: 160 }}>
+    <InputNumber value={value} onChange={save} min={0.01} max={MAX_FAST_MODE_COST_MULTIPLIER}
+      step={0.1} precision={2} placeholder={presetMultiplier === null ? t("tokenCost.fastMode.unpublished") : String(presetMultiplier)}
+      aria-label={t("tokenCost.fastMode.modelMultiplier", { model })}
+      status={error ? "error" : undefined} style={{ width: 100 }} />
+    {error && <small role="alert">{t("tokenCost.fastMode.saveError")}</small>}
   </div>;
 }

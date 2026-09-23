@@ -25,6 +25,7 @@ services:
           - /notifications
           - /faqs
           - /currency-rates
+          - /token-cost-presets
           - /telemetry
           - /device-switch
           - /device-chat

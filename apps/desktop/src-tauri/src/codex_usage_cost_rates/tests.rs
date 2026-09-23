@@ -4,13 +4,13 @@ use serde_json::json;
 #[test]
 fn only_fast_usage_gets_the_default_cost_multiplier() {
     let rates: CostRates = serde_json::from_value(json!({})).unwrap();
-    assert_eq!(rates.fast_mode_multiplier, 2.5);
+    assert_eq!(rates.fast_mode_multiplier, None);
     for (tier, expected) in [
         (None, 9.56),
         (Some("default"), 9.56),
         (Some("flex"), 9.56),
-        (Some("priority"), 23.9),
-        (Some("fast"), 23.9),
+        (Some("priority"), 19.12),
+        (Some("fast"), 19.12),
     ] {
         let mut entry = usage_entry("gpt-5.6-sol");
         entry.service_tier = tier.map(str::to_string);
@@ -52,11 +52,11 @@ fn invalid_fast_mode_multipliers_are_rejected() {
         f64::INFINITY,
         PRESET_CATALOG.max_fast_mode_cost_multiplier + 1.0,
     ] {
-        rates.fast_mode_multiplier = invalid;
+        rates.fast_mode_multiplier = Some(invalid);
         assert!(rates.validate().is_err());
     }
     for valid in [0.1, 1.0, 2.5, PRESET_CATALOG.max_fast_mode_cost_multiplier] {
-        rates.fast_mode_multiplier = valid;
+        rates.fast_mode_multiplier = Some(valid);
         assert!(rates.validate().is_ok());
     }
 }
@@ -256,6 +256,7 @@ fn model_presets_match_versioned_names_and_choose_the_longest_name() {
 }
 
 mod long_context;
+mod remote_presets;
 
 #[test]
 fn reference_settings_accept_only_priced_catalog_models() {

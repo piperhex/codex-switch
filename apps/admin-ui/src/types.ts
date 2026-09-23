@@ -12,6 +12,7 @@ export type MenuKey =
   | "announcement"
   | "chatSettings"
   | "currency"
+  | "tokenPricing"
   | "codexHomePresets"
   | "emailTemplates"
   | "skills"

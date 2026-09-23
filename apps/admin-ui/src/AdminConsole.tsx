@@ -21,6 +21,7 @@ import { useAuthenticatedApi } from "./hooks/useAuthenticatedApi";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AnnouncementPage } from "./pages/AnnouncementPage";
 import { ChatSettingsPage } from "./pages/ChatSettingsPage";
+import { TokenPricingPage } from "./pages/TokenPricingPage";
 import { CurrencyPage } from "./pages/CurrencyPage";
 import { CodexHomePresetsPage } from "./pages/CodexHomePresetsPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
@@ -148,6 +149,7 @@ const menuPermissions: Record<MenuKey, Permission> = {
   officialAccounts: "admin.official-accounts.read",
   announcement: "admin.announcements.read",
   currency: "admin.currency.read",
+  tokenPricing: "admin.token-pricing.read",
   codexHomePresets: "admin.codex-home-presets.read",
   emailTemplates: "admin.email-templates.read",
   skills: "admin.skills.read",
@@ -167,6 +169,7 @@ const menuOrder: MenuKey[] = [
   "officialAccounts",
   "announcement",
   "currency",
+  "tokenPricing",
   "chatSettings",
   "codexHomePresets",
   "emailTemplates",
@@ -1306,6 +1309,11 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     if (activeKey === "chatSettings") {
       return <ChatSettingsPage api={api}
         canManage={Boolean(profile?.permissions?.includes('admin.chat-settings.manage'))} />;
+    }
+
+    if (activeKey === "tokenPricing") {
+      return <TokenPricingPage api={api}
+        canManage={Boolean(profile?.permissions?.includes("admin.token-pricing.manage"))} />;
     }
 
     if (activeKey === "currency") {

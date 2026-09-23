@@ -20,6 +20,7 @@ var apiPrefixes = []string{
 	"/notifications",
 	"/faqs",
 	"/currency-rates",
+	"/token-cost-presets",
 	"/feedback",
 	"/telemetry",
 	"/devices",
