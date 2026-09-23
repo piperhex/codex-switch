@@ -11,9 +11,9 @@ export const DEFAULT_LANGUAGE: Language = "zh";
 
 const translations = {
   en: {
-    "errorLogs.open": "View error logs",
+    "logDiagnostics.title": "Log diagnostics",
     "errorLogs.title": "Error logs",
-    "errorLogs.eyebrow": "ACTIVITY LOG",
+    "logDiagnostics.eyebrow": "LOG DIAGNOSTICS",
     "errorLogs.time": "Time",
     "errorLogs.source": "Source",
     "errorLogs.message": "Message",
@@ -116,7 +116,6 @@ const translations = {
     "topbar.skills": "Plugin Market",
     "skills.prompt.scope": "These settings are shared across conversations connected through Codex Switch.",
     "topbar.sessionsEyebrow": "CODEX / LOCAL SESSIONS",
-    "topbar.proxySessionsEyebrow": "CODEX / PROXY SESSIONS",
     "topbar.sessions": "Session Management",
     "topbar.claudeCodeEyebrow": "APP INTEGRATION",
     "topbar.claudeCode": "Third-party App Integration",
@@ -2583,9 +2582,9 @@ const translations = {
     "dreamSkin.theme.starlightNoodleStall.description": "A tiny futuristic noodle stall beneath a crowded starfield. Original science-fiction art with a calm left UI area.",
   },
   zh: {
-    "errorLogs.open": "查看错误日志",
+    "logDiagnostics.title": "日志诊断",
     "errorLogs.title": "错误日志",
-    "errorLogs.eyebrow": "运行记录",
+    "logDiagnostics.eyebrow": "运行记录",
     "errorLogs.time": "时间",
     "errorLogs.source": "来源",
     "errorLogs.message": "内容",
@@ -2687,7 +2686,6 @@ const translations = {
     "topbar.skills": "插件市场",
     "skills.prompt.scope": "这里的设置与应用内同步，适用于通过 Codex Switch 连接的对话。",
     "topbar.sessionsEyebrow": "CODEX / 本地会话",
-    "topbar.proxySessionsEyebrow": "CODEX / 代理会话",
     "topbar.sessions": "会话管理",
     "topbar.claudeCodeEyebrow": "APP 接入",
     "topbar.claudeCode": "三方 App 接入",

@@ -6,7 +6,6 @@ import {
   CalendarClock,
   Check,
   CircleHelp,
-  ClipboardList,
   PanelLeftClose,
   PanelLeftOpen,
   Play,
@@ -54,9 +53,8 @@ import { FeedbackModal } from "../modals/FeedbackModal";
 import { TokenUsageHeatmap } from "../TokenUsageHeatmap";
 import { TokenUsageDashboard } from "../TokenUsageDashboard";
 import { TotpWindowButton } from "../TotpWindowButton";
-import { ProxySessionManager } from "../ProxySessionManager";
-import proxySessionStyles from "../ProxySessionManager/index.module.less";
-import { ErrorLogsPage } from "../../pages/ErrorLogsPage";
+import { LogDiagnosticsPage, type LogDiagnosticsTab } from "../../pages/LogDiagnosticsPage";
+import logDiagnosticsStyles from "../../pages/LogDiagnosticsPage/index.module.less";
 import { CloudLoginModal } from "../modals/CloudLoginModal";
 import { CloudAccountModal } from "../modals/CloudAccountModal";
 import { CloudRecycleBin } from "../CloudRecycleBin";
@@ -185,6 +183,7 @@ type SystemMenuAction =
   | "skills"
   | "sessions"
   | "proxy-sessions"
+  | "log-diagnostics"
   | "system-prompts"
   | "settings"
   | "refresh-all"
@@ -224,8 +223,7 @@ async function refreshProviderBalances(providers: Provider[]) {
 }
 
 function dashboardEyebrow(page: DashboardPage, t: Translate) {
-  if (page === "proxySessions") return t("topbar.proxySessionsEyebrow");
-  if (page === "errorLogs") return t("errorLogs.eyebrow");
+  if (page === "logDiagnostics") return t("logDiagnostics.eyebrow");
   if (page === "codexConfig") return "CODEX / CONFIGURATION";
   if (page === "providers") return t("topbar.providersEyebrow");
   if (page === "skills") return t("topbar.skillsEyebrow");
@@ -239,8 +237,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
   accountCount: number;
   providerCount: number;
 }) {
-  if (page === "proxySessions") return t("providers.proxy.sessionsTitle");
-  if (page === "errorLogs") return t("errorLogs.title");
+  if (page === "logDiagnostics") return t("logDiagnostics.title");
   if (page === "codexConfig") return t("nav.codexConfig");
   if (page === "settings") return t("topbar.settings");
   if (page === "skills") return t("topbar.skills");
@@ -254,6 +251,11 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
 export function DashboardApp() {
   const [page, setPage] = useState<DashboardPage>(() =>
     new URLSearchParams(window.location.search).get("page") === "codexGui" ? "codexGui" : "accounts");
+  const [diagnosticsTab, setDiagnosticsTab] = useState<LogDiagnosticsTab>("errorLogs");
+  const openProxySessions = () => {
+    setDiagnosticsTab("proxySessions");
+    setPage("logDiagnostics");
+  };
   const [showLogin, setShowLogin] = useState(false);
   const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [cloudSessionExpired, setCloudSessionExpired] = useState(false);
@@ -992,7 +994,10 @@ export function DashboardApp() {
         setPage("sessions");
         break;
       case "proxy-sessions":
-        setPage("proxySessions");
+        openProxySessions();
+        break;
+      case "log-diagnostics":
+        setPage("logDiagnostics");
         break;
       case "system-prompts":
         setPage("systemPrompts");
@@ -1171,11 +1176,11 @@ export function DashboardApp() {
     : null;
   const proxyTopbarActions = (
     <ProxyTopbarActions manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
-      onOpenSessions={() => setPage("proxySessions")} t={t} />
+      onOpenSessions={openProxySessions} t={t} />
   );
   const accountProxyTopbarActions = (
     <ProxyTopbarActions manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
-      onOpenSessions={() => setPage("proxySessions")}
+      onOpenSessions={openProxySessions}
       trailingAction={<>
         {managedAccountGroups.length > 0 && <AccountGroupManager accounts={manager.accounts}
           concurrentGroup={providerManager.localProxy?.concurrentAccountGroup ?? null}
@@ -1250,17 +1255,7 @@ export function DashboardApp() {
             </button>
             <DashboardNavigation collapsed={navigationStyle.sidebarCollapsed}
               onPageChange={setPage} page={page} t={t} variant="sidebar"
-              sidebarTools={(
-                <>
-                  <button type="button" className={page === "errorLogs" ? "selected" : ""}
-                    aria-current={page === "errorLogs" ? "page" : undefined}
-                    aria-label={t("errorLogs.open")} title={t("errorLogs.open")}
-                    onClick={() => setPage("errorLogs")}>
-                    <ClipboardList size={19} aria-hidden="true" /><span>{t("errorLogs.open")}</span>
-                  </button>
-                  <TotpWindowButton notify={notify} t={t} variant="sidebar" />
-                </>
-              )} />
+              sidebarTools={<TotpWindowButton notify={notify} t={t} variant="sidebar" />} />
           </aside>
         )}
         <header className="app-menu" hidden={sidebarNavigationEnabled && page === "codexGui"}>
@@ -1294,7 +1289,7 @@ export function DashboardApp() {
         <main className={page === "accounts" ? "accounts-main"
           : page === "codexGui" ? codexGuiStyles.main
           : page === "providers" ? "providers-main"
-          : page === "proxySessions" ? proxySessionStyles.main
+          : page === "logDiagnostics" ? logDiagnosticsStyles.main
           : page === "claudeCode" ? "claude-code-main"
           : page === "tokens" ? "tokens-main"
             : page === "dreamSkin" ? "dream-skin-main"
@@ -1380,8 +1375,8 @@ export function DashboardApp() {
           </>
           )}
 
-          {page === "errorLogs" && <ErrorLogsPage language={language} t={t} />}
-          {page === "proxySessions" && <ProxySessionManager t={t} />}
+          {page === "logDiagnostics" && <LogDiagnosticsPage activeTab={diagnosticsTab}
+            onTabChange={setDiagnosticsTab} language={language} t={t} />}
           <section className="page-panel" hidden={page !== "dreamSkin"}>
             {page === "dreamSkin" && <MemoDreamSkinPage t={t} notify={notify} />}
           </section>

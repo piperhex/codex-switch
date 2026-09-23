@@ -1,0 +1,34 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+  scrollbar-gutter: auto;
+}
+
+.main > :global(.topbar) { flex-shrink: 0; }
+
+.tabs {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tabs > :global(.ant-tabs-nav) { margin: 0 var(--page-x); }
+
+.tabs > :global(.ant-tabs-content-holder),
+.tabs :global(.ant-tabs-content),
+.tabs :global(.ant-tabs-tabpane-active) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.logs {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 20px;
+}
