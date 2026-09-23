@@ -40,8 +40,8 @@ test.afterEach(async () => {
 
 async function chooseComputer(page: Page, name: string) {
   await page.getByRole('button', { name: /^切换 GUI 账户：/ }).click();
-  await page.getByRole('button', { name: '切换电脑', exact: true }).click();
-  await page.getByRole('region', { name: '电脑列表' }).getByRole('button', { name: new RegExp(name) }).click();
+  await page.getByRole('button', { name: '切换设备', exact: true }).click();
+  await page.getByRole('region', { name: '设备列表' }).getByRole('button', { name: new RegExp(name) }).click();
 }
 
 test('switches desktop GUI conversations and accounts between computers and back to local', async ({ context, page }) => {
@@ -68,7 +68,6 @@ test('switches desktop GUI conversations and accounts between computers and back
   await expect.poll(() => office.evaluate(() => window.chatTest.demoState().operations
     .some(operation => operation.operation === 'send'))).toBe(true);
   await page.getByRole('button', { name: /^切换 GUI 账户：/ }).click();
-  await page.getByRole('button', { name: '切换账户', exact: true }).click();
   await page.getByRole('button', { name: /演示账户二/ }).click();
   await expect(page.getByRole('button', { name: '切换 GUI 账户：演示账户二', exact: true })).toBeVisible();
   expect(await home.evaluate(() => window.chatTest.demoState().operations
@@ -179,20 +178,20 @@ test('keeps input responsive during native image reads and discards reads from a
   await expect(page.getByRole('textbox', { name: '本机草稿' })).toHaveValue('Local unsent draft');
 });
 
-test('keeps secondary menus compact and responsive during slow discovery and a failed connection', async ({ page }) => {
+test('keeps the account panel and device dropdown compact and responsive during slow discovery and a failed connection', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/e2e/remote-gui-harness.html?socket=${encodeURIComponent(endpoint)}`);
   const before = await page.evaluate(() => window.remoteGuiFixture.beats());
   await page.getByRole('button', { name: /^切换 GUI 账户：/ }).click();
-  await page.getByRole('button', { name: '切换电脑', exact: true }).click();
+  await page.getByRole('button', { name: '切换设备', exact: true }).click();
   await expect(page.getByRole('button', { name: /Offline PC/ })).toBeDisabled();
   await page.evaluate(() => window.remoteGuiFixture.pauseDirectory());
-  await page.getByRole('button', { name: '刷新电脑列表', exact: true }).click();
-  await expect(page.getByRole('button', { name: '刷新电脑列表', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: '刷新设备列表', exact: true }).click();
+  await expect(page.getByRole('button', { name: '刷新设备列表', exact: true })).toBeDisabled();
   await page.screenshot({ path: '../../.codex-tmp/gui-computer-menu-narrow.png' });
-  await page.getByRole('button', { name: '返回账户与电脑', exact: true }).click();
-  await page.getByRole('button', { name: '切换账户', exact: true }).click();
-  const search = page.getByRole('textbox', { name: '搜索账号或 Provider', exact: true });
+  await page.getByRole('button', { name: '切换设备', exact: true }).press('Escape');
+  await expect(page.getByRole('region', { name: '设备列表' })).toBeHidden();
+  const search = page.getByRole('textbox', { name: '搜索账号或邮箱', exact: true });
   await search.fill('alex'); await search.press('ArrowLeft');
   await expect(search).toBeVisible(); await expect(search).toHaveValue('alex');
   await expect.poll(() => page.evaluate(() => window.remoteGuiFixture.beats())).toBeGreaterThan(before + 4);

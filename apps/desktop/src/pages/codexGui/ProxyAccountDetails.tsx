@@ -14,7 +14,7 @@ function QuotaValue({ label, window: usageWindow }: { label: string; window?: Us
 
 export function ProxyAccountDetails({ plan, usage }: { plan: string; usage: UsageSummary }) {
   return <span className={styles.details}>
-    <span>{plan.trim() || "套餐未知"}</span>
+    <span className={styles.plan} data-plan={plan.trim().toLowerCase()}>{plan.trim() || "套餐未知"}</span>
     <QuotaValue label="主" window={usage.primary} />
     <QuotaValue label="次" window={usage.secondary} />
   </span>;
