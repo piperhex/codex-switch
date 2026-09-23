@@ -13,6 +13,8 @@ const owner = randomUUID();
 const deviceId = randomUUID();
 const email = `traffic-${owner}@fixture.test`;
 const sockets = [];
+const SETTLEMENT_WAIT_MS = 15_000;
+const SETTLEMENT_POLL_MS = 100;
 const database = await fixtureDatabase('admin_go');
 let adminToken;
 let userToken;
@@ -52,10 +54,12 @@ async function detail() {
 }
 
 async function untilUsed(expected) {
-  for (let attempt = 0; attempt < 100; attempt++) {
+  // A five-second grant can expire just after the five-second settlement pass.
+  const deadline = Date.now() + SETTLEMENT_WAIT_MS;
+  while (Date.now() < deadline) {
     const result = await detail();
     if (result.user.monthUsedBytes === expected) return result;
-    await new Promise(resolve => setTimeout(resolve, 20));
+    await new Promise(resolve => setTimeout(resolve, SETTLEMENT_POLL_MS));
   }
   assert.fail(`Expected ${expected} bytes`);
 }

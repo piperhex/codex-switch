@@ -10,6 +10,8 @@ const { Client } = require('pg');
 const bootstrapDatabase = 'admin_go_bootstrap';
 const containerName = 'codex-admin-bootstrap-test';
 const projectName = 'codex-admin-parity';
+const goOnlyTables = ['token_cost_preset_settings', 'user_login_locks', 'chat_relay_user_limits',
+  'chat_relay_user_months', 'chat_relay_user_hours', 'chat_relay_budgets'];
 
 function docker(...args) {
   return execFileSync('docker', args, { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 }).trim();
@@ -25,8 +27,7 @@ function serviceContainer(service) {
 function schema(postgres, database, legacyOnly = false) {
   return docker('exec', postgres, 'pg_dump', '-U', 'parity', '-d', database,
     '--schema-only', '--no-owner', '--no-privileges',
-    ...(legacyOnly ? ['--exclude-table=public.token_cost_preset_settings',
-      '--exclude-table=public.user_login_locks'] : []))
+    ...(legacyOnly ? goOnlyTables.map((table) => `--exclude-table=public.${table}`) : []))
     .split('\n').filter((line) => !line.startsWith('\\restrict ') && !line.startsWith('\\unrestrict '))
     .join('\n');
 }
@@ -81,7 +82,7 @@ export async function runMigrations() {
     try {
       const tables = await fresh.query(`SELECT count(*)::int AS total FROM information_schema.tables
         WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`);
-      assert.equal(tables.rows[0].total, 32);
+      assert.equal(tables.rows[0].total, 30 + goOnlyTables.length);
       assert.equal(schema(postgres, bootstrapDatabase), schema(postgres, 'admin_go'),
         'new and upgraded databases must have identical Go tables');
       const pricing = { models: [], sentinel: 'preserve saved pricing' };

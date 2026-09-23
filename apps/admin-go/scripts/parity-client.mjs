@@ -70,7 +70,11 @@ function normalized(value, context, key = '') {
     return key === 'permissions' ? result.sort() : result;
   }
   if (value && typeof value === 'object') {
-    const fields = Object.keys(value).filter((field) => !(goOnlyChatFields.has(field) && 'threadPageSize' in value));
+    // Frozen clients do not advertise binary support; their negotiated hop must remain JSON.
+    const legacyPolicy = value.type === 'chat-policy' && 'binaryRelay' in value;
+    if (legacyPolicy) assert.equal(value.binaryRelay, false, 'unadvertised binary relay must stay disabled');
+    const fields = Object.keys(value).filter((field) => !(goOnlyChatFields.has(field) && 'threadPageSize' in value)
+      && !(legacyPolicy && field === 'binaryRelay'));
     return Object.fromEntries(fields.sort().map((field) => [field, normalized(value[field], context, field)]));
   }
   return value;
