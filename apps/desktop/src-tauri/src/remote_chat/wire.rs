@@ -41,7 +41,7 @@ fn encode_relay(id: &str, payload: &str) -> Result<Message, ChatError> {
     bytes.extend_from_slice(MAGIC);
     bytes.push(id.len() as u8);
     bytes.extend_from_slice(id.as_bytes());
-    for pair in payload.as_bytes().chunks_exact(2) {
+    for pair in payload.as_bytes().as_chunks::<2>().0 {
         let text = std::str::from_utf8(pair).map_err(|_| ChatError::InvalidFrame)?;
         bytes.push(u8::from_str_radix(text, 16).map_err(|_| ChatError::InvalidFrame)?);
     }
