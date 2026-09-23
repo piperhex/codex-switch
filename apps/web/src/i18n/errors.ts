@@ -19,6 +19,8 @@ export const errors = {
   '暂时无法刷新用量，请稍后重试。': 'Could not refresh usage. Please try again later.',
   '图片暂时无法加载，请重试。': 'Could not load the image. Please try again.',
   '暂时无法添加图片，请重新选择。': 'Could not add the image. Please choose it again.',
+  '部分图片未能粘贴，请单独复制图片，或保存后添加。':
+    'Some images could not be pasted. Copy them separately, or save and attach them.',
   '消息未发送，请稍后重试。': 'Message not sent. Please try again later.',
   '图片已变更，请重新打开后编辑。': 'The image has changed. Open it again to edit.',
   '设置尚未保存，请重试。': 'Settings have not been saved. Please try again.',

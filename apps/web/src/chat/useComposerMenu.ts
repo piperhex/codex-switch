@@ -36,6 +36,9 @@ export function useComposerMenu({ draft, scope, active, refresh, compact }: Opti
     });
   };
   const close = () => { setExpanded(false); setDismissed(triggerKey); };
+  const restoreCaret = (caret: number) => {
+    setSelection({ start: caret, end: caret }); focusAt(caret);
+  };
   const openPlugins = () => {
     const next = insertPluginTrigger(draft.text, trigger ?? range);
     draft.setText(next.text); setSelection(next.selection); setDismissed(''); setExpanded(false);
@@ -69,5 +72,5 @@ export function useComposerMenu({ draft, scope, active, refresh, compact }: Opti
   };
   return { input, selection, setSelection, open, query: trigger?.query ?? '', skillsOnly: trigger?.skillsOnly ?? false,
     plugins: trigger?.plugins ?? false, openPlugins, consumeTrigger,
-    choose, close, runCompact, toggle: () => { if (open) close(); else setExpanded(true); } };
+    choose, close, runCompact, restoreCaret, toggle: () => { if (open) close(); else setExpanded(true); } };
 }

@@ -1,6 +1,7 @@
 import { useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { invoke, isDesktopApp } from "../../api/backend";
 import type { AttachmentReference } from "./attachmentTypes";
+import { MISSING_CLIPBOARD_IMAGES, readPastedContent } from "../../../../../shared/chat/clipboard";
 
 interface PasteOptions {
   key: string;
@@ -38,27 +39,26 @@ export function useFilePaste({ key, addAttachments, addImages, report }: PasteOp
     if (isDesktopApp && shortcut && !event.altKey && !event.repeat) readNative();
   };
   const paste = (event: ClipboardEvent<HTMLElement>) => {
-    const files = Array.from(event.clipboardData.items)
-      .filter((item) => item.kind === "file").map((item) => item.getAsFile())
-      .filter((file): file is File => file !== null);
-    if (!files.length && event.clipboardData.getData?.("text/plain")) {
+    const { files, text, hasImages, missingImages } = readPastedContent(event.clipboardData);
+    if (!files.length && text && !hasImages) {
       const request = pending.current.get(key);
       // Plain text needs no native fallback, even if the clipboard is temporarily busy.
       if (request) request.fallback = () => {};
       return;
     }
     const fallback = () => {
-      if (!files.length) return;
       const images = files.filter((file) => file.type.startsWith("image/"));
       if (images.length) addImages(images);
+      if (missingImages) report(MISSING_CLIPBOARD_IMAGES);
       if (images.length !== files.length) report("请通过“添加文件”选择这些文件。");
     };
     if (isDesktopApp) {
-      event.preventDefault();
+      // SkillInput inserts the accompanying text synchronously at the current caret.
+      if (!text) event.preventDefault();
       const request = readNative();
-      if (files.length) request.fallback = fallback;
-    } else if (files.length) {
-      event.preventDefault();
+      if (files.length || hasImages) request.fallback = fallback;
+    } else if (files.length || hasImages) {
+      if (!text) event.preventDefault();
       fallback();
     }
   };

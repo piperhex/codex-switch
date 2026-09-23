@@ -7,6 +7,7 @@ import type { SkillTrigger } from "./skillEditorDom";
 import { useComposerSkills } from "./useComposerSkills";
 import { SkillMenu } from "./SkillMenu";
 import styles from "./SkillInput.module.less";
+import { readPastedContent } from "../../../../../shared/chat/clipboard";
 
 export interface SkillInputHandle { addSkill: (skill: Skill) => void; focus: () => void }
 
@@ -112,7 +113,7 @@ export const SkillInput = forwardRef<SkillInputHandle, {
     if (event.defaultPrevented) return;
     event.preventDefault();
     // Plain-text insertion preserves the browser's editing history and strips pasted HTML.
-    document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+    document.execCommand("insertText", false, readPastedContent(event.clipboardData).text);
     change();
   };
   return <div className={styles.inputWrap}>

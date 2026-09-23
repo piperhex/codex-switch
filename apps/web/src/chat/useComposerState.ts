@@ -34,7 +34,14 @@ export function useComposerState(props: ComposerProps) {
     } });
   const paste = useComposerPaste({ scope: threadId, active,
     busy: sending || draft.picking || attachments.busy || queueEditor.loading,
-    readClipboardImages: props.readClipboardImages, addFiles: async files => {
+    readClipboardImages: props.readClipboardImages, insertText: (text, input) => {
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      const available = Math.max(0, input.maxLength - input.value.length + end - start);
+      const inserted = input.maxLength < 0 ? text : text.slice(0, available);
+      draft.setText(input.value.slice(0, start) + inserted + input.value.slice(end));
+      menu.restoreCaret(start + inserted.length);
+    }, addFiles: async files => {
       const images = files.filter(file => file.type.startsWith('image/'));
       const documents = files.filter(file => !file.type.startsWith('image/'));
       await Promise.all([

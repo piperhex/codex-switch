@@ -8,16 +8,18 @@ let root: Root;
 let paste: ReturnType<typeof useComposerPaste>;
 const addFiles = vi.fn<(files: File[]) => Promise<void>>();
 const native = vi.fn<() => Promise<File[]>>();
+const insertText = vi.fn();
 const image = () => new File(['image'], 'screenshot.png', { type: 'image/png' });
 function Fixture({ scope = 'one', active = true, browserOnly = false } = {}) {
-  paste = useComposerPaste({ scope, active, busy: false, addFiles,
+  paste = useComposerPaste({ scope, active, busy: false, addFiles, insertText,
     readClipboardImages: browserOnly ? undefined : native });
   return null;
 }
 const render = (props = {}) => act(async () => root.render(<Fixture {...props} />));
 const shortcut = () => paste.pasteKeyDown({ key: 'v', ctrlKey: true } as KeyboardEvent<HTMLTextAreaElement>);
-function event(files: File[] = [], text = '', itemsOnly = false) {
-  const value = { clipboardData: { files: itemsOnly ? [] : files, getData: () => text,
+function event(files: File[] = [], text = '', itemsOnly = false, html = '') {
+  const value = { clipboardData: { files: itemsOnly ? [] : files,
+    getData: (type: string) => type === 'text/html' ? html : text,
     items: files.map(file => ({ kind: 'file', getAsFile: () => file })) }, preventDefault: vi.fn() };
   paste.paste(value as unknown as ClipboardEvent<HTMLTextAreaElement>);
   return value;
@@ -25,6 +27,7 @@ function event(files: File[] = [], text = '', itemsOnly = false) {
 beforeEach(async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   native.mockReset().mockResolvedValue([]); addFiles.mockReset().mockResolvedValue(undefined);
+  insertText.mockReset();
   root = createRoot(document.createElement('div')); await render();
 });
 afterEach(async () => { await act(async () => root.unmount()); vi.unstubAllGlobals(); });
@@ -76,4 +79,28 @@ it('reports a failed native paste and allows retry', async () => {
   native.mockRejectedValueOnce(new Error('private path')).mockResolvedValue([image()]);
   await act(async () => shortcut()); expect(paste.error).toBe('图片粘贴失败，请重新复制后再试。');
   await act(async () => shortcut()); expect(addFiles).toHaveBeenCalledTimes(1); expect(paste.error).toBe('');
+});
+
+it('keeps QQ text and native images together, including when DOM provides no image files', async () => {
+  const file = image(); native.mockResolvedValue([file]);
+  await act(async () => { shortcut(); event([], '图片说明', false, '<img src="file:///C:/QQ/photo.png">'); });
+  expect(insertText).toHaveBeenCalledExactlyOnceWith('图片说明', undefined);
+  expect(addFiles).toHaveBeenCalledExactlyOnceWith([file]);
+  expect(paste.error).toBe('');
+});
+
+it('pastes browser image files and their accompanying text together', async () => {
+  await render({ browserOnly: true });
+  const file = image();
+  await act(async () => event([file], '图片说明', false, '<img src="cid:0">'));
+  expect(insertText).toHaveBeenCalledExactlyOnceWith('图片说明', undefined);
+  expect(addFiles).toHaveBeenCalledExactlyOnceWith([file]);
+  expect(native).not.toHaveBeenCalled();
+});
+
+it('preserves text and reports browser-inaccessible QQ images', async () => {
+  await render({ browserOnly: true });
+  await act(async () => event([], '图片说明', false, '<img src="file:///C:/QQ/photo.png">'));
+  expect(insertText).toHaveBeenCalledExactlyOnceWith('图片说明', undefined);
+  expect(paste.error).toBe('部分图片未能粘贴，请单独复制图片，或保存后添加。');
 });

@@ -59,14 +59,7 @@ fn read_image(path: &Path, total: &mut u64) -> Result<ClipboardImage, ClipboardI
 }
 
 fn read_images() -> Result<Vec<ClipboardImage>, ClipboardImageError> {
-    let mut clipboard = arboard::Clipboard::new().map_err(|_| ClipboardImageError::Read)?;
-    let paths = match clipboard.get().file_list() {
-        Ok(paths) => paths,
-        Err(arboard::Error::ContentNotAvailable) => return Ok(Vec::new()),
-        Err(_) => return Err(ClipboardImageError::Read),
-    };
-    // File reads can wait on slow drives; release the clipboard before starting them.
-    drop(clipboard);
+    let paths = super::clipboard_paths::read_paths().map_err(|_| ClipboardImageError::Read)?;
     if paths.len() > super::images::MAX_IMAGES {
         return Err(ClipboardImageError::Size);
     }

@@ -895,6 +895,7 @@ dependencies = [
  "ed25519-dalek",
  "flate2",
  "futures-util",
+ "html5ever",
  "image",
  "json5",
  "keyring",

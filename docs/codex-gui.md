@@ -43,6 +43,10 @@ Screenshot paste and copied image files both add image previews before sending. 
 off the UI thread and sent as image bytes, never as paths on the viewing computer. Relay image preparation
 uses inline data URLs compatible with the packaged WebView image policy. The send button waits for
 clipboard reads to finish; changing computers or conversations discards late clipboard results.
+QQ mixed image/text copies are recognized through their HTML image references. Local and remote desktop
+composers keep the accompanying text, and the remote workspace uploads the copied images from the viewing
+computer. Web chat accepts image files and embedded images with their text. If the browser exposes only
+local image URLs, it keeps the text and asks the user to copy the images separately or save and attach them.
 Switching computers keeps the local workspace mounted so its running reply and unsent draft survive.
 
 The gear in the local account list opens **Codex GUI 设置**, with top tabs for **自动切号**

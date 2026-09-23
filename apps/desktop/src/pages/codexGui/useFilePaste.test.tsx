@@ -20,9 +20,10 @@ function Fixture({ draftKey = "new" }: { draftKey?: string }) {
 }
 const render = (draftKey = "new") => act(async () => root.render(<Fixture draftKey={draftKey} />));
 const keydown = () => editor.pasteKeyDown({ key: "v", ctrlKey: true } as KeyboardEvent<HTMLElement>);
-function paste(files: File[] = [], text = "") {
+function paste(files: File[] = [], text = "", html = "") {
   const event = { clipboardData: { items: files.map((file) =>
-    ({ kind: "file", getAsFile: () => file })), getData: () => text }, preventDefault: vi.fn() };
+    ({ kind: "file", getAsFile: () => file })), getData: (type: string) => type === "text/html" ? html : text },
+    preventDefault: vi.fn() };
   editor.paste(event as unknown as ClipboardEvent<HTMLElement>);
   return event;
 }
@@ -103,6 +104,21 @@ it("falls back to screenshot bytes when the clipboard contains no file paths", a
   await act(async () => { keydown(); paste([image]); });
   expect(editor.draft.images).toHaveLength(1);
   expect(editor.draft.attachments).toBeUndefined();
+});
+
+it("reads native QQ image references while allowing accompanying text insertion", async () => {
+  const photo = { ...attachment, name: "photo.png", path: "C:/QQ/photo.png" };
+  vi.mocked(invoke).mockResolvedValue([photo]);
+  await act(async () => {
+    keydown();
+    expect(paste([], "图片说明", '<img src="file:///C:/QQ/photo.png">').preventDefault).not.toHaveBeenCalled();
+  });
+  expect(editor.draft.attachments).toEqual([photo]);
+});
+
+it("does not silently lose QQ images when neither native nor browser can read them", async () => {
+  await act(async () => paste([], "图片说明", '<img src="file:///C:/QQ/missing.png">'));
+  expect(controller.report).toHaveBeenCalledWith("部分图片未能粘贴，请单独复制图片，或保存后添加。");
 });
 
 it("prefers native file paths over duplicate browser image representations", async () => {

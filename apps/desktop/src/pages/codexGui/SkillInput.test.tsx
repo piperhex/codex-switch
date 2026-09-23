@@ -54,6 +54,21 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+it("inserts QQ rich-text content as plain text after the image handler runs", async () => {
+  const insert = vi.fn();
+  Object.defineProperty(document, "execCommand", { configurable: true, value: insert });
+  const event = new Event("paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clipboardData", { value: {
+    items: [], getData: (type: string) => type === "text/html"
+      ? '<b>图片说明</b><br>第二行<img src="file:///C:/QQ/photo.png">' : "",
+  } });
+  await act(async () => editor().dispatchEvent(event));
+  expect(paste).toHaveBeenCalledOnce();
+  expect(insert).toHaveBeenCalledWith("insertText", false, "图片说明\n第二行");
+  expect(editor().querySelector("img")).toBeNull();
+  Reflect.deleteProperty(document, "execCommand");
+});
+
 it("lists every skill after an initial slash and inserts a named, atomic inline skill", async () => {
   await type("/");
   expect(host.querySelectorAll('[role="option"]')).toHaveLength(3);

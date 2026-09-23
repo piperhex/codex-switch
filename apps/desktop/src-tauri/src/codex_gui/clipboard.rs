@@ -55,14 +55,7 @@ fn file_reference(path: PathBuf) -> Result<ClipboardFile, ClipboardError> {
 }
 
 fn read_files() -> Result<Vec<ClipboardFile>, ClipboardError> {
-    let mut clipboard = arboard::Clipboard::new().map_err(|_| ClipboardError::Read)?;
-    let paths = match clipboard.get().file_list() {
-        Ok(paths) => paths,
-        Err(arboard::Error::ContentNotAvailable) => return Ok(Vec::new()),
-        Err(_) => return Err(ClipboardError::Read),
-    };
-    // Release the clipboard before metadata calls, which may involve network drives.
-    drop(clipboard);
+    let paths = super::clipboard_paths::read_paths().map_err(|_| ClipboardError::Read)?;
     if paths.len() > MAX_FILES {
         return Err(ClipboardError::TooMany);
     }
