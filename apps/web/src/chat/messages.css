@@ -34,7 +34,10 @@
 .chat-markdown table { width: max-content; max-width: 100%; margin-block: 16px; font-size: 14px; }
 .chat-markdown th, .chat-markdown td { min-width: 90px; padding: 10px 12px; }
 .chat-markdown th { background: #edf1ee; text-align: left; }
-.chat-code-block { min-width: 0; overflow: hidden; border: 1px solid #dfe5e1; border-radius: 12px; }
+/* Tool details scroll as a whole; shrinking a card clips its independently scrollable text. */
+.chat-code-block {
+  flex-shrink: 0; min-width: 0; overflow: hidden; border: 1px solid #dfe5e1; border-radius: 12px;
+}
 .chat-code-block > header { display: flex; justify-content: space-between; align-items: center;
   gap: 12px; padding: 10px 14px; border-bottom: 1px solid #dfe5e1; color: #78877f; font-size: 12px; }
 .chat-code-block pre, .chat-markdown .chat-code-block pre {
