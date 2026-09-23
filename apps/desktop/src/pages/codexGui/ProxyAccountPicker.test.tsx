@@ -386,12 +386,12 @@ it("waits for the account catalog before allowing automatic switching settings t
   expect(settingsButton.disabled).toBe(false);
 });
 
-it("keeps the panel within 320px and the viewport, and cleans up on page exit", async () => {
+it("keeps the panel within 280px and the viewport, and cleans up on page exit", async () => {
   const removeListener = vi.spyOn(window, "removeEventListener");
   await render();
   await click(trigger());
   const popup = () => document.querySelector<HTMLElement>(".ant-popover")!;
-  expect(popup().style.width).toBe("320px");
+  expect(popup().style.width).toBe("280px");
   vi.stubGlobal("innerWidth", 300);
   await act(async () => window.dispatchEvent(new Event("resize")));
   expect(popup().style.width).toBe("276px");
