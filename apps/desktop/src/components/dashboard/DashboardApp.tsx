@@ -223,7 +223,6 @@ async function refreshProviderBalances(providers: Provider[]) {
 }
 
 function dashboardEyebrow(page: DashboardPage, t: Translate) {
-  if (page === "logDiagnostics") return t("logDiagnostics.eyebrow");
   if (page === "codexConfig") return "CODEX / CONFIGURATION";
   if (page === "providers") return t("topbar.providersEyebrow");
   if (page === "skills") return t("topbar.skillsEyebrow");
@@ -237,7 +236,6 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
   accountCount: number;
   providerCount: number;
 }) {
-  if (page === "logDiagnostics") return t("logDiagnostics.title");
   if (page === "codexConfig") return t("nav.codexConfig");
   if (page === "settings") return t("topbar.settings");
   if (page === "skills") return t("topbar.skills");
@@ -1295,7 +1293,7 @@ export function DashboardApp() {
             : page === "dreamSkin" ? "dream-skin-main"
               : page === "sessions" ? "sessions-main"
               : page === "codexConfig" ? codexConfigStyles.main : undefined}>
-          {page !== "tokens" && page !== "dreamSkin" && page !== "codexGui" && (
+          {page !== "tokens" && page !== "dreamSkin" && page !== "codexGui" && page !== "logDiagnostics" && (
           <>
           <header data-tauri-drag-region className={`topbar${
             page === "accounts" || page === "providers" ? " account-view-topbar" : ""
