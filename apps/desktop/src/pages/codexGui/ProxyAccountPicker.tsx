@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Spin } from "antd";
 import { Server, Settings, UserRound } from "lucide-react";
 import type { Account, AggregateApi, Provider } from "../../types";
@@ -41,12 +41,12 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const disabled = props.busy || props.loading || saving || !props.proxyRunning;
   // `official` describes account-pool provenance, not whether the account can use the official API.
   const accounts = props.accounts.map((entry) => ({
-    id: entry.id, name: entry.email,
+    kind: "account" as const, id: entry.id, name: entry.email,
     detail: entry.plan, usage: entry.usage,
     selected: !thirdParty && entry.active, disabled: !entry.localProxyCompatible,
   }));
   const providers = props.providers.map((entry) => ({
-    id: entry.id, name: entry.name, detail: entry.group || entry.model,
+    kind: "provider" as const, id: entry.id, name: entry.name, detail: entry.group || entry.model,
     selected: !aggregate && entry.active,
   }));
   useEffect(() => {
@@ -64,8 +64,8 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     } catch { setError("切换未完成，请重试。"); }
     finally { switching.current = false; setSaving(false); }
   };
-  const panel = <GuiAccountList accounts={accounts} providers={providers}
-    initialTab={thirdParty ? "provider" : "account"} disabled={disabled} loading={saving || props.loading}
+  const panel = (devicePicker: ReactNode) => <GuiAccountList choices={[...accounts, ...providers]}
+    devicePicker={devicePicker} disabled={disabled} loading={saving || props.loading}
     onSelectAccount={(id) => void select(id, props.onSwitchAccount)}
     onSelectProvider={(id) => void select(id, props.onSwitchProvider)} footer={<>
       {!props.proxyRunning && <p className={styles.hint}>开启本地代理后，即可在这里切换。</p>}

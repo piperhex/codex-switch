@@ -38,7 +38,6 @@ const trigger = () => container.querySelector<HTMLButtonElement>("button")!;
 const option = (text: string) => Array.from(document.querySelectorAll<HTMLButtonElement>("section button"))
   .find((button) => button.textContent?.includes(text))!;
 const click = (button: HTMLButtonElement) => act(async () => button.click());
-const tab = (kind: string) => click(document.querySelector<HTMLButtonElement>(`[role="tab"][data-tab="${kind}"]`)!);
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -103,7 +102,6 @@ it.each(["custom", "openai"] as const)(
   expect(trigger().textContent).toContain(account.email);
   await click(trigger());
   expect(option(account.email).getAttribute("aria-pressed")).toBe("true");
-  await tab("provider");
   await click(option(target.name));
   expect(props.onSwitchProvider).toHaveBeenCalledWith(target.id);
   expect(trigger().getAttribute("aria-expanded")).toBe("false");
@@ -114,7 +112,6 @@ it.each(["custom", "openai"] as const)(
   expect(trigger().textContent).not.toContain(account.email);
   await click(trigger());
   expect(option(target.name).getAttribute("aria-pressed")).toBe("true");
-  await tab("account");
   expect(option(account.email).getAttribute("aria-pressed")).toBe("false");
   await click(option(account.email));
   expect(props.onSwitchAccount).toHaveBeenCalledWith(account.id);
@@ -129,7 +126,6 @@ it.each([
   await render();
   await click(trigger());
   expect(option(account.email).getAttribute("aria-pressed")).toBe("true");
-  await tab("account");
   expect(option(account.email).disabled).toBe(false);
 
   props.providers = [{ ...provider, active: true }];
@@ -147,11 +143,8 @@ it.each(["custom", "openai"] as const)(
   props.onSwitchProvider = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve; }));
   await render();
   await click(trigger());
-  await tab("provider");
   await click(option(provider.name));
-  await tab("provider");
   await click(option(provider.name));
-  await tab("account");
   expect(option(account.email).disabled).toBe(true);
   await act(async () => vi.advanceTimersByTimeAsync(10_000));
   expect(invoke).toHaveBeenCalledTimes(6);
@@ -188,7 +181,6 @@ it.each([
   expect(primary?.classList.contains(detailsStyles[tone])).toBe(true);
   const secondary = item.querySelector('[aria-label="次用量剩余 27%"] strong');
   expect(secondary?.classList.contains(detailsStyles.warning)).toBe(true);
-  await tab("provider");
   expect(option(provider.name).textContent).toContain(provider.model);
   expect(option(provider.name).textContent).not.toContain("主");
 });
@@ -209,12 +201,10 @@ it("preserves selection on failure and allows retry without exposing internal er
     .mockResolvedValueOnce(true);
   await render();
   await click(trigger());
-  await tab("provider");
   await click(option(provider.name));
   expect(trigger().textContent).toContain(account.email);
   expect(document.querySelector("[role=alert]")?.textContent).toBe("切换未完成，请重试。");
   expect(document.body.textContent).not.toContain("private-path-secret");
-  await tab("provider");
   await click(option(provider.name));
   expect(trigger().getAttribute("aria-expanded")).toBe("false");
 });
@@ -224,18 +214,15 @@ it("disables switching when the proxy is stopped or another operation is pending
   await render();
   await click(trigger());
   expect(document.body.textContent).toContain("开启本地代理后，即可在这里切换。");
-  await tab("provider");
   expect(option(provider.name).disabled).toBe(true);
   props.proxyRunning = true;
   props.busy = true;
   await render();
-  await tab("provider");
   await click(option(provider.name));
   expect(props.onSwitchProvider).not.toHaveBeenCalled();
   props.busy = false;
   props.accounts = [{ ...account, official: false, localProxyCompatible: false }];
   await render();
-  await tab("account");
   expect(option(account.email).disabled).toBe(true);
 });
 
@@ -245,7 +232,6 @@ it("tracks external selection updates and closes the list when leaving the page"
   props.providers = [{ ...provider, active: true }];
   await render();
   expect(trigger().textContent).toContain(provider.name);
-  await tab("provider");
   expect(option(provider.name).getAttribute("aria-pressed")).toBe("true");
   props.active = false;
   await render();
@@ -315,7 +301,6 @@ it("keeps wallet polling single-flight and the list responsive, then cleans up o
   expect(queryProviderBalance).toHaveBeenCalledOnce();
   await click(trigger());
   expect(trigger().getAttribute("aria-expanded")).toBe("true");
-  await tab("account");
   expect(option(account.email).disabled).toBe(false);
   await act(async () => finish(balance));
   expect(trigger().textContent).toContain("钱包余额 12.34 CNY");

@@ -1,6 +1,6 @@
 import { type ReactNode, type RefObject } from 'react';
 import { Popover } from 'antd';
-import { ChevronsUpDown, Monitor, X } from 'lucide-react';
+import { ChevronsUpDown, Monitor } from 'lucide-react';
 import type { GuiComputerNavigation } from './remote/types';
 import { GuiDevicePicker } from './GuiDevicePicker';
 import { MAX_ACCOUNT_PICKER_WIDTH, useAccountPickerWidth } from './useAccountPickerWidth';
@@ -8,7 +8,8 @@ import styles from './ProxyAccountPicker.module.less';
 
 interface Props {
   active: boolean; open: boolean; onOpenChange: (open: boolean) => void;
-  trigger: RefObject<HTMLButtonElement>; name: string; icon: ReactNode; summary: ReactNode; accounts: ReactNode;
+  trigger: RefObject<HTMLButtonElement>; name: string; icon: ReactNode; summary: ReactNode;
+  accounts: (devicePicker: ReactNode) => ReactNode;
   computers?: GuiComputerNavigation; busy?: boolean;
 }
 
@@ -20,13 +21,8 @@ export function GuiAccountMenu(props: Props) {
   const panel = <div className={styles.panel} onKeyDown={(event) => {
     if (event.key === 'Escape') { event.stopPropagation(); close(); }
   }}>
-    <header className={styles.header}>
-      <h2>切换账户</h2>
-      {visible && props.computers && <GuiDevicePicker navigation={props.computers}
-        busy={Boolean(props.busy)} onSelect={close} />}
-      <button type="button" className={styles.close} aria-label="关闭账户面板" onClick={close}><X size={20} /></button>
-    </header>
-    {visible && props.accounts}
+    {visible && props.accounts(props.computers && <GuiDevicePicker navigation={props.computers}
+      busy={Boolean(props.busy)} onSelect={close} />)}
   </div>;
   return <Popover trigger="click" placement="topLeft" open={visible} content={panel} fresh
     arrow={false} align={{ offset: [0, -2] }} classNames={{ root: styles.popup }}

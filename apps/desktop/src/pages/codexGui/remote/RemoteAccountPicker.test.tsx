@@ -19,6 +19,16 @@ function Harness() { return <RemoteAccountPicker active ready={ready} client={cl
 const render = () => act(async () => root.render(<Harness />));
 const button = (label: string) => document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
 const click = (target: HTMLButtonElement) => act(async () => target.click());
+const accountList = () => document.querySelector('section[aria-label="账户列表"]')!;
+const searchInput = () => document.querySelector<HTMLInputElement>('input[aria-label="搜索账号或 Provider"]')!;
+const escape = (target: HTMLElement) => act(async () => {
+  target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+});
+const search = (value: string) => act(async () => {
+  const input = searchInput();
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+});
 async function accounts() {
   await click(container.querySelector('button')!);
 }
@@ -42,7 +52,6 @@ it('opens the account list directly and switches the selected computer through i
   await render();
   expect(container.textContent).toContain('Work PC');
   await accounts();
-  await click(document.querySelector<HTMLButtonElement>('[role="tab"][data-tab="provider"]')!);
   const provider = Array.from(document.querySelectorAll<HTMLButtonElement>('section button'))
     .find(entry => entry.textContent?.includes('Remote Provider'))!;
   await click(provider);
@@ -83,29 +92,39 @@ it('closes only the device dropdown with Escape and keeps account browsing avail
   expect(deviceButton.getAttribute('aria-expanded')).toBe('false');
   expect(container.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
   expect(document.activeElement).toBe(deviceButton);
-  const providerTab = document.querySelector<HTMLButtonElement>('[role="tab"][data-tab="provider"]')!;
-  await click(providerTab);
-  expect(document.querySelector('[role="tabpanel"]')?.textContent).toContain('Remote Provider');
-  await click(button('关闭账户面板'));
+  expect(accountList().textContent).toContain('Remote Provider');
+  await escape(searchInput());
   expect(document.activeElement).toBe(container.querySelector('button'));
 });
 
-it('filters within each account tab, supports keyboard navigation and resets search on reopen', async () => {
+it('shows both account types together, searches across them and resets search on reopen', async () => {
   await render(); await accounts();
-  const search = document.querySelector<HTMLInputElement>('input[aria-label="搜索账号或邮箱"]')!;
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(search, 'missing');
-    search.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  expect(document.querySelector('[role="tabpanel"]')?.textContent).toContain('暂无匹配项');
-  expect(document.querySelector('[role="tab"][data-tab="account"]')?.textContent).toContain('(1)');
-  await click(button('关闭账户面板')); await accounts();
-  expect(document.querySelector<HTMLInputElement>('input')?.value).toBe('');
-  const accountTab = document.querySelector<HTMLButtonElement>('[role="tab"][data-tab="account"]')!;
-  await act(async () => accountTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
-  const providerTab = document.querySelector<HTMLButtonElement>('[role="tab"][data-tab="provider"]')!;
-  expect(providerTab.getAttribute('aria-selected')).toBe('true');
-  expect(document.activeElement).toBe(providerTab);
-  expect(document.querySelector('[role="tabpanel"]')?.textContent).not.toContain('remote@example.com');
-  expect(document.querySelector('[role="tabpanel"]')?.textContent).toContain('Remote Provider');
+  expect(document.querySelector('[role="tablist"]')).toBeNull();
+  expect(accountList().textContent).toContain('remote@example.com');
+  expect(accountList().textContent).toContain('Remote Provider');
+  expect(accountList().querySelector('[role="img"][aria-label="官方账号"]')).not.toBeNull();
+  expect(accountList().querySelector('[role="img"][aria-label="第三方 Provider"] svg')).not.toBeNull();
+  await search('provider');
+  expect(accountList().textContent).not.toContain('remote@example.com');
+  expect(accountList().textContent).toContain('Remote Provider');
+  await search('remote@');
+  expect(accountList().textContent).toContain('remote@example.com');
+  expect(accountList().textContent).not.toContain('Remote Provider');
+  await search('missing');
+  expect(accountList().textContent).toContain('暂无匹配项');
+  await escape(searchInput()); await accounts();
+  expect(searchInput().value).toBe('');
+  expect(accountList().querySelectorAll('button')).toHaveLength(2);
+});
+
+it('distinguishes an account and provider that share the same id', async () => {
+  client.read = vi.fn().mockResolvedValue({ ...accountSnapshot,
+    choices: accountSnapshot.choices.map(choice => ({ ...choice, id: 'remote-account' })) });
+  await render(); await accounts();
+  const choices = accountList().querySelectorAll<HTMLButtonElement>('button');
+  expect(choices).toHaveLength(2);
+  expect(choices[0].getAttribute('aria-pressed')).toBe('true');
+  expect(choices[1].getAttribute('aria-pressed')).toBe('false');
+  await click(choices[1]);
+  expect(client.select).toHaveBeenCalledWith({ kind: 'provider', id: 'remote-account' });
 });

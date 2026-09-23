@@ -191,7 +191,7 @@ test('keeps the account panel and device dropdown compact and responsive during 
   await page.screenshot({ path: '../../.codex-tmp/gui-computer-menu-narrow.png' });
   await page.getByRole('button', { name: '切换设备', exact: true }).press('Escape');
   await expect(page.getByRole('region', { name: '设备列表' })).toBeHidden();
-  const search = page.getByRole('textbox', { name: '搜索账号或邮箱', exact: true });
+  const search = page.getByRole('textbox', { name: '搜索账号或 Provider', exact: true });
   await search.fill('alex'); await search.press('ArrowLeft');
   await expect(search).toBeVisible(); await expect(search).toHaveValue('alex');
   await expect.poll(() => page.evaluate(() => window.remoteGuiFixture.beats())).toBeGreaterThan(before + 4);

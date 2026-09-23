@@ -4,24 +4,26 @@ import { ProxyAccountDetails } from './ProxyAccountDetails';
 import styles from './ProxyAccountPicker.module.less';
 
 export interface GuiAccountChoice {
+  kind: 'account' | 'provider';
   id: string; name: string; detail: string; selected: boolean; disabled?: boolean;
   usage?: Account['usage']; searchDetail?: string;
 }
 
-export function GuiAccountGroup({ title, choices, onSelect, disabled, kind }: {
-  title: string; choices: GuiAccountChoice[]; onSelect: (id: string) => void; disabled: boolean;
-  kind: 'account' | 'provider';
+export function GuiAccountGroup({ choices, onSelect, disabled }: {
+  choices: GuiAccountChoice[]; onSelect: (choice: GuiAccountChoice) => void; disabled: boolean;
 }) {
-  return <section className={styles.group} aria-label={title}>
-    {choices.length ? choices.map((choice) => <button key={choice.id} type="button"
+  return <section className={styles.group} aria-label="账户列表">
+    {choices.length ? choices.map((choice) => <button key={`${choice.kind}:${choice.id}`} type="button"
       className={`${styles.option} ${choice.selected ? styles.selected : ''}`}
       aria-pressed={choice.selected} disabled={disabled || choice.disabled}
-      onClick={() => { if (!choice.selected) onSelect(choice.id); }}>
-      <span className={styles.avatar} aria-hidden="true">{kind === 'provider' ? <Server size={21} />
+      onClick={() => { if (!choice.selected) onSelect(choice); }}>
+      <span className={`${styles.avatar} ${choice.kind === 'provider' ? styles.providerAvatar : ''}`}
+        role="img" aria-label={choice.kind === 'provider' ? '第三方 Provider' : '官方账号'}>
+        {choice.kind === 'provider' ? <Server size={16} aria-hidden="true" />
         : Array.from(choice.name.trim())[0]?.toUpperCase() || '?'}</span>
       <span className={styles.accountBody}>
         <span className={styles.optionName} title={choice.name}>{choice.name}</span>
-        {kind === 'account' ? <ProxyAccountDetails plan={choice.detail} usage={choice.usage ?? {}} />
+        {choice.kind === 'account' ? <ProxyAccountDetails plan={choice.detail} usage={choice.usage ?? {}} />
           : choice.detail && <small>{choice.detail}</small>}
         {choice.disabled && <small>此账户暂不可用</small>}
       </span>

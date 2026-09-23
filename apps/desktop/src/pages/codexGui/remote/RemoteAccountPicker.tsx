@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Spin } from 'antd';
 import { RefreshCw, Server, UserRound } from 'lucide-react';
 import type { GuiAccountsClient, SelectableGuiAccount } from '../../../../../../shared/remote-chat/guiAccounts';
@@ -28,9 +28,7 @@ export function RemoteAccountPicker({ active, ready, client, computers, privacyM
   };
   const choices = accounts.snapshot?.choices.map((choice) => ({ ...choice,
     selected: selection?.kind === choice.kind && selection.id === choice.id, disabled: !choice.available })) ?? [];
-  const panel = <GuiAccountList accounts={choices.filter((choice) => choice.kind === 'account')}
-    providers={choices.filter((choice) => choice.kind === 'provider')}
-    initialTab={selection?.kind === 'provider' ? 'provider' : 'account'}
+  const panel = (devicePicker: ReactNode) => <GuiAccountList choices={choices} devicePicker={devicePicker}
     disabled={disabled} loading={accounts.loading || Boolean(accounts.saving)}
     onSelectAccount={(id) => { void select('account', id); }}
     onSelectProvider={(id) => { void select('provider', id); }} footer={<>
