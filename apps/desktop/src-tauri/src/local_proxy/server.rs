@@ -389,24 +389,8 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
     );
 }
 
-fn is_upstream_transport_error(error: &str) -> bool {
-    let normalized = error.to_ascii_lowercase();
-    normalized.contains("official codex proxy request failed: error sending request")
-        || normalized.contains("provider proxy request failed: error sending request")
-}
-
 fn upstream_error_message(error: &str) -> &str {
-    if error.contains("request timed out during request upload") {
-        return "The request could not be uploaded in time. Please check your connection and try again.";
-    }
-    if error.contains("request timed out during response headers") {
-        return "The service took too long to respond. Please try again shortly.";
-    }
-    if is_upstream_transport_error(error) {
-        UPSTREAM_CONNECTION_FAILURE_MESSAGE
-    } else {
-        error
-    }
+    error_messages::transport(error).unwrap_or(error)
 }
 
 fn request_has_valid_api_key(headers: &[(String, String)], expected: &str) -> bool {

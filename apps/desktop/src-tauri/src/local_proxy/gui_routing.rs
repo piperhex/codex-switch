@@ -43,7 +43,13 @@ pub(super) fn handle<R: Runtime>(
     if let Some(id) = request.session_id {
         super::gui_context::mark_session(id);
     }
-    handle_selected(request).map_err(|_| "Codex GUI 请求未完成，请检查所选账户后重试。".to_string())
+    handle_selected(request).map_err(|error| {
+        diagnostic_event(json!({
+            "event": "gui_request_failed",
+            "error": crate::error_logs::sanitize_diagnostic_message(&error)
+        }));
+        super::error_messages::gui(&error).to_string()
+    })
 }
 
 fn handle_selected<R: Runtime>(request: GuiProxyRequest<'_, R>) -> Result<UpstreamPayload, String> {

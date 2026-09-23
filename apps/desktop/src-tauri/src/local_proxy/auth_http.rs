@@ -140,7 +140,9 @@ fn send_with_timeout_retries(
             attempt += 1;
             let result = request.send();
             diagnostic_http_result(&result, attempt);
-            if result.as_ref().is_err_and(upstream_transport::Error::can_retry)
+            if result
+                .as_ref()
+                .is_err_and(upstream_transport::Error::can_retry)
                 && attempt < UPSTREAM_TIMEOUT_ATTEMPT_LIMIT
             {
                 diagnostic_retry("transport_timeout", Duration::ZERO);
@@ -155,11 +157,29 @@ fn send_with_timeout_retries(
     );
     match result {
         Ok(response) => Ok(response),
-        Err(error) if error.is_timeout() => {
-            Err(format!("{failure_context}: {error} (attempts: {attempt})"))
-        }
-        Err(error) => Err(format!("{failure_context}: {error}")),
+        Err(error) => Err(transport_error_detail(&error, failure_context, attempt)),
     }
+}
+
+fn transport_error_detail(
+    error: &upstream_transport::Error,
+    failure_context: &str,
+    attempts: usize,
+) -> String {
+    // Display alone hides nested DNS/TLS/socket failures. Keep the sanitized cause chain
+    // until the response boundary so GUI and shared requests can explain the actual failure.
+    let mut details = vec![crate::error_logs::sanitize_diagnostic_message(
+        &error.to_string(),
+    )];
+    for cause in diagnostic_error_causes(error) {
+        if !details.contains(&cause) {
+            details.push(cause);
+        }
+    }
+    format!(
+        "{failure_context}: {} (attempts: {attempts})",
+        details.join(": ")
+    )
 }
 
 fn retry_timeout_operation<T, E>(
@@ -417,9 +437,11 @@ fn restore_stream_content_type(request: &Request, mut payload: UpstreamPayload) 
     }
     let accepts_sse = request.headers().iter().any(|header| {
         header.field.equiv("Accept")
-            && header.value.as_str().split(',').any(|value| {
-                value.trim().eq_ignore_ascii_case("text/event-stream")
-            })
+            && header
+                .value
+                .as_str()
+                .split(',')
+                .any(|value| value.trim().eq_ignore_ascii_case("text/event-stream"))
     });
     if accepts_sse {
         // Some upstreams omit Content-Type. The client's explicit SSE request still needs

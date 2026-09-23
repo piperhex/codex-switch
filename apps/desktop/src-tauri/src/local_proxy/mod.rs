@@ -15,6 +15,7 @@ pub(crate) mod auto_reset;
 pub(crate) mod concurrent_quota;
 pub(crate) mod endpoints;
 mod error_capture;
+mod error_messages;
 mod gui_auto_switch;
 pub(crate) mod gui_context;
 mod gui_forwarding;
@@ -119,5 +120,6 @@ mod tests {
     include!("tests/http_streaming.rs");
     include!("tests/lan_http.rs");
     include!("tests/gui_routing.rs");
+    include!("tests/gui_transport_error.rs");
     include!("tests/error_logging.rs");
 }
