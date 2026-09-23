@@ -54,3 +54,9 @@
 @media (max-width: 600px) {
   .chat-traffic-summary { grid-template-columns: minmax(0, 1fr); }
 }
+.chat-traffic-detail {
+  --dashboard-panel: transparent;
+  --dashboard-border: rgba(126, 144, 161, 0.2);
+  --dashboard-muted: #64748b;
+}
+.dark .chat-traffic-detail { --dashboard-muted: #8fa0b5; }

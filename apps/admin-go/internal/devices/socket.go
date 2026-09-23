@@ -22,6 +22,7 @@ const chatBufferLimit = 2 * 1024 * 1024
 type outputFrame struct {
 	bytes []byte
 	sent  func(int)
+	guard func(int, func() error) error
 }
 type peer struct {
 	diagnostics *chatDiagnostics
@@ -49,6 +50,10 @@ func newPeerWithDiagnostics(conn *websocket.Conn, diagnostics *chatDiagnostics) 
 }
 
 func (p *peer) send(value interface{}, sent func(int)) {
+	p.sendGuarded(value, sent, nil)
+}
+
+func (p *peer) sendGuarded(value interface{}, sent func(int), guard func(int, func() error) error) {
 	if p == nil || p.closed.Load() {
 		return
 	}
@@ -67,7 +72,7 @@ func (p *peer) send(value interface{}, sent func(int)) {
 	data := bytes.TrimSuffix(buffer.Bytes(), []byte("\n"))
 	p.buffered.Add(int64(len(data)))
 	select {
-	case p.queue <- outputFrame{data, sent}:
+	case p.queue <- outputFrame{data, sent, guard}:
 		p.diagnostics.queued(value)
 	default:
 		p.buffered.Add(-int64(len(data)))
@@ -87,15 +92,12 @@ func (p *peer) writeLoop() {
 				p.terminate()
 				return
 			}
-			err := p.conn.WriteMessage(websocket.TextMessage, frame.bytes)
+			err := p.writeFrame(frame)
 			p.buffered.Add(-int64(len(frame.bytes)))
 			if err != nil {
 				p.diagnostics.log("chat write failed")
 				p.terminate()
 				return
-			}
-			if frame.sent != nil {
-				frame.sent(len(frame.bytes))
 			}
 		case <-timer.C:
 			if !p.alive.Swap(false) {
@@ -109,6 +111,29 @@ func (p *peer) writeLoop() {
 			}
 		}
 	}
+}
+
+func (p *peer) writeFrame(frame outputFrame) error {
+	write := func() error {
+		// A quota transaction can wait for another device; start the network timeout after that wait.
+		if err := p.conn.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
+			return err
+		}
+		return p.conn.WriteMessage(websocket.TextMessage, frame.bytes)
+	}
+	var err error
+	if frame.guard != nil {
+		err = frame.guard(len(frame.bytes), write)
+	} else {
+		err = write()
+	}
+	if errors.Is(err, errRelaySkipped) {
+		return nil
+	}
+	if err == nil && frame.sent != nil {
+		frame.sent(len(frame.bytes))
+	}
+	return err
 }
 
 func (p *peer) close(code int, reason string) {

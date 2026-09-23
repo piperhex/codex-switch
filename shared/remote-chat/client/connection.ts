@@ -3,6 +3,8 @@ import { keyPair } from '../cipher';
 import { ChatLink } from '../link';
 import { ChatRpc } from '../rpc';
 import { browserChatSocket, type ChatSocket } from './socket';
+import { browserClientInfo, type ChatClientInfo } from './clientInfo';
+import { RelayQuota, RELAY_QUOTA_MESSAGE } from '../relayUsage';
 import { hasUpload, uploadProgress, type UploadProgress } from '../uploadProgress';
 import { authorizationError, CONNECTION_ERRORS, socketConnectionError } from '../connectionErrors';
 import {
@@ -19,6 +21,7 @@ export interface ConnectionEvents {
 }
 
 interface ConnectionOptions extends ConnectionEvents {
+  clientInfo?: ChatClientInfo;
   createSocket?: (url: string) => ChatSocket;
   deviceId: string;
   authorize: () => Promise<{ baseUrl: string; accessToken: string }>;
@@ -30,6 +33,7 @@ const CONNECTION_TIMEOUT_MS = 30_000;
 const SOCKET_CLOSE_GRACE_MS = 250;
 
 export class ChatConnection {
+  private readonly quota = new RelayQuota();
   private socket?: ChatSocket;
   private link?: ChatLink;
   private rpc?: ChatRpc;
@@ -84,7 +88,7 @@ export class ChatConnection {
       if (generation !== this.generation) { socket.close(); return; }
       socket.send(JSON.stringify({ type: 'authenticate', role: 'mobile',
         accessToken, deviceId: this.options.deviceId, publicKey: keys.publicKey,
-        transportVersion: 2, resume: this.resume }));
+        transportVersion: 2, resume: this.resume, clientInfo: this.options.clientInfo ?? browserClientInfo() }));
     };
     socket.onmessage = ({ data }: { data: unknown }) => {
       if (generation !== this.generation || typeof data !== 'string') return;
@@ -137,6 +141,12 @@ export class ChatConnection {
   private async receive(data: string, keys: ReturnType<typeof keyPair>) {
     const message = parseMessage(data);
     if (message.type === CHAT_POLICY_MESSAGE) { setChatPolicy(message.policy); return; }
+    if (this.quota.receive(message)) {
+      this.link?.setRelayQuotaBlocked(this.quota.blocked);
+      if (this.quota.blocked && message.type === 'relay-quota') this.options.error(
+        this.quota.reason === 'quota' ? RELAY_QUOTA_MESSAGE : '服务器转发暂不可用，请稍后重试或使用 P2P 直连。');
+      return;
+    }
     if (message.type === 'paired' && typeof message.sessionId === 'string') {
       this.socketAuthenticated = true;
       if (message.transportVersion === 2 && typeof message.resumeToken === 'string') {
@@ -194,6 +204,7 @@ export class ChatConnection {
         this.sessionReady = true;
       },
     });
+    if (this.quota.blocked) this.link.setRelayQuotaBlocked(true);
     void this.link.offer();
   }
 

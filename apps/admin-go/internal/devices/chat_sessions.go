@@ -20,6 +20,7 @@ type chatSessions struct {
 	sessions map[string]*chatSession
 	hot      *hotSessions
 	onRelay  func(int)
+	deliver  func(relayDelivery, platform.JSON)
 }
 
 func newChatSessions(relay func(int)) *chatSessions {
@@ -98,8 +99,9 @@ func (s *chatSessions) joinMobile(
 		return err
 	}
 	id := uuid.NewString()
-	s.sessions[id] = &chatSession{id: id, desktop: desktop, mobile: client, started: time.Now()}
-	desktop.send(platform.JSON{"type": "peer-open", "sessionId": id, "publicKey": key, "iceServers": ice}, nil)
+	s.sessions[id] = &chatSession{id: id, owner: identity.owner, desktop: desktop, mobile: client, started: time.Now()}
+	desktop.send(withChatClientInfo(platform.JSON{"type": "peer-open", "sessionId": id,
+		"publicKey": key, "iceServers": ice}, message["clientInfo"]), nil)
 	client.send(
 		platform.JSON{
 			"type":            "paired",
@@ -145,7 +147,12 @@ func (s *chatSessions) route(client *peer, message platform.JSON) error {
 		if !session.relay || !valid {
 			return errors.New("invalid relay")
 		}
-		target.send(platform.JSON{"type": "relay", "sessionId": id, "payload": payload}, s.onRelay)
+		frame := platform.JSON{"type": "relay", "sessionId": id, "payload": payload}
+		if s.deliver != nil {
+			s.deliver(relayDelivery{session.owner, id, client, target, &session.traffic, client == session.desktop}, frame)
+		} else {
+			target.send(frame, s.onRelay)
+		}
 	case "peer-close":
 		delete(s.sessions, id)
 		target.send(platform.JSON{"type": "peer-close", "sessionId": id}, nil)

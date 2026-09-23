@@ -13,6 +13,7 @@ import (
 
 type hotSession struct {
 	id, token, owner, device string
+	traffic                  sessionTraffic
 	desktop                  chatEndpoint
 	mobile                   *chatEndpoint
 	expires                  time.Time
@@ -37,6 +38,7 @@ type hotSessions struct {
 	closed      map[string]closedSession
 	closedOrder []string
 	onRelay     func(int)
+	deliver     func(relayDelivery, platform.JSON)
 }
 
 func newHotSessions(relay func(int)) *hotSessions {
@@ -167,8 +169,9 @@ func (s *hotSessions) join(input hotJoin) error {
 	s.sessions[session.id] = session
 	common := platform.JSON{"sessionId": session.id, "resumeToken": session.token, "transportVersion": 2,
 		"iceServers": input.ice, "expiresAt": expires.UnixMilli(), "type": "peer-open", "publicKey": key}
-	input.desktop.socket.send(common, nil)
+	input.desktop.socket.send(withChatClientInfo(common, input.message["clientInfo"]), nil)
 	delete(common, "publicKey")
+	delete(common, "clientInfo")
 	common["type"] = "paired"
 	input.client.send(common, nil)
 	return nil
@@ -260,7 +263,17 @@ func (s *hotSessions) forward(session *hotSession, target *peer, message platfor
 		if !valid {
 			return errors.New("invalid relay")
 		}
-		target.send(platform.JSON{"type": "relay", "sessionId": session.id, "payload": payload}, s.onRelay)
+		frame := platform.JSON{"type": "relay", "sessionId": session.id, "payload": payload}
+		source := session.desktop.socket
+		if source == target && session.mobile != nil {
+			source = session.mobile.socket
+		}
+		if s.deliver != nil {
+			s.deliver(relayDelivery{session.owner, session.id, source, target, &session.traffic,
+				source == session.desktop.socket}, frame)
+		} else {
+			target.send(frame, s.onRelay)
+		}
 		return nil
 	default:
 		return errors.New("invalid hot standby frame")

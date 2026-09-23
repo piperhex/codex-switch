@@ -18,8 +18,11 @@ import { subscribeGuiEvent } from '../pages/codexGui/webEvents';
 import { acknowledgedMessages } from './acknowledgedMessages';
 import { guiAccountBalances } from './guiAccountBalances';
 import { NativeChatTransport, type HostTransportEvent } from './nativeTransport';
+import { connectionDetails } from './connectionDetails';
+import { RelayQuota } from '../../../../shared/remote-chat/relayUsage';
 
 export class ChatHost {
+  private quota = new RelayQuota();
   private readonly transport: NativeChatTransport;
   private generation = 0;
   private readonly leases = new Map<string, ReturnType<typeof setTimeout>>();
@@ -82,6 +85,8 @@ export class ChatHost {
   }
 
   private resetSessions() {
+    connectionDetails.reset();
+    this.quota = new RelayQuota();
     const links = [...this.links.values()];
     this.links.clear();
     this.connectedSessions.clear();
@@ -115,8 +120,14 @@ export class ChatHost {
   private async receive(data: string) {
     const message = parseMessage(data);
     if (message.type === CHAT_POLICY_MESSAGE) { setChatPolicy(message.policy); return; }
+    if (this.quota.receive(message)) {
+      connectionDetails.quota(this.quota.usage, this.quota.blocked);
+      for (const link of this.links.values()) link.setRelayQuotaBlocked(this.quota.blocked);
+      return;
+    }
     const sessionId = message.sessionId;
     if (typeof sessionId !== 'string') return;
+    if (message.type === 'relay-traffic') { connectionDetails.traffic(sessionId, message); return; }
     if (message.type === 'peer-open') { this.open(sessionId, message); return; }
     const link = this.links.get(sessionId);
     if (!link) return;
@@ -157,11 +168,14 @@ export class ChatHost {
     });
     keys.secret.fill(0);
     this.links.set(sessionId, link);
+    connectionDetails.open(sessionId, message.clientInfo);
+    if (this.quota.blocked) link.setRelayQuotaBlocked(true);
     this.send({ type: 'signal', sessionId, payload: { kind: 'key', key: keys.publicKey } });
   }
 
   private updateConnection(sessionId: string, mode: ConnectionMode) {
     if (this.closed || !this.links.has(sessionId)) return;
+    connectionDetails.update(sessionId, { mode });
     if (mode === 'direct' || mode === 'relay') this.connectedSessions.add(sessionId);
     else this.connectedSessions.delete(sessionId);
     this.onConnectionChange(this.connectedSessions.size > 0);
@@ -169,6 +183,7 @@ export class ChatHost {
   }
 
   private drop(sessionId: string) {
+    connectionDetails.remove(sessionId);
     const link = this.links.get(sessionId);
     this.links.delete(sessionId);
     clearTimeout(this.leases.get(sessionId));
@@ -183,6 +198,7 @@ export class ChatHost {
     if (this.closed) return;
     for (const sessionId of this.links.keys()) this.endSession(sessionId);
     this.closed = true;
+    connectionDetails.reset();
     for (const lease of this.leases.values()) clearTimeout(lease);
     this.leases.clear();
     this.connectedSessions.clear();

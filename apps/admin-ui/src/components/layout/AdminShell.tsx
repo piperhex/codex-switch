@@ -45,6 +45,7 @@ interface AdminShellProps {
 }
 
 const menuLabelKeys: Record<MenuKey, TranslationKey> = {
+  chatTraffic: "nav.chatTraffic",
   dashboard: "nav.dashboard",
   myAccounts: "nav.myAccounts",
   users: "nav.users",
@@ -66,6 +67,7 @@ const menuLabelKeys: Record<MenuKey, TranslationKey> = {
 };
 
 const menuPermissions: Record<MenuKey, Permission> = {
+  chatTraffic: "admin.chat-traffic.read",
   dashboard: "admin.dashboard.read",
   myAccounts: "self.accounts.read",
   users: "admin.users.read",
@@ -109,6 +111,7 @@ export function AdminShell({
       { key: "officialAccounts" as const, icon: <BadgeCheck size={17} />, label: t("nav.officialAccounts") },
       { key: "announcement" as const, icon: <BellRing size={17} />, label: t("nav.announcement") },
       { key: "chatSettings" as const, icon: <MessageSquareText size={17} />, label: t("nav.chatSettings") },
+      { key: "chatTraffic" as const, icon: <ChartNoAxesCombined size={17} />, label: t("nav.chatTraffic") },
       { key: "tokenPricing" as const, icon: <Coins size={17} />, label: t("nav.tokenPricing") },
       { key: "currency" as const, icon: <Coins size={17} />, label: t("nav.currency") },
       { key: "codexHomePresets" as const, icon: <FolderCog size={17} />, label: t("nav.codexHomePresets") },

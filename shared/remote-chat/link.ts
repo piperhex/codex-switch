@@ -18,13 +18,14 @@ class LegacyChatLink {
   private readonly assembler = new Assembler();
   private mode: ConnectionMode = 'connecting';
   private relay = false;
+  private quotaBlocked = false;
   private closed = false;
   private readonly outgoing = new SendQueue({ capacity: () => this.waitForCapacity(),
     mode: () => this.mode,
     send: (part, delivered) => {
       if (!this.cipher) throw new Error('正在连接电脑。');
       const payload = this.cipher.encrypt(part);
-      if (this.relay) this.signal({ type: 'relay', payload });
+      if (this.relay && !this.quotaBlocked) this.signal({ type: 'relay', payload });
       else this.channel!.send(payload);
       delivered?.();
     } });
@@ -77,7 +78,7 @@ class LegacyChatLink {
 
   private ready() {
     if (this.closed || !this.cipher) return;
-    if (this.relay) this.changeMode('relay');
+    if (this.relay) this.changeMode(this.quotaBlocked ? 'connecting' : 'relay');
     else if (this.channel?.readyState === 'open') {
       clearTimeout(this.fallbackTimer);
       this.changeMode('direct');
@@ -111,6 +112,11 @@ class LegacyChatLink {
     this.ready();
   }
 
+  setRelayQuotaBlocked(blocked: boolean) {
+    this.quotaBlocked = blocked;
+    if (this.relay) this.changeMode(blocked ? 'connecting' : 'relay');
+  }
+
   receive(payload: string) {
     if (this.closed || !this.cipher) return;
     try {
@@ -131,7 +137,8 @@ class LegacyChatLink {
   private async waitForCapacity() {
     const started = Date.now();
     while (!this.closed) {
-      const ready = this.mode === 'relay' || (this.mode === 'direct' && this.channel?.readyState === 'open');
+      const ready = (this.mode === 'relay' && !this.quotaBlocked)
+        || (this.mode === 'direct' && this.channel?.readyState === 'open');
       const buffered = this.relay ? this.options.relayBuffered() : (this.channel?.bufferedAmount ?? 0);
       if (ready && buffered < MAX_BUFFER_BYTES) return;
       if (Date.now() - started > 15_000) throw new Error('连接暂时中断，请重新连接。');
@@ -164,6 +171,7 @@ export class ChatLink {
   offer() { return this.implementation.offer(); }
   acceptSignal(signal: Signal) { return this.implementation.acceptSignal(signal); }
   enableRelay() { this.implementation.enableRelay(); }
+  setRelayQuotaBlocked(blocked: boolean) { this.implementation.setRelayQuotaBlocked(blocked); }
   fallback() { this.implementation.fallback(); }
   receive(payload: string) { this.implementation.receive(payload); }
   send(message: RpcMessage, progress?: TransferProgress) { return this.implementation.send(message, progress); }

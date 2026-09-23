@@ -10,16 +10,19 @@ interface ChatTrafficPanelProps {
   data?: ChatTrafficOverview;
   dark: boolean;
   loading: boolean;
+  date?: string;
+  onDateChange?: (date: string) => void;
 }
 
 const EMPTY_DAYS: ChatTrafficOverview["daily"] = [];
 const HOUR_LABELS = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, "0")}:00`);
 
-export function ChatTrafficPanel({ data, dark, loading }: ChatTrafficPanelProps) {
+export function ChatTrafficPanel({ data, dark, loading, date, onDateChange }: ChatTrafficPanelProps) {
   const { language, t } = useI18n();
   const [selectedDate, setSelectedDate] = useState<string>();
   const daily = data?.daily ?? EMPTY_DAYS;
-  const selected = daily.find((day) => day.date === selectedDate) ?? daily[daily.length - 1];
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai" }).format(new Date());
+  const selected = daily.find((day) => day.date === (date ?? selectedDate ?? today)) ?? daily[daily.length - 1];
   const periodBytes = daily.reduce((total, day) => total + day.bytes, 0);
   const waiting = loading && !data;
   const dailyOption = useMemo(() => chatTrafficChart({
@@ -69,7 +72,7 @@ export function ChatTrafficPanel({ data, dark, loading }: ChatTrafficPanelProps)
             <Select
               aria-label={t("dashboard.chatTrafficDate")}
               value={selected?.date}
-              onChange={setSelectedDate}
+              onChange={(value) => { setSelectedDate(value); onDateChange?.(value); }}
               disabled={!daily.length || loading}
               popupMatchSelectWidth={280}
               options={[...daily].reverse().map((day) => ({

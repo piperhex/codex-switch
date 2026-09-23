@@ -141,6 +141,7 @@ const emptyAnnouncementClickOverview: AnnouncementClickOverview = {
 };
 
 const menuPermissions: Record<MenuKey, Permission> = {
+  chatTraffic: "admin.chat-traffic.read",
   chatSettings: "admin.chat-settings.read",
   dashboard: "admin.dashboard.read",
   myAccounts: "self.accounts.read",
@@ -171,6 +172,7 @@ const menuOrder: MenuKey[] = [
   "currency",
   "tokenPricing",
   "chatSettings",
+  "chatTraffic",
   "codexHomePresets",
   "emailTemplates",
   "skills",
@@ -1311,6 +1313,11 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         canManage={Boolean(profile?.permissions?.includes('admin.chat-settings.manage'))} />;
     }
 
+    if (activeKey === "chatTraffic") {
+      return <ChatTrafficPage api={api} dark={dark}
+        canManage={Boolean(profile?.permissions?.includes("admin.chat-traffic.manage"))} />;
+    }
+
     if (activeKey === "tokenPricing") {
       return <TokenPricingPage api={api}
         canManage={Boolean(profile?.permissions?.includes("admin.token-pricing.manage"))} />;
@@ -1772,3 +1779,4 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     </AdminShell>
   );
 }
+import { ChatTrafficPage } from "./pages/ChatTrafficPage";

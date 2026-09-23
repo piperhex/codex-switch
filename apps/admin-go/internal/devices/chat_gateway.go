@@ -48,6 +48,8 @@ func newChatGateway(service *Service) (*ChatGateway, error) {
 				-1,
 			)}, ice: ice, done: make(chan struct{}), stopped: make(chan struct{}), stun: stun}
 	service.deps.FlushTraffic = traffic.flush
+	gateway.sessions.deliver = gateway.deliverRelay
+	gateway.sessions.hot.deliver = gateway.deliverRelay
 	service.deps.ChatPolicyChanged = gateway.refreshPolicy
 	go gateway.maintain()
 	return gateway, nil
@@ -216,6 +218,7 @@ func (g *ChatGateway) maintain() {
 			return
 		case <-timer.C:
 			g.sessions.prune()
+			g.publishTraffic()
 			g.refreshPolicy()
 			if err := g.traffic.flush(); err != nil {
 				slog.Warn("chat traffic flush will be retried", "error", err)

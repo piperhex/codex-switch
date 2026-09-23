@@ -1,6 +1,18 @@
 {
   "permissions": [
     {
+      "code": "admin.chat-traffic.read",
+      "group": "content",
+      "name": "Read chat traffic",
+      "description": "View each user's relay traffic and hourly usage."
+    },
+    {
+      "code": "admin.chat-traffic.manage",
+      "group": "content",
+      "name": "Manage chat traffic",
+      "description": "Set monthly relay traffic allowances."
+    },
+    {
       "code": "admin.chat-settings.read",
       "group": "content",
       "name": "Read chat settings",
@@ -324,6 +336,9 @@
     ],
     "admin.codex-home-presets.manage": [
       "admin.codex-home-presets.read"
+    ],
+    "admin.chat-traffic.manage": [
+      "admin.chat-traffic.read"
     ],
     "admin.token-pricing.manage": [
       "admin.token-pricing.read"

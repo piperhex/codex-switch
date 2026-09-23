@@ -39,6 +39,7 @@ export class HotLink {
     failed: () => this.fallback(),
   });
   private relay = true;
+  private quotaBlocked = false;
   private closed = false;
   private mode: ConnectionMode = 'connecting';
   private selected?: Path;
@@ -113,7 +114,7 @@ export class HotLink {
       : (this.channel?.bufferedAmount ?? MAX_BUFFER_BYTES) + this.directPackets.bufferedAmount;
     if (buffered === undefined || buffered >= MAX_BUFFER_BYTES) return false;
     if (path === 'direct' && this.channel?.readyState !== 'open') return false;
-    if (path === 'relay' && !this.relay) return false;
+    if (path === 'relay' && (!this.relay || this.quotaBlocked)) return false;
     const payload = this.cipher.encrypt(JSON.stringify(frame));
     try {
       if (path === 'relay') return this.signal({ type: 'relay', payload });
@@ -169,7 +170,7 @@ export class HotLink {
   }
 
   private healthy(path: Path) {
-    const open = path === 'relay' ? this.relay : this.channel?.readyState === 'open';
+    const open = path === 'relay' ? this.relay && !this.quotaBlocked : this.channel?.readyState === 'open';
     return Boolean(open && this.lastPong[path] && !this.timedOut(path, this.lastPong[path]));
   }
 
@@ -216,7 +217,8 @@ export class HotLink {
       this.peer.recover(this.healthy('direct'), this.relay);
       // Relay probes traverse the coordinator and the remote UI; brief stalls must not reset that socket.
       const relaySilence = now - Math.max(this.relaySince, this.lastPong.relay);
-      if (this.relay && this.timedOut('relay', Math.max(this.relaySince, this.lastPong.relay), now)) {
+      if (this.relay && !this.quotaBlocked
+        && this.timedOut('relay', Math.max(this.relaySince, this.lastPong.relay), now)) {
         this.diagnostic('relay-timeout', { elapsedMs: relaySilence });
         this.setRelayAvailable(false);
         this.options.reconnectRelay?.();
@@ -227,6 +229,15 @@ export class HotLink {
 
   fallback() { this.lastPong.direct = 0; this.directSince = 0; this.choose(); }
   enableRelay() { this.setRelayAvailable(true); }
+
+  setRelayQuotaBlocked(blocked: boolean) {
+    if (this.closed || this.quotaBlocked === blocked) return;
+    this.quotaBlocked = blocked;
+    this.lastPong.relay = 0;
+    this.relaySince = Date.now();
+    if (!blocked) this.probe('relay');
+    this.choose();
+  }
 
   setRelayAvailable(available: boolean) {
     if (this.closed) return;

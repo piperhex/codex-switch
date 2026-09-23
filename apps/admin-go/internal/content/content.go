@@ -27,6 +27,7 @@ func Register(router *gin.Engine, deps *platform.Dependencies) error {
 	s.settingsRoutes(router)
 	s.tokenPricingRoutes(router)
 	s.analyticsRoutes(router)
+	s.chatTrafficRoutes(router)
 	return nil
 }
 

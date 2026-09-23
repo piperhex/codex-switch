@@ -24,6 +24,8 @@ type chatEndpoint struct {
 }
 type chatSession struct {
 	id              string
+	owner           string
+	traffic         sessionTraffic
 	desktop, mobile *peer
 	started         time.Time
 	relay           bool

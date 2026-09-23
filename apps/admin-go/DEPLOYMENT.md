@@ -74,6 +74,12 @@ Get-FileHash -LiteralPath $archive -Algorithm SHA256
 新增 `user_login_locks` 表以保存账号的连续错误次数和锁定截止时间。脚本可重复执行，不修改已有用户。
 应用镜像回滚时保留该表即可；旧镜像不会执行新的登录锁定规则。
 
+个人聊天流量和每月额度需要 `sql/20260923-chat-user-traffic.sql`。先备份并执行脚本，
+新增用户额度、月用量和小时用量表，再更新 admin-go 与管理页面。默认额度为 `-1`（不限量），
+每月按北京时间自动切换统计周期。个人历史从升级后开始记录；旧的全站统计无法拆分到用户。
+内置管理员自动获得新权限，自定义管理角色需授予 `admin.chat-traffic.read` 和按需授予
+`admin.chat-traffic.manage`。旧 Go 镜像可以保留新增表回滚，但不会执行新额度限制。
+
 全新空数据库第一次启动可以临时在 `.env` 设置 `POSTGRES_DB_SYNCHRONIZE=true`，
 由 Go 初始化完整结构；初始化成功后改回 `false`，仅重建 Go 服务。
 不要将 `internal/migrations/001_legacy_schema.sql` 直接导入已有库。

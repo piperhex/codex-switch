@@ -11,6 +11,7 @@ export type MenuKey =
   | "officialAccounts"
   | "announcement"
   | "chatSettings"
+  | "chatTraffic"
   | "currency"
   | "tokenPricing"
   | "codexHomePresets"

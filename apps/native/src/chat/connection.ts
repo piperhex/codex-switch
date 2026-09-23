@@ -1,4 +1,5 @@
 import { getRandomBytes } from 'expo-crypto';
+import { Platform } from 'react-native';
 import { RTCPeerConnection as NativePeerConnection } from 'react-native-webrtc';
 import { fetchUserProfile } from '../api/client';
 import type { AuthSession } from '../types';
@@ -10,6 +11,8 @@ interface Options extends ConnectionEvents { session: AuthSession; deviceId: str
 export class MobileChatConnection extends ChatConnection {
   constructor({ session, ...options }: Options) {
     super({ ...options, randomBytes: getRandomBytes,
+      clientInfo: { name: Platform.OS === 'android' ? Platform.constants.Model : 'iPhone / iPad',
+        platform: Platform.OS === 'android' ? 'Android' : 'iOS' },
       authorize: async () => { await fetchUserProfile(session); return session; },
       // Native WebRTC implements the browser subset, but ships independent TypeScript declarations.
       createPeer: (peer) => new RtcPeer(peer, () => (

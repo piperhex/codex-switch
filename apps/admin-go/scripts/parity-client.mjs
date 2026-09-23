@@ -12,8 +12,11 @@ const sides = ['legacy', 'modern'];
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isoPattern = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
 const sensitiveRuntimeKeys = new Set(['accessToken', 'refreshToken', 'passwordHash']);
-// Go-only features are covered by token-pricing-smoke.mjs, not the frozen Nest contract.
-const goOnlyPermissions = new Set(['admin.token-pricing.read', 'admin.token-pricing.manage']);
+// Go-only permissions are exercised by token-pricing-smoke.mjs and chat-traffic-smoke.mjs.
+const goOnlyPermissions = new Set([
+  'admin.token-pricing.read', 'admin.token-pricing.manage',
+  'admin.chat-traffic.read', 'admin.chat-traffic.manage',
+]);
 // The chat policy/limit smoke tests cover these additions; compare only the frozen Nest contract here.
 const goOnlyChatFields = new Set([
   'chatSessionLimit',
