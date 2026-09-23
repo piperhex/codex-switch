@@ -121,6 +121,7 @@ func (g *ChatGateway) receive(client *peer, state *chatConnection, message platf
 	})
 	g.mu.Unlock()
 	client.send(platform.JSON{"type": "chat-policy", "policy": policy}, nil)
+	g.sessions.setLimit(policy["chatSessionLimit"].(float64))
 	return g.sessions.join(client, identity, message, g.ice)
 }
 
@@ -227,6 +228,7 @@ func (g *ChatGateway) refreshPolicy() {
 		slog.Warn("chat policy refresh will be retried", "error", err)
 		return
 	} // Keep the last confirmed policy during a database outage.
+	g.sessions.setLimit(policy["chatSessionLimit"].(float64))
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.policy = policy

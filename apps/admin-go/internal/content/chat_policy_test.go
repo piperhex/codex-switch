@@ -5,10 +5,11 @@ import (
 	"testing"
 )
 
-func TestP2PPolicyDefaultsForOlderSettings(t *testing.T) {
+func TestChatPolicyDefaultsForOlderSettings(t *testing.T) {
 	policy := defaultChatPolicy()
 	delete(policy, "titleSettings")
 	defaults := map[string]float64{
+		"chatSessionLimit":             5,
 		"p2pNegotiationTimeoutSeconds": 45,
 		"p2pRetryIntervalSeconds":      10,
 		"p2pDisconnectGraceSeconds":    10,
@@ -23,6 +24,24 @@ func TestP2PPolicyDefaultsForOlderSettings(t *testing.T) {
 	for key, expected := range defaults {
 		if parsed[key] != expected {
 			t.Fatalf("%s default: got %v, want %v", key, parsed[key], expected)
+		}
+	}
+}
+
+func TestChatSessionLimitValidation(t *testing.T) {
+	policy := defaultChatPolicy()
+	delete(policy, "titleSettings")
+	for _, value := range []float64{1, 5, 12, 9007199254740991} {
+		policy["chatSessionLimit"] = value
+		parsed, err := parseChatPolicy(policy)
+		if err != nil || parsed["chatSessionLimit"] != value {
+			t.Fatalf("limit %v: got %v, error %v", value, parsed, err)
+		}
+	}
+	for _, value := range []interface{}{0.0, -1.0, 1.5, math.NaN(), math.Inf(1), 9007199254740992.0, "5", nil} {
+		policy["chatSessionLimit"] = value
+		if _, err := parseChatPolicy(policy); err == nil {
+			t.Fatalf("accepted invalid session limit %v", value)
 		}
 	}
 }

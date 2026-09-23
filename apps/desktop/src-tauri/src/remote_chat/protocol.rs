@@ -5,7 +5,6 @@ use super::{bridge::Batch, AckRequest, ReconnectRequest, SendRequest};
 
 pub(super) const COMMAND_LIMIT: usize = 128;
 pub(super) const FRAME_LIMIT: usize = 64 * 1024;
-pub(super) const SESSION_LIMIT: usize = 4;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum ChatError {

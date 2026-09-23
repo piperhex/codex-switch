@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/codex-switch/admin-go/internal/content"
 	"github.com/codex-switch/admin-go/internal/platform"
 	"github.com/google/uuid"
 )
@@ -31,6 +32,7 @@ type hotJoin struct {
 
 // Access is serialized by chatSessions.mu; credentials remain in process memory only.
 type hotSessions struct {
+	limit       float64
 	sessions    map[string]*hotSession
 	closed      map[string]closedSession
 	closedOrder []string
@@ -38,7 +40,8 @@ type hotSessions struct {
 }
 
 func newHotSessions(relay func(int)) *hotSessions {
-	return &hotSessions{sessions: map[string]*hotSession{}, closed: map[string]closedSession{}, onRelay: relay}
+	return &hotSessions{limit: content.DefaultChatSessionLimit, sessions: map[string]*hotSession{},
+		closed: map[string]closedSession{}, onRelay: relay}
 }
 
 func parseResume(value interface{}) (resumeClaim, error) {
@@ -87,27 +90,12 @@ func (s *hotSessions) register(client *peer, identity chatIdentity, input interf
 			return errors.New("invalid sessions")
 		}
 	}
-	if len(descriptors) > chatSessionLimit {
-		return errors.New("invalid sessions")
-	}
-	claims := []resumeClaim{}
-	ids := map[string]bool{}
-	for _, descriptor := range descriptors {
-		claim, err := parseResume(descriptor)
-		if err != nil {
-			return err
-		}
-		if ids[claim.id] {
-			return errors.New("duplicate sessions")
-		}
-		if err := s.validateClaim(claim, identity); err != nil {
-			return err
-		}
-		ids[claim.id] = true
-		claims = append(claims, claim)
+	claims, err := s.registrationClaims(identity, descriptors)
+	if err != nil {
+		return err
 	}
 	for _, session := range s.sessions {
-		if session.owned(identity) && !ids[session.id] {
+		if _, retained := claims[session.id]; session.owned(identity) && !retained {
 			s.remove(session)
 		}
 	}
@@ -129,6 +117,30 @@ func (s *hotSessions) register(client *peer, identity chatIdentity, input interf
 	return nil
 }
 
+func (s *hotSessions) registrationClaims(identity chatIdentity, descriptors []interface{}) (map[string]resumeClaim, error) {
+	claims := map[string]resumeClaim{}
+	reconstructing := false
+	for _, descriptor := range descriptors {
+		claim, err := parseResume(descriptor)
+		if err != nil {
+			return nil, err
+		}
+		if _, duplicate := claims[claim.id]; duplicate {
+			return nil, errors.New("duplicate sessions")
+		}
+		if err := s.validateClaim(claim, identity); err != nil {
+			return nil, err
+		}
+		reconstructing = reconstructing || s.sessions[claim.id] == nil
+		claims[claim.id] = claim
+	}
+	// A lower limit must not break existing sessions on reconnect; unknown claims still consume new slots.
+	if reconstructing && float64(len(claims)) > s.limit {
+		return nil, errors.New("invalid sessions")
+	}
+	return claims, nil
+}
+
 func (s *hotSessions) join(input hotJoin) error {
 	if value, resuming := input.message["resume"]; resuming {
 		return s.resume(input, value)
@@ -137,7 +149,7 @@ func (s *hotSessions) join(input hotJoin) error {
 	if err != nil {
 		return err
 	}
-	if s.count(input.identity) >= chatSessionLimit {
+	if float64(s.count(input.identity)) >= s.limit {
 		input.client.close(4008, "Too many chat connections")
 		return nil
 	}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-import { createPair } from './parity-client.mjs';
+import { createPair, request } from './parity-client.mjs';
 import { capabilitiesAndCommands, trafficAndSTUN } from './parity-chat-transport.mjs';
 import {
   sides,
@@ -25,8 +25,17 @@ import {
 
 export async function runChatSecurity(pair = undefined) {
   pair ??= await createPair();
-  await prepareSecurity(pair);
+  const adminToken = pair.tokens.modern;
+  const endpoint = '/admin/api/chat-settings';
+  const initial = await request(pair.urls.modern, 'GET', endpoint, { token: adminToken });
+  assert.equal(initial.status, 200);
   try {
+    // Match the frozen Nest limit only for compatibility tests; the configurable default has its own smoke test.
+    const configured = await request(pair.urls.modern, 'PATCH', endpoint, {
+      token: adminToken, body: { ...initial.body, chatSessionLimit: 4 },
+    });
+    assert.equal(configured.status, 200);
+    await prepareSecurity(pair);
     const registration = await control(pair);
     await closeBoth(registration);
     await rejectedAuthentication(pair);
@@ -41,6 +50,8 @@ export async function runChatSecurity(pair = undefined) {
     return pair.results;
   } finally {
     releaseConnections();
+    const restored = await request(pair.urls.modern, 'PATCH', endpoint, { token: adminToken, body: initial.body });
+    assert.equal(restored.status, 200);
   }
 }
 

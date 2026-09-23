@@ -58,6 +58,12 @@ P2P 连接策略使用现有聊天设置 JSON 保存，无需新增数据库表�
 本地对照环境启动后，运行 `node apps/admin-go/scripts/chat-policy-smoke.mjs` 验证实时推送、
 大数值、权限和重连行为；脚本只访问固定的本地测试地址并在结束时恢复配置。
 
+聊天设置中的 `chatSessionLimit` 控制每台电脑允许的聊天连接数，默认 5，接受正整数。
+旧配置缺少该字段时自动使用默认值，无需数据库迁移。保存后按新上限接收连接；降低上限
+不会主动断开已有会话，服务端仍保留的会话可以重连。桌面端须更新以移除旧版固定的 4 个连接限制。
+本地测试环境可运行 `node apps/admin-go/scripts/chat-session-limit-smoke.mjs` 验证默认值、配置保存、
+动态调整、混合协议连接计数和超限后的会话恢复。历史兼容测试显式使用旧版的 4 个连接上限。
+
 ## 本地 Docker 对照测试
 
 测试使用独立 PostgreSQL 数据库、两套 Redis、Mailpit 和模拟 OAuth/TLS 上游。

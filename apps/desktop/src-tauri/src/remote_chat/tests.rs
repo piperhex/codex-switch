@@ -57,6 +57,21 @@ fn resume_credentials_expire_and_closed_sessions_are_not_reauthenticated() {
 }
 
 #[test]
+fn coordinator_admitted_sessions_are_not_capped_by_the_old_desktop_limit() {
+    let mut sessions = Sessions::default();
+    for index in 0..8 {
+        let message = json!({"type": "peer-open", "sessionId": format!("phone-{index}"),
+            "transportVersion": 2, "resumeToken": "proof", "expiresAt": now_ms() + 120_000});
+        sessions.receive(&message).unwrap();
+        assert!(sessions.receive(&message).is_err());
+    }
+    sessions
+        .receive(&json!({"type": "chat-policy", "policy": {"chatSessionLimit": 1}}))
+        .unwrap();
+    assert_eq!(sessions.authentication().len(), 8);
+}
+
+#[test]
 fn a_paused_frontend_has_bounded_buffers_and_stale_acknowledgements_do_not_release_batches() {
     let (sender, receiver) = mpsc::channel();
     let mut bridge = Bridge::new(

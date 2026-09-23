@@ -12,7 +12,6 @@ import (
 )
 
 const chatFrameLimit = 48 * 1024
-const chatSessionLimit = 4
 const directConnectTimeout = 10 * time.Second
 
 type chatIdentity struct {

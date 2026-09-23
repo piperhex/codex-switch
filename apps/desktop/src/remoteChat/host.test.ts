@@ -56,6 +56,21 @@ async function receive(type: string, sessionId: string) {
   await Promise.resolve();
 }
 
+it('accepts more than four admitted sessions and keeps them when the policy limit decreases', async () => {
+  message({ type: 'chat-policy', policy: { ...DEFAULT_CHAT_POLICY, chatSessionLimit: 8 } });
+  for (let index = 0; index < 8; index++) {
+    await receive('peer-open', `phone-${index}`);
+    links.get(`phone-${index}`)!.mode('direct');
+  }
+  expect(links.size).toBe(8);
+  message({ type: 'chat-policy', policy: { ...DEFAULT_CHAT_POLICY, chatSessionLimit: 1 } });
+  expect(mobileConnection.getSnapshot()).toBe(true);
+  for (let index = 0; index < 7; index++) await receive('peer-close', `phone-${index}`);
+  expect(mobileConnection.getSnapshot()).toBe(true);
+  await receive('peer-close', 'phone-7');
+  expect(mobileConnection.getSnapshot()).toBe(false);
+});
+
 it('stays disconnected until transport is ready and follows reconnects and peer closure', async () => {
   expect(mobileConnection.getSnapshot()).toBe(false);
   await receive('peer-open', 'phone');

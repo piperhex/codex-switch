@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 use serde_json::Value;
 
-use super::protocol::{ChatError, SESSION_LIMIT};
+use super::protocol::ChatError;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -90,7 +90,8 @@ impl Sessions {
             .as_str()
             .filter(|id| !id.is_empty() && id.len() <= 160)
             .ok_or(ChatError::InvalidFrame)?;
-        if self.contains(id) || self.resumes.len() + self.legacy.len() >= SESSION_LIMIT {
+        // Only the authenticated coordinator opens sessions and enforces its configured admission limit.
+        if self.contains(id) {
             return Err(ChatError::InvalidFrame);
         }
         if message["transportVersion"] != 2 {

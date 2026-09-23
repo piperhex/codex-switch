@@ -3,6 +3,14 @@ type Copy = [string, string];
 export interface PolicyField { key: keyof typeof CHAT_POLICY_FIELDS; label: Copy; hint: Copy; unit: Copy }
 export interface PolicySection { key: string; title: Copy; hint: Copy; fields: PolicyField[] }
 export const POLICY_SECTIONS: PolicySection[] = [
+  { key: 'connections', title: ['聊天连接', 'Chat connections'],
+    hint: ['保存后对新连接生效，已有连接不受影响。',
+      'Changes apply to new connections after saving. Existing connections stay active.'], fields: [
+    { key: 'chatSessionLimit', label: ['每台电脑的聊天连接上限', 'Chat connection limit per computer'],
+      hint: ['默认 5 个，至少 1 个。同一设备打开多个聊天连接会分别计数。',
+        'Default: 5; minimum: 1. Multiple chat connections from the same device count separately.'],
+      unit: ['个', 'connections'] },
+  ] },
   { key: 'p2p', title: ['P2P 连接', 'P2P connection'],
     hint: ['保存后立即应用到在线客户端。时间以秒为单位，数值不设上限。',
       'Changes apply to connected clients immediately. Times are in seconds, with no upper cap.'], fields: [

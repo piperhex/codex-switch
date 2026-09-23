@@ -132,7 +132,8 @@ export class ChatHost {
   }
 
   private open(sessionId: string, message: Record<string, unknown>) {
-    if (this.links.size >= 4 || this.links.has(sessionId)) return;
+    // The authenticated coordinator applies the configured limit before sending peer-open.
+    if (this.links.has(sessionId)) return;
     if (message.transportVersion === 2 && typeof message.resumeToken === 'string') {
       this.lease(sessionId, message.expiresAt);
     }

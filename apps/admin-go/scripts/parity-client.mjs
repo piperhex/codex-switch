@@ -14,8 +14,9 @@ const isoPattern = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
 const sensitiveRuntimeKeys = new Set(['accessToken', 'refreshToken', 'passwordHash']);
 // Go-only features are covered by token-pricing-smoke.mjs, not the frozen Nest contract.
 const goOnlyPermissions = new Set(['admin.token-pricing.read', 'admin.token-pricing.manage']);
-// These new fields are checked by chat-policy-smoke.mjs; keep the frozen Nest comparison on its original contract.
+// The chat policy/limit smoke tests cover these additions; compare only the frozen Nest contract here.
 const goOnlyChatFields = new Set([
+  'chatSessionLimit',
   'p2pNegotiationTimeoutSeconds', 'p2pRetryIntervalSeconds', 'p2pDisconnectGraceSeconds',
 ]);
 

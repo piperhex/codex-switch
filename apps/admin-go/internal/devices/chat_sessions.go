@@ -27,6 +27,12 @@ func newChatSessions(relay func(int)) *chatSessions {
 		sessions: map[string]*chatSession{}, hot: newHotSessions(relay), onRelay: relay}
 }
 
+func (s *chatSessions) setLimit(limit float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.hot.limit = limit
+}
+
 func (s *chatSessions) join(client *peer, identity chatIdentity, message platform.JSON, ice []platform.JSON) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -75,7 +81,7 @@ func (s *chatSessions) joinMobile(
 		}
 	}
 	_, resuming := message["resume"]
-	if !resuming && count >= chatSessionLimit {
+	if !resuming && float64(count) >= s.hot.limit {
 		client.close(4008, "Too many chat connections")
 		return nil
 	}

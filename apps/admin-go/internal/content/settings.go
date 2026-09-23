@@ -138,7 +138,11 @@ type policyField struct {
 	Optional         bool
 }
 
+// DefaultChatSessionLimit applies when older settings omit the per-computer connection limit.
+const DefaultChatSessionLimit = 5
+
 var policyFields = []policyField{
+	{Name: "chatSessionLimit", Minimum: 1, Default: DefaultChatSessionLimit, Optional: true},
 	{Name: "p2pNegotiationTimeoutSeconds", Minimum: 1, Default: 45, Optional: true},
 	{Name: "p2pRetryIntervalSeconds", Minimum: 1, Default: 10, Optional: true},
 	{Name: "p2pDisconnectGraceSeconds", Minimum: 1, Default: 10, Optional: true},
