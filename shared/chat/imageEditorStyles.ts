@@ -20,6 +20,8 @@ header { flex-shrink: 0; display: grid; grid-template-columns: auto minmax(0, 1f
   gap: 10px; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
     10px max(16px, env(safe-area-inset-left)); }
 header button { font-size: 16px; }
+/* Leave room for the host close button, which works even if the editor cannot start. */
+body[data-browser-editor] header { padding-right: max(60px, env(safe-area-inset-right)); }
 #cancel { justify-self: start; color: #596068; background: #e9ecf0; }
 #done, .primary { color: #fff; background: var(--green); }
 #done { justify-self: end; }

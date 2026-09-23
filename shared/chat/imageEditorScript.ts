@@ -167,4 +167,5 @@ image.onload = () => {
 image.onerror = () => { notice.textContent = config.labels.readFailed; };
 new ResizeObserver(fit).observe(stage);
 image.src = config.dataUrl;
+document.documentElement.dataset.editorInitialized = 'true';
 `;

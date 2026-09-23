@@ -5,12 +5,16 @@ import { imageEditorIcon } from './imageEditorIcons';
 import { imageEditorScript } from './imageEditorScript';
 import { imageEditorStyles } from './imageEditorStyles';
 
-/** A local canvas editor shared by the phone WebView and browser. No remote content is loaded. */
-export function imageEditorHtml(dataUrl: string, translate = (text: string) => text, language = 'zh-CN') {
+function escapeHtml(text: string) {
+  return text.replace(/[&<>"']/g, character => `&#${character.charCodeAt(0)};`);
+}
+
+/** A local canvas editor shared by the phone WebView and browser. No remote images are loaded. */
+export function imageEditorHtml(dataUrl: string, translate = (text: string) => text, language = 'zh-CN',
+  scriptUrl?: string) {
   validateChatImages([dataUrl]);
   const policy = getChatPolicy();
-  const label = (text: string) => translate(text).replace(/[&<>"']/g, character =>
-    `&#${character.charCodeAt(0)};`);
+  const label = (text: string) => escapeHtml(translate(text));
   const config = JSON.stringify({ dataUrl, targetBytes: policy.imageTargetKb * KIB,
     maxEdge: policy.imageMaxEdge, labels: {
       saving: translate('正在保存…'),
@@ -25,14 +29,17 @@ export function imageEditorHtml(dataUrl: string, translate = (text: string) => t
 <meta name="viewport"
   content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:;
-  script-src 'unsafe-inline'; style-src 'unsafe-inline'">
-<style>${imageEditorStyles}</style></head><body>
+  script-src ${scriptUrl ? "'self'" : "'unsafe-inline'"}; style-src 'unsafe-inline'">
+<style>${imageEditorStyles}</style></head><body${scriptUrl ? ' data-browser-editor' : ''}>
 <header><button id="cancel">${imageEditorIcon('cancel')}${label('取消')}</button>
 <div class="heading"><h1>${label('图片标注')}</h1><p>${label('在图片上画出重点')}</p></div>
 <button id="done" disabled>${imageEditorIcon('done')}${label('完成')}</button></header>
 <main id="stage"><canvas id="canvas" aria-label="${label('图片标注画布')}"></canvas></main>
 ${imageEditorControls(label)}${imageEditorDialogs(label)}
-<script>const config = ${config};${imageEditorScript}</script></body></html>`;
+${scriptUrl
+    ? `<script type="application/json" id="image-editor-config">${config}</script>
+<script src="${escapeHtml(scriptUrl)}"></script>`
+    : `<script>const config = ${config};${imageEditorScript}</script>`}</body></html>`;
 }
 
 export function editedImageMessage(raw: string): string | null {

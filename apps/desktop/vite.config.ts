@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { imageEditorPlugin } from '../../shared/chat/imageEditorPlugin';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), imageEditorPlugin()],
   clearScreen: false,
   server: {
     port: 1420,

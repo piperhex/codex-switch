@@ -2,6 +2,7 @@ import { t, useLanguage } from '../i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from 'antd';
 import { editedImageMessage, imageEditorHtml } from '../../../../shared/chat/imageEditorHtml';
+import { IMAGE_EDITOR_ASSET } from '../../../../shared/chat/imageEditorAsset';
 import type { DraftImage } from '../../../../shared/remote-chat/attachments';
 import './imageEditor.css';
 
@@ -10,7 +11,8 @@ export function ChatImageEditor({ image, save, close }: {
 }) {
   const language = useLanguage();
   const frame = useRef<HTMLIFrameElement>(null);
-  const html = useMemo(() => imageEditorHtml(image.url, t, language), [image.url, language]);
+  const html = useMemo(() => imageEditorHtml(image.url, t, language,
+    new URL(`${import.meta.env.BASE_URL}${IMAGE_EDITOR_ASSET}`, document.baseURI).href), [image.url, language]);
   const [error, setError] = useState('');
   useEffect(() => {
     const receive = (event: MessageEvent) => {
@@ -26,12 +28,19 @@ export function ChatImageEditor({ image, save, close }: {
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
   }, [save, close]);
-  return <Modal open centered footer={null} title={null} closable={false} maskClosable={false}
+  const loaded = () => {
+    const editorDocument = frame.current?.contentDocument;
+    if (editorDocument?.documentElement.dataset.editorInitialized !== 'true') {
+      editorDocument?.getElementById('cancel')?.addEventListener('click', close, { once: true });
+      setError(t('图片无法编辑，请重新打开后再试。'));
+    }
+  };
+  return <Modal open centered footer={null} title={null} closable={{ 'aria-label': t('关闭图片') }} maskClosable={false}
     onCancel={close} width={1120} className="chat-image-editor" wrapClassName="chat-image-editor-wrap" destroyOnClose
     transitionName="" maskTransitionName="">
     {/* Only our own editor and validated image data are embedded. Keeping the local origin lets
-        Chromium deliver pointer gestures reliably; the document CSP blocks all external content. */}
-    <iframe ref={frame} title={t("图片标注")} srcDoc={html} sandbox="allow-scripts allow-same-origin" />
+        Chromium deliver pointer gestures reliably; the document CSP only permits local images and scripts. */}
+    <iframe ref={frame} title={t("图片标注")} srcDoc={html} sandbox="allow-scripts allow-same-origin" onLoad={loaded} />
     {!!error && <p role="alert">{t(error)}</p>}
   </Modal>;
 }
