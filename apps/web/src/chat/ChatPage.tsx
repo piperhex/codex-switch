@@ -4,15 +4,20 @@ import type { AuthSession, RemoteDevice } from '../types';
 import { ConnectedChat } from './ConnectedChat';
 import { useChat } from './useChat';
 import { useChatViewport } from './useChatViewport';
+import { loadLastConnectedDevice } from './lastConnectedDevice';
 
 interface Props { session: AuthSession; devices: RemoteDevice[]; active: boolean }
 
 export function ChatPage({ session, devices, active }: Props) {
   useLanguage();
+  const [lastConnectedDeviceId] = useState(() => loadLastConnectedDevice(session));
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const device = devices.find((entry) => entry.deviceId === deviceId)
-    ?? devices.find((entry) => entry.online) ?? devices[0];
-  useEffect(() => { if (!deviceId && device) setDeviceId(device.deviceId); }, [deviceId, device?.deviceId]);
+    ?? devices.find((entry) => entry.deviceId === lastConnectedDeviceId && entry.online)
+    ?? devices.find((entry) => entry.online);
+  useEffect(() => {
+    if (device && deviceId !== device.deviceId) setDeviceId(device.deviceId);
+  }, [deviceId, device?.deviceId]);
   useChatViewport(active);
   return <section className="chat-page" hidden={!active} aria-label={t("Codex 聊天")}>
     <WebChat key={JSON.stringify([session.baseUrl, session.email, device?.deviceId])} session={session}

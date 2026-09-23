@@ -4,6 +4,7 @@ import type { AuthSession } from '../types';
 import { ChatConnection } from '../../../../shared/remote-chat/client/connection';
 import { ChatController } from '../../../../shared/remote-chat/client/controller';
 import { RtcPeer } from '../../../../shared/remote-chat/rtcPeer';
+import { saveLastConnectedDevice } from './lastConnectedDevice';
 
 const HISTORY_REFRESH_MS = 15_000;
 
@@ -26,6 +27,9 @@ export function useChat(session: AuthSession, deviceId: string, active: boolean)
   // Token refresh keeps the same conversation; reconnect reads the renewed account credentials.
   const controller = useMemo(() => createController(session, deviceId), [session.baseUrl, session.email, deviceId]);
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
+  useEffect(() => {
+    if (state.ready && deviceId) saveLastConnectedDevice(session, deviceId);
+  }, [state.ready, deviceId, session.baseUrl, session.email]);
   const [foreground, setForeground] = useState(document.visibilityState === 'visible');
   useEffect(() => {
     const update = () => setForeground(document.visibilityState === 'visible');
