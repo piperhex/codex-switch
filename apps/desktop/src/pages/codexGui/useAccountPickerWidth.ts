@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 
-export const MAX_ACCOUNT_PICKER_WIDTH = 400;
+export const MAX_ACCOUNT_PICKER_WIDTH = 320;
 const VIEWPORT_MARGIN = 24;
 
 export function useAccountPickerWidth(active: boolean) {
