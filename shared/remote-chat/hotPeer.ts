@@ -1,5 +1,6 @@
 import type { Channel, IceServer, Peer, PeerConnectionState, PeerFactory, Signal } from './protocol';
 import { getChatPolicy, type ChatPolicy } from './policy';
+import type { ConnectionDiagnostic } from './diagnostics';
 
 const MILLISECONDS_PER_SECOND = 1000;
 export type RecoverySignal = Exclude<Signal, { kind: 'key' }> & { generation?: number };
@@ -16,6 +17,7 @@ export class HotPeer {
   constructor(private readonly options: {
     desktop: boolean; iceServers: IceServer[]; createPeer: PeerFactory;
     signal: (signal: RecoverySignal) => void; channel: (channel: Channel) => void; disconnected: () => void;
+    diagnostic?: ConnectionDiagnostic;
   }) { this.create(); }
 
   private create() {
@@ -34,33 +36,40 @@ export class HotPeer {
         },
         channel: (channel) => this.attach(channel, generation),
         stateChanged: (state) => {
-          if (this.isCurrent(generation)) this.connectionState = state;
+          if (!this.isCurrent(generation)) return;
+          this.connectionState = state;
+          this.options.diagnostic?.('peer-state', { generation, state });
         },
         disconnected: () => {
           if (this.isCurrent(generation)) this.options.disconnected();
         },
       });
-    } catch { this.peer = undefined; }
+      this.options.diagnostic?.('peer-created', { generation });
+    } catch {
+      this.peer = undefined;
+      this.options.diagnostic?.('peer-create-failed', { generation });
+    }
   }
 
   private isCurrent(generation: number) { return !this.closed && generation === this.generation; }
 
   private attach(channel: Channel, generation: number) {
     if (!this.isCurrent(generation)) { channel.close(); return; }
-    channel.onClose(() => this.failed(generation));
+    channel.onClose(() => this.failed(generation, 'channel-closed'));
     this.options.channel(channel);
   }
 
-  private failed(generation: number) {
+  private failed(generation: number, event: 'channel-closed' | 'peer-offer-failed' | 'peer-signal-failed') {
     if (!this.isCurrent(generation)) return;
     this.connectionState = 'failed';
+    this.options.diagnostic?.(event, { generation });
     this.options.disconnected();
   }
 
   async offer() {
     if (this.closed) return;
     const generation = this.generation;
-    try { await this.peer?.offer(); } catch { this.failed(generation); }
+    try { await this.peer?.offer(); } catch { this.failed(generation, 'peer-offer-failed'); }
   }
 
   async accept(signal: RecoverySignal) {
@@ -72,7 +81,7 @@ export class HotPeer {
       this.generation = generation;
       this.create();
     }
-    try { await this.peer?.accept(signal); } catch { this.failed(generation); }
+    try { await this.peer?.accept(signal); } catch { this.failed(generation, 'peer-signal-failed'); }
   }
 
   recover(healthy: boolean, signaling: boolean) {
@@ -85,6 +94,8 @@ export class HotPeer {
     if (!signaling || (now - this.lastAttempt) / MILLISECONDS_PER_SECOND < policy.p2pRetryIntervalSeconds
       || !this.retryReady(now, policy)) return;
     this.generation += 1;
+    this.options.diagnostic?.('peer-retry', { generation: this.generation,
+      state: this.connectionState, elapsedMs: now - this.lastAttempt });
     this.create();
     void this.offer();
   }

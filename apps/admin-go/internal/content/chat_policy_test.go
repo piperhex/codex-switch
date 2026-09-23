@@ -13,6 +13,7 @@ func TestChatPolicyDefaultsForOlderSettings(t *testing.T) {
 		"p2pNegotiationTimeoutSeconds": 45,
 		"p2pRetryIntervalSeconds":      10,
 		"p2pDisconnectGraceSeconds":    10,
+		"relayHeartbeatTimeoutSeconds": 30,
 	}
 	for key := range defaults {
 		delete(policy, key)
@@ -46,8 +47,9 @@ func TestChatSessionLimitValidation(t *testing.T) {
 	}
 }
 
-func TestP2PPolicyDurationsHaveNoProductUpperLimit(t *testing.T) {
-	for _, key := range []string{"p2pNegotiationTimeoutSeconds", "p2pRetryIntervalSeconds", "p2pDisconnectGraceSeconds"} {
+func TestConnectionPolicyDurationsHaveNoProductUpperLimit(t *testing.T) {
+	for _, key := range []string{"p2pNegotiationTimeoutSeconds", "p2pRetryIntervalSeconds",
+		"p2pDisconnectGraceSeconds", "relayHeartbeatTimeoutSeconds"} {
 		policy := defaultChatPolicy()
 		delete(policy, "titleSettings")
 		for _, value := range []float64{1, 1_000_000, 9007199254740991} {

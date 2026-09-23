@@ -146,6 +146,7 @@ var policyFields = []policyField{
 	{Name: "p2pNegotiationTimeoutSeconds", Minimum: 1, Default: 45, Optional: true},
 	{Name: "p2pRetryIntervalSeconds", Minimum: 1, Default: 10, Optional: true},
 	{Name: "p2pDisconnectGraceSeconds", Minimum: 1, Default: 10, Optional: true},
+	{Name: "relayHeartbeatTimeoutSeconds", Minimum: 1, Default: 30, Optional: true},
 	{"relayMaxMbPerSecond", -1, -1, true}, {"relayMaxFramesPerSecond", -1, -1, true}, {"threadPageSize", 1, 50, false},
 	{"historyPageSize", 1, 10, false}, {"imageSourceMaxMb", 1, 20, false}, {"imageMaxEdge", 256, 2048, false},
 	{"imageTargetKb", 32, 512, false}, {"fileUploadMaxMb", 1, 2, true}, {"fileUploadTotalMaxMb", 1, 3, true},

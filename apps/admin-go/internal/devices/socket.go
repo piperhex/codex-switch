@@ -24,19 +24,24 @@ type outputFrame struct {
 	sent  func(int)
 }
 type peer struct {
-	conn      *websocket.Conn
-	queue     chan outputFrame
-	done      chan struct{}
-	closeOnce sync.Once
-	buffered  atomic.Int64
-	alive     atomic.Bool
-	closed    atomic.Bool
+	diagnostics *chatDiagnostics
+	conn        *websocket.Conn
+	queue       chan outputFrame
+	done        chan struct{}
+	closeOnce   sync.Once
+	buffered    atomic.Int64
+	alive       atomic.Bool
+	closed      atomic.Bool
 }
 
 var upgrader = websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 
 func newPeer(conn *websocket.Conn) *peer {
-	client := &peer{conn: conn, queue: make(chan outputFrame, 1024), done: make(chan struct{})}
+	return newPeerWithDiagnostics(conn, nil)
+}
+
+func newPeerWithDiagnostics(conn *websocket.Conn, diagnostics *chatDiagnostics) *peer {
+	client := &peer{conn: conn, diagnostics: diagnostics, queue: make(chan outputFrame, 1024), done: make(chan struct{})}
 	client.alive.Store(true)
 	conn.SetPongHandler(func(string) error { client.alive.Store(true); return nil })
 	go client.writeLoop()
@@ -63,6 +68,7 @@ func (p *peer) send(value interface{}, sent func(int)) {
 	p.buffered.Add(int64(len(data)))
 	select {
 	case p.queue <- outputFrame{data, sent}:
+		p.diagnostics.queued(value)
 	default:
 		p.buffered.Add(-int64(len(data)))
 		p.close(4008, "Connection is too slow")
@@ -84,6 +90,7 @@ func (p *peer) writeLoop() {
 			err := p.conn.WriteMessage(websocket.TextMessage, frame.bytes)
 			p.buffered.Add(-int64(len(frame.bytes)))
 			if err != nil {
+				p.diagnostics.log("chat write failed")
 				p.terminate()
 				return
 			}
@@ -92,6 +99,7 @@ func (p *peer) writeLoop() {
 			}
 		case <-timer.C:
 			if !p.alive.Swap(false) {
+				p.diagnostics.log("chat websocket heartbeat timeout")
 				p.terminate()
 				return
 			}
@@ -105,6 +113,7 @@ func (p *peer) writeLoop() {
 
 func (p *peer) close(code int, reason string) {
 	p.closeOnce.Do(func() {
+		p.diagnostics.close(code, reason)
 		p.closed.Store(true)
 		// A failed close frame means the socket is already unusable; Close still releases it.
 		_ = p.conn.WriteControl(
@@ -118,7 +127,12 @@ func (p *peer) close(code int, reason string) {
 }
 
 func (p *peer) terminate() {
-	p.closeOnce.Do(func() { p.closed.Store(true); _ = p.conn.Close(); close(p.done) })
+	p.closeOnce.Do(func() {
+		p.diagnostics.close(1006, "transport closed")
+		p.closed.Store(true)
+		_ = p.conn.Close()
+		close(p.done)
+	})
 }
 
 func parseObject(data []byte) (platform.JSON, error) {

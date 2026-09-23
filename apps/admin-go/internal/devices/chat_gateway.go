@@ -59,7 +59,7 @@ func (g *ChatGateway) serve(c *gin.Context) {
 		return
 	}
 	conn.SetReadLimit(chatFrameLimit)
-	client := newPeer(conn)
+	client := newPeerWithDiagnostics(conn, newChatDiagnostics())
 	state := &chatConnection{windowStart: time.Now()}
 	state.timer = time.AfterFunc(authTimeout, func() { client.close(4001, "Authentication timed out") })
 	g.mu.Lock()
@@ -69,9 +69,17 @@ func (g *ChatGateway) serve(c *gin.Context) {
 	for {
 		kind, data, err := conn.ReadMessage()
 		if err != nil {
+			code := websocket.CloseAbnormalClosure
+			var closed *websocket.CloseError
+			if errors.As(err, &closed) {
+				code = closed.Code
+			}
+			client.diagnostics.close(code, "socket read ended")
 			return
 		}
+		client.diagnostics.received(len(data))
 		if kind != websocket.TextMessage {
+			client.diagnostics.log("chat rejected", "reason", "non-text frame")
 			g.reject(client)
 			return
 		}
@@ -80,6 +88,7 @@ func (g *ChatGateway) serve(c *gin.Context) {
 			err = g.receive(client, state, message, len(data))
 		}
 		if err != nil {
+			client.diagnostics.log("chat rejected", "reason", chatRejectionReason(err))
 			g.reject(client)
 			return
 		}
@@ -100,6 +109,7 @@ func (g *ChatGateway) receive(client *peer, state *chatConnection, message platf
 	if err != nil {
 		return err
 	}
+	client.diagnostics.authenticated(identity, message)
 	// Serialize handshake snapshots with saved-policy broadcasts so stale reads cannot follow a new policy.
 	g.policyMu.Lock()
 	defer g.policyMu.Unlock()

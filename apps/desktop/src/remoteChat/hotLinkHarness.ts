@@ -8,7 +8,7 @@ type Side = 'phone' | 'pc';
 type Path = 'direct' | 'relay';
 interface Packet { side: Side; path: Path; payload: string; frame: Record<string, unknown> }
 
-export function hotLinkHarness() {
+export function hotLinkHarness(options: { relayDelay?: number } = {}) {
   const keys = { phone: keyPair((size) => crypto.getRandomValues(new Uint8Array(size))),
     pc: keyPair((size) => crypto.getRandomValues(new Uint8Array(size))) };
   const messages = { phone: [] as RpcMessage[], pc: [] as RpcMessage[] };
@@ -34,7 +34,10 @@ export function hotLinkHarness() {
       const frame = JSON.parse(inspectors[side].decrypt(part)!) as Record<string, unknown>;
       const packet = { side, path, payload: part, frame };
       packets.push(packet);
-      if (paths[path] && filter(packet)) queueMicrotask(() => deliver(packet));
+      if (paths[path] && filter(packet)) {
+        if (path === 'relay' && options.relayDelay) setTimeout(() => deliver(packet), options.relayDelay);
+        else queueMicrotask(() => deliver(packet));
+      }
     }
   };
   for (const side of ['phone', 'pc'] as const) {

@@ -6,18 +6,23 @@ import type { TransferProgress } from './uploadProgress';
 import { HotPeer } from './hotPeer';
 import { Acknowledgements } from './acknowledgements';
 import { DirectPackets, directPackets } from './directPackets';
+import { connectionDiagnostic } from './diagnostics';
+import { getChatPolicy } from './policy';
 import type { LinkOptions } from './linkOptions';
 import { MAX_BUFFER_BYTES, type Channel, type ConnectionMode, type RpcMessage, type Signal } from './protocol';
 
 type Path = 'direct' | 'relay';
 const TICK_MS = 250;
 const PROBE_MS = 1000;
-const PATH_TIMEOUT_MS = 3000;
+const DIRECT_TIMEOUT_SECONDS = 3;
+const MILLISECONDS_PER_SECOND = 1000;
+const MAX_PENDING_PROBES = 128;
 const DIRECT_STABLE_MS = 3000;
 const OUTAGE_TIMEOUT_MS = 60_000;
 
 /** Both paths stay open. Authenticated acknowledgements cover every fragment, including events. */
 export class HotLink {
+  private readonly diagnostic;
   private readonly peer: HotPeer;
   private readonly delivery: ReliableDelivery;
   private readonly acknowledgements = new Acknowledgements();
@@ -50,6 +55,7 @@ export class HotLink {
   private readonly capacityWaiters = new Set<() => void>();
 
   constructor(private readonly options: LinkOptions) {
+    this.diagnostic = connectionDiagnostic(options.sessionId, options.desktop);
     this.delivery = new ReliableDelivery({
       send: (frame) => this.selected ? this.transmit(this.selected, frame) : false,
       accept: (text, mode) => {
@@ -59,6 +65,7 @@ export class HotLink {
     });
     if (options.publicKey) this.setKey(options.publicKey);
     this.peer = new HotPeer({ ...options,
+      diagnostic: this.diagnostic,
       signal: (payload) => this.signal({ type: 'signal', payload }),
       channel: (channel) => this.attach(channel), disconnected: () => this.fallback(),
     });
@@ -118,6 +125,8 @@ export class HotLink {
   private probe(path: Path) {
     const id = ++this.probeId;
     this.probes.set(id, { path, at: Date.now() });
+    // A very large configured timeout must not retain unanswered probes indefinitely.
+    if (this.probes.size > MAX_PENDING_PROBES) this.probes.delete(this.probes.keys().next().value!);
     if (!this.transmit(path, { kind: 'ping', id, packetBatching: true })) this.probes.delete(id);
   }
 
@@ -152,7 +161,7 @@ export class HotLink {
 
   private pong(id: unknown, path: Path) {
     const probe = this.probes.get(Number(id));
-    if (!probe || probe.path !== path || Date.now() - probe.at > PATH_TIMEOUT_MS) return;
+    if (!probe || probe.path !== path || this.timedOut(path, probe.at)) return;
     this.probes.delete(Number(id));
     if (path === 'direct' && !this.healthy('direct')) this.directSince = Date.now();
     this.lastPong[path] = Date.now();
@@ -161,7 +170,12 @@ export class HotLink {
 
   private healthy(path: Path) {
     const open = path === 'relay' ? this.relay : this.channel?.readyState === 'open';
-    return Boolean(open && this.lastPong[path] && Date.now() - this.lastPong[path] < PATH_TIMEOUT_MS);
+    return Boolean(open && this.lastPong[path] && !this.timedOut(path, this.lastPong[path]));
+  }
+
+  private timedOut(path: Path, since: number, now = Date.now()) {
+    const seconds = path === 'direct' ? DIRECT_TIMEOUT_SECONDS : getChatPolicy().relayHeartbeatTimeoutSeconds;
+    return (now - since) / MILLISECONDS_PER_SECOND >= seconds;
   }
 
   private choose() {
@@ -177,7 +191,11 @@ export class HotLink {
     this.selected = path;
     if (path) this.outageSince = Date.now();
     const mode = path ?? 'connecting';
-    if (mode !== this.mode) { this.mode = mode; this.options.mode(mode); }
+    if (mode !== this.mode) {
+      this.diagnostic('mode', { mode, directHealthy: direct, relayHealthy: relay });
+      this.mode = mode;
+      this.options.mode(mode);
+    }
     if (changed && path) this.delivery.flush(true);
   }
 
@@ -187,14 +205,19 @@ export class HotLink {
       const now = Date.now();
       if (now - this.lastProbe >= PROBE_MS) {
         this.lastProbe = now;
-        for (const [id, probe] of this.probes) if (now - probe.at >= PATH_TIMEOUT_MS) this.probes.delete(id);
+        for (const [id, probe] of this.probes) {
+          if (this.timedOut(probe.path, probe.at, now)) this.probes.delete(id);
+        }
         this.probe('direct');
         this.probe('relay');
       }
       this.choose();
       this.delivery.flush();
       this.peer.recover(this.healthy('direct'), this.relay);
-      if (this.relay && now - Math.max(this.relaySince, this.lastPong.relay) > PATH_TIMEOUT_MS) {
+      // Relay probes traverse the coordinator and the remote UI; brief stalls must not reset that socket.
+      const relaySilence = now - Math.max(this.relaySince, this.lastPong.relay);
+      if (this.relay && this.timedOut('relay', Math.max(this.relaySince, this.lastPong.relay), now)) {
+        this.diagnostic('relay-timeout', { elapsedMs: relaySilence });
         this.setRelayAvailable(false);
         this.options.reconnectRelay?.();
       }
@@ -230,7 +253,11 @@ export class HotLink {
     this.capacityWaiters.clear();
   }
 
-  private fail(message: string) { this.options.error(message); this.close(); }
+  private fail(message: string) {
+    this.diagnostic('link-failed');
+    this.options.error(message);
+    this.close();
+  }
 
   close(notify = true) {
     if (this.closed) return;

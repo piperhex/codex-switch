@@ -9,7 +9,8 @@ const base = 'http://127.0.0.1:28081';
 const endpoint = '/admin/api/chat-settings';
 const deviceId = randomUUID();
 const sockets = [];
-const fields = ['p2pNegotiationTimeoutSeconds', 'p2pRetryIntervalSeconds', 'p2pDisconnectGraceSeconds'];
+const fields = ['p2pNegotiationTimeoutSeconds', 'p2pRetryIntervalSeconds', 'p2pDisconnectGraceSeconds',
+  'relayHeartbeatTimeoutSeconds'];
 await seedParity();
 
 async function login(role) {
@@ -82,7 +83,7 @@ try {
     }
   }
   assert.deepEqual((await request(base, 'GET', endpoint, { token })).body, latest);
-  console.log('PASS P2P settings: uncapped values, immediate WS push to both peers, '
+  console.log('PASS P2P and relay settings: uncapped values, immediate WS push to both peers, '
     + 'reconnect, permissions and validation');
 } finally {
   assert.equal((await request(base, 'PATCH', endpoint, { token, body: initial.body })).status, 200);

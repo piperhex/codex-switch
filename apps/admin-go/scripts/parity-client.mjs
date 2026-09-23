@@ -18,6 +18,7 @@ const goOnlyPermissions = new Set(['admin.token-pricing.read', 'admin.token-pric
 const goOnlyChatFields = new Set([
   'chatSessionLimit',
   'p2pNegotiationTimeoutSeconds', 'p2pRetryIntervalSeconds', 'p2pDisconnectGraceSeconds',
+  'relayHeartbeatTimeoutSeconds',
 ]);
 
 export async function request(base, method, path, options = {}) {

@@ -23,6 +23,13 @@ export const POLICY_SECTIONS: PolicySection[] = [
       hint: ['直连短暂失去响应后，等待恢复多久再重新连接',
         'How long to wait for an unresponsive direct connection to recover before reconnecting'], unit: ['秒', 's'] },
   ] },
+  { key: 'relayConnection', title: ['中继连接', 'Relay connection'],
+    hint: ['保存后立即应用到在线客户端。', 'Changes apply to connected clients immediately.'], fields: [
+    { key: 'relayHeartbeatTimeoutSeconds', label: ['无响应等待时间', 'Response timeout'],
+      hint: ['默认 30 秒。中继连接持续无响应超过此时间后自动重连，至少 1 秒。',
+        'Default: 30 seconds; minimum: 1. Reconnect when the relay remains unresponsive for this long.'],
+      unit: ['秒', 's'] },
+  ] },
   { key: 'relay', title: ['Relay 传输', 'Relay transfer'],
     hint: ['默认不限。填 -1 表示不限，填正整数可设置每个连接的上限。',
       'Unlimited by default. Enter -1 for no limit, or a positive whole number for each connection.'], fields: [
