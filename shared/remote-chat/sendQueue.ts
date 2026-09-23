@@ -24,6 +24,7 @@ export class SendQueue {
   constructor(private readonly transport: {
     capacity: () => Promise<void>; send: (part: string, delivered?: () => void) => void;
     mode?: () => ConnectionMode;
+    prefix?: string;
   }) {}
 
   send(message: RpcMessage, progress?: TransferProgress): Promise<void> {
@@ -33,7 +34,8 @@ export class SendQueue {
     }
     const result = new Promise<void>((resolve, reject) => {
       const queue = message.kind === 'response' ? this.responses : this.ordered;
-      queue.push({ parts: chunks(message, String(++this.serial), this.transport.mode?.()), resolve, reject, progress });
+      const id = `${this.transport.prefix ?? ''}${++this.serial}`;
+      queue.push({ parts: chunks(message, id, this.transport.mode?.()), resolve, reject, progress });
     });
     if (!this.running) void this.drain();
     return result;

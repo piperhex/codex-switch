@@ -8,6 +8,7 @@ mod config;
 mod protocol;
 mod runtime;
 mod sessions;
+mod wire;
 
 #[cfg(test)]
 mod tests;

@@ -88,7 +88,8 @@ export class ChatConnection {
       if (generation !== this.generation) { socket.close(); return; }
       socket.send(JSON.stringify({ type: 'authenticate', role: 'mobile',
         accessToken, deviceId: this.options.deviceId, publicKey: keys.publicKey,
-        transportVersion: 2, resume: this.resume, clientInfo: this.options.clientInfo ?? browserClientInfo() }));
+        transportVersion: 2, binaryRelay: true, resume: this.resume,
+        clientInfo: this.options.clientInfo ?? browserClientInfo() }));
     };
     socket.onmessage = ({ data }: { data: unknown }) => {
       if (generation !== this.generation || typeof data !== 'string') return;

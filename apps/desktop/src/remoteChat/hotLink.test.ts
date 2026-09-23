@@ -6,6 +6,27 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(100_000); harness = hotL
 afterEach(() => { harness.close(); vi.useRealTimers(); });
 const advance = (milliseconds = 4500) => vi.advanceTimersByTimeAsync(milliseconds);
 
+it('delivers independent replies and ordered events while an earlier response fragment is missing', async () => {
+  harness.paths.direct = false;
+  await advance();
+  harness.filter((packet) => !(packet.side === 'pc' && packet.frame.kind === 'data'
+    && packet.frame.lane === 'responses' && packet.frame.sequence === 1));
+  const history = { kind: 'response' as const, id: 'large', data: 'x'.repeat(500_000) };
+  const reply = { kind: 'response' as const, id: 'small', data: 'ready' };
+  const sent = harness.links.pc.send(history);
+  void harness.links.pc.send(reply);
+  await advance(100);
+  const event = { kind: 'event' as const, event: 'live output' };
+  await harness.links.pc.send(event);
+  await advance(100);
+  expect(harness.messages.phone).toEqual([reply, event]);
+  harness.filter(() => true);
+  await advance(3000);
+  await sent;
+  expect(harness.messages.phone).toEqual([reply, event, history]);
+  expect(harness.error).not.toHaveBeenCalled();
+});
+
 it('streams an interleaved small reply over relay without a delay per fragment', async () => {
   harness.paths.direct = false;
   await advance();

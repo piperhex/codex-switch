@@ -1,3 +1,5 @@
+import { decodeRelay, encodeRelay } from '../relayWire';
+
 /** A signalling socket can be owned by the browser or by a native credential broker. */
 export interface ChatSocket {
   readonly readyState: number;
@@ -12,15 +14,31 @@ export interface ChatSocket {
 
 export function browserChatSocket(url: string): ChatSocket {
   const socket = new WebSocket(url);
+  socket.binaryType = 'arraybuffer';
+  let binaryRelay = false;
   const bridge: ChatSocket = {
     get readyState() { return socket.readyState; },
     get bufferedAmount() { return socket.bufferedAmount; },
     onopen: null, onmessage: null, onclose: null, onerror: null,
-    send: (data) => socket.send(data), close: () => socket.close(),
+    send: (data) => socket.send(binaryRelay ? encodeRelay(data) : data), close: () => socket.close(),
   };
   socket.onopen = () => bridge.onopen?.();
-  socket.onmessage = (event) => bridge.onmessage?.(event);
+  socket.onmessage = (event) => {
+    try {
+      const data = event.data instanceof ArrayBuffer ? decodeRelay(event.data) : event.data;
+      if (typeof data !== 'string') throw new Error('Invalid frame');
+      if (supportsBinary(data)) binaryRelay = true;
+      bridge.onmessage?.({ data });
+    } catch { socket.close(); bridge.onerror?.(); }
+  };
   socket.onclose = (event) => bridge.onclose?.(event);
   socket.onerror = () => bridge.onerror?.();
   return bridge;
+}
+
+function supportsBinary(data: string) {
+  try {
+    const frame = JSON.parse(data) as Record<string, unknown> | null;
+    return frame?.type === 'chat-policy' && frame.binaryRelay === true;
+  } catch { return false; } // The connection validates text frames and reports its existing protocol error.
 }

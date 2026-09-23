@@ -40,29 +40,6 @@ func ReadUsage(db *gorm.DB, owner string, now time.Time) (Usage, error) {
 	return usage, err
 }
 
-// Transmit runs only in a socket writer, never under the session routing mutex.
-// The per-user database lock covers the bounded socket write so concurrent devices
-// and processes cannot spend the same remaining bytes. Failed writes roll back.
-func Transmit(db *gorm.DB, owner string, bytes int, write func() error) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		if err := lockUser(tx, owner); err != nil {
-			return err
-		}
-		now := time.Now()
-		usage, err := ReadUsage(tx, owner, now)
-		if err != nil {
-			return err
-		}
-		if !Allowed(usage, bytes) {
-			return ErrQuota
-		}
-		if err := record(tx, owner, bytes, now); err != nil {
-			return err
-		}
-		return write()
-	})
-}
-
 func lockUser(db *gorm.DB, owner string) error {
 	if err := db.Exec(`INSERT INTO chat_relay_user_limits(user_id) VALUES (?)
  ON CONFLICT DO NOTHING`, owner).Error; err != nil {

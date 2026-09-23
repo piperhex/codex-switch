@@ -82,6 +82,7 @@ fn connect(
     let now = Instant::now();
     ClientRuntime {
         socket,
+        binary_relay: false,
         bridge,
         received: now,
         pinged: now,
@@ -96,7 +97,7 @@ fn connect(
 fn authentication_message(request: &OpenRequest, config: &Config) -> serde_json::Value {
     let mut message = serde_json::json!({
         "type": "authenticate", "role": "mobile", "accessToken": config.access_token,
-        "deviceId": request.device_id, "publicKey": request.public_key, "transportVersion": 2,
+        "deviceId": request.device_id, "publicKey": request.public_key, "transportVersion": 2, "binaryRelay": true,
         "clientInfo": { "name": "Codex Switch PC", "platform": std::env::consts::OS },
     });
     // Both backends treat the presence of resume as a recovery attempt, including null.
@@ -108,6 +109,7 @@ fn authentication_message(request: &OpenRequest, config: &Config) -> serde_json:
 
 struct ClientRuntime {
     socket: Socket,
+    binary_relay: bool,
     bridge: Bridge,
     received: Instant,
     pinged: Instant,
@@ -158,11 +160,8 @@ impl ClientRuntime {
                     if self.session_id.as_deref() != Some(message.session_id()) {
                         return Err(ChatError::InvalidFrame);
                     }
-                    let text =
-                        serde_json::to_string(&message).map_err(|_| ChatError::InvalidFrame)?;
-                    self.socket
-                        .send(Message::Text(text.into()))
-                        .map_err(|_| ChatError::Transport)?;
+                    let frame = super::wire::encode(&message, self.binary_relay)?;
+                    self.socket.send(frame).map_err(|_| ChatError::Transport)?;
                 }
                 Err(mpsc::error::TryRecvError::Empty) => break,
                 Err(mpsc::error::TryRecvError::Disconnected) => return Err(ChatError::Transport),
@@ -179,6 +178,13 @@ impl ClientRuntime {
             }
             Ok(Message::Close(frame)) => {
                 return Ok(Some(frame.map_or(1000, |frame| frame.code.into())))
+            }
+            Ok(Message::Binary(bytes)) => {
+                if !self.binary_relay {
+                    return Err(ChatError::InvalidFrame);
+                }
+                self.received = Instant::now();
+                self.message(super::wire::decode(&bytes)?)?;
             }
             Ok(Message::Ping(payload)) => {
                 self.received = Instant::now();
@@ -197,6 +203,9 @@ impl ClientRuntime {
     fn message(&mut self, data: String) -> Result<(), ChatError> {
         let frame: serde_json::Value =
             serde_json::from_str(&data).map_err(|_| ChatError::InvalidFrame)?;
+        if frame["type"] == "chat-policy" {
+            self.binary_relay |= frame["binaryRelay"] == true;
+        }
         if matches!(frame["type"].as_str(), Some("paired" | "resumed")) {
             self.session_id = frame["sessionId"].as_str().map(str::to_owned);
         }

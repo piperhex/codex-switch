@@ -20,11 +20,13 @@ const authTimeout = 10 * time.Second
 const chatBufferLimit = 2 * 1024 * 1024
 
 type outputFrame struct {
+	kind  int
 	bytes []byte
 	sent  func(int)
 	guard func(int, func() error) error
 }
 type peer struct {
+	binaryRelay atomic.Bool
 	diagnostics *chatDiagnostics
 	conn        *websocket.Conn
 	queue       chan outputFrame
@@ -61,23 +63,32 @@ func (p *peer) sendGuarded(value interface{}, sent func(int), guard func(int, fu
 		p.close(4008, "Connection is too slow")
 		return
 	}
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	err := encoder.Encode(platform.JSONValue(value))
+	kind, data, err := p.encodeFrame(value)
 	if err != nil {
 		p.close(4001, "Invalid message")
 		return
 	}
-	data := bytes.TrimSuffix(buffer.Bytes(), []byte("\n"))
 	p.buffered.Add(int64(len(data)))
 	select {
-	case p.queue <- outputFrame{data, sent, guard}:
+	case p.queue <- outputFrame{kind: kind, bytes: data, sent: sent, guard: guard}:
 		p.diagnostics.queued(value)
 	default:
 		p.buffered.Add(-int64(len(data)))
 		p.close(4008, "Connection is too slow")
 	}
+}
+
+func (p *peer) encodeFrame(value interface{}) (int, []byte, error) {
+	if p.binaryRelay.Load() {
+		if data, ok := encodeRelay(value); ok {
+			return websocket.BinaryMessage, data, nil
+		}
+	}
+	var buffer bytes.Buffer
+	encoder := json.NewEncoder(&buffer)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(platform.JSONValue(value))
+	return websocket.TextMessage, bytes.TrimSuffix(buffer.Bytes(), []byte("\n")), err
 }
 
 func (p *peer) writeLoop() {
@@ -115,11 +126,11 @@ func (p *peer) writeLoop() {
 
 func (p *peer) writeFrame(frame outputFrame) error {
 	write := func() error {
-		// A quota transaction can wait for another device; start the network timeout after that wait.
+		// Start the network timeout after any wait for accounting storage or a fresh quota grant.
 		if err := p.conn.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
 			return err
 		}
-		return p.conn.WriteMessage(websocket.TextMessage, frame.bytes)
+		return p.conn.WriteMessage(frame.kind, frame.bytes)
 	}
 	var err error
 	if frame.guard != nil {

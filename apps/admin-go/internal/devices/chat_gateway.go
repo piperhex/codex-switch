@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/codex-switch/admin-go/internal/chattraffic"
 	"github.com/codex-switch/admin-go/internal/content"
 	"github.com/codex-switch/admin-go/internal/platform"
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,7 @@ type chatConnection struct {
 	timer         *time.Timer
 }
 type ChatGateway struct {
+	meter       *chattraffic.Meter
 	service     *Service
 	sessions    *chatSessions
 	traffic     *trafficCounter
@@ -43,6 +45,7 @@ func newChatGateway(service *Service) (*ChatGateway, error) {
 	}
 	traffic := newTrafficCounter(service.deps.DB)
 	gateway := &ChatGateway{service: service, sessions: newChatSessions(traffic.record), traffic: traffic,
+		meter:       chattraffic.NewMeter(service.deps.DB, service.deps.Redis),
 		connections: map[*peer]*chatConnection{}, policy: platform.JSON{"relayMaxMbPerSecond": float64(-1),
 			"relayMaxFramesPerSecond": float64(
 				-1,
@@ -80,12 +83,7 @@ func (g *ChatGateway) serve(c *gin.Context) {
 			return
 		}
 		client.diagnostics.received(len(data))
-		if kind != websocket.TextMessage {
-			client.diagnostics.log("chat rejected", "reason", "non-text frame")
-			g.reject(client)
-			return
-		}
-		message, err := parseObject(data)
+		message, err := readChatFrame(client, kind, data)
 		if err == nil {
 			err = g.receive(client, state, message, len(data))
 		}
@@ -112,6 +110,7 @@ func (g *ChatGateway) receive(client *peer, state *chatConnection, message platf
 		return err
 	}
 	client.diagnostics.authenticated(identity, message)
+	client.binaryRelay.Store(message["binaryRelay"] == true)
 	// Serialize handshake snapshots with saved-policy broadcasts so stale reads cannot follow a new policy.
 	g.policyMu.Lock()
 	defer g.policyMu.Unlock()
@@ -132,7 +131,8 @@ func (g *ChatGateway) receive(client *peer, state *chatConnection, message platf
 		client.close(4001, "Session expired")
 	})
 	g.mu.Unlock()
-	client.send(platform.JSON{"type": "chat-policy", "policy": policy}, nil)
+	client.send(platform.JSON{"type": "chat-policy", "policy": policy,
+		"binaryRelay": client.binaryRelay.Load()}, nil)
 	g.sessions.setLimit(policy["chatSessionLimit"].(float64))
 	return g.sessions.join(client, identity, message, g.ice)
 }
@@ -218,6 +218,9 @@ func (g *ChatGateway) maintain() {
 			return
 		case <-timer.C:
 			g.sessions.prune()
+			if err := g.meter.Flush(); err != nil {
+				slog.Warn("relay accounting settlement will be retried", "error", err)
+			}
 			g.publishTraffic()
 			g.refreshPolicy()
 			if err := g.traffic.flush(); err != nil {
@@ -275,5 +278,5 @@ func (runtime *Runtime) Close() error {
 	if g.stun != nil {
 		g.stun.close()
 	}
-	return g.traffic.flush()
+	return errors.Join(g.meter.Close(), g.traffic.flush())
 }

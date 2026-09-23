@@ -1,6 +1,7 @@
 package chattraffic
 
 import (
+	"context"
 	"errors"
 	"os"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -62,6 +64,13 @@ func trafficFixture(t *testing.T) (*gorm.DB, string) {
 	if err = db.Exec(string(schema)).Error; err != nil {
 		t.Fatal(err)
 	}
+	budgets, err := os.ReadFile("../migrations/005_chat_relay_budgets.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.Exec(string(budgets)).Error; err != nil {
+		t.Fatal(err)
+	}
 	id := uuid.NewString()
 	if err = db.Exec(`INSERT INTO users(id,email,"passwordHash",role) VALUES(?,?,?,'user')`,
 		id, id+"@traffic-fixture.test", "unused").Error; err != nil {
@@ -84,11 +93,10 @@ func trafficFixture(t *testing.T) (*gorm.DB, string) {
 
 func TestConcurrentQuotaAndFailedWrites(t *testing.T) {
 	db, id := trafficFixture(t)
-	if err := db.Exec("INSERT INTO chat_relay_user_limits(user_id,monthly_limit_bytes) VALUES(?,100)", id).Error; err != nil {
-		t.Fatal(err)
-	}
+	meter := trafficMeter(t, db, id)
+	setQuota(t, db, id, 100)
 	failure := errors.New("socket write failed")
-	if err := Transmit(db, id, 25, func() error { return failure }); !errors.Is(err, failure) {
+	if err := meter.Transmit(t.Context(), id, 25, func() error { return failure }); !errors.Is(err, failure) {
 		t.Fatal(err)
 	}
 	var sent atomic.Int64
@@ -97,13 +105,16 @@ func TestConcurrentQuotaAndFailedWrites(t *testing.T) {
 		workers.Add(1)
 		go func() {
 			defer workers.Done()
-			err := Transmit(db, id, 10, func() error { sent.Add(10); return nil })
-			if err != nil && !errors.Is(err, ErrQuota) {
+			err := meter.Transmit(t.Context(), id, 10, func() error { sent.Add(10); return nil })
+			if err != nil && !errors.Is(err, ErrQuota) && !errors.Is(err, ErrState) {
 				t.Error(err)
 			}
 		}()
 	}
 	workers.Wait()
+	if err := meter.Close(); err != nil {
+		t.Fatal(err)
+	}
 	usage, err := ReadUsage(db, id, time.Now())
 	if err != nil || sent.Load() != 100 || usage.MonthUsedBytes != 100 {
 		t.Fatalf("%+v %d %v", usage, sent.Load(), err)
@@ -120,7 +131,11 @@ func TestConcurrentQuotaAndFailedWrites(t *testing.T) {
 
 func TestUnlimitedAndNextMonth(t *testing.T) {
 	db, id := trafficFixture(t)
-	if err := Transmit(db, id, 4096, func() error { return nil }); err != nil {
+	meter := trafficMeter(t, db, id)
+	if err := meter.Transmit(t.Context(), id, 4096, func() error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := meter.Close(); err != nil {
 		t.Fatal(err)
 	}
 	usage, err := ReadUsage(db, id, time.Now())
@@ -138,5 +153,37 @@ func TestUnlimitedAndNextMonth(t *testing.T) {
 	}
 	if len(rows) != 1 || rows[0].TotalBytes != 4096 {
 		t.Fatal(rows)
+	}
+}
+
+func trafficMeter(t *testing.T, db *gorm.DB, owner string) *Meter {
+	t.Helper()
+	client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:16380"})
+	if err := client.Ping(t.Context()).Err(); err != nil {
+		t.Fatal(err)
+	}
+	meter := NewMeter(db, client)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		keys, err := client.Keys(ctx, "chat:budget:{"+owner+"}:*").Result()
+		if err == nil && len(keys) > 0 {
+			err = client.Del(ctx, keys...).Err()
+		}
+		if err != nil {
+			t.Error(err)
+		}
+		if err := client.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	return meter
+}
+
+func setQuota(t *testing.T, db *gorm.DB, owner string, limit int64) {
+	t.Helper()
+	err := db.Exec("INSERT INTO chat_relay_user_limits(user_id,monthly_limit_bytes) VALUES(?,?)", owner, limit).Error
+	if err != nil {
+		t.Fatal(err)
 	}
 }

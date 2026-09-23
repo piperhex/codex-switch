@@ -111,7 +111,7 @@ func (s *service) chatTrafficLimit(c *gin.Context) {
 }
 
 func (s *service) saveTrafficLimit(c *gin.Context, id string, limit int64) error {
-	return s.deps.DB.Transaction(func(tx *gorm.DB) error {
+	return chattraffic.ChangeLimit(s.deps.DB.WithContext(c.Request.Context()), s.deps.Redis, id, func(tx *gorm.DB) error {
 		var email string
 		result := tx.Table("users").Select("email").Where("id=?", id).Scan(&email)
 		if result.Error != nil {

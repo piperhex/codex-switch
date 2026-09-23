@@ -42,6 +42,19 @@ impl Outgoing {
         if self.session_id().is_empty() || self.session_id().len() > 160 {
             return Err(ChatError::InvalidFrame);
         }
+        if let Self::Relay { payload, .. } = self {
+            // Bounded ASCII ciphertext plus the bounded session ID always fits FRAME_LIMIT.
+            // Avoid serializing a full hexadecimal JSON envelope before writing a binary frame.
+            return if payload.len() <= 40_000
+                && payload
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            {
+                Ok(())
+            } else {
+                Err(ChatError::InvalidFrame)
+            };
+        }
         if serde_json::to_vec(self)
             .map_err(|_| ChatError::InvalidFrame)?
             .len()
@@ -50,14 +63,6 @@ impl Outgoing {
             return Err(ChatError::InvalidFrame);
         }
         match self {
-            Self::Relay { payload, .. }
-                if payload.len() > 40_000
-                    || !payload
-                        .bytes()
-                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) =>
-            {
-                Err(ChatError::InvalidFrame)
-            }
             Self::Signal { payload, .. }
                 if !matches!(payload["kind"].as_str(), Some("key" | "sdp" | "ice")) =>
             {

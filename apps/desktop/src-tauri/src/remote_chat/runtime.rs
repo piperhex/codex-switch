@@ -76,6 +76,7 @@ pub(super) struct Runtime {
     retry_at: Instant,
     times: ConnectionTimes,
     registered: bool,
+    binary_relay: bool,
 }
 
 impl Default for Runtime {
@@ -91,6 +92,7 @@ impl Default for Runtime {
             sessions: Sessions::default(),
             retry_at: now,
             registered: false,
+            binary_relay: false,
             times: ConnectionTimes {
                 opened: now,
                 received: now,
@@ -273,8 +275,9 @@ impl Runtime {
     }
 
     fn authenticate(&mut self, mut socket: Socket) -> Result<(), ChatError> {
+        self.binary_relay = false;
         let config = self.config.as_ref().ok_or(ChatError::Transport)?;
-        let frame = json!({ "type": "authenticate", "role": "desktop", "transportVersion": 2,
+        let frame = json!({ "type": "authenticate", "role": "desktop", "transportVersion": 2, "binaryRelay": true,
             "accessToken": config.access_token, "deviceId": config.device_id,
             "sessions": self.sessions.authentication() });
         socket
@@ -314,6 +317,10 @@ impl Runtime {
             }
             Err(SocketError::Io(error))
                 if matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {}
+            Ok(Message::Binary(bytes)) if self.binary_relay => {
+                self.times.received = Instant::now();
+                self.receive(&super::wire::decode(&bytes)?)?;
+            }
             Err(_) | Ok(Message::Binary(_)) => return Err(ChatError::Transport),
             Ok(_) => {}
         }
@@ -327,6 +334,7 @@ impl Runtime {
         let message: serde_json::Value =
             serde_json::from_str(text).map_err(|_| ChatError::InvalidFrame)?;
         if message["type"] == "chat-policy" {
+            self.binary_relay |= message["binaryRelay"] == true;
             self.upload_policy
                 .update(&message["policy"])
                 .map_err(|_| ChatError::InvalidFrame)?;
@@ -358,10 +366,10 @@ impl Runtime {
         if self.socket.is_none() {
             return;
         }
-        let Ok(text) = serde_json::to_string(&request.message) else {
+        let Ok(frame) = super::wire::encode(&request.message, self.binary_relay) else {
             return;
         };
-        if self.write(Message::Text(text.into())).is_err() {
+        if self.write(frame).is_err() {
             self.disconnect();
         } else if matches!(&request.message, Outgoing::Signal { payload, .. } if payload["kind"] == "key")
         {

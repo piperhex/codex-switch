@@ -71,7 +71,7 @@ func (g *ChatGateway) deliverRelay(delivery relayDelivery, frame platform.JSON) 
 	}, func(bytes int, write func() error) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*heartbeatInterval)
 		defer cancel()
-		err := chattraffic.Transmit(g.service.deps.DB.WithContext(ctx), delivery.owner, bytes, write)
+		err := g.meter.Transmit(ctx, delivery.owner, bytes, write)
 		if err == nil {
 			return nil
 		}

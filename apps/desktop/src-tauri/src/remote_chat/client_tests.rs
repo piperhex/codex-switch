@@ -188,3 +188,66 @@ fn start_peer(address: SocketAddr, resume: Option<ResumeRequest>) -> NativePeer 
         worker,
     }
 }
+
+#[test]
+fn native_peer_negotiates_binary_relay_and_delivers_it_through_ipc() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let (stop, stopped) = sync_mpsc::channel();
+    let server = thread::spawn(move || serve_binary_peer(listener, stopped));
+    let peer = start_peer(address, None);
+    receive_native_frame(&peer, "paired");
+    peer.commands
+        .blocking_send(ClientCommand::Send(Outgoing::Relay {
+            session_id: "paired-session".into(),
+            payload: "00abff".into(),
+        }))
+        .unwrap();
+    let frame = receive_native_frame(&peer, "relay");
+    assert_eq!(frame["payload"], "00abff");
+    assert_eq!(frame["sessionId"], "paired-session");
+    peer.configs.send_replace(None);
+    stop.send(()).unwrap();
+    peer.worker.join().unwrap();
+    server.join().unwrap();
+}
+
+fn receive_native_frame(peer: &NativePeer, kind: &str) -> Value {
+    loop {
+        let text = peer.events.recv_timeout(Duration::from_secs(5)).unwrap();
+        let batch: Value = serde_json::from_str(&text).unwrap();
+        peer.commands
+            .blocking_send(ClientCommand::Ack(batch["sequence"].as_u64().unwrap()))
+            .unwrap();
+        for event in batch["events"].as_array().unwrap() {
+            if let Some(data) = event["data"].as_str() {
+                let frame: Value = serde_json::from_str(data).unwrap();
+                if frame["type"] == kind {
+                    return frame;
+                }
+            }
+        }
+    }
+}
+
+fn serve_binary_peer(listener: TcpListener, stopped: sync_mpsc::Receiver<()>) {
+    let (stream, _) = listener.accept().unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let mut socket = tungstenite::accept(stream).unwrap();
+    let auth: Value = serde_json::from_str(&socket.read().unwrap().into_text().unwrap()).unwrap();
+    assert_eq!(auth["binaryRelay"], true);
+    for frame in [
+        json!({"type": "chat-policy", "binaryRelay": true, "policy": {}}),
+        json!({"type": "paired", "sessionId": "paired-session"}),
+    ] {
+        socket
+            .send(Message::Text(frame.to_string().into()))
+            .unwrap();
+    }
+    let frame = socket.read().unwrap();
+    assert!(matches!(frame, Message::Binary(_)));
+    socket.send(frame).unwrap();
+    stopped.recv_timeout(Duration::from_secs(5)).unwrap();
+}

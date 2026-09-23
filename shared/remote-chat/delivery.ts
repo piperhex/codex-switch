@@ -6,7 +6,7 @@ const DELIVERY_TIMEOUT_MS = 60_000;
 const MAX_FRAME_CHARS = 16_000;
 interface Pending { text: string; created: number; sent: number; delivered?: () => void }
 
-/** An ordered, bounded stream independent of the path and encryption nonce sequence. */
+/** A bounded delivery window independent of the path; response fragments may enter assembly out of order. */
 export class ReliableDelivery {
   private sequence = 0;
   private received = 0;
@@ -16,6 +16,7 @@ export class ReliableDelivery {
   constructor(private readonly options: {
     send: (frame: object) => boolean;
     accept: (text: string, mode?: ConnectionMode) => void;
+    unordered?: boolean;
   }) {}
 
   get full() { return this.pending.size >= WINDOW_SIZE; }
@@ -41,11 +42,14 @@ export class ReliableDelivery {
     }
     if (frame.kind !== 'data' || value < 1 || value > this.received + WINDOW_SIZE
       || typeof frame.text !== 'string' || frame.text.length > MAX_FRAME_CHARS) throw new Error('Invalid delivery');
-    if (value > this.received && !this.incoming.has(value)) this.incoming.set(value, { text: frame.text, mode });
+    if (value > this.received && !this.incoming.has(value)) {
+      this.incoming.set(value, { text: frame.text, mode });
+      if (this.options.unordered) this.options.accept(frame.text, mode);
+    }
     while (this.incoming.has(this.received + 1)) {
       const id = this.received + 1;
       const incoming = this.incoming.get(id)!;
-      this.options.accept(incoming.text, incoming.mode);
+      if (!this.options.unordered) this.options.accept(incoming.text, incoming.mode);
       this.incoming.delete(id);
       this.received = id;
     }
