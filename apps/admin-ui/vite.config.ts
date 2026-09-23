@@ -20,8 +20,8 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../admin/public",
-    emptyOutDir: false,
+    outDir: "../admin-go/public",
+    emptyOutDir: true,
     assetsDir: "admin-assets",
     chunkSizeWarningLimit: 1200,
     rollupOptions: {

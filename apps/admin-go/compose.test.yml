@@ -92,7 +92,7 @@ services:
       POSTGRES_DB_SYNCHRONIZE: "false"
       REDIS_HOST: redis-go
     ports: ["127.0.0.1:28081:8080", "127.0.0.1:13478:3478/udp"]
-    volumes: ["../admin/public:/app/public:ro", "./testdata:/fixtures:ro"]
+    volumes: ["./public:/app/public:ro", "./testdata:/fixtures:ro"]
     depends_on:
       postgres: {condition: service_healthy}
       redis-go: {condition: service_healthy}

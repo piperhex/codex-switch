@@ -2,6 +2,7 @@ node_modules/
 .nx/
 dist/
 apps/*/dist/
+apps/admin-go/public/
 apps/backend/coverage/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/installer-helper/target/

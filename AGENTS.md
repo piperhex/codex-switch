@@ -1,5 +1,13 @@
 # Agent Notes
 
+## Admin Backend: Go Only
+
+- `apps/admin` 中的 NestJS 版本已停止维护，源码冻结，不再新增功能、修复业务问题或作为生产部署目标。
+- 后端功能开发、问题修复、数据库升级和线上部署统一使用 `apps/admin-go`；管理页面继续使用 `apps/admin-ui`。
+- NestJS 源码仅保留为历史接口契约和本地兼容对照测试基线。不要为更新契约或通过测试而修改已冻结的 NestJS 实现；新功能应在 Go 中实现并增加对应测试。
+- 生产构建、部署配置和运维文档不得重新引入 NestJS 服务。更新和回滚均使用已经验证的 admin-go 镜像。
+- `apps/admin-go/sql` 是数据库升级脚本目录；生产部署说明以 `apps/admin-go/DEPLOYMENT.md` 为准。
+
 ## Automatic Commit and Push
 
 - After completing the requested changes and verifying them successfully, automatically commit the changes made for the current task and push the current branch to its configured upstream. Do not wait for a separate request to commit or push.

@@ -1,6 +1,6 @@
 services:
   admin-go:
-    image: codex-switch/admin-go:local
+    image: ${ADMIN_GO_IMAGE:-codex-switch/admin-go:local}
     build:
       context: ../..
       dockerfile: apps/admin-go/Dockerfile

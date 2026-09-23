@@ -154,9 +154,9 @@ Web/H5 的“聊天”页支持连接、历史、发送及实时回复等共用�
 H5 使用当前云端会话，令牌续期后会在下次连接使用新令牌；切换导航、隐藏网页或退出登录会清理连接。
 Web 容器构建包含共享代码，开发代理包含 `/device-chat`；部署配置与 PC/admin 的连接要求相同。
 
-## 部署 admin
+## 部署 admin-go
 
-需要同步更新 admin、PC 应用和手机应用。仅安装手机 APK 无法让旧版 PC 或 admin 支持聊天。
+云端使用 [admin-go 部署入口](../apps/admin-go/DEPLOYMENT.md)。PC 和手机也需要支持对应聊天协议；仅安装手机 APK 无法替代服务端和 PC 更新。
 
 - HTTP 反向代理必须转发 `/device-chat` 的 WebSocket Upgrade。它和 `/device-switch` 一样，
   在 WebSocket 首帧校验 JWT，不能要求浏览器握手时携带 Authorization 请求头。
@@ -167,17 +167,13 @@ Web 容器构建包含共享代码，开发代理包含 `/device-chat`；部署�
   域名需要解析到服务器公网 IPv4 地址，也可以直接填写公网 IPv4 地址。
   云安全组和服务器防火墙均需允许 UDP 3478；面向任意网络的客户端时，IPv4 来源设为 `0.0.0.0/0`。
   无需开放 TCP 3478，也无需新增 Kong STUN 路由。
-- 通用生产覆盖示例见
-  [`docker-compose.override.example.yml`](../apps/admin/docker-compose.override.example.yml)。
-  新部署可复制为 `docker-compose.override.yml`；已有覆盖文件应合并相关配置，保留其他设置。
-  示例需要 Docker Compose 2.24.4+，将 HTTP 健康检查端口限制在本机，同时保留公网 UDP 3478。
-  **`ports: !override` 会替换整个端口列表，必须显式保留 UDP 3478，否则基础文件中的映射会丢失。**
-  修改后先运行 `docker compose config --quiet`，再按后端 README 应用配置，并从服务器外部验证
-  STUN Binding 响应；HTTP 正常或 Docker 显示端口已发布，都不能替代公网 UDP 实测。
+- 使用 `apps/admin-go/compose.yml`，保留已有 Go 覆盖文件。默认 HTTP 仅绑定本机，UDP 3478 对外开放。
+  按 [部署文档](../apps/admin-go/DEPLOYMENT.md) 加载已验证镜像，只更新 `admin-go`。
+  验证服务器外部的 STUN Binding 响应；HTTP 正常或端口已发布不能替代公网 UDP 实测。
 - `CHAT_STUN_PORT` 默认 `3478`，`CHAT_STUN_BIND` 默认 `0.0.0.0`。填 `CHAT_STUN_PORT=0`
   可停用内置 IPv4 STUN，并在 `CHAT_STUN_URLS` 中配置其他 STUN 服务，多个地址用逗号分隔。
 - 未配置 STUN 时仍会尝试本地候选地址，但跨 NAT 的直连成功率降低；中转仍可工作。
-- 本版会话注册表在单个 admin 进程内，生产部署应使用一个后端实例。多个副本需要按账号路由到同一实例，
+- 本版会话注册表在单个 admin-go 进程内，生产部署应使用一个后端实例。多个副本需要按账号路由到同一实例，
   或先增加共享会话路由。Redis 账号缓存不承担聊天转发。
 - WebSocket 有鉴权超时、令牌到期断开、心跳、帧大小、速率、缓冲和每台 PC 最多 4 个手机连接的限制。
 - 设备与网络环境会影响直连率；对称 NAT、UDP 被封锁等场景会自动使用中转。
@@ -200,7 +196,7 @@ iOS 可以在 macOS 上使用现有 `prebuild:ios` / Xcode 工作流构建；Win
 ## 验证
 
 ```powershell
-npm run test -w @codex-switch/backend
+npm run test:backend
 npm run build:backend
 npm run test -w @codex-switch/native
 npm run test -w @codex-switch/desktop

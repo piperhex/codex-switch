@@ -143,6 +143,12 @@ jobs:
           node-version: lts/*
           cache: npm
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/admin-go/go.mod
+          cache-dependency-path: apps/admin-go/go.sum
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:

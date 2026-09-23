@@ -1,6 +1,6 @@
 export { CHAT_POLICY_FIELDS, DEFAULT_CHAT_POLICY, parseChatPolicy, type ChatPolicy }
-  from '../../apps/admin/src/modules/chat-settings/chat-policy';
-import { DEFAULT_CHAT_POLICY, parseChatPolicy } from '../../apps/admin/src/modules/chat-settings/chat-policy';
+  from '../chat/chatPolicy';
+import { DEFAULT_CHAT_POLICY, parseChatPolicy } from '../chat/chatPolicy';
 import type { ConnectionMode } from './protocol';
 
 export const CHAT_POLICY_MESSAGE = 'chat-policy';

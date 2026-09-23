@@ -12,7 +12,7 @@ import (
 var initialSchema string
 
 // InitializeEmpty never changes existing tables, constraints, indexes, or customer data.
-// Existing deployments continue to apply the versioned apps/admin/sql migrations.
+// Existing deployments continue to apply the versioned apps/admin-go/sql migrations.
 func InitializeEmpty(db *gorm.DB) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", int64(710983103)).Error; err != nil {

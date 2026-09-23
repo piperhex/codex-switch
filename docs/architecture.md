@@ -16,7 +16,7 @@ flowchart LR
     Codex["Local Codex client"] --> Loopback["127.0.0.1:15722 local proxy"]
     Loopback --> OfficialAPI
     Loopback --> ProviderAPI["Third-party Provider APIs"]
-    Rust -->|"Optional credential sync"| Cloud["Self-hosted NestJS backend"]
+    Rust -->|"Optional credential sync"| Cloud["Self-hosted Go backend"]
     AdminUI["Admin console"] --> Cloud
     Mobile["Expo mobile companion"] -->|"Account summaries"| Cloud
     Cloud -->|"Short-lived Codex access token"| Mobile
@@ -57,7 +57,7 @@ The desktop React frontend receives redacted models such as `AccountSummary`, `P
 
 ## Cloud Backend and Mobile Responsibilities
 
-- `apps/admin` exposes registration/login, refresh-token, account sync, Provider sync, mobile-summary, and admin-management routes.
+- `apps/admin-go` is the production backend and exposes registration/login, refresh-token, account sync, Provider sync, mobile-summary, and admin-management routes.
 - PostgreSQL stores users, dynamic RBAC roles, built-in and custom permission definitions, role-permission assignments, refresh tokens, synchronized account credentials, Provider API keys, admin audit data, customizable email templates, encrypted custom SMTP services, announcement link-click details, feedback with image attachments, and the optional official-account pool. Redis caches account and Provider lists.
 - The admin console at `/admin` manages roles and permissions (including custom permission definitions for external systems), users, their synchronized accounts and Providers, invitations, approval requests, notification email templates and sending services, feedback and replies, audit logs, and official-account assignments. The SMTP service from environment variables remains the read-only default; templates and manual feedback replies can select an enabled custom service.
 - An official account assigned to a user is merged into that user's effective sync list. The assigned system copy wins when its stable account ID collides with a personal copy, and it must be edited or removed from the official pool.
@@ -106,7 +106,7 @@ The desktop React frontend receives redacted models such as `AccountSummary`, `P
 ### Issue Feedback
 
 1. The Help dialog opens a feedback form that includes the app version and platform user agent. Signed-in submissions use the existing cloud JWT so the backend binds the verified account email; anonymous submissions contain no contact email.
-2. A submission accepts up to four JPEG, PNG, or WebP images. The desktop UI compresses any image larger than 5 MB before IPC, and both Rust and NestJS enforce the 5 MB per-image limit again.
+2. A submission accepts up to four JPEG, PNG, or WebP images. The desktop UI compresses any image larger than 5 MB before IPC, and both Rust and admin-go enforce the 5 MB per-image limit again.
 3. Feedback image bytes remain in PostgreSQL and are only returned through permission-guarded admin endpoints. The admin console can preview attachments and send a plain-text SMTP reply when a verified email is available.
 
 ### Announcement Link Analytics

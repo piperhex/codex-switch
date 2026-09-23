@@ -6,7 +6,6 @@ COPY apps/admin-ui/package.json ./apps/admin-ui/
 RUN --mount=type=cache,target=/root/.npm npm ci --workspace @codex-switch/admin-ui \
     --ignore-scripts --no-audit --no-fund --registry=$NPM_REGISTRY
 COPY apps/admin-ui ./apps/admin-ui
-COPY apps/admin/src/modules/chat-settings ./apps/admin/src/modules/chat-settings
 COPY shared ./shared
 RUN npm run build --workspace @codex-switch/admin-ui
 
@@ -29,7 +28,7 @@ FROM scratch AS runtime
 WORKDIR /app
 ENV NODE_ENV=production LISTEN_PORT=8080
 COPY --from=ui /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=ui /source/apps/admin/public ./public
+COPY --from=ui /source/apps/admin-go/public ./public
 COPY --from=build /admin-go /admin-go
 EXPOSE 8080 3478/udp
 ENTRYPOINT ["/admin-go"]

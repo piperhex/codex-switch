@@ -6,7 +6,6 @@ COPY apps/admin-ui/package.json ./apps/admin-ui/
 RUN --mount=type=cache,target=/root/.npm npm ci --workspace @codex-switch/admin-ui \
     --ignore-scripts --no-audit --no-fund --registry=$NPM_REGISTRY
 COPY apps/admin-ui ./apps/admin-ui
-COPY apps/admin/src/modules/chat-settings ./apps/admin/src/modules/chat-settings
 COPY shared ./shared
 RUN npm run build --workspace @codex-switch/admin-ui
 
@@ -19,7 +18,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci --workspace @codex-switch/backen
 COPY apps/admin ./apps/admin
 COPY shared ./shared
 RUN npm run build --workspace @codex-switch/backend
-COPY --from=ui /source/apps/admin/public ./apps/admin/public
+COPY --from=ui /source/apps/admin-go/public ./apps/admin/public
 WORKDIR /app/apps/admin
 EXPOSE 8080
 CMD ["node", "dist/main.js"]

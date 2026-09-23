@@ -21,10 +21,7 @@ before the fix was deployed. Users whose credentials have already been cleared m
 
 ## Verification
 
-`npm run check -w @codex-switch/backend` includes unit tests for response loss, concurrent retries,
-the grace deadline, logout, disabled users, revoked replacements, cache errors and commit failure.
-
-The optional `auth-refresh-recovery.integration.spec.ts` suite uses real PostgreSQL and Redis.
-Set `AUTH_TEST_POSTGRES_URL` and `AUTH_TEST_REDIS_URL` to disposable databases on `127.0.0.1`
-before running the backend checks. It creates and clears the `auth_recovery_test` PostgreSQL schema.
-Never point these variables at a database containing application data.
+Run `npm run check:backend` for the maintained Go implementation. The isolated identity parity
+suite in [admin-go](../apps/admin-go/README.md#本地-docker-对照测试) verifies rotation, concurrent
+retries, logout, and encrypted recovery against real disposable PostgreSQL and Redis instances.
+The frozen NestJS tests remain historical regression evidence; they are not a deployment entrypoint.

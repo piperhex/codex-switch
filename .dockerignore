@@ -16,5 +16,9 @@ coverage
 **/coverage
 apps/admin/public/admin.html
 apps/admin/public/admin-assets
+apps/admin-go/public
+**/.env
+**/compose.override.yml
+**/docker-compose.override.yml
 *.log
 npm-debug.log*

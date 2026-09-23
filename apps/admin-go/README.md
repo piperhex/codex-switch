@@ -23,50 +23,35 @@ node apps/admin-go/scripts/extract-contract.mjs --check
 未注册路径附带非法 JSON 时，也保留通用错误，不复制 Node 解析器的详细诊断。
 这些不属于 146 个已注册接口的错误响应，会单独记录，不作为逐字一致处理。
 
-## 构建与运行
+## 生产部署
 
-在仓库根目录构建，Docker 会同时编译管理页面和 Go 后端：
+线上后端统一使用 admin-go。镜像在本地构建，上传并校验后由服务器加载。
+完整的新装、更新、验收和 Go 镜像回滚步骤见 [DEPLOYMENT.md](DEPLOYMENT.md)。
+管理页面由 `apps/admin-ui` 构建到 `apps/admin-go/public`，与 Go 程序一起打包；
+管理端和 Web 镜像构建均不再读取 `apps/admin` 源码。
 
-```sh
-docker build -f apps/admin-go/Dockerfile -t codex-switch/admin-go:local .
-```
+- `compose.yml`：连接现有 PostgreSQL、Redis 和 Kong 的 Go 服务；正常更新只重建 `admin-go`。
+- `compose.infrastructure.yml`：新安装时可选的 PostgreSQL、Redis，已有环境沿用原数据容器。
+- `../web/compose.yml`：独立 Web 容器，按需更新。
+- `kong/existing-kong.example.yml`：指向 Go 的网关示例。
+- `sql/`：已有数据库的版本升级脚本；移动目录不代表需要重新执行已应用的 SQL。
 
-支持通过构建参数 `GOPROXY`、`NPM_REGISTRY` 指定下载源。Go 工具链版本固定在 `go.mod` 和 Dockerfile。
-本地开发时，在 `apps/admin-go` 目录运行 `go test ./...`、`go vet ./...`、`go run ./cmd/admin-go`。
-直接运行前要提供 PostgreSQL、Redis，以及 `PUBLIC_DIR` 指向的已构建页面目录。
+功能与接口见 [REFERENCE.md](REFERENCE.md)，尚未切换的旧安装见 [MIGRATION.md](MIGRATION.md)。
 
-将 `.env.example` 复制为 `.env` 并填入实际配置；迁移时沿用原部署配置，不生成替代密钥。
-`compose.yml` 同时加入现有数据库网络和 Kong 网络，不会创建新的 PostgreSQL 或 Redis。
-设置 `ADMIN_GO_DB_NETWORK` 为原后端的数据库网络名（通常是 `<原 Compose 项目名>_backend-internal`），
-设置 `ADMIN_GO_KONG_NETWORK` 为 Kong 所在网络名，默认 `kong-net`。
-原来的 `ADMIN_GO_NETWORK` 仍可使用；只有未设置 `ADMIN_GO_DB_NETWORK` 时才会采用它。
+## 本地开发
 
-Go 使用独立网络别名 `codex-switch-admin-go`，可通过 `ADMIN_GO_KONG_ALIAS` 修改。
-启动 Go 后，Kong 仍指向原后端；验收完成后，再把原服务的上游改为 `http://codex-switch-admin-go:8080`。
-旧、新服务同时运行时，不要让它们共用 `codex-switch-backend` 别名。
-宿主机映射已包含 `host.docker.internal:host-gateway`；`CODEX_OUTBOUND_PROXY` 应沿用原服务实际使用的值。
-原 Compose 未单独设置代理时会使用 `http://host.docker.internal:7890`；需要直连时可在 Go 配置中留空。
-
-原后端已停止、正式 STUN 端口未被占用时，可直接启动：
+安装 `go.mod` 指定的 Go 工具链，准备 PostgreSQL、Redis，并在 `apps/admin-go/.env` 中填写开发配置；进程环境变量优先。
+直接运行时将 `PUBLIC_DIR` 设置为 `./public`，
+数据库、Redis 地址填写宿主机可访问的地址；新建的空开发库可设置 `POSTGRES_DB_SYNCHRONIZE=true`。
+在仓库根目录执行：
 
 ```sh
-docker compose --env-file apps/admin-go/.env -f apps/admin-go/compose.yml up -d --build
+npm run build:admin
+npm run dev:backend
 ```
 
-页面入口为 `/admin`。默认宿主机 HTTP 地址为 `127.0.0.1:8080`，可用 `ADMIN_GO_BIND` 和 `ADMIN_GO_PORT` 修改。
-Go 的 STUN 在容器内监听 UDP `CHAT_STUN_PORT`，默认 3478；正式部署默认映射为宿主机 `0.0.0.0:3478`。
-`ADMIN_GO_STUN_BIND` 和 `ADMIN_GO_STUN_PORT` 可修改公网绑定地址和端口，需与原 `CHAT_STUN_URLS` 保持一致。
-原后端仍在运行时，改用下面的并行验收命令，避免占用其公网 STUN 端口：
-
-```sh
-ADMIN_GO_STUN_BIND=127.0.0.1 ADMIN_GO_STUN_PORT=3479 \
-  docker compose --env-file apps/admin-go/.env -f apps/admin-go/compose.yml up -d --build
-```
-
-此时 Go STUN 只供本机验收，原后端继续提供公网 STUN。停止原后端后，再取消临时覆盖，重新创建 Go 容器，
-使正式端口映射生效。完整切换和回滚步骤见 [MIGRATION.md](MIGRATION.md)。
-新数据库可临时设置 `POSTGRES_DB_SYNCHRONIZE=true` 来初始化；已有数据库始终保持原结构，
-后续结构升级继续使用 `apps/admin/sql` 中对应版本的迁移。
+`npm run build:backend` 构建 Go 程序到 `apps/admin-go/dist/`；`npm run check:backend`
+检查接口契约、Go vet 和测试。容器构建支持 `GOPROXY`、`NPM_REGISTRY` 参数。
 
 ## 本地 Docker 对照测试
 
