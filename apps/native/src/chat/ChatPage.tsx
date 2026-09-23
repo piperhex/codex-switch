@@ -20,6 +20,7 @@ import { ChatDrawer, type ChatDrawerMethods } from './ChatDrawer';
 import { ChatDevices } from './ChatDevices';
 import { ChatConnectionInfo } from './ChatConnectionInfo';
 import { useChat } from './useChat';
+import { useChatDevice } from './useChatDevice';
 import { useOfflineDevices } from './offline/devices';
 import { useChatDrawerSwipe } from './useChatDrawerSwipe';
 import { useChatBackground } from './useChatBackground';
@@ -40,17 +41,13 @@ interface Props {
 export function ChatPage(props: Props) {
   const { session, active, notification, notificationError, notificationHandled } = props;
   const devices = useOfflineDevices(session, props.devices, props.devicesLoaded);
-  const [deviceId, setDeviceId] = useState<string | null>(null);
-  const requestedId = notification?.deviceId ?? deviceId;
-  const device = requestedId ? devices.find((entry) => entry.deviceId === requestedId)
-    : devices.find((entry) => entry.online) ?? devices[0];
-  useEffect(() => { if (notification) setDeviceId(notification.deviceId); }, [notification]);
+  const { device, chooseDevice: selectDevice } = useChatDevice({ session, devices,
+    devicesLoaded: props.devicesLoaded, requestedDeviceId: notification?.deviceId });
   const backgroundError = useChatBackground(Boolean(device));
   const chooseDevice = (id: string) => {
     if (notification) notificationHandled(notificationId(notification));
-    setDeviceId(id);
+    selectDevice(id);
   };
-  useEffect(() => { if (!deviceId && device) setDeviceId(device.deviceId); }, [deviceId, device?.deviceId]);
   return <View style={[styles.page, !active && styles.hidden]}>
     {notification && devices.length > 0 && !device && <Text style={styles.error}>
       通知对应的电脑暂不可用，请选择其他电脑。</Text>}
