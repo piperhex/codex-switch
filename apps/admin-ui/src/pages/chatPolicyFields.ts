@@ -3,6 +3,18 @@ type Copy = [string, string];
 export interface PolicyField { key: keyof typeof CHAT_POLICY_FIELDS; label: Copy; hint: Copy; unit: Copy }
 export interface PolicySection { key: string; title: Copy; hint: Copy; fields: PolicyField[] }
 export const POLICY_SECTIONS: PolicySection[] = [
+  { key: 'p2p', title: ['P2P 连接', 'P2P connection'],
+    hint: ['保存后立即应用到在线客户端。时间以秒为单位，数值不设上限。',
+      'Changes apply to connected clients immediately. Times are in seconds, with no upper cap.'], fields: [
+    { key: 'p2pNegotiationTimeoutSeconds', label: ['直连协商等待时间', 'Direct connection timeout'],
+      hint: ['每次尝试直连的最长等待时间，期间可通过中转聊天',
+        'How long each direct connection attempt can take while chat continues over relay'], unit: ['秒', 's'] },
+    { key: 'p2pRetryIntervalSeconds', label: ['直连重试间隔', 'Direct connection retry interval'],
+      hint: ['两次直连尝试之间至少间隔多久', 'Minimum time between direct connection attempts'], unit: ['秒', 's'] },
+    { key: 'p2pDisconnectGraceSeconds', label: ['断线恢复等待时间', 'Connection recovery grace period'],
+      hint: ['直连短暂失去响应后，等待恢复多久再重新连接',
+        'How long to wait for an unresponsive direct connection to recover before reconnecting'], unit: ['秒', 's'] },
+  ] },
   { key: 'relay', title: ['Relay 传输', 'Relay transfer'],
     hint: ['默认不限。填 -1 表示不限，填正整数可设置每个连接的上限。',
       'Unlimited by default. Enter -1 for no limit, or a positive whole number for each connection.'], fields: [

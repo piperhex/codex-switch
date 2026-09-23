@@ -37,7 +37,8 @@ it('applies coordinator settings without treating them as a session frame', asyn
   const policy = { ...DEFAULT_CHAT_POLICY, imageTargetKb: 64, filePreviewMaxMb: 100, fileDownloadMaxMb: 1000 };
   Socket.instances[0].onmessage?.({ data: JSON.stringify({ type: 'chat-policy', policy }) });
   expect(getChatPolicy()).toEqual(policy);
-  const updated = { ...policy, filePreviewMaxMb: 200, fileDownloadMaxMb: 2000 };
+  const updated = { ...policy, filePreviewMaxMb: 200, fileDownloadMaxMb: 2000,
+    p2pNegotiationTimeoutSeconds: 120, p2pRetryIntervalSeconds: 20, p2pDisconnectGraceSeconds: 30 };
   Socket.instances[0].onmessage?.({ data: JSON.stringify({ type: 'chat-policy', policy: updated }) });
   expect(getChatPolicy()).toEqual(updated);
   expect(error).not.toHaveBeenCalled();

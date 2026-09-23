@@ -1,13 +1,17 @@
-import type { Channel, IceServer, Peer, PeerFactory, Signal } from './protocol';
+import type { Channel, IceServer, Peer, PeerConnectionState, PeerFactory, Signal } from './protocol';
+import { getChatPolicy, type ChatPolicy } from './policy';
 
-const RESTART_INTERVAL_MS = 10_000;
+const MILLISECONDS_PER_SECOND = 1000;
 export type RecoverySignal = Exclude<Signal, { kind: 'key' }> & { generation?: number };
 
-/** Only the phone starts a new ICE generation, avoiding simultaneous offers. */
+/** Only the initiating client starts a new ICE generation, avoiding simultaneous offers. */
 export class HotPeer {
   private peer?: Peer;
   private generation = 0;
   private lastAttempt = 0;
+  private connectionState: PeerConnectionState = 'new';
+  private established = false;
+  private unhealthySince?: number;
   private closed = false;
   constructor(private readonly options: {
     desktop: boolean; iceServers: IceServer[]; createPeer: PeerFactory;
@@ -18,26 +22,45 @@ export class HotPeer {
     const generation = this.generation;
     this.peer?.close();
     this.lastAttempt = Date.now();
+    this.connectionState = 'new';
+    this.established = false;
+    this.unhealthySince = undefined;
     try {
       this.peer = this.options.createPeer({
         iceServers: this.options.iceServers,
         signal: (signal) => {
           if (signal.kind === 'key') return;
-          if (!this.closed && generation === this.generation) this.options.signal({ ...signal, generation });
+          if (this.isCurrent(generation)) this.options.signal({ ...signal, generation });
         },
-        channel: (channel) => {
-          if (this.closed || generation !== this.generation) channel.close();
-          else this.options.channel(channel);
+        channel: (channel) => this.attach(channel, generation),
+        stateChanged: (state) => {
+          if (this.isCurrent(generation)) this.connectionState = state;
         },
         disconnected: () => {
-          if (!this.closed && generation === this.generation) this.options.disconnected();
+          if (this.isCurrent(generation)) this.options.disconnected();
         },
       });
     } catch { this.peer = undefined; }
   }
 
+  private isCurrent(generation: number) { return !this.closed && generation === this.generation; }
+
+  private attach(channel: Channel, generation: number) {
+    if (!this.isCurrent(generation)) { channel.close(); return; }
+    channel.onClose(() => this.failed(generation));
+    this.options.channel(channel);
+  }
+
+  private failed(generation: number) {
+    if (!this.isCurrent(generation)) return;
+    this.connectionState = 'failed';
+    this.options.disconnected();
+  }
+
   async offer() {
-    try { await this.peer?.offer(); } catch { this.options.disconnected(); }
+    if (this.closed) return;
+    const generation = this.generation;
+    try { await this.peer?.offer(); } catch { this.failed(generation); }
   }
 
   async accept(signal: RecoverySignal) {
@@ -49,15 +72,32 @@ export class HotPeer {
       this.generation = generation;
       this.create();
     }
-    try { await this.peer?.accept(signal); } catch { this.options.disconnected(); }
+    try { await this.peer?.accept(signal); } catch { this.failed(generation); }
   }
 
   recover(healthy: boolean, signaling: boolean) {
-    if (healthy || !signaling || this.options.desktop || this.closed
-      || Date.now() - this.lastAttempt < RESTART_INTERVAL_MS) return;
+    if (this.options.desktop || this.closed) return;
+    if (healthy) { this.established = true; this.unhealthySince = undefined; return; }
+    const now = Date.now();
+    this.unhealthySince ??= now;
+    const policy = getChatPolicy();
+    // Read the live policy on every tick, including attempts started before a settings update.
+    if (!signaling || (now - this.lastAttempt) / MILLISECONDS_PER_SECOND < policy.p2pRetryIntervalSeconds
+      || !this.retryReady(now, policy)) return;
     this.generation += 1;
     this.create();
     void this.offer();
+  }
+
+  private retryReady(now: number, policy: ChatPolicy) {
+    if (!this.peer || this.connectionState === 'failed' || this.connectionState === 'closed') return true;
+    // Compare elapsed seconds instead of creating a timer that could overflow for large settings.
+    if (!this.established) {
+      return (now - this.lastAttempt) / MILLISECONDS_PER_SECOND >= policy.p2pNegotiationTimeoutSeconds;
+    }
+    // A brief lost probe selects relay immediately, but must not tear down a recoverable peer.
+    return this.unhealthySince !== undefined
+      && (now - this.unhealthySince) / MILLISECONDS_PER_SECOND >= policy.p2pDisconnectGraceSeconds;
   }
 
   close() { this.closed = true; this.peer?.close(); }

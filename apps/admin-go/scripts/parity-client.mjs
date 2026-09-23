@@ -14,6 +14,10 @@ const isoPattern = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/;
 const sensitiveRuntimeKeys = new Set(['accessToken', 'refreshToken', 'passwordHash']);
 // Go-only features are covered by token-pricing-smoke.mjs, not the frozen Nest contract.
 const goOnlyPermissions = new Set(['admin.token-pricing.read', 'admin.token-pricing.manage']);
+// These new fields are checked by chat-policy-smoke.mjs; keep the frozen Nest comparison on its original contract.
+const goOnlyChatFields = new Set([
+  'p2pNegotiationTimeoutSeconds', 'p2pRetryIntervalSeconds', 'p2pDisconnectGraceSeconds',
+]);
 
 export async function request(base, method, path, options = {}) {
   const headers = { ...options.headers };
@@ -61,7 +65,8 @@ function normalized(value, context, key = '') {
     return key === 'permissions' ? result.sort() : result;
   }
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.keys(value).sort().map((field) => [field, normalized(value[field], context, field)]));
+    const fields = Object.keys(value).filter((field) => !(goOnlyChatFields.has(field) && 'threadPageSize' in value));
+    return Object.fromEntries(fields.sort().map((field) => [field, normalized(value[field], context, field)]));
   }
   return value;
 }

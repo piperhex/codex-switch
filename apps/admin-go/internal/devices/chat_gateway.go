@@ -23,6 +23,7 @@ type ChatGateway struct {
 	sessions    *chatSessions
 	traffic     *trafficCounter
 	mu          sync.Mutex
+	policyMu    sync.Mutex
 	connections map[*peer]*chatConnection
 	policy      platform.JSON
 	ice         []platform.JSON
@@ -47,6 +48,7 @@ func newChatGateway(service *Service) (*ChatGateway, error) {
 				-1,
 			)}, ice: ice, done: make(chan struct{}), stopped: make(chan struct{}), stun: stun}
 	service.deps.FlushTraffic = traffic.flush
+	service.deps.ChatPolicyChanged = gateway.refreshPolicy
 	go gateway.maintain()
 	return gateway, nil
 }
@@ -98,6 +100,9 @@ func (g *ChatGateway) receive(client *peer, state *chatConnection, message platf
 	if err != nil {
 		return err
 	}
+	// Serialize handshake snapshots with saved-policy broadcasts so stale reads cannot follow a new policy.
+	g.policyMu.Lock()
+	defer g.policyMu.Unlock()
 	policy, err := content.ReadChatPolicy(g.service.deps.DB)
 	if err != nil {
 		return err
@@ -209,6 +214,8 @@ func (g *ChatGateway) maintain() {
 }
 
 func (g *ChatGateway) refreshPolicy() {
+	g.policyMu.Lock()
+	defer g.policyMu.Unlock()
 	g.mu.Lock()
 	active := len(g.connections) > 0
 	g.mu.Unlock()
@@ -217,6 +224,7 @@ func (g *ChatGateway) refreshPolicy() {
 	}
 	policy, err := content.ReadChatPolicy(g.service.deps.DB)
 	if err != nil {
+		slog.Warn("chat policy refresh will be retried", "error", err)
 		return
 	} // Keep the last confirmed policy during a database outage.
 	g.mu.Lock()

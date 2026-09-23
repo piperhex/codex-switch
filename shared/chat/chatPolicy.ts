@@ -1,7 +1,15 @@
 import { DEFAULT_TITLE_SETTINGS, parseTitleSettings, type TitleSettings } from './titleSettings';
 
+// Defaults are fallback durations, not upper bounds; administrators may choose larger values.
+export const P2P_POLICY_FIELDS = {
+  p2pNegotiationTimeoutSeconds: { min: 1, max: undefined, default: 45 },
+  p2pRetryIntervalSeconds: { min: 1, max: undefined, default: 10 },
+  p2pDisconnectGraceSeconds: { min: 1, max: undefined, default: 10 },
+} as const;
+
 /** Public numeric contract shared by the admin form, chat clients and desktop host. */
 export const CHAT_POLICY_FIELDS = {
+  ...P2P_POLICY_FIELDS,
   relayMaxMbPerSecond: { min: -1, max: undefined, default: -1 },
   relayMaxFramesPerSecond: { min: -1, max: undefined, default: -1 },
   threadPageSize: { min: 1, max: undefined, default: 50 },
@@ -33,7 +41,7 @@ export function parseChatPolicy(value: unknown): ChatPolicy {
     const field = CHAT_POLICY_FIELDS[key];
     // Older saved policies and coordinators do not include these later additions.
     const optional = field.default === -1 || key === 'videoPreviewMaxMb'
-      || key === 'fileUploadMaxMb' || key === 'fileUploadTotalMaxMb';
+      || key === 'fileUploadMaxMb' || key === 'fileUploadTotalMaxMb' || key in P2P_POLICY_FIELDS;
     const number = optional && record[key] === undefined ? field.default : record[key];
     if (typeof number !== 'number' || !Number.isSafeInteger(number) || number < field.min
       || (field.default === -1 && number === 0) || (field.max !== undefined && number > field.max)) {

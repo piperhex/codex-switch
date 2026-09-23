@@ -8,6 +8,8 @@ import type { ChatSessions as Sessions } from '../../admin/src/modules/devices/c
 import type {} from './hot-chat-harness';
 
 const require = createRequire(import.meta.url);
+const { DEFAULT_CHAT_POLICY } = require('../../../shared/chat/chatPolicy') as
+  typeof import('../../../shared/chat/chatPolicy');
 const { WebSocketServer } = createRequire(new URL('../../admin/package.json', import.meta.url))('ws') as {
   WebSocketServer: typeof Server;
 };
@@ -44,6 +46,74 @@ test.beforeEach(async () => {
 test.afterEach(async () => {
   for (const client of server.clients) client.terminate();
   await new Promise<void>((resolve) => server.close(() => resolve()));
+});
+
+test('keeps relay usable while a twelve-second negotiation completes with the original peer', async ({ context }) => {
+  const pc = await context.newPage();
+  const phone = await context.newPage();
+  await pc.goto(`/e2e/hot-chat-harness.html?role=desktop&signalDelay=12000&socket=${encodeURIComponent(endpoint)}`);
+  await expect(pc.locator('#status')).toHaveText('registered');
+  await phone.goto(`/e2e/hot-chat-harness.html?role=mobile&socket=${encodeURIComponent(endpoint)}`);
+  await expect(phone.locator('#status')).toHaveText('relay', { timeout: 5000 });
+  const before = await phone.evaluate(() => window.hotChat.stats().beats);
+  expect(await phone.evaluate(() => window.hotChat.request('during negotiation')))
+    .toEqual({ text: 'during negotiation' });
+  await expect(phone.locator('#status')).toHaveText('direct', { timeout: 25_000 });
+  await expect(pc.locator('#status')).toHaveText('direct');
+  for (const page of [pc, phone]) {
+    expect(await page.evaluate(() => window.hotChat.stats().peerCreations)).toBe(1);
+    expect(await page.evaluate(() => window.hotChat.errors)).toEqual([]);
+  }
+  expect(await phone.evaluate(() => window.hotChat.stats().beats)).toBeGreaterThan(before + 10);
+  expect(await phone.evaluate(() => window.hotChat.stats().readyCount)).toBe(1);
+  expect(await phone.evaluate(() => window.hotChat.request('after negotiation')))
+    .toEqual({ text: 'after negotiation' });
+});
+
+test('recovers the same direct channel after a short outage while relay carries requests', async ({ context }) => {
+  const pc = await context.newPage();
+  const phone = await context.newPage();
+  await pc.goto(`/e2e/hot-chat-harness.html?role=desktop&socket=${encodeURIComponent(endpoint)}`);
+  await expect(pc.locator('#status')).toHaveText('registered');
+  await phone.goto(`/e2e/hot-chat-harness.html?role=mobile&socket=${encodeURIComponent(endpoint)}`);
+  await expect(phone.locator('#status')).toHaveText('direct', { timeout: 12_000 });
+  // The old policy immediately replaced healthy peers older than ten seconds after a lost probe.
+  await phone.waitForTimeout(8000);
+  await phone.evaluate(() => window.hotChat.dropDirect(true));
+  await expect(phone.locator('#status')).toHaveText('relay', { timeout: 5000 });
+  expect(await phone.evaluate(() => window.hotChat.request('during outage'))).toEqual({ text: 'during outage' });
+  await phone.evaluate(() => window.hotChat.dropDirect(false));
+  await expect(phone.locator('#status')).toHaveText('direct', { timeout: 8000 });
+  for (const page of [pc, phone]) {
+    expect(await page.evaluate(() => window.hotChat.stats().peerCreations)).toBe(1);
+    expect(await page.evaluate(() => window.hotChat.errors)).toEqual([]);
+  }
+  expect(await phone.evaluate(() => window.hotChat.stats().readyCount)).toBe(1);
+});
+
+test('applies policy broadcasts to an active negotiation without interrupting relay', async ({ context }) => {
+  const pc = await context.newPage();
+  const phone = await context.newPage();
+  await pc.goto(`/e2e/hot-chat-harness.html?role=desktop&signalDelay=60000&socket=${encodeURIComponent(endpoint)}`);
+  await expect(pc.locator('#status')).toHaveText('registered');
+  await phone.goto(`/e2e/hot-chat-harness.html?role=mobile&socket=${encodeURIComponent(endpoint)}`);
+  await expect(phone.locator('#status')).toHaveText('relay', { timeout: 5000 });
+  const publish = (seconds: number) => {
+    const policy = { ...DEFAULT_CHAT_POLICY, p2pNegotiationTimeoutSeconds: seconds,
+      p2pRetryIntervalSeconds: seconds, p2pDisconnectGraceSeconds: seconds };
+    for (const client of server.clients) client.send(JSON.stringify({ type: 'chat-policy', policy }));
+  };
+  publish(1);
+  await expect.poll(() => phone.evaluate(() => window.hotChat.stats().peerCreations), { timeout: 3000 })
+    .toBeGreaterThan(1);
+  publish(Number.MAX_SAFE_INTEGER);
+  await phone.waitForTimeout(300);
+  const attempts = await phone.evaluate(() => window.hotChat.stats().peerCreations);
+  await phone.waitForTimeout(2500);
+  expect(await phone.evaluate(() => window.hotChat.stats().peerCreations)).toBe(attempts);
+  expect(await phone.evaluate(() => window.hotChat.request('updated policy'))).toEqual({ text: 'updated policy' });
+  expect(await phone.evaluate(() => window.hotChat.stats().readyCount)).toBe(1);
+  expect(await phone.evaluate(() => window.hotChat.errors)).toEqual([]);
 });
 
 for (const [path, mib] of [['large.apk', 21], ['lan-100mb.bin', 100]] as const) {

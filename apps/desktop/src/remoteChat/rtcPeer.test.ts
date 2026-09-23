@@ -11,9 +11,13 @@ const candidate = (address: string): Exclude<Signal, { kind: 'key' }> => ({
 
 function harness() {
   const signal = vi.fn();
+  const stateChanged = vi.fn();
+  const disconnected = vi.fn();
+  const listeners = new Map<string, () => void>();
   const pc = {
     remoteDescription: null as RTCSessionDescriptionInit | null,
-    addEventListener: vi.fn(), close: vi.fn(),
+    connectionState: 'new' as RTCPeerConnectionState,
+    addEventListener: vi.fn((event: string, callback: () => void) => listeners.set(event, callback)), close: vi.fn(),
     setRemoteDescription: vi.fn(async (description: RTCSessionDescriptionInit) => {
       pc.remoteDescription = description;
     }),
@@ -21,9 +25,9 @@ function harness() {
     createAnswer: vi.fn(async () => answer),
     setLocalDescription: vi.fn(async () => undefined),
   };
-  const peer = new RtcPeer({ iceServers: [], signal, channel: vi.fn(), disconnected: vi.fn() },
+  const peer = new RtcPeer({ iceServers: [], signal, channel: vi.fn(), disconnected, stateChanged },
     () => pc as unknown as RTCPeerConnection);
-  return { peer, pc, signal };
+  return { peer, pc, signal, stateChanged, disconnected, listeners };
 }
 
 describe('RTC candidate negotiation', () => {
@@ -69,6 +73,36 @@ describe('RTC candidate negotiation', () => {
     pc.addIceCandidate.mockImplementationOnce(async () => { peer.close(); });
     await peer.accept(offer);
     expect(pc.addIceCandidate).toHaveBeenCalledOnce();
+    expect(signal).not.toHaveBeenCalled();
+  });
+
+  it('reports transient and terminal states separately and ignores events after close', () => {
+    const { peer, pc, stateChanged, disconnected, listeners } = harness();
+    for (const state of ['connecting', 'connected', 'disconnected', 'failed'] as const) {
+      pc.connectionState = state;
+      listeners.get('connectionstatechange')!();
+    }
+    expect(stateChanged.mock.calls.map(([state]) => state))
+      .toEqual(['connecting', 'connected', 'disconnected', 'failed']);
+    expect(disconnected).toHaveBeenCalledTimes(2);
+    peer.close();
+    listeners.get('connectionstatechange')!();
+    expect(stateChanged).toHaveBeenCalledTimes(4);
+    expect(disconnected).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not signal an answer after closing during its asynchronous creation', async () => {
+    const { peer, pc, signal } = harness();
+    pc.createAnswer.mockImplementationOnce(async () => { peer.close(); return answer; });
+    await peer.accept(offer);
+    expect(pc.setLocalDescription).not.toHaveBeenCalled();
+    expect(signal).not.toHaveBeenCalled();
+  });
+
+  it('does not signal an answer after closing while setting the local description', async () => {
+    const { peer, pc, signal } = harness();
+    pc.setLocalDescription.mockImplementationOnce(async () => { peer.close(); });
+    await peer.accept(offer);
     expect(signal).not.toHaveBeenCalled();
   });
 });

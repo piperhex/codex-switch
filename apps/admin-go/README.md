@@ -53,6 +53,11 @@ npm run dev:backend
 `npm run build:backend` 构建 Go 程序到 `apps/admin-go/dist/`；`npm run check:backend`
 检查接口契约、Go vet 和测试。容器构建支持 `GOPROXY`、`NPM_REGISTRY` 参数。
 
+P2P 连接策略使用现有聊天设置 JSON 保存，无需新增数据库表。保存后立即向已鉴权的
+`/device-chat` 客户端推送最新设置，客户端重连时也会获取最新值。三项时间均无业务上限。
+本地对照环境启动后，运行 `node apps/admin-go/scripts/chat-policy-smoke.mjs` 验证实时推送、
+大数值、权限和重连行为；脚本只访问固定的本地测试地址并在结束时恢复配置。
+
 ## 本地 Docker 对照测试
 
 测试使用独立 PostgreSQL 数据库、两套 Redis、Mailpit 和模拟 OAuth/TLS 上游。

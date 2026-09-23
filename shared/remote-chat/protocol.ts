@@ -24,11 +24,13 @@ export interface Peer {
   accept(signal: Exclude<Signal, { kind: 'key' }>): Promise<void>;
   close(): void;
 }
+export type PeerConnectionState = 'new' | 'connecting' | 'connected' | 'disconnected' | 'failed' | 'closed';
 export interface PeerOptions {
   iceServers: IceServer[];
   signal: (signal: Signal) => void;
   channel: (channel: Channel) => void;
   disconnected: () => void;
+  stateChanged?: (state: PeerConnectionState) => void;
 }
 export type PeerFactory = (options: PeerOptions) => Peer;
 export interface RpcRequest { kind: 'request'; id: string; method: 'connect' | 'request' | 'respond'; body?: unknown }

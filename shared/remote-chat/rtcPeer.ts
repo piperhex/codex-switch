@@ -34,7 +34,10 @@ export class RtcPeer implements Peer {
     });
     this.pc.addEventListener('datachannel', ({ channel }) => options.channel(dataChannel(channel)));
     this.pc.addEventListener('connectionstatechange', () => {
-      if (!this.closed && ['failed', 'disconnected', 'closed'].includes(this.pc.connectionState)) options.disconnected();
+      if (this.closed) return;
+      const state = this.pc.connectionState;
+      options.stateChanged?.(state);
+      if (['failed', 'disconnected', 'closed'].includes(state)) options.disconnected();
     });
   }
 
@@ -43,6 +46,7 @@ export class RtcPeer implements Peer {
     const offer = await this.pc.createOffer();
     if (this.closed) return;
     await this.pc.setLocalDescription(offer);
+    if (this.closed) return;
     this.options.signal({ kind: 'sdp', type: 'offer', sdp: offer.sdp ?? '' });
   }
 
@@ -63,7 +67,9 @@ export class RtcPeer implements Peer {
     for (const candidate of this.candidates.splice(0)) await this.addCandidate(candidate);
     if (signal.type !== 'offer' || this.closed) return;
     const answer = await this.pc.createAnswer();
+    if (this.closed) return;
     await this.pc.setLocalDescription(answer);
+    if (this.closed) return;
     this.options.signal({ kind: 'sdp', type: 'answer', sdp: answer.sdp ?? '' });
   }
 

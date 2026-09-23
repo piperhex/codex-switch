@@ -40,11 +40,12 @@ type Principal struct {
 }
 
 type Dependencies struct {
-	DB           *gorm.DB
-	Redis        *redis.Client
-	Config       Config
-	Authenticate func(*gin.Context) (*Principal, error)
-	FlushTraffic func() error
+	DB                *gorm.DB
+	Redis             *redis.Client
+	Config            Config
+	Authenticate      func(*gin.Context) (*Principal, error)
+	FlushTraffic      func() error
+	ChatPolicyChanged func()
 }
 
 func User(c *gin.Context) *Principal {
