@@ -37,6 +37,7 @@ describe("automatic app updates", () => {
   let update: ReturnType<typeof createUpdate>;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.resetModules();
     updater.check.mockReset();
     updater.relaunch.mockReset().mockResolvedValue(undefined);
@@ -54,7 +55,7 @@ describe("automatic app updates", () => {
     vi.stubGlobal("document", { querySelector: () => null });
   });
 
-  afterEach(() => { vi.unstubAllGlobals(); });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
   it("defaults to enabled and installs a pending update on launch", async () => {
     stored.set(PENDING_VERSION_KEY, UPDATE_VERSION);
@@ -229,5 +230,44 @@ describe("automatic app updates", () => {
     await backend.installDownloadedUpdate();
     expect(update.install).toHaveBeenCalledOnce();
     expect(update.download).toHaveBeenCalledOnce();
+  });
+
+  it("releases a stalled shared check so the next check can succeed", async () => {
+    const { backend } = await loadApp();
+    updater.check.mockReturnValueOnce(new Promise(() => undefined));
+    const checking = backend.checkForUpdate();
+    expect(backend.checkForUpdate()).toBe(checking);
+    const result = expect(checking).rejects.toThrow("Update check timed out");
+    await vi.advanceTimersByTimeAsync(30_000);
+    await result;
+
+    await expect(backend.checkForUpdate()).resolves.toMatchObject({ latestVersion: UPDATE_VERSION });
+    expect(updater.check).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves the download on timeout and discards a late newer version after a successful retry", async () => {
+    const { backend } = await loadApp();
+    await backend.downloadAvailableUpdate();
+    const checking = deferred<ReturnType<typeof createUpdate>>();
+    updater.check.mockReturnValueOnce(checking.promise);
+    const failed = backend.checkForUpdate({ force: true, replacePending: true });
+    const result = expect(failed).rejects.toThrow("Update check timed out");
+    await vi.advanceTimersByTimeAsync(30_000);
+    await result;
+    expect(update.close).not.toHaveBeenCalled();
+    expect(stored.get(PENDING_VERSION_KEY)).toBe(UPDATE_VERSION);
+
+    const candidate = createUpdate();
+    updater.check.mockResolvedValueOnce(candidate);
+    await backend.checkForUpdate({ force: true, replacePending: true });
+    const lateUpdate = { ...createUpdate(), version: "1.4.6" };
+    checking.resolve(lateUpdate);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(lateUpdate.close).toHaveBeenCalledOnce();
+    expect(update.close).not.toHaveBeenCalled();
+    await backend.installDownloadedUpdate();
+    expect(update.install).toHaveBeenCalledOnce();
+    expect(update.download).toHaveBeenCalledOnce();
+    expect(lateUpdate.download).not.toHaveBeenCalled();
   });
 });

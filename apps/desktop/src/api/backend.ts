@@ -4,7 +4,8 @@ import { hasDirectChatInput } from "../../../../shared/remote-chat/uploadMode";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { exit as exitApp, relaunch } from "@tauri-apps/plugin-process";
-import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
+import type { DownloadEvent, Update } from "@tauri-apps/plugin-updater";
+import { checkAvailableAppUpdate } from "./appUpdateCheck";
 import { chooseBrowserAccountFile } from "./browserAccountImport";
 import { isAutoUpdateEnabled } from "./appUpdatePreferences";
 import type { CodexConnectionStatus, CodexConnectResult } from "./codexConnectionTypes";
@@ -252,7 +253,6 @@ let appUpdateDownloaded = false;
 let updateDownloadPromise: Promise<void> | null = null;
 let updateInstallInProgress = false;
 let pendingUpdateInstallPromise: Promise<void> | null = null;
-const UPDATE_CHECK_RETRY_DELAYS_MS = [500, 1_500] as const;
 const LAUNCH_AT_STARTUP_PREVIEW_KEY = "codex-switch:launch-at-startup";
 const CLOSE_TO_TRAY_PREVIEW_KEY = "codex-switch:close-to-tray";
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
@@ -3184,32 +3184,6 @@ async function getAvailableAppUpdate(): Promise<UpdateInfo | null> {
   pendingAppUpdate = update;
   if (!update) return null;
   return toUpdateInfo(update);
-}
-
-function isRetryableUpdateCheckError(error: unknown): boolean {
-  const message = String(error).toLowerCase();
-  return [
-    "error sending request",
-    "network",
-    "timed out",
-    "timeout",
-    "connection",
-    "dns",
-    "tcp",
-    "tls",
-  ].some((fragment) => message.includes(fragment));
-}
-
-async function checkAvailableAppUpdate(): Promise<Update | null> {
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      return await check();
-    } catch (error) {
-      const retryDelay = UPDATE_CHECK_RETRY_DELAYS_MS[attempt];
-      if (retryDelay === undefined || !isRetryableUpdateCheckError(error)) throw error;
-      await new Promise<void>((resolve) => window.setTimeout(resolve, retryDelay));
-    }
-  }
 }
 
 function toUpdateInfo(update: Update): UpdateInfo {

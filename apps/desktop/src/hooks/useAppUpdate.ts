@@ -11,6 +11,7 @@ import {
 import type { HelpVersionState } from "../components/modals/HelpModal";
 import type { Translate } from "../i18n";
 import type { UpdateInfo } from "../types";
+import { appUpdateErrorMessage } from "../api/appUpdateErrors";
 import { useBackgroundUpdateCheck } from "./useBackgroundUpdateCheck";
 import { usePendingAppUpdateInstall } from "./usePendingAppUpdateInstall";
 import { useAutoUpdatePreference } from "./useAutoUpdatePreference";
@@ -28,7 +29,7 @@ export function useAppUpdate(notify: (message: string) => void, t: Translate) {
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [updateInstallError, setUpdateInstallError] = useState<string | null>(null);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
-  usePendingAppUpdateInstall(setInstallingUpdate, setUpdateInstallError);
+  usePendingAppUpdateInstall(setInstallingUpdate, setUpdateInstallError, t);
   const helpVersionRequestId = useRef(0);
   const availableUpdateRef = useRef<UpdateInfo | null>(null);
   const downloadingUpdateRef = useRef(false);
@@ -72,7 +73,7 @@ export function useAppUpdate(notify: (message: string) => void, t: Translate) {
       if (downloadRequestedRef.current) {
         downloadRequestedRef.current = false;
         setDownloadRequested(false);
-        setUpdateInstallError(String(error));
+        setUpdateInstallError(appUpdateErrorMessage(error, t));
         setShowUpdatePrompt(true);
       }
       return false;
@@ -80,7 +81,7 @@ export function useAppUpdate(notify: (message: string) => void, t: Translate) {
       downloadingUpdateRef.current = false;
       setDownloadingUpdate(false);
     }
-  }, [rememberUpdate]);
+  }, [rememberUpdate, t]);
 
   const checkForUpdates = useCallback(async () => {
     setCheckingForUpdate(true);
@@ -94,7 +95,7 @@ export function useAppUpdate(notify: (message: string) => void, t: Translate) {
         notify(t("update.latest"));
       }
     } catch (error) {
-      notify(t("update.checkError", { error: String(error) }));
+      notify(t("update.checkError", { error: appUpdateErrorMessage(error, t) }));
     } finally {
       setCheckingForUpdate(false);
     }
@@ -112,7 +113,7 @@ export function useAppUpdate(notify: (message: string) => void, t: Translate) {
 
   const { checkingBeforeInstall, installUpdate } = useVerifiedAppUpdateInstall({
     availableUpdateRef, downloadingUpdateRef, userInitiatedDownloadRef,
-    downloadUpdate, setInstallingUpdate, setUpdateInstallError,
+    downloadUpdate, setInstallingUpdate, setUpdateInstallError, t,
   });
 
   const checkAboutVersion = useCallback(() => {

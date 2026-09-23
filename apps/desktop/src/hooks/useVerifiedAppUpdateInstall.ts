@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState, type MutableRefObject } from "react";
 import { checkForUpdate, installDownloadedUpdate } from "../api/backend";
+import { appUpdateErrorMessage } from "../api/appUpdateErrors";
+import type { Translate } from "../i18n";
 import type { UpdateInfo } from "../types";
 
 interface VerifiedInstallOptions {
@@ -9,6 +11,7 @@ interface VerifiedInstallOptions {
   downloadUpdate: (update: UpdateInfo, promptWhenReady: boolean) => Promise<boolean>;
   setInstallingUpdate: (installing: boolean) => void;
   setUpdateInstallError: (error: string | null) => void;
+  t: Translate;
 }
 
 export function useVerifiedAppUpdateInstall(options: VerifiedInstallOptions) {
@@ -16,7 +19,7 @@ export function useVerifiedAppUpdateInstall(options: VerifiedInstallOptions) {
   const busy = useRef(false);
   const {
     availableUpdateRef, downloadingUpdateRef, userInitiatedDownloadRef,
-    downloadUpdate, setInstallingUpdate, setUpdateInstallError,
+    downloadUpdate, setInstallingUpdate, setUpdateInstallError, t,
   } = options;
 
   const installUpdate = useCallback(async () => {
@@ -36,14 +39,14 @@ export function useVerifiedAppUpdateInstall(options: VerifiedInstallOptions) {
       setInstallingUpdate(true);
       await installDownloadedUpdate();
     } catch (error) {
-      setUpdateInstallError(String(error));
+      setUpdateInstallError(appUpdateErrorMessage(error, t));
       setInstallingUpdate(false);
     } finally {
       setCheckingBeforeInstall(false);
       busy.current = false;
     }
   }, [availableUpdateRef, downloadingUpdateRef, userInitiatedDownloadRef,
-    downloadUpdate, setInstallingUpdate, setUpdateInstallError]);
+    downloadUpdate, setInstallingUpdate, setUpdateInstallError, t]);
 
   return { checkingBeforeInstall, installUpdate };
 }

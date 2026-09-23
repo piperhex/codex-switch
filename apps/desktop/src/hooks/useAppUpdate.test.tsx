@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { checkForUpdate, downloadAvailableUpdate, installDownloadedUpdate } from "../api/backend";
+import { AppUpdateCheckTimeoutError } from "../api/appUpdateErrors";
 import type { Translate } from "../i18n";
 import type { UpdateInfo } from "../types";
 import { useAppUpdate } from "./useAppUpdate";
@@ -115,6 +116,21 @@ it("preserves the downloaded release after a failed check and allows retry", asy
 
   await act(async () => controls.installUpdate());
   expect(controls.updateInstallError).toBeNull();
+  expect(installDownloadedUpdate).toHaveBeenCalledOnce();
+});
+
+it("restores the prompt after a check timeout and retries without downloading again", async () => {
+  vi.mocked(checkForUpdate).mockRejectedValueOnce(new AppUpdateCheckTimeoutError());
+  await act(async () => controls.installUpdate());
+  expect(controls.updateInstallError).toBe("update.checkTimeout");
+  expect(controls.checkingBeforeInstall).toBe(false);
+  expect(controls.installingUpdate).toBe(false);
+  expect(controls.updateDownloaded).toBe(true);
+  expect(installDownloadedUpdate).not.toHaveBeenCalled();
+
+  await act(async () => controls.installUpdate());
+  expect(controls.updateInstallError).toBeNull();
+  expect(downloadAvailableUpdate).not.toHaveBeenCalled();
   expect(installDownloadedUpdate).toHaveBeenCalledOnce();
 });
 
