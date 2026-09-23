@@ -18,6 +18,9 @@ let blocked = query.has('relayOnly');
 let dropDirect = false;
 let peerCreations = 0;
 let beats = 0;
+let lastHeartbeatAt = performance.now();
+let maxHeartbeatGapMs = 0;
+const HEARTBEAT_INTERVAL_MS = 20;
 let readyCount = 0;
 let executions = 0;
 let packets = 0;
@@ -26,7 +29,12 @@ let link: ChatLink | undefined;
 let resume: { sessionId: string; resumeToken: string } | undefined;
 let socket: WebSocket | undefined;
 let pcReconnect: ReturnType<typeof setTimeout> | undefined;
-setInterval(() => { beats += 1; }, 20);
+setInterval(() => {
+  const now = performance.now();
+  maxHeartbeatGapMs = Math.max(maxHeartbeatGapMs, now - lastHeartbeatAt);
+  lastHeartbeatAt = now;
+  beats += 1;
+}, HEARTBEAT_INTERVAL_MS);
 
 function mode(value: string) { modes.push(value); document.querySelector('#status')!.textContent = value; }
 function createPeer(options: PeerOptions) {
@@ -117,8 +125,9 @@ declare global {
       request: (text: string) => Promise<unknown>; stream: (text: string) => Promise<void>;
       blockDirect: (value: boolean) => void;
       dropDirect: (value: boolean) => void;
+      measureHeartbeat: () => number;
       stats: () => { beats: number; readyCount: number; executions: number; packets: number;
-        batches: number; peerCreations: number };
+        batches: number; peerCreations: number; maxHeartbeatGapMs: number };
       disconnect: () => void };
     hotDownload: (path: string) => Promise<{ size: number; hash: string; elapsedMs: number }>;
   }
@@ -127,7 +136,10 @@ window.hotChat = { events, modes, errors, request: (text) => phone.request('requ
   stream: async (text) => { await link?.send({ kind: 'event', event: { text } }); },
   blockDirect: (value) => { blocked = value; if (value) { for (const peer of rtc) peer.close(); rtc.clear(); } },
   dropDirect: (value) => { dropDirect = value; },
-  stats: () => ({ beats, readyCount, executions, packets, batches, peerCreations }), disconnect: () => phone.stop() };
+  measureHeartbeat: () => { lastHeartbeatAt = performance.now(); maxHeartbeatGapMs = 0; return beats; },
+  stats: () => ({ beats, readyCount, executions, packets, batches, peerCreations,
+    maxHeartbeatGapMs: Math.max(maxHeartbeatGapMs, performance.now() - lastHeartbeatAt) }),
+  disconnect: () => phone.stop() };
 window.hotDownload = async (path) => {
   const started = performance.now();
   return { ...await downloadFixture(phone, path), elapsedMs: performance.now() - started };

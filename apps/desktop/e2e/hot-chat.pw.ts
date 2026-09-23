@@ -8,6 +8,7 @@ import type { ChatSessions as Sessions } from '../../admin/src/modules/devices/c
 import type {} from './hot-chat-harness';
 
 const require = createRequire(import.meta.url);
+const MAX_HEARTBEAT_GAP_MS = 500;
 const { DEFAULT_CHAT_POLICY } = require('../../../shared/chat/chatPolicy') as
   typeof import('../../../shared/chat/chatPolicy');
 const { WebSocketServer } = createRequire(new URL('../../admin/package.json', import.meta.url))('ws') as {
@@ -240,7 +241,7 @@ test('keeps a real conversation alive through relay loss, coordinator restart an
     await phone.waitForTimeout(1500);
 
     const text = 'stream 中文😀'.repeat(20_000);
-    const before = await phone.evaluate(() => window.hotChat.stats().beats);
+    const before = await phone.evaluate(() => window.hotChat.measureHeartbeat());
     const streaming = pc.evaluate((value) => window.hotChat.stream(value), text);
     await phone.waitForTimeout(100);
     await phone.evaluate(() => window.hotChat.blockDirect(true));
@@ -248,7 +249,10 @@ test('keeps a real conversation alive through relay loss, coordinator restart an
     await streaming;
     await expect.poll(() => phone.evaluate(() => window.hotChat.events.length)).toBe(1);
     expect(await phone.evaluate(() => window.hotChat.events[0])).toEqual({ text });
-    expect(await phone.evaluate(() => window.hotChat.stats().beats)).toBeGreaterThan(before + 10);
+    // Fast transfers may finish in fewer than ten ticks; measure progress and stalls instead of duration.
+    const heartbeat = await phone.evaluate(() => window.hotChat.stats());
+    expect(heartbeat.beats).toBeGreaterThan(before);
+    expect(heartbeat.maxHeartbeatGapMs).toBeLessThan(MAX_HEARTBEAT_GAP_MS);
     expect(await phone.evaluate(() => window.hotChat.request('relay request'))).toEqual({ text: 'relay request' });
 
     await phone.evaluate(() => window.hotChat.blockDirect(false));
