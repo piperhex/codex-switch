@@ -70,10 +70,10 @@ fn connect(
     {
         return Ok(4001);
     }
-    let auth = serde_json::json!({ "type": "authenticate", "role": "mobile", "accessToken": config.access_token,
-        "deviceId": request.device_id, "publicKey": request.public_key, "transportVersion": 2, "resume": request.resume });
     socket
-        .send(Message::Text(auth.to_string().into()))
+        .send(Message::Text(
+            authentication_message(request, &config).to_string().into(),
+        ))
         .map_err(|_| ChatError::Transport)?;
     let bridge = Bridge::new(
         request.client_id.clone(),
@@ -91,6 +91,18 @@ fn connect(
             .map(|resume| resume.session_id.clone()),
     }
     .poll(commands, life, config)
+}
+
+fn authentication_message(request: &OpenRequest, config: &Config) -> serde_json::Value {
+    let mut message = serde_json::json!({
+        "type": "authenticate", "role": "mobile", "accessToken": config.access_token,
+        "deviceId": request.device_id, "publicKey": request.public_key, "transportVersion": 2,
+    });
+    // Both backends treat the presence of resume as a recovery attempt, including null.
+    if let Some(resume) = &request.resume {
+        message["resume"] = serde_json::json!(resume);
+    }
+    message
 }
 
 struct ClientRuntime {

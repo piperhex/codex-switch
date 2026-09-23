@@ -1,6 +1,11 @@
 use super::*;
 use serde_json::{json, Value};
-use std::{net::TcpListener, sync::mpsc as sync_mpsc, thread, time::Duration};
+use std::{
+    net::{SocketAddr, TcpListener},
+    sync::mpsc as sync_mpsc,
+    thread,
+    time::Duration,
+};
 use tauri::ipc::InvokeResponseBody;
 use tungstenite::Message;
 
@@ -64,37 +69,92 @@ fn native_remote_gui_validates_peer_keys_and_resume_limits() {
 
 #[test]
 fn native_peer_authenticates_routes_its_session_and_closes_after_logout() {
+    exercise_native_peer(None);
+}
+
+#[test]
+fn native_peer_resumes_with_its_original_proof_and_routes_its_session() {
+    exercise_native_peer(Some(ResumeRequest {
+        session_id: "paired-session".into(),
+        resume_token: "cd".repeat(32),
+    }));
+}
+
+fn serve_peer(
+    listener: TcpListener,
+    expected_resume: Option<Value>,
+    relayed: sync_mpsc::Sender<()>,
+    stopped: sync_mpsc::Receiver<()>,
+) {
+    let (stream, _) = listener.accept().unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let mut socket = tungstenite::accept(stream).unwrap();
+    let auth: Value = serde_json::from_str(&socket.read().unwrap().into_text().unwrap()).unwrap();
+    assert_eq!(auth["type"], "authenticate");
+    assert_eq!(auth["accessToken"], "native-secret");
+    assert_eq!(auth["deviceId"], "other-pc");
+    assert_eq!(auth["role"], "mobile");
+    assert_eq!(auth["publicKey"], "ab".repeat(32));
+    assert_eq!(auth["transportVersion"], 2);
+    assert_eq!(auth.get("resume"), expected_resume.as_ref());
+    let event = if expected_resume.is_some() {
+        "resumed"
+    } else {
+        "paired"
+    };
+    socket
+        .send(Message::Text(
+            json!({"type": event, "sessionId": "paired-session"})
+                .to_string()
+                .into(),
+        ))
+        .unwrap();
+    let frame: Value = serde_json::from_str(&socket.read().unwrap().into_text().unwrap()).unwrap();
+    assert_eq!(
+        frame,
+        json!({"type":"relay", "sessionId":"paired-session", "payload":"aabb"})
+    );
+    relayed.send(()).unwrap();
+    stopped.recv_timeout(Duration::from_secs(5)).unwrap();
+}
+
+fn exercise_native_peer(resume: Option<ResumeRequest>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let (relayed, relay_received) = sync_mpsc::channel();
     let (stop_server, stopped) = sync_mpsc::channel();
-    let server = thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
-        stream
-            .set_read_timeout(Some(Duration::from_secs(5)))
-            .unwrap();
-        let mut socket = tungstenite::accept(stream).unwrap();
-        let auth: Value =
-            serde_json::from_str(&socket.read().unwrap().into_text().unwrap()).unwrap();
-        assert_eq!(auth["accessToken"], "native-secret");
-        assert_eq!(auth["deviceId"], "other-pc");
-        assert_eq!(auth["role"], "mobile");
-        socket
-            .send(Message::Text(
-                json!({"type":"paired", "sessionId":"paired-session"})
-                    .to_string()
-                    .into(),
-            ))
-            .unwrap();
-        let frame: Value =
-            serde_json::from_str(&socket.read().unwrap().into_text().unwrap()).unwrap();
-        assert_eq!(
-            frame,
-            json!({"type":"relay", "sessionId":"paired-session", "payload":"aabb"})
-        );
-        relayed.send(()).unwrap();
-        stopped.recv_timeout(Duration::from_secs(5)).unwrap();
-    });
+    let expected_resume = resume.as_ref().map(|proof| json!(proof));
+    let server = thread::spawn(move || serve_peer(listener, expected_resume, relayed, stopped));
+    let peer = start_peer(address, resume);
+    let text = peer.events.recv_timeout(Duration::from_secs(5)).unwrap();
+    assert!(!text.contains("native-secret"));
+    assert!(text.contains("paired-session"));
+    peer.commands
+        .blocking_send(ClientCommand::Send(Outgoing::Relay {
+            session_id: "paired-session".into(),
+            payload: "aabb".into(),
+        }))
+        .unwrap();
+    relay_received.recv_timeout(Duration::from_secs(5)).unwrap();
+    peer.configs.send_replace(None);
+    let closed: Value =
+        serde_json::from_str(&peer.events.recv_timeout(Duration::from_secs(5)).unwrap()).unwrap();
+    assert_eq!(closed["events"][0]["code"], 4001);
+    stop_server.send(()).unwrap();
+    peer.worker.join().unwrap();
+    server.join().unwrap();
+}
+
+struct NativePeer {
+    configs: watch::Sender<Option<Config>>,
+    commands: mpsc::Sender<ClientCommand>,
+    events: sync_mpsc::Receiver<String>,
+    worker: thread::JoinHandle<()>,
+}
+
+fn start_peer(address: SocketAddr, resume: Option<ResumeRequest>) -> NativePeer {
     let config = Config {
         websocket_url: format!("ws://{address}/device-chat"),
         access_token: "native-secret".into(),
@@ -112,6 +172,7 @@ fn native_peer_authenticates_routes_its_session_and_closes_after_logout() {
     });
     let mut request = request();
     request.identity.base_url = format!("http://{address}");
+    request.resume = resume;
     let worker = thread::spawn(move || {
         super::super::client_runtime::run(
             request,
@@ -120,21 +181,10 @@ fn native_peer_authenticates_routes_its_session_and_closes_after_logout() {
             (receiver, Arc::new(AtomicBool::new(false))),
         )
     });
-    let text = events.recv_timeout(Duration::from_secs(5)).unwrap();
-    assert!(!text.contains("native-secret"));
-    assert!(text.contains("paired-session"));
-    commands
-        .blocking_send(ClientCommand::Send(Outgoing::Relay {
-            session_id: "paired-session".into(),
-            payload: "aabb".into(),
-        }))
-        .unwrap();
-    relay_received.recv_timeout(Duration::from_secs(5)).unwrap();
-    configs.send_replace(None);
-    let closed: Value =
-        serde_json::from_str(&events.recv_timeout(Duration::from_secs(5)).unwrap()).unwrap();
-    assert_eq!(closed["events"][0]["code"], 4001);
-    stop_server.send(()).unwrap();
-    worker.join().unwrap();
-    server.join().unwrap();
+    NativePeer {
+        configs,
+        commands,
+        events,
+        worker,
+    }
 }
