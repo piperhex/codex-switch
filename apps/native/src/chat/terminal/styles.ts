@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 
 export const terminalStyles = StyleSheet.create({
+  container: { flex: 1 },
   button: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: .4 },
   overlay: { flex: 1, backgroundColor: '#0006', justifyContent: 'flex-end' },

@@ -86,6 +86,33 @@ test('scrolls history with vertical touch gestures without moving the page or se
     .map(raw => JSON.parse(raw) as { type: string }).filter(value => value.type === 'input'))).toHaveLength(0);
 });
 
+for (const enabled of [true, false]) {
+  test(`keeps the current command above the keyboard with wrapping ${enabled}`, async ({ page }) => {
+    await wrap(page, enabled);
+    const command = '$ echo keyboard-visible';
+    const history = Array.from({ length: 120 }, (_, index) => `History ${index}`).join('\r\n');
+    await output(page, `${history}\r\n${command}`);
+    const originalRows = await page.evaluate(() => terminal.rows);
+    for (const height of [300, 240, 844]) {
+      const previousRows = await page.evaluate(() => terminal.rows);
+      await page.setViewportSize({ width: 390, height });
+      const rows = expect.poll(() => page.evaluate(() => terminal.rows));
+      if (height === 844) await rows.toBe(originalRows);
+      else await rows.toBeLessThan(previousRows);
+      await expect(page.locator('.xterm-rows')).toContainText(command);
+      const position = await page.evaluate(() => {
+        const buffer = terminal.buffer.active;
+        const screen = document.querySelector('.xterm-screen')!.getBoundingClientRect();
+        return { cursorRow: buffer.baseY + buffer.cursorY - buffer.viewportY, rows: terminal.rows,
+          bottom: screen.bottom, keysTop: document.querySelector('nav')!.getBoundingClientRect().top };
+      });
+      expect(position.cursorRow).toBeGreaterThanOrEqual(0);
+      expect(position.cursorRow).toBeLessThan(position.rows);
+      expect(position.bottom).toBeLessThanOrEqual(position.keysTop);
+    }
+  });
+}
+
 test('keeps a long line intact for horizontal touch panning and switches back without losing output', async ({ page }) => {
   await wrap(page, false);
   await output(page, `${longLine}\r\n$ `);

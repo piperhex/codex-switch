@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
@@ -40,10 +40,14 @@ export function TerminalSession({ client, cwd, visible, deviceName, hide, close 
   }, []);
   useEffect(() => { if (visible) updateDisplay(); }, [wrap, visible]);
   const message = status || orientation.error;
+  // A translucent navigation bar disables Android's modal resize when the keyboard opens.
+  // Let Android resize the WebView; iOS needs explicit keyboard avoidance.
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={hide}
-    statusBarTranslucent navigationBarTranslucent
+    statusBarTranslucent
     supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
-    <SafeAreaProvider><SafeAreaView style={[styles.overlay, orientation.landscape && styles.fullscreenOverlay]}
+    <SafeAreaProvider><KeyboardAvoidingView style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <SafeAreaView style={[styles.overlay, orientation.landscape && styles.fullscreenOverlay]}
       edges={orientation.landscape ? ['top', 'right', 'bottom', 'left'] : ['bottom']}>
       {!orientation.landscape && <Pressable accessibilityRole="button" accessibilityLabel="收起终端"
         style={styles.backdrop} onPress={hide} />}
@@ -81,6 +85,6 @@ export function TerminalSession({ client, cwd, visible, deviceName, hide, close 
           : <ActivityIndicator style={styles.loading} color="#14806f" />}
         {!!message && <Text accessibilityRole="alert" style={styles.status}>{message}</Text>}
       </View>
-    </SafeAreaView></SafeAreaProvider>
+    </SafeAreaView></KeyboardAvoidingView></SafeAreaProvider>
   </Modal>;
 }
