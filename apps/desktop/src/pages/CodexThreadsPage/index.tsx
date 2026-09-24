@@ -24,6 +24,7 @@ interface CodexThreadsPageProps {
   active?: boolean;
   embedded?: boolean;
   excludedHomeIds?: readonly string[];
+  migrationTargetHomeId?: string;
   onHomeMigrated?: (targetHomeId: string) => void;
 }
 
@@ -33,7 +34,8 @@ export function CodexThreadsPage(props: CodexThreadsPageProps) {
   </CodexHomeScope>;
 }
 
-function CodexThreadsContent({ language, notify, embedded = false, onHomeMigrated }: CodexThreadsPageProps) {
+function CodexThreadsContent({ language, notify, embedded = false,
+  migrationTargetHomeId, onHomeMigrated }: CodexThreadsPageProps) {
   const homeId = useSelectedCodexHome();
   const { confirm, confirming } = useThreadConfirmation();
   const text = threadCopy[language];
@@ -59,7 +61,7 @@ function CodexThreadsContent({ language, notify, embedded = false, onHomeMigrate
   });
   const homeMigration = useHomeMigration({
     selected: list.selected, clearSelection: () => list.setSelected(new Set()),
-    notify, reportError, refresh, setBusy, onMigrated: onHomeMigrated,
+    notify, reportError, refresh, setBusy, fixedTargetHomeId: migrationTargetHomeId, onMigrated: onHomeMigrated,
   });
   const repair = useRepair({ selected: list.selected, text, notify, reportError, refresh });
   const migrate = useMigration({

@@ -14,6 +14,15 @@ export const threadCopy = {
     moveToBin: "移动到回收站",
     moveToHome: "对话迁移",
     homeMigrationTarget: "选择目标 Codex Home",
+    confirmHomeMigration: "确认迁移对话？",
+    homeMigrationSource: "来源",
+    homeMigrationDestination: "目标",
+    homeMigrationSelection: "所选对话",
+    homeMigrationCount: "{count} 条",
+    homeMigrationConfirmHint: "迁移后可在 Codex GUI 中继续对话，对话记录和项目路径会保留。"
+      + "关联对话会一并迁移，已有对话会跳过。迁移成功的对话会从来源移除，"
+      + "仍被其他对话使用的历史记录会保留。请先结束相关任务。",
+    migrationHomeUnavailable: "迁移目标暂不可用，请稍后重试。",
     homeMigrationHint: "将所选 {count} 条会话移至另一个 Codex Home，保留对话记录和项目路径。"
       + "关联会话会一并迁移，目标已有的会话会跳过，原目录仍需使用的历史记录会保留。请先结束相关任务。",
     startHomeMigration: "开始迁移",
@@ -100,6 +109,15 @@ export const threadCopy = {
     moveToBin: "Move to Trash",
     moveToHome: "Conversation migration",
     homeMigrationTarget: "Choose a destination Codex Home",
+    confirmHomeMigration: "Confirm conversation migration?",
+    homeMigrationSource: "Source",
+    homeMigrationDestination: "Destination",
+    homeMigrationSelection: "Selected conversations",
+    homeMigrationCount: "{count}",
+    homeMigrationConfirmHint: "Continue these conversations in Codex GUI with their history and project paths preserved. "
+      + "Related conversations are included; existing ones are skipped. Migrated conversations are removed from "
+      + "the source, but history still needed by other conversations is kept. Finish related tasks first.",
+    migrationHomeUnavailable: "The destination is unavailable. Please try again later.",
     homeMigrationHint: "Move {count} selected sessions to another Codex Home, keeping their history and project paths. "
       + "Related sessions are included. Existing sessions and required source history are kept. Finish related tasks first.",
     startHomeMigration: "Start migration",

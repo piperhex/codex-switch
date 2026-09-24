@@ -8,9 +8,9 @@ const skill = { id: "gui-plugin", title: "项目检查助手", description: "整
   version: "1.0.0", archiveSize: 100, archiveSha256: "", hasPreview: false, official: true,
   installCount: 12, createdAt: "2026-09-12", updatedAt: "2026-09-12", installed: false, enabled: false };
 const migrationHomes = [
-  { id: "codex-gui", path: "C:/app/.codex", enabled: true },
   { id: "default", path: "C:/Users/test/.codex", enabled: false },
   { id: "work", path: "D:/work/.codex", enabled: true },
+  { id: "codex-gui", path: "C:/app/.codex", enabled: true },
 ];
 const sourceThread = { sessionId: "source-conversation", sessionKind: "conversation", title: "准备迁移的对话",
   cwd: "D:/projects/example", updatedAt: Math.floor(Date.now() / 1000), sizeBytes: 1024, matchExcerpt: null,
@@ -161,10 +161,21 @@ test("migration reuses session management in the chat pane and excludes the GUI 
   await expect(pane.getByText(sourceThread.title, { exact: true })).toBeVisible();
   await pane.getByRole("checkbox", { name: "全选全部会话" }).check();
   await pane.getByRole("button", { name: "对话迁移", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "对话迁移", exact: true });
+  const dialog = page.getByRole("dialog", { name: "确认迁移对话？", exact: true });
+  await expect(dialog.getByRole("combobox")).toHaveCount(0);
+  await expect(dialog.getByText("默认目录 · C:/Users/test/.codex", { exact: true })).toBeVisible();
   await expect(dialog.getByText("内置 Codex GUI", { exact: true })).toBeVisible();
-  await expect(pane.getByRole("combobox", { name: "选择管理的 Codex Home" })).toBeDisabled();
+  await expect(dialog.getByText("所选对话", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("1 条", { exact: true })).toBeVisible();
+  await expect(dialog).toHaveCSS("transform", "none");
   await page.screenshot({ path: "../../.codex-tmp/gui-migration-confirm.png", animations: "disabled" });
+  expect(calls.filter((call) => call.command === "migrate_codex_threads_to_home")).toEqual([]);
+  await dialog.getByRole("button", { name: /^关\s*闭$/ }).click();
+  await expect(dialog).toBeHidden();
+  expect(calls.filter((call) => call.command === "migrate_codex_threads_to_home")).toEqual([]);
+  await pane.getByRole("button", { name: "对话迁移", exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await expect(pane.getByRole("combobox", { name: "选择管理的 Codex Home" })).toBeDisabled();
   await dialog.getByRole("button", { name: "开始迁移", exact: true }).click();
   await expect(dialog).toBeHidden();
   expect(calls.find((call) => call.command === "migrate_codex_threads_to_home")?.args).toEqual({

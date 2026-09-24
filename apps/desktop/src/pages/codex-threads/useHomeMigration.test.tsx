@@ -7,7 +7,7 @@ import { useHomeMigration } from "./useHomeMigration";
 
 vi.mock("../../components/CodexHomeScope", () => ({
   useSelectedCodexHome: () => "source",
-  useCodexHomes: () => [{ id: "source" }, { id: "target" }, { id: "third" }],
+  useCodexHomes: () => [{ id: "source" }, { id: "target" }, { id: "third" }, { id: "codex-gui" }],
 }));
 vi.mock("../../api/backend", () => ({ migrateCodexThreadsToHome: vi.fn() }));
 let root: Root;
@@ -18,8 +18,9 @@ const refresh = vi.fn(async () => {});
 const reportError = vi.fn();
 const setBusy = vi.fn();
 const onMigrated = vi.fn();
-function Harness() {
-  migration = useHomeMigration({ selected, clearSelection, refresh, reportError, setBusy, notify: vi.fn(), onMigrated });
+function Harness({ fixedTargetHomeId }: { fixedTargetHomeId?: string }) {
+  migration = useHomeMigration({ selected, clearSelection, refresh, reportError, setBusy,
+    notify: vi.fn(), onMigrated, fixedTargetHomeId });
   return null;
 }
 beforeEach(async () => {
@@ -35,7 +36,7 @@ afterEach(async () => { await act(async () => root.unmount()); vi.unstubAllGloba
 
 it("moves captured selection from the current home to the chosen destination", async () => {
   await act(async () => migration.show());
-  expect(migration.homes.map((home) => home.id)).toEqual(["target", "third"]);
+  expect(migration.homes.map((home) => home.id)).toEqual(["target", "third", "codex-gui"]);
   await act(async () => migration.setTargetHomeId("third"));
   await act(async () => migration.commit());
   expect(migrateCodexThreadsToHome).toHaveBeenCalledWith({
@@ -73,4 +74,28 @@ it("ignores a second click while migration is in flight", async () => {
     finish?.();
     await first;
   });
+});
+
+it("uses the fixed GUI destination regardless of home order or destination selection", async () => {
+  await act(async () => root.render(<Harness fixedTargetHomeId="codex-gui" />));
+  await act(async () => migration.show());
+  expect(migration.fixedTarget).toBe(true);
+  expect(migration.sourceHome?.id).toBe("source");
+  expect(migration.targetHome?.id).toBe("codex-gui");
+  expect(migrateCodexThreadsToHome).not.toHaveBeenCalled();
+  await act(async () => migration.setTargetHomeId("third"));
+  await act(async () => migration.commit());
+  expect(migrateCodexThreadsToHome).toHaveBeenCalledExactlyOnceWith({
+    homeId: "source", targetHomeId: "codex-gui", sessionIds: ["one", "two"],
+  });
+  expect(onMigrated).toHaveBeenCalledExactlyOnceWith("codex-gui");
+});
+
+it.each(["unavailable", "source"])("does not substitute another home for invalid fixed target %s", async (id) => {
+  await act(async () => root.render(<Harness fixedTargetHomeId={id} />));
+  await act(async () => migration.show());
+  await act(async () => migration.commit());
+  expect(migrateCodexThreadsToHome).not.toHaveBeenCalled();
+  expect(migration.targetHome).toBeUndefined();
+  expect(migration.open).toBe(true);
 });

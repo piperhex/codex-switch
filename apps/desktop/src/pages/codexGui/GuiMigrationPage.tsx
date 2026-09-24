@@ -15,6 +15,7 @@ export default function GuiMigrationPage({ active, notify }: {
 }) {
   return <section className={styles.page} aria-label="对话迁移">
     <CodexThreadsPage language="zh" notify={notify} active={active} embedded
-      excludedHomeIds={EXCLUDED_SOURCE_HOMES} onHomeMigrated={refreshMigratedConversations} />
+      excludedHomeIds={EXCLUDED_SOURCE_HOMES} migrationTargetHomeId={GUI_CODEX_HOME_ID}
+      onHomeMigrated={refreshMigratedConversations} />
   </section>;
 }
