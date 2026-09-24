@@ -1,7 +1,10 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ArrowRight, CircleAlert, Cloud, KeyRound, LockKeyhole, Mail, UserPlus, X } from "lucide-react";
 import { isHostedWebApp, loadSavedCloudLogin } from "../../api/backend";
-import type { Translate } from "../../i18n";
+import type { Language, Translate } from "../../i18n";
+import { AgreementConsent } from "../../../../../shared/legal/AgreementConsent";
+import { useAgreementConsent } from "../../../../../shared/legal/useAgreementConsent";
+import "./cloud-login-agreement.css";
 
 export function CloudLoginModal({
   loading,
@@ -12,6 +15,7 @@ export function CloudLoginModal({
   onRegister,
   onSendRegistrationCode,
   sessionExpired,
+  language,
   t,
 }: {
   loading: boolean;
@@ -27,6 +31,7 @@ export function CloudLoginModal({
   ) => Promise<boolean>;
   onSendRegistrationCode: (email: string) => Promise<boolean>;
   sessionExpired: boolean;
+  language: Language;
   t: Translate;
 }) {
   const [email, setEmail] = useState("");
@@ -37,6 +42,7 @@ export function CloudLoginModal({
   const [rememberPassword, setRememberPassword] = useState(false);
   const [pendingAction, setPendingAction] = useState<"login" | "register" | null>(null);
   const credentialsEdited = useRef(false);
+  const consent = useAgreementConsent();
 
   useEffect(() => {
     let active = true;
@@ -60,16 +66,19 @@ export function CloudLoginModal({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setRegisterMode(false);
-    void authenticate("login");
+    if (!loading) void consent.request("login", () => authenticate("login"));
   };
 
   const authenticate = async (action: "login" | "register") => {
     setPendingAction(action);
-    const ok = action === "login"
-      ? await onLogin(email.trim(), password, rememberPassword)
-      : await onRegister(email.trim(), password, verificationCode, rememberPassword);
-    setPendingAction(null);
-    if (ok) onClose();
+    try {
+      const ok = action === "login"
+        ? await onLogin(email.trim(), password, rememberPassword)
+        : await onRegister(email.trim(), password, verificationCode, rememberPassword);
+      if (ok) onClose();
+    } finally {
+      setPendingAction(null);
+    }
   };
 
   const sendCode = async () => {
@@ -78,7 +87,7 @@ export function CloudLoginModal({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop cloud-login-backdrop" onClick={() => { if (!loading) onClose(); }}>
       <section className="modal cloud-login-modal" onClick={(event) => event.stopPropagation()}>
         <button type="button" className="modal-close" aria-label={t("cloudLogin.close")} onClick={onClose}
           disabled={loading}><X size={19} /></button>
@@ -138,10 +147,12 @@ export function CloudLoginModal({
               </button>
             </div>
           </>}
+          <AgreementConsent consent={consent} language={language} disabled={loading} />
           <div className="cloud-login-actions">
             <button type="button" className="cloud-register-button cloud-login-action"
               disabled={loading || (registerMode && (!email.trim() || !password || !/^\d{6}$/.test(verificationCode)))}
-              onClick={() => registerMode ? void authenticate("register") : setRegisterMode(true)}>
+              onClick={() => registerMode
+                ? void consent.request("register", () => authenticate("register")) : setRegisterMode(true)}>
               <UserPlus size={17} />
               {pendingAction === "register" ? t("cloudLogin.registering") : t("cloudLogin.register")}
             </button>

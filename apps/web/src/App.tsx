@@ -25,6 +25,8 @@ import { loadRefreshMinutes, REFRESH_INTERVAL_EVENT } from "./settings/refreshIn
 import { useTotpVault } from "./useTotpVault";
 import { ChatPage } from "./chat/ChatPage";
 import { usePanelVisibility } from "./useDesktopLayout";
+import { AgreementConsent } from '../../../shared/legal/AgreementConsent';
+import { useAgreementConsent } from '../../../shared/legal/useAgreementConsent';
 
 const PULL_REFRESH_TEXT = {
   get pulling() { return t("下拉刷新"); },
@@ -34,7 +36,8 @@ const PULL_REFRESH_TEXT = {
 } as const;
 
 function LoginView() {
-  useLanguage();
+  const language = useLanguage();
+  const consent = useAgreementConsent();
   const dispatch = useAppDispatch();
   const { submitting, error } = useAppSelector((state) => state.auth);
   const [baseUrl, setBaseUrl] = useState(defaultApiBaseUrl);
@@ -44,16 +47,19 @@ function LoginView() {
   const [showRegistration, setShowRegistration] = useState(false);
 
   const submit = async () => {
+    if (submitting) return;
     if (!email.trim() || !password) {
       Toast.show({ icon: "fail", content: t("请填写邮箱和密码") });
       return;
     }
-    try {
-      await dispatch(signIn({ baseUrl, email, password })).unwrap();
-      Toast.show({ icon: "success", content: t("欢迎回来") });
-    } catch {
-      // The Redux state renders the actionable server error.
-    }
+    await consent.request('login', async () => {
+      try {
+        await dispatch(signIn({ baseUrl, email, password })).unwrap();
+        Toast.show({ icon: "success", content: t("欢迎回来") });
+      } catch {
+        // The Redux state renders the actionable server error.
+      }
+    });
   };
 
   return <main className="login-page">
@@ -84,7 +90,8 @@ function LoginView() {
         <Form className="login-form" layout="vertical" footer={<div className="login-actions">
           <Button className="login-register" color="primary" fill="outline" size="large"
             type="button" onClick={() => setShowRegistration(true)}>{t("注册")}</Button>
-          <Button block color="primary" size="large" loading={submitting} onClick={submit}>{t("登录并查看")}</Button>
+          <Button block color="primary" size="large" loading={submitting} disabled={submitting}
+            onClick={submit}>{t("登录并查看")}</Button>
         </div>}>
           <Form.Item label={t("邮箱")}>
             <Input value={email} onChange={(value) => { setEmail(value); dispatch(clearAuthError()); }}
@@ -106,6 +113,7 @@ function LoginView() {
                 autoCapitalize="none" placeholder="https://api.example.com" clearable />
             </Form.Item> : null}
           </div>
+          <AgreementConsent consent={consent} language={language} disabled={submitting} />
           {error ? <div className="form-error" role="alert">{t(error)}</div> : null}
         </Form>
         <div className="login-security"><ShieldCheck size={16} /><span>{t("安全连接，安心管理你的账号。")}</span></div>

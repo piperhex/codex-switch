@@ -85,6 +85,8 @@ import {
 import { installDownloadedAndroidUpdate } from './src/update/appUpdate';
 import { useAndroidUpdateDownloadState } from './src/update/useAndroidUpdateDownloadState';
 import { AboutPage } from './src/about/AboutPage';
+import { AgreementConsent } from './src/auth/AgreementConsent';
+import { useAgreementConsent } from '../../shared/legal/useAgreementConsent';
 
 const COLORS = {
   ink: '#13231c',
@@ -144,6 +146,7 @@ function usageColor(remaining: number) {
 }
 
 function LoginScreen({ initialBaseUrl, onLoggedIn }: { initialBaseUrl: string; onLoggedIn: (session: AuthSession) => void }) {
+  const consent = useAgreementConsent();
   const [baseUrl, setBaseUrl] = useState(initialBaseUrl);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -161,6 +164,10 @@ function LoginScreen({ initialBaseUrl, onLoggedIn }: { initialBaseUrl: string; o
       setSubmitting(false);
     }
   }, [baseUrl, email, onLoggedIn, password]);
+
+  const requestLogin = () => {
+    if (!submitting) void consent.request('login', submit);
+  };
 
   return <KeyboardAvoidingView style={styles.flex} behavior={Platform.select({ ios: 'padding', android: undefined })}>
     <SafeAreaView style={styles.flex}>
@@ -187,9 +194,10 @@ function LoginScreen({ initialBaseUrl, onLoggedIn }: { initialBaseUrl: string; o
           <Text style={styles.fieldLabel}>密码</Text>
           <TextInput value={password} onChangeText={setPassword} secureTextEntry autoComplete="password"
             placeholder="输入密码" placeholderTextColor="#98a9a0" style={styles.input} editable={!submitting}
-            onSubmitEditing={() => void submit()} />
+            onSubmitEditing={requestLogin} />
+          <AgreementConsent consent={consent} disabled={submitting} />
           <Pressable accessibilityRole="button" style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, submitting && styles.disabled]}
-            disabled={submitting} onPress={() => void submit()}>
+            disabled={submitting} onPress={requestLogin}>
             {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>登录并查看</Text>}
           </Pressable>
         </View>

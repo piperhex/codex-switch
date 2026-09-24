@@ -1624,7 +1624,8 @@ export function DashboardApp() {
         }}
           sendingRegistrationCode={cloud.sendingRegistrationCode} onLogin={loginCloudAccount}
           onForgotPassword={openCloudPasswordReset} onRegister={registerCloudAccount}
-          onSendRegistrationCode={cloud.sendRegistrationCode} sessionExpired={cloudSessionExpired} t={t} />}
+          onSendRegistrationCode={cloud.sendRegistrationCode} sessionExpired={cloudSessionExpired}
+          language={language} t={t} />}
         {showCloudAccount && cloud.state.authenticated && <CloudAccountModal
           email={cloud.state.userEmail} baseUrl={cloud.state.baseUrl}
           changingPassword={cloud.changingPassword} onChangePassword={cloud.changePassword}

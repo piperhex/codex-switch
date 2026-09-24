@@ -22,6 +22,7 @@ test.beforeEach(async ({ page, request }) => {
   await page.getByRole('textbox', { name: '邮箱', exact: true }).fill('review@example.test');
   await page.getByRole('textbox', { name: '密码', exact: true }).fill('local-review');
   await page.getByRole('button', { name: '登录并查看' }).click();
+  await page.getByRole('button', { name: '同意并登录' }).click();
   await expect(page.locator('.app-shell')).toBeVisible();
   await expect(page.getByText('欢迎回来', { exact: true })).toBeVisible();
   await expect(page.getByText('欢迎回来', { exact: true })).toBeHidden();
