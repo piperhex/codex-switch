@@ -1,9 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
-export interface TerminalSize { cols: number; rows: number }
-export interface TerminalInfo { id: string; cwd: string; shell: string }
-export type TerminalEvent = { type: "output"; data: number[] }
-  | { type: "exit"; code: number | null } | { type: "error"; message: string };
+import type { TerminalSize, TerminalInfo, TerminalEvent } from '../../../../../../shared/terminal/types';
+export type { TerminalSize, TerminalInfo, TerminalEvent, TerminalApi } from '../../../../../../shared/terminal/types';
 
 export const terminalApi = {
   open(cwd: string, size: TerminalSize, onEvent: (event: TerminalEvent) => void) {
@@ -21,5 +19,3 @@ export const terminalApi = {
   }),
   close: (id: string) => invoke<void>("codex_gui_terminal_command", { request: { type: "close", id } }),
 };
-
-export type TerminalApi = typeof terminalApi;

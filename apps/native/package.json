@@ -12,7 +12,7 @@
     "prebuild:android": "node ./scripts/expo.cjs prebuild --platform android --clean --no-install",
     "build:apk": "node ./scripts/build-apk.cjs",
     "prebuild:ios": "node ./scripts/expo.cjs prebuild --platform ios --clean --no-install",
-    "check": "tsc --noEmit",
+    "check": "node ./scripts/build-terminal-document.cjs --check && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
@@ -57,6 +57,8 @@
     "@types/hast": "^3.0.5",
     "@types/react": "~19.0.10",
     "@types/sql.js": "^1.4.11",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "sql.js": "^1.14.2",
     "typescript": "~5.8.3",
     "vitest": "^4.1.9"

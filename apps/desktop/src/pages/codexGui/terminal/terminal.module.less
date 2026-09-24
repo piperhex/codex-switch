@@ -2,6 +2,12 @@
   flex-shrink: 0; min-height: 0; box-sizing: border-box;
   max-height: 70%; border-top: 1px solid var(--line); background: var(--terminal-background); color: #242424; }
 .panel[hidden], .pane[hidden] { display: none; }
+.fill { flex: 1; height: 100%; max-height: none; border-top: 0;
+  .toolbar { min-height: 48px; }
+  .tab button, .iconButton { min-height: 40px; min-width: 40px; }
+  .tabs { flex: 1; }
+  .pane { padding-left: 8px; }
+  :global(.xterm-helper-textarea) { font-size: 16px; } }
 .toolbar { display: flex; align-items: center; gap: 6px; min-height: 38px; padding: 5px 10px; }
 .tabs { display: flex; min-width: 0; gap: 4px; overflow-x: auto; scrollbar-width: thin; }
 .tab { display: flex; align-items: center; flex-shrink: 0; border-radius: 8px;
@@ -20,6 +26,9 @@
 .screen { flex: 1; min-height: 0; overflow: hidden; :global(.xterm) { height: 100%; }
   :global(.xterm-viewport) { background-color: var(--terminal-background); } }
 .status { flex-shrink: 0; max-width: 400px; font-size: 12px; padding-top: 6px; overflow-wrap: anywhere; }
+.keys { display: flex; flex-shrink: 0; gap: 4px; padding-top: 6px;
+  button { flex: 1; min-width: 0; min-height: 44px; padding: 4px; border: 0; border-radius: 8px;
+    color: inherit; background: #71807812; cursor: pointer; } }
 .resize { position: absolute; top: -4px; left: 0; right: 0; height: 8px; z-index: 2;
   cursor: row-resize; touch-action: none;
   &:hover, &:focus-visible { background: var(--green); opacity: .5; } }

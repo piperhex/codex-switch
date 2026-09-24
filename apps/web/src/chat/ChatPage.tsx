@@ -2,6 +2,7 @@ import { t, useLanguage } from '../i18n';
 import { useEffect, useState } from 'react';
 import type { AuthSession, RemoteDevice } from '../types';
 import { ConnectedChat } from './ConnectedChat';
+import { ChatTerminal } from './ChatTerminal';
 import { useChat } from './useChat';
 import { useChatViewport } from './useChatViewport';
 import { loadLastConnectedDevice } from './lastConnectedDevice';
@@ -30,5 +31,8 @@ function WebChat({ session, device, ...props }: Props & {
 }) {
   const chat = useChat(session, device?.deviceId ?? '', props.active && Boolean(device));
   return <ConnectedChat {...props} chat={chat} device={device} email={session.email}
+    headerActions={<ChatTerminal client={chat.controller.guiTools.terminal} active={props.active}
+      connected={chat.state.ready} deviceName={device?.name}
+      cwd={chat.state.selected?.cwd ?? chat.state.draftProject?.cwd ?? ''} />}
     scope={JSON.stringify([session.baseUrl, session.email, device?.deviceId ?? ''])} />;
 }

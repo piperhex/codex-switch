@@ -1,4 +1,4 @@
-import type { TerminalEvent, TerminalInfo, TerminalSize } from '../../apps/desktop/src/pages/codexGui/terminal/api';
+import type { TerminalEvent, TerminalInfo, TerminalSize } from '../terminal/types';
 
 export interface CliRelease { version: string; size: number }
 export interface CliProgress { downloaded: number; total: number; phase: 'downloading' | 'installing' }

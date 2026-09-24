@@ -50,7 +50,7 @@ export function useTerminalSession(cwd: string, visible: boolean, api?: Terminal
     };
   }, [cwd, api]);
   useEffect(() => { if (visible) terminalRef.current?.focus(); }, [visible]);
-  return { host, info, status };
+  return { host, info, status, input: (data: string) => terminalRef.current?.input(data, true) };
 }
 
 function handleClipboard(event: KeyboardEvent, terminal: Terminal, report: (message: string) => void) {
