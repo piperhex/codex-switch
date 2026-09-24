@@ -148,3 +148,16 @@
   .threadSessionRow { grid-template-columns: 22px 20px minmax(140px, 1fr) 78px 30px; }
   .threadTokenStats { display: none; }
 }
+
+@container (max-width: 800px) {
+  .threadSessionRow { grid-template-columns: 22px 20px minmax(0, 1fr) 60px 30px; }
+  .threadTokenStats { display: none; }
+}
+
+@container (max-width: 480px) {
+  .threadListHeader, .threadWorkspaceRow { grid-template-columns: 24px 24px 22px minmax(0, 1fr) 56px; }
+  .threadListHeaderCount, .threadWorkspaceCount { display: none; }
+  .threadSessionList { margin-left: 0; margin-right: 0; }
+  .threadSessionRow { grid-template-columns: 22px 20px minmax(0, 1fr) 30px; }
+  .threadSessionRow > time { display: none; }
+}

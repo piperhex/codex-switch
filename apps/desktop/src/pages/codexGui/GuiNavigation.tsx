@@ -1,10 +1,11 @@
-import { Clock3, Package, SquarePen } from "lucide-react";
+import { Clock3, FolderInput, Package, SquarePen } from "lucide-react";
 import styles from "./GuiNavigation.module.less";
 
-export type GuiView = "conversation" | "scheduled-tasks" | "plugins";
+export type GuiView = "conversation" | "scheduled-tasks" | "plugins" | "conversation-migration";
 
 export const GUI_VIEW_TITLES: Record<GuiView, string> = {
   conversation: "Codex GUI", "scheduled-tasks": "定时任务", plugins: "插件",
+  "conversation-migration": "对话迁移",
 };
 
 export function GuiNavigation({ view, sending, onNavigate, onNewConversation,
@@ -23,6 +24,10 @@ export function GuiNavigation({ view, sending, onNavigate, onNewConversation,
     <button type="button" aria-current={view === "plugins" ? "page" : undefined}
       onClick={() => onNavigate("plugins")}>
       <Package size={18} strokeWidth={1.6} aria-hidden="true" /><span>插件</span>
+    </button>
+    <button type="button" aria-current={view === "conversation-migration" ? "page" : undefined}
+      onClick={() => onNavigate("conversation-migration")}>
+      <FolderInput size={18} strokeWidth={1.6} aria-hidden="true" /><span>对话迁移</span>
     </button>
   </nav>;
 }

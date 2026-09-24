@@ -21,13 +21,19 @@ import styles from "./index.module.less";
 interface CodexThreadsPageProps {
   language: Language;
   notify: (message: string) => void;
+  active?: boolean;
+  embedded?: boolean;
+  excludedHomeIds?: readonly string[];
+  onHomeMigrated?: (targetHomeId: string) => void;
 }
 
 export function CodexThreadsPage(props: CodexThreadsPageProps) {
-  return <CodexHomeScope><CodexThreadsContent {...props} /></CodexHomeScope>;
+  return <CodexHomeScope active={props.active} excludedHomeIds={props.excludedHomeIds}>
+    <CodexThreadsContent {...props} />
+  </CodexHomeScope>;
 }
 
-function CodexThreadsContent({ language, notify }: CodexThreadsPageProps) {
+function CodexThreadsContent({ language, notify, embedded = false, onHomeMigrated }: CodexThreadsPageProps) {
   const homeId = useSelectedCodexHome();
   const { confirm, confirming } = useThreadConfirmation();
   const text = threadCopy[language];
@@ -53,7 +59,7 @@ function CodexThreadsContent({ language, notify }: CodexThreadsPageProps) {
   });
   const homeMigration = useHomeMigration({
     selected: list.selected, clearSelection: () => list.setSelected(new Set()),
-    notify, reportError, refresh, setBusy,
+    notify, reportError, refresh, setBusy, onMigrated: onHomeMigrated,
   });
   const repair = useRepair({ selected: list.selected, text, notify, reportError, refresh });
   const migrate = useMigration({
@@ -66,8 +72,8 @@ function CodexThreadsContent({ language, notify }: CodexThreadsPageProps) {
   });
 
   useEffect(() => {
-    setTopbarHost(document.getElementById("codex-thread-topbar-actions"));
-  }, []);
+    setTopbarHost(embedded ? null : document.getElementById("codex-thread-topbar-actions"));
+  }, [embedded]);
 
   const runSync = async () => {
     setBusy(true);
@@ -116,24 +122,23 @@ function CodexThreadsContent({ language, notify }: CodexThreadsPageProps) {
     });
   };
 
+  const topbar = <ThreadTopbar
+    text={text}
+    busy={busy}
+    selectedCount={list.selected.size}
+    runSync={() => void runSync()}
+    restartChatGpt={confirmRestartChatGpt}
+    openImport={() => void transfer.openImport()}
+    openExport={() => void transfer.openExport()}
+    migrateSelected={() => confirmMigration([...list.selected])}
+    openRepair={repair.openModal}
+    openBin={() => void trash.openBin()}
+  />;
   return (
     <>
-      {topbarHost && createPortal(
-        <ThreadTopbar
-          text={text}
-          busy={busy}
-          selectedCount={list.selected.size}
-          runSync={() => void runSync()}
-          restartChatGpt={confirmRestartChatGpt}
-          openImport={() => void transfer.openImport()}
-          openExport={() => void transfer.openExport()}
-          migrateSelected={() => confirmMigration([...list.selected])}
-          openRepair={repair.openModal}
-          openBin={() => void trash.openBin()}
-        />,
-        topbarHost,
-      )}
-      <div className={styles.codexThreadManager}>
+      {topbarHost && createPortal(topbar, topbarHost)}
+      <div className={`${styles.codexThreadManager} ${embedded ? styles.embedded : ""}`}>
+        {embedded && <div className={styles.embeddedActions}>{topbar}</div>}
         <ThreadToolbar
           homeSelectDisabled={busy || confirming || trash.confirming || repair.busy
             || trash.open || transfer.open || repair.open || homeMigration.open}

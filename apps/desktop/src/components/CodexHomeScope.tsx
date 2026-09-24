@@ -7,6 +7,7 @@ import styles from "./CodexHomeScope.module.less";
 interface HomeScope {
   homeId: string;
   homes: CodexHomeEntry[];
+  selectableHomes: CodexHomeEntry[];
   select: (id: string) => void;
 }
 
@@ -26,7 +27,11 @@ export function useCodexHomes() {
   return useHomeScope().homes;
 }
 
-export function CodexHomeScope({ active = true, children }: { active?: boolean; children: ReactNode }) {
+export function CodexHomeScope({ active = true, excludedHomeIds = [], children }: {
+  active?: boolean;
+  excludedHomeIds?: readonly string[];
+  children: ReactNode;
+}) {
   const [homes, setHomes] = useState<CodexHomeEntry[]>([]);
   const [selected, select] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -45,13 +50,16 @@ export function CodexHomeScope({ active = true, children }: { active?: boolean; 
     });
     return () => { cancelled = true; };
   }, [active, attempt]);
-  const home = homes.find((entry) => entry.id === selected)
-    ?? homes.find((entry) => entry.enabled) ?? homes[0];
+  // Exclude browsing sources without removing valid migration and restore destinations.
+  const selectableHomes = homes.filter((entry) => !excludedHomeIds.includes(entry.id));
+  const home = selectableHomes.find((entry) => entry.id === selected)
+    ?? selectableHomes.find((entry) => entry.enabled) ?? selectableHomes[0];
   if (error) return <Alert className={styles.notice} type="error" message={error}
     action={<Button size="small" onClick={() => retry((value) => value + 1)}>重试</Button>} />;
   if (!loaded) return <Spin className={styles.loading} />;
   if (!home) return <Empty description="请先在设置中添加 Codex Home。" />;
-  return <HomeContext.Provider key={`${home.id}:${home.path}`} value={{ homeId: home.id, homes, select }}>
+  return <HomeContext.Provider key={`${home.id}:${home.path}`}
+    value={{ homeId: home.id, homes, selectableHomes, select }}>
     {children}
   </HomeContext.Provider>;
 }
@@ -60,12 +68,12 @@ export function CodexHomeSelect({ disabled = false, showLabel = true }: {
   disabled?: boolean;
   showLabel?: boolean;
 }) {
-  const { homes, homeId, select } = useHomeScope();
+  const { selectableHomes, homeId, select } = useHomeScope();
   return <label className={styles.selector}>
     {showLabel && <span>Codex Home</span>}
     <Select aria-label="选择管理的 Codex Home" value={homeId} onChange={select} disabled={disabled}
       popupClassName={styles.popup} popupMatchSelectWidth={false}
-      options={homes.map((home) => ({ value: home.id, label: homeLabel(home) }))} />
+      options={selectableHomes.map((home) => ({ value: home.id, label: homeLabel(home) }))} />
   </label>;
 }
 

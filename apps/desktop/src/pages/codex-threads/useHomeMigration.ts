@@ -10,6 +10,7 @@ interface Options {
   setBusy: Dispatch<SetStateAction<boolean>>;
   notify: (message: string) => void;
   reportError: (error: unknown) => void;
+  onMigrated?: (targetHomeId: string) => void;
 }
 
 export function useHomeMigration(options: Options) {
@@ -36,6 +37,7 @@ export function useHomeMigration(options: Options) {
       options.notify(result.message);
       options.clearSelection();
       setOpen(false);
+      options.onMigrated?.(targetHomeId);
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
       options.reportError(error);

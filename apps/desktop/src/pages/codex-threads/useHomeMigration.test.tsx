@@ -17,8 +17,9 @@ const clearSelection = vi.fn();
 const refresh = vi.fn(async () => {});
 const reportError = vi.fn();
 const setBusy = vi.fn();
+const onMigrated = vi.fn();
 function Harness() {
-  migration = useHomeMigration({ selected, clearSelection, refresh, reportError, setBusy, notify: vi.fn() });
+  migration = useHomeMigration({ selected, clearSelection, refresh, reportError, setBusy, notify: vi.fn(), onMigrated });
   return null;
 }
 beforeEach(async () => {
@@ -43,6 +44,7 @@ it("moves captured selection from the current home to the chosen destination", a
   expect(clearSelection).toHaveBeenCalledOnce();
   expect(refresh).toHaveBeenCalledOnce();
   expect(migration.open).toBe(false);
+  expect(onMigrated).toHaveBeenCalledExactlyOnceWith("third");
 });
 
 it("refreshes partial failure while retaining the dialog and selection", async () => {
@@ -55,6 +57,7 @@ it("refreshes partial failure while retaining the dialog and selection", async (
   expect(migration.open).toBe(true);
   expect(migration.error).toBe("failed");
   expect(setBusy).toHaveBeenLastCalledWith(false);
+  expect(onMigrated).not.toHaveBeenCalled();
 });
 
 it("ignores a second click while migration is in flight", async () => {

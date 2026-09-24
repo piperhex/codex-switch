@@ -2,7 +2,7 @@
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "./CodexHomeScope";
+import { CodexHomeScope, CodexHomeSelect, useCodexHomes, useSelectedCodexHome } from "./CodexHomeScope";
 import { useCodexConfig } from "../pages/codexConfig/useCodexConfig";
 import type { CodexConfigDocument } from "../api/codexConfig";
 
@@ -92,4 +92,35 @@ it("falls back to a saved home when the selected entry is removed", async () => 
   backend.loadAppSettings.mockResolvedValue({ codexHomes: [homes[0]] });
   await act(async () => root.render(<CodexHomeScope><Editor /></CodexHomeScope>));
   expect(container.querySelector("output")?.textContent).toBe("default");
+});
+
+function MigrationSource() {
+  const homes = useCodexHomes();
+  const source = useSelectedCodexHome();
+  return <><CodexHomeSelect /><output>{source}</output>
+    <div data-testid="destinations">{homes.map((home) => home.id).join(",")}</div></>;
+}
+
+it("excludes the GUI from source choices and the initial selection but keeps it as a destination", async () => {
+  backend.loadAppSettings.mockResolvedValue({ codexHomes: [
+    { ...homes[1], enabled: true }, { ...homes[0], enabled: false },
+  ] });
+  await act(async () => root.render(<CodexHomeScope excludedHomeIds={["codex-gui"]}>
+    <MigrationSource />
+  </CodexHomeScope>));
+  expect(container.querySelector("output")?.textContent).toBe("default");
+  expect(container.querySelector('[data-testid="destinations"]')?.textContent).toBe("codex-gui,default");
+  const input = container.querySelector<HTMLInputElement>("input[role=combobox]")!;
+  await act(async () => input.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
+  const choices = [...document.querySelectorAll<HTMLElement>(".ant-select-item-option")];
+  expect(choices.map((item) => item.textContent)).toEqual(["默认目录 · C:/codex"]);
+});
+
+it("shows an empty state instead of falling back to the excluded GUI home", async () => {
+  backend.loadAppSettings.mockResolvedValue({ codexHomes: [homes[1]] });
+  await act(async () => root.render(<CodexHomeScope excludedHomeIds={["codex-gui"]}>
+    <MigrationSource />
+  </CodexHomeScope>));
+  expect(container.textContent).toContain("请先在设置中添加 Codex Home");
+  expect(container.querySelector("output")).toBeNull();
 });

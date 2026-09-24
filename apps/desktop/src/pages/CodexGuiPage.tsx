@@ -31,6 +31,7 @@ import type { SkillsMarketPageProps } from "./skillsMarket/types";
 import paneStyles from "./codexGui/workspacePanes.module.less";
 
 const GuiPluginsPage = lazy(() => import("./codexGui/GuiPluginsPage"));
+const GuiMigrationPage = lazy(() => import("./codexGui/GuiMigrationPage"));
 const ScheduledTasksPage = lazy(() => import("./codexGui/scheduledTasks/ScheduledTasksPage")
   .then((module) => ({ default: module.ScheduledTasksPage })));
 const TerminalPanel = lazy(() => import("./codexGui/terminal/TerminalPanel"));
@@ -140,9 +141,10 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
       }}>有对话需要你的确认，点击查看</button>}
       {view !== "conversation" && <div className={paneStyles.feature}>
         <Suspense fallback={<div className={paneStyles.loading} role="status">正在加载…</div>}>
-          {view === "scheduled-tasks" ? <ScheduledTasksPage active={active} cwd={project}
-            onOpenThread={openTaskConversation} />
-            : <GuiPluginsPage {...plugins} active={active} />}
+          {view === "scheduled-tasks" && <ScheduledTasksPage active={active} cwd={project}
+            onOpenThread={openTaskConversation} />}
+          {view === "plugins" && <GuiPluginsPage {...plugins} active={active} />}
+          {view === "conversation-migration" && <GuiMigrationPage active={active} notify={plugins.notify} />}
         </Suspense>
       </div>}
       <div className={paneStyles.conversation} hidden={view !== "conversation"}>
