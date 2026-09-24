@@ -25,11 +25,26 @@ function serviceContainer(service) {
 }
 
 function schema(postgres, database, legacyOnly = false) {
-  return docker('exec', postgres, 'pg_dump', '-U', 'parity', '-d', database,
+  const dump = docker('exec', postgres, 'pg_dump', '-U', 'parity', '-d', database,
     '--schema-only', '--no-owner', '--no-privileges',
     ...(legacyOnly ? goOnlyTables.map((table) => `--exclude-table=public.${table}`) : []))
     .split('\n').filter((line) => !line.startsWith('\\restrict ') && !line.startsWith('\\unrestrict '))
     .join('\n');
+  // GUI columns are asserted separately; the frozen Nest schema cannot contain them.
+  return legacyOnly ? dump.replace(/^    "gui(?:Account|Provider)Id" character varying\(120\),?\n/gm, '')
+    .replace(/,\n\);/g, '\n);') : dump;
+}
+
+async function checkGuiColumns(name) {
+  const client = await database(name);
+  try {
+    const columns = await client.query(`SELECT column_name, data_type, character_maximum_length, is_nullable
+      FROM information_schema.columns WHERE table_schema='public' AND table_name='remote_devices'
+      AND column_name IN ('guiAccountId', 'guiProviderId') ORDER BY column_name`);
+    assert.deepEqual(columns.rows, ['guiAccountId', 'guiProviderId'].map((column_name) => ({
+      column_name, data_type: 'character varying', character_maximum_length: 120, is_nullable: 'YES',
+    })));
+  } finally { await client.end(); }
 }
 
 async function database(name) {
@@ -67,6 +82,7 @@ export async function runMigrations() {
   const postgres = serviceContainer('postgres');
   const config = JSON.parse(docker('inspect', serviceContainer('admin-go')))[0];
   const original = schema(postgres, 'legacy');
+  await checkGuiColumns('admin_go');
   assert.equal(schema(postgres, 'admin_go', true), original, 'existing Go database must retain every legacy schema object');
   console.log('PASS existing PostgreSQL columns, defaults, indexes and constraints match');
   await stopBootstrap();
@@ -76,6 +92,7 @@ export async function runMigrations() {
     await admin.query(`DROP DATABASE IF EXISTS ${bootstrapDatabase} WITH (FORCE)`);
     await admin.query(`CREATE DATABASE ${bootstrapDatabase}`);
     await startBootstrap(config);
+    await checkGuiColumns(bootstrapDatabase);
     assert.equal(schema(postgres, bootstrapDatabase, true), original, 'empty-database initialization must reproduce legacy schema');
     console.log('PASS empty database initialized with the complete legacy schema');
     const fresh = await database(bootstrapDatabase);
@@ -85,6 +102,11 @@ export async function runMigrations() {
       assert.equal(tables.rows[0].total, 30 + goOnlyTables.length);
       assert.equal(schema(postgres, bootstrapDatabase), schema(postgres, 'admin_go'),
         'new and upgraded databases must have identical Go tables');
+      const guiSchema = schema(postgres, bootstrapDatabase);
+      const guiMigration = readFileSync(new URL('../sql/20260924-device-gui-model-selection.sql', import.meta.url), 'utf8');
+      await fresh.query(guiMigration);
+      await fresh.query(guiMigration);
+      assert.equal(schema(postgres, bootstrapDatabase), guiSchema, 'GUI migration reruns must preserve schema');
       const pricing = { models: [], sentinel: 'preserve saved pricing' };
       await fresh.query("INSERT INTO token_cost_preset_settings (id, presets) VALUES ('current', $1)", [pricing]);
       const migration = readFileSync(new URL('../sql/20260923-token-cost-presets.sql', import.meta.url), 'utf8');

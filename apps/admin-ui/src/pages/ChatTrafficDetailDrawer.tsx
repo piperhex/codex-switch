@@ -15,7 +15,8 @@ export function ChatTrafficDetailDrawer({ user, month, api, dark, onClose }: {
   const { data, loading, error, refresh } = useTrafficResource<UserChatTrafficDetail>(api,
     `/admin/api/chat-traffic/users/${user.id}?month=${month}`);
   const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai" }).format(new Date());
-  const selected = data?.daily.find((day) => day.date === (selectedDate ?? today)) ?? data?.daily.at(-1);
+  const selected = data?.daily.find((day) => day.date === (selectedDate ?? today))
+    ?? data?.daily[data.daily.length - 1];
   const hours = selected?.hourlyBytes.map((bytes, hour) => ({
     time: `${selected.date} ${String(hour).padStart(2, "0")}:00`, bytes,
   })) ?? [];

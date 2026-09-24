@@ -23,6 +23,14 @@ const goOnlyChatFields = new Set([
   'p2pNegotiationTimeoutSeconds', 'p2pRetryIntervalSeconds', 'p2pDisconnectGraceSeconds',
   'relayHeartbeatTimeoutSeconds',
 ]);
+const goOnlyDeviceFields = new Set(['guiAccountId', 'guiProviderId']);
+
+function legacyDeviceField(value, field) {
+  if (!('deviceId' in value) || !goOnlyDeviceFields.has(field)) return true;
+  // Frozen desktops cannot select a GUI model; the additive fields must stay empty.
+  assert.equal(value[field], null, `legacy device must not acquire ${field}`);
+  return false;
+}
 
 export async function request(base, method, path, options = {}) {
   const headers = { ...options.headers };
@@ -74,7 +82,7 @@ function normalized(value, context, key = '') {
     const legacyPolicy = value.type === 'chat-policy' && 'binaryRelay' in value;
     if (legacyPolicy) assert.equal(value.binaryRelay, false, 'unadvertised binary relay must stay disabled');
     const fields = Object.keys(value).filter((field) => !(goOnlyChatFields.has(field) && 'threadPageSize' in value)
-      && !(legacyPolicy && field === 'binaryRelay'));
+      && !(legacyPolicy && field === 'binaryRelay') && legacyDeviceField(value, field));
     return Object.fromEntries(fields.sort().map((field) => [field, normalized(value[field], context, field)]));
   }
   return value;
