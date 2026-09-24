@@ -3,8 +3,10 @@ import type { GuiAccountsSnapshot } from '../../../shared/remote-chat/guiAccount
 const accounts: GuiAccountsSnapshot = {
   running: true, selection: { kind: 'account', id: 'first' },
   choices: [
-    { kind: 'account', id: 'first', name: '演示账户一', detail: '当前工作账户', available: true },
-    { kind: 'account', id: 'second', name: '演示账户二', detail: '备用账户', available: true },
+    { kind: 'account', id: 'first', name: '演示账户一', detail: '当前工作账户',
+      plan: 'pro', primaryRemainingPercent: 28, available: true },
+    { kind: 'account', id: 'second', name: '演示账户二', detail: '备用账户',
+      plan: 'Plus', primaryRemainingPercent: 83, available: true },
   ],
 };
 

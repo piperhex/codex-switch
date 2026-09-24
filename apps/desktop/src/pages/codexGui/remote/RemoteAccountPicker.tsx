@@ -6,6 +6,7 @@ import { useGuiAccounts } from '../../../../../../shared/remote-chat/client/useG
 import { maskAccountEmail } from '../../../utils/accountPrivacy';
 import { GuiAccountMenu } from '../GuiAccountMenu';
 import { GuiAccountList } from '../GuiAccountList';
+import { RemoteAccountSummary } from './RemoteAccountSummary';
 import type { GuiComputerNavigation } from './types';
 import styles from '../ProxyAccountPicker.module.less';
 
@@ -16,7 +17,7 @@ export function RemoteAccountPicker({ active, ready, client, computers, privacyM
 }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
-  const accounts = useGuiAccounts(client, ready && active, open ? ACCOUNT_REFRESH_MS : 0);
+  const accounts = useGuiAccounts(client, ready && active, ACCOUNT_REFRESH_MS);
   const selection = accounts.snapshot?.selection;
   const current = accounts.snapshot?.choices.find((choice) => choice.kind === selection?.kind && choice.id === selection.id);
   const name = current ? privacyMode && current.kind === 'account' ? maskAccountEmail(current.name) : current.name
@@ -44,6 +45,6 @@ export function RemoteAccountPicker({ active, ready, client, computers, privacyM
     busy={Boolean(accounts.saving)} accounts={panel}
     onOpenChange={(next) => { setOpen(next); if (next && ready) accounts.refresh(); }}
     icon={accounts.saving ? <Spin size="small" /> : current?.kind === 'provider' ? <Server size={17} /> : <UserRound size={17} />}
-    summary={<span className={styles.remoteSummary}><span>{name}</span>
-      <small>{ready ? current?.detail || '选择这台电脑的账户' : '等待连接电脑'}</small></span>} />;
+    summary={<RemoteAccountSummary name={name} current={current} ready={ready}
+      running={accounts.snapshot?.running} />} />;
 }

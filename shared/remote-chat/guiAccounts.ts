@@ -8,6 +8,8 @@ export interface GuiAccountChoice {
   name: string;
   detail: string;
   searchDetail?: string;
+  plan?: string;
+  primaryRemainingPercent?: number | null;
   available: boolean;
 }
 export interface GuiAccountsSnapshot {

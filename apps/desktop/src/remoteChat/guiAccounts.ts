@@ -9,8 +9,12 @@ function remainingPercent(value: number | undefined) {
   return `${Math.round(Math.max(0, Math.min(100, value)))}%`;
 }
 
+function accountPlan(account: Account) {
+  return account.plan?.trim() || account.usage?.plan?.trim() || '套餐未知';
+}
+
 function accountDetail(account: Account) {
-  const plan = account.plan?.trim() || account.usage?.plan?.trim() || '套餐未知';
+  const plan = accountPlan(account);
   const primary = remainingPercent(account.usage?.primary?.remainingPercent);
   const secondary = remainingPercent(account.usage?.secondary?.remainingPercent);
   return `${plan} · 主剩余 ${primary} · 次剩余 ${secondary}`;
@@ -23,13 +27,14 @@ export async function readGuiAccounts(): Promise<GuiAccountsSnapshot> {
     invoke<Provider[]>('list_providers'),
     invoke<LocalProxyStatus>('get_local_proxy_status'),
   ]);
-  // Only send picker copy over the chat link; account credentials and private details stay on the computer.
+  // Only send picker display fields; account credentials and private details stay on the computer.
   return {
     selection, running: proxy.running,
     choices: [
       ...accounts.map((account) => ({
         kind: 'account' as const, id: account.id, name: account.email,
         detail: accountDetail(account), searchDetail: account.note, available: account.localProxyCompatible,
+        plan: accountPlan(account), primaryRemainingPercent: account.usage?.primary?.remainingPercent ?? null,
       })),
       ...providers.map((provider) => ({
         kind: 'provider' as const, id: provider.id, name: provider.name,

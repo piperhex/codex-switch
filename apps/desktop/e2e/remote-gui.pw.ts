@@ -61,6 +61,10 @@ test('switches desktop GUI conversations and accounts between computers and back
   await page.goto(`/e2e/remote-gui-harness.html?socket=${encodeURIComponent(endpoint)}`);
   await chooseComputer(page, 'Office PC');
   await expect(page.getByRole('button', { name: 'Office conversation', exact: true })).toBeVisible();
+  const quota = page.getByRole('progressbar', { name: '主用量剩余', exact: true });
+  await expect(quota).toHaveAttribute('aria-valuenow', '28');
+  await expect(quota).toBeVisible();
+  await expect(page.getByRole('button', { name: /^切换 GUI 账户：/ })).toContainText('pro');
   await page.getByRole('button', { name: 'Office conversation', exact: true }).click();
   await expect(page.getByRole('textbox', { name: '聊天消息', exact: true })).toBeEnabled();
   await page.getByRole('textbox', { name: '聊天消息', exact: true }).fill('Continue slow task on the office computer');
@@ -70,12 +74,14 @@ test('switches desktop GUI conversations and accounts between computers and back
   await page.getByRole('button', { name: /^切换 GUI 账户：/ }).click();
   await page.getByRole('button', { name: /演示账户二/ }).click();
   await expect(page.getByRole('button', { name: '切换 GUI 账户：演示账户二', exact: true })).toBeVisible();
+  await expect(quota).toHaveAttribute('aria-valuenow', '83');
   expect(await home.evaluate(() => window.chatTest.demoState().operations
     .some(operation => operation.operation === 'guiAccountSelect'))).toBe(false);
   await chooseComputer(page, 'Home PC');
   await expect(page.getByRole('button', { name: 'Home conversation', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Office conversation', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '切换 GUI 账户：演示账户一', exact: true })).toBeVisible();
+  await expect(quota).toHaveAttribute('aria-valuenow', '28');
   expect(await office.evaluate(() => window.chatTest.demoState().threads
     .some(thread => thread.turns?.some(turn => turn.status === 'inProgress')))).toBe(true);
   expect(await office.evaluate(() => window.chatTest.demoState().operations

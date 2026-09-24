@@ -10,12 +10,15 @@ let root: Root;
 let container: HTMLDivElement;
 let client: GuiAccountsClient;
 let ready: boolean;
+let active: boolean;
+let privacyMode: boolean;
 let computers: GuiComputerNavigation;
 const accountSnapshot: GuiAccountsSnapshot = { running: true, selection: { kind: 'account', id: 'remote-account' },
-  choices: [{ kind: 'account', id: 'remote-account', name: 'remote@example.com', detail: 'Plus', available: true },
+  choices: [{ kind: 'account', id: 'remote-account', name: 'remote@example.com',
+    detail: 'Plus · 主剩余 28% · 次剩余 63%', plan: 'Plus', primaryRemainingPercent: 28, available: true },
     { kind: 'provider', id: 'remote-provider', name: 'Remote Provider', detail: 'Model', available: true }] };
-function Harness() { return <RemoteAccountPicker active ready={ready} client={client} computers={computers}
-  privacyMode={false} />; }
+function Harness() { return <RemoteAccountPicker active={active} ready={ready} client={client} computers={computers}
+  privacyMode={privacyMode} />; }
 const render = () => act(async () => root.render(<Harness />));
 const button = (label: string) => document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
 const click = (target: HTMLButtonElement) => act(async () => target.click());
@@ -40,13 +43,91 @@ beforeEach(() => {
   vi.spyOn(window, 'getComputedStyle').mockImplementation(element => original(element));
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
   ready = true;
+  active = true;
+  privacyMode = false;
   client = { read: vi.fn().mockResolvedValue(accountSnapshot), select: vi.fn().mockResolvedValue({ kind: 'provider',
     id: 'remote-provider' }), subscribe: vi.fn().mockReturnValue(vi.fn()) };
   const current = { deviceId: 'work-pc', name: 'Work PC', online: true, platform: 'windows' };
   computers = { current, devices: [current, { ...current, deviceId: 'offline', name: 'Offline PC', online: false }],
     authenticated: true, loading: false, error: '', choose: vi.fn(), refresh: vi.fn(), login: vi.fn() };
 });
-afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(async () => {
+  await act(async () => root.unmount()); container.remove();
+  vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+});
+
+it('shows the remote primary quota, plan and device using the local summary layout', async () => {
+  privacyMode = true;
+  await render();
+  const progress = container.querySelector('[role="progressbar"]')!;
+  expect(progress.getAttribute('aria-label')).toBe('主用量剩余');
+  expect(progress.getAttribute('aria-valuenow')).toBe('28');
+  expect(progress.querySelector('span')?.style.width).toBe('28%');
+  expect(container.textContent).toContain('28%');
+  expect(container.textContent).toContain('Plus');
+  expect(container.textContent).toContain('Work PC');
+  expect(container.textContent).not.toContain('次剩余');
+  expect(container.innerHTML).not.toContain('remote@example.com');
+});
+
+it('refreshes the closed summary without overlapping reads and keeps device navigation responsive', async () => {
+  vi.useFakeTimers();
+  await render();
+  let finish!: (snapshot: GuiAccountsSnapshot) => void;
+  vi.mocked(client.read).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  await act(async () => vi.advanceTimersByTime(60_000));
+  expect(client.read).toHaveBeenCalledTimes(2);
+  await act(async () => vi.advanceTimersByTime(120_000));
+  expect(client.read).toHaveBeenCalledTimes(2);
+  expect(container.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('28');
+  await act(async () => finish({ ...accountSnapshot,
+    choices: [{ ...accountSnapshot.choices[0], primaryRemainingPercent: 17 }] }));
+  expect(container.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('17');
+  vi.mocked(client.read).mockReturnValue(new Promise(() => {}));
+  await accounts(); await click(button('切换设备'));
+  expect(computers.refresh).toHaveBeenCalledOnce();
+  await search('remote');
+  expect(searchInput().value).toBe('remote');
+  active = false; await render();
+  const reads = vi.mocked(client.read).mock.calls.length;
+  await act(async () => vi.advanceTimersByTime(120_000));
+  expect(client.read).toHaveBeenCalledTimes(reads);
+});
+
+it.each([null, 0, 140, -10, Number.NaN])('handles missing and bounded remote quota %s', async (value) => {
+  vi.mocked(client.read).mockResolvedValue({ ...accountSnapshot,
+    choices: [{ ...accountSnapshot.choices[0], primaryRemainingPercent: value }] });
+  await render();
+  const progress = container.querySelector('[role="progressbar"]');
+  if (value === null || !Number.isFinite(value)) {
+    expect(progress).toBeNull(); expect(container.textContent).toContain('主用量剩余 —');
+  } else expect(progress?.getAttribute('aria-valuenow')).toBe(String(Math.max(0, Math.min(100, value))));
+});
+
+it('keeps descriptions from older computers and provider balances readable', async () => {
+  vi.mocked(client.read).mockResolvedValue({ ...accountSnapshot,
+    choices: [{ ...accountSnapshot.choices[0], primaryRemainingPercent: undefined, plan: undefined }] });
+  await render();
+  expect(container.textContent).toContain('Plus · 主剩余 28% · 次剩余 63%');
+  expect(container.querySelector('[role="progressbar"]')).toBeNull();
+  client = { ...client, read: vi.fn().mockResolvedValue({ ...accountSnapshot,
+    selection: { kind: 'provider', id: 'remote-provider' },
+    choices: [{ ...accountSnapshot.choices[1], detail: '钱包余额 ¥12.34' }] }) };
+  await render();
+  expect(container.textContent).toContain('钱包余额 ¥12.34');
+  expect(container.querySelector('[role="progressbar"]')).toBeNull();
+});
+
+it('clears quota after disconnecting and hides it when the remote proxy stops', async () => {
+  await render();
+  ready = false; await render();
+  expect(container.querySelector('[role="progressbar"]')).toBeNull();
+  expect(container.textContent).toContain('等待连接电脑');
+  vi.mocked(client.read).mockResolvedValue({ ...accountSnapshot, running: false });
+  ready = true; await render();
+  expect(container.querySelector('[role="progressbar"]')).toBeNull();
+  expect(container.textContent).toContain('代理未启动');
+});
 
 it('opens the account list directly and switches the selected computer through its client', async () => {
   await render();
