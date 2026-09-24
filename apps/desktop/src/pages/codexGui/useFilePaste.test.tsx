@@ -6,8 +6,10 @@ import { invoke } from "../../api/backend";
 import { GuiController } from "./controller";
 import { useComposerDraft } from "./useComposerDraft";
 import { ComposerReferences } from "./ComposerReferences";
+import { readClipboardImages } from "./clipboardImages";
 
 vi.mock("../../api/backend", () => ({ invoke: vi.fn(), isDesktopApp: true }));
+vi.mock("./clipboardImages", () => ({ readClipboardImages: vi.fn() }));
 let root: Root;
 let host: HTMLDivElement;
 let controller: GuiController;
@@ -30,6 +32,7 @@ function paste(files: File[] = [], text = "", html = "") {
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.mocked(invoke).mockReset().mockResolvedValue([]);
+  vi.mocked(readClipboardImages).mockReset().mockResolvedValue([]);
   controller = new GuiController();
   vi.spyOn(controller, "send").mockResolvedValue(true);
   vi.spyOn(controller, "report");
@@ -114,6 +117,75 @@ it("reads native QQ image references while allowing accompanying text insertion"
     expect(paste([], "图片说明", '<img src="file:///C:/QQ/photo.png">').preventDefault).not.toHaveBeenCalled();
   });
   expect(editor.draft.attachments).toEqual([photo]);
+  expect(readClipboardImages).not.toHaveBeenCalled();
+});
+
+it("loads DingTalk images once, preserves text insertion and waits for the image before sending", async () => {
+  let resolve!: (files: File[]) => void;
+  vi.mocked(readClipboardImages).mockReturnValue(new Promise((done) => { resolve = done; }));
+  vi.spyOn(FileReader.prototype, "readAsDataURL").mockImplementation(function (this: FileReader) {
+    Object.defineProperty(this, "result", { value: "data:image/jpeg;base64,aGVsbG8=" });
+    this.dispatchEvent(new ProgressEvent("load"));
+  });
+  await act(async () => {
+    keydown();
+    const event = paste([], "[图片]图片说明", '<img src="https://static.dingtalk.com/media/photo.jpg">');
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    editor.editText("[图片]图片说明");
+  });
+  expect(editor.reading).toBe(true);
+  await act(async () => editor.send());
+  expect(controller.send).not.toHaveBeenCalled();
+  expect(readClipboardImages).toHaveBeenCalledTimes(1);
+  await act(async () => resolve([new File(["image"], "photo.jpg", { type: "image/jpeg" })]));
+  expect(editor.reading).toBe(false);
+  expect(editor.draft.images).toHaveLength(1);
+  expect(controller.report).not.toHaveBeenCalled();
+  await act(async () => editor.send());
+  expect(controller.send).toHaveBeenCalledWith("[图片]图片说明", ["data:image/jpeg;base64,aGVsbG8="], []);
+});
+
+it("reports a failed DingTalk download without blocking subsequent paste attempts", async () => {
+  vi.mocked(readClipboardImages).mockRejectedValue(new Error("download failed"));
+  await act(async () => paste([], "说明", '<img src="https://static.dingtalk.com/media/photo.jpg">'));
+  expect(editor.draft.images).toEqual([]);
+  expect(editor.reading).toBe(false);
+  expect(controller.report).toHaveBeenCalledWith("部分图片未能粘贴，请单独复制图片，或保存后添加。");
+  vi.mocked(invoke).mockResolvedValue([attachment]);
+  await act(async () => keydown());
+  expect(editor.draft.attachments).toEqual([attachment]);
+});
+
+it("preserves browser-only images when the native snapshot cannot represent the entire rich-text copy", async () => {
+  vi.spyOn(FileReader.prototype, "readAsDataURL").mockImplementation(function (this: FileReader) {
+    Object.defineProperty(this, "result", { value: "data:image/png;base64,aGVsbG8=" });
+    this.dispatchEvent(new ProgressEvent("load"));
+  });
+  await act(async () => paste([new File(["image"], "screenshot.png", { type: "image/png" })], "说明",
+    '<img src="cid:0"><img src="https://static.dingtalk.com/media/photo.jpg">'));
+  expect(editor.draft.images).toHaveLength(1);
+  expect(readClipboardImages).not.toHaveBeenCalled();
+  expect(editor.reading).toBe(false);
+  expect(controller.report).toHaveBeenCalledWith("部分图片未能粘贴，请单独复制图片，或保存后添加。");
+});
+
+it("allows typing and switching conversations while a DingTalk image downloads", async () => {
+  let resolve!: (files: File[]) => void;
+  vi.mocked(readClipboardImages).mockReturnValue(new Promise((done) => { resolve = done; }));
+  vi.spyOn(FileReader.prototype, "readAsDataURL").mockImplementation(function (this: FileReader) {
+    Object.defineProperty(this, "result", { value: "data:image/jpeg;base64,aGVsbG8=" });
+    this.dispatchEvent(new ProgressEvent("load"));
+  });
+  await act(async () => paste([], "说明", '<img src="https://static.dingtalk.com/media/photo.jpg">'));
+  await act(async () => editor.editText("仍然可以输入"));
+  expect(editor.draft.text).toBe("仍然可以输入");
+  await render("other");
+  expect(editor.reading).toBe(false);
+  await act(async () => resolve([new File(["image"], "photo.jpg", { type: "image/jpeg" })]));
+  expect(editor.draft.images).toEqual([]);
+  await render();
+  expect(editor.draft.images).toHaveLength(1);
+  expect(editor.draft.text).toBe("仍然可以输入");
 });
 
 it("does not silently lose QQ images when neither native nor browser can read them", async () => {
