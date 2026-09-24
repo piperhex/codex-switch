@@ -10,18 +10,23 @@ import (
 	"github.com/codex-switch/admin-go/internal/devices"
 	"github.com/codex-switch/admin-go/internal/identity"
 	"github.com/codex-switch/admin-go/internal/platform"
+	"github.com/codex-switch/admin-go/internal/telemetryguard"
 	"github.com/gin-gonic/gin"
 )
 
 func New(deps *platform.Dependencies) (*gin.Engine, *devices.Runtime, error) {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	if err := router.SetTrustedProxies(nil); err != nil {
+	if err := configureTrustedProxies(router, deps.Config); err != nil {
 		return nil, nil, err
 	}
 	router.RedirectTrailingSlash = false
 	router.UseRawPath = true
-	router.Use(transportHeaders(), recovery(), platform.RequestBodyParser(), cors())
+	guard, err := telemetryguard.New(deps)
+	if err != nil {
+		return nil, nil, err
+	}
+	router.Use(transportHeaders(), recovery(), guard.Ingress(), platform.RequestBodyParser(), cors())
 	contract, err := platform.LoadContract()
 	if err != nil {
 		return nil, nil, err

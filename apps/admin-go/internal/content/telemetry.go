@@ -4,8 +4,6 @@ import (
 	"github.com/codex-switch/admin-go/internal/platform"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
-	"strings"
 	"time"
 )
 
@@ -18,40 +16,6 @@ func (s *service) analyticsRoutes(r *gin.Engine) {
 	r.GET("/admin/api/telemetry/installations", permission, s.listInstallations)
 	r.GET("/admin/api/telemetry/events", permission, s.listEvents)
 	r.GET("/admin/api/dashboard/overview", s.deps.RequirePermissions("admin.dashboard.read"), s.dashboard)
-}
-func (s *service) recordInstallation(c *gin.Context) {
-	var input struct {
-		DeviceId, Platform, EventType string
-		AppVersion                    *string
-	}
-	if !bind(c, &input) {
-		return
-	}
-	item := DeviceInstallation{DeviceId: input.DeviceId, Platform: input.Platform, FirstSeenAt: time.Now()}
-	columns := []string{"platform"}
-	if input.AppVersion != nil && strings.TrimSpace(*input.AppVersion) != "" {
-		item.AppVersion = ptr(strings.TrimSpace(*input.AppVersion))
-		columns = append(columns, "appVersion")
-	}
-	conflict := clause.OnConflict{
-		Columns: []clause.Column{{Name: "deviceId"}}, DoUpdates: clause.AssignmentColumns(columns),
-	}
-	err := s.deps.DB.Clauses(conflict).Create(&item).Error
-	if err == nil && input.EventType != "installation" {
-		err = s.deps.DB.Create(
-			&DeviceTelemetryEvent{
-				Id:        newID(),
-				DeviceId:  input.DeviceId,
-				Platform:  input.Platform,
-				EventType: input.EventType,
-			},
-		).Error
-	}
-	if err != nil {
-		platform.Respond(c, nil, err)
-		return
-	}
-	platform.WriteJSON(c, 200, ok())
 }
 
 type platformCountRow struct {

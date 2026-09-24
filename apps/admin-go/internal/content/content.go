@@ -10,17 +10,23 @@ import (
 	"time"
 
 	"github.com/codex-switch/admin-go/internal/platform"
+	"github.com/codex-switch/admin-go/internal/telemetryguard"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type service struct {
-	deps     *platform.Dependencies
-	currency *currencyCache
+	deps      *platform.Dependencies
+	currency  *currencyCache
+	telemetry *telemetryguard.Guard
 }
 
 func Register(router *gin.Engine, deps *platform.Dependencies) error {
-	s := &service{deps: deps, currency: &currencyCache{}}
+	guard, err := telemetryguard.New(deps)
+	if err != nil {
+		return err
+	}
+	s := &service{deps: deps, currency: &currencyCache{}, telemetry: guard}
 	s.announcementRoutes(router)
 	s.marketRoutes(router)
 	s.feedbackRoutes(router)

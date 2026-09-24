@@ -220,6 +220,9 @@ pub(crate) async fn submit_feedback<R: Runtime>(
 pub(crate) async fn report_first_installation<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<bool, String> {
+    if !telemetry_enabled() {
+        return Ok(false);
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let mut installation = read_or_create_installation_state(&app)?;
         let app_version = app.package_info().version.to_string();
@@ -256,6 +259,9 @@ pub(crate) async fn report_device_activity<R: Runtime>(
 pub(crate) async fn report_base_url_change<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<(), String> {
+    if !telemetry_enabled() {
+        return Ok(());
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let installation = read_or_create_installation_state(&app)?;
         post_device_event(&app, &installation, "base_url_changed")

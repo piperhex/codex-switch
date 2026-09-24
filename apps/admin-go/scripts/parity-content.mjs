@@ -264,9 +264,12 @@ async function analytics(pair) {
   const event = { deviceId, platform: 'windows', appVersion: ' 1.2.3 ', eventType: 'installation' };
   await expected(pair, 'installation', 'POST', '/telemetry/installations', { auth: false, body: event });
   await expected(pair, 'activity', 'POST', '/telemetry/installations', { auth: false, body: { ...event, appVersion: ' ', eventType: 'activity' } });
-  await expected(pair, 'base URL event', 'POST', '/telemetry/installations', { auth: false, body: { ...event, platform: 'macos', eventType: 'base_url_changed' } });
+  // Activity no longer edits installation metadata in Go; telemetry-smoke covers that security difference.
+  await expected(pair, 'base URL event', 'POST', '/telemetry/installations', {
+    auth: false, body: { ...event, eventType: 'base_url_changed' },
+  });
   await expected(pair, 'telemetry overview', 'GET', '/admin/api/telemetry/overview');
-  await expected(pair, 'installations search', 'GET', `/admin/api/telemetry/installations?search=${deviceId}&platform=macos`);
+  await expected(pair, 'installations search', 'GET', `/admin/api/telemetry/installations?search=${deviceId}&platform=windows`);
   await expected(pair, 'events search', 'GET', `/admin/api/telemetry/events?search=${deviceId}&eventType=activity`);
   await expected(pair, 'invalid telemetry', 'POST', '/telemetry/installations', { auth: false, body: { ...event, eventType: 'invalid' } }, 400);
   for (const days of [7, 30, 90]) await expected(pair, `dashboard ${days} days`, 'GET', `/admin/api/dashboard/overview?days=${days}`);

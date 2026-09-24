@@ -812,8 +812,7 @@ export function DashboardApp() {
   useCloudContentLifecycle(cloudContent, cloud.state.baseUrl);
 
   useEffect(() => {
-    void reportFirstInstallation().catch(() => undefined);
-    void reportDeviceActivity().catch(() => undefined);
+    void reportFirstInstallation().then(() => reportDeviceActivity()).catch(() => undefined);
   }, [cloud.state.baseUrl]);
 
   const startLogin = (embedded: boolean, privateMode = false) => {
