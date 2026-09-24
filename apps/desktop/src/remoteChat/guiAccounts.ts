@@ -35,6 +35,7 @@ export async function readGuiAccounts(): Promise<GuiAccountsSnapshot> {
         kind: 'account' as const, id: account.id, name: account.email,
         detail: accountDetail(account), searchDetail: account.note, available: account.localProxyCompatible,
         plan: accountPlan(account), primaryRemainingPercent: account.usage?.primary?.remainingPercent ?? null,
+        secondaryRemainingPercent: account.usage?.secondary?.remainingPercent ?? null,
       })),
       ...providers.map((provider) => ({
         kind: 'provider' as const, id: provider.id, name: provider.name,

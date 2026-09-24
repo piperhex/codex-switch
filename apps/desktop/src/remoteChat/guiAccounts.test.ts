@@ -27,10 +27,11 @@ it('reads the independent GUI account and sends only picker fields from this com
   expect(snapshot.selection).toEqual({ kind: 'account', id: 'gui' });
   expect(snapshot.choices).toEqual([
     { kind: 'account', id: 'global', name: 'global@example.test',
-      detail: '套餐未知 · 主剩余 — · 次剩余 —', plan: '套餐未知', primaryRemainingPercent: null, available: true },
+      detail: '套餐未知 · 主剩余 — · 次剩余 —', plan: '套餐未知', primaryRemainingPercent: null,
+      secondaryRemainingPercent: null, available: true },
     { kind: 'account', id: 'gui', name: 'gui@example.test',
       detail: 'pro · 主剩余 82% · 次剩余 0%', plan: 'pro', primaryRemainingPercent: 82.4,
-      searchDetail: '工作', available: true },
+      secondaryRemainingPercent: 0, searchDetail: '工作', available: true },
     { kind: 'provider', id: 'provider', name: 'Provider',
       detail: '钱包余额 暂无余额', searchDetail: 'model', available: true },
   ]);

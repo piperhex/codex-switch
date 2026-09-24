@@ -1,10 +1,16 @@
-import type { UsageSummary, UsageWindow } from "../../types";
 import { remainingTone } from "../../utils/format";
+import { MAX_REMAINING_PERCENT } from "./autoSwitchSettings";
 import styles from "./ProxyAccountDetails.module.less";
 
-function QuotaValue({ label, window: usageWindow }: { label: string; window?: UsageWindow | null }) {
-  const value = usageWindow?.remainingPercent;
-  const remaining = typeof value === "number" && Number.isFinite(value) ? Math.round(value) : null;
+export interface ProxyAccountDetailsProps {
+  plan: string;
+  primaryRemainingPercent?: number | null;
+  secondaryRemainingPercent?: number | null;
+}
+
+function QuotaValue({ label, value }: { label: string; value?: number | null }) {
+  const remaining = typeof value === "number" && Number.isFinite(value)
+    ? Math.round(Math.max(0, Math.min(MAX_REMAINING_PERCENT, value))) : null;
   const text = remaining === null ? "—" : `${remaining}%`;
   return <span className={styles.quota} aria-label={`${label}用量剩余 ${text}`}>
     <span>{label}</span>
@@ -12,10 +18,12 @@ function QuotaValue({ label, window: usageWindow }: { label: string; window?: Us
   </span>;
 }
 
-export function ProxyAccountDetails({ plan, usage }: { plan: string; usage: UsageSummary }) {
+export function ProxyAccountDetails({
+  plan, primaryRemainingPercent, secondaryRemainingPercent,
+}: ProxyAccountDetailsProps) {
   return <span className={styles.details}>
     <span className={styles.plan} data-plan={plan.trim().toLowerCase()}>{plan.trim() || "套餐未知"}</span>
-    <QuotaValue label="主" window={usage.primary} />
-    <QuotaValue label="次" window={usage.secondary} />
+    <QuotaValue label="主" value={primaryRemainingPercent} />
+    <QuotaValue label="次" value={secondaryRemainingPercent} />
   </span>;
 }

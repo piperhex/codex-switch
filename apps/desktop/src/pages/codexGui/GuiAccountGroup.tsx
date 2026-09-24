@@ -1,12 +1,11 @@
 import { Check, Server } from 'lucide-react';
-import type { Account } from '../../types';
-import { ProxyAccountDetails } from './ProxyAccountDetails';
+import { ProxyAccountDetails, type ProxyAccountDetailsProps } from './ProxyAccountDetails';
 import styles from './ProxyAccountPicker.module.less';
 
 export interface GuiAccountChoice {
   kind: 'account' | 'provider';
   id: string; name: string; detail: string; selected: boolean; disabled?: boolean;
-  usage?: Account['usage']; searchDetail?: string;
+  accountDetails?: ProxyAccountDetailsProps; searchDetail?: string;
 }
 
 export function GuiAccountGroup({ choices, onSelect, disabled }: {
@@ -23,7 +22,7 @@ export function GuiAccountGroup({ choices, onSelect, disabled }: {
         : Array.from(choice.name.trim())[0]?.toUpperCase() || '?'}</span>
       <span className={styles.accountBody}>
         <span className={styles.optionName} title={choice.name}>{choice.name}</span>
-        {choice.kind === 'account' ? <ProxyAccountDetails plan={choice.detail} usage={choice.usage ?? {}} />
+        {choice.kind === 'account' && choice.accountDetails ? <ProxyAccountDetails {...choice.accountDetails} />
           : choice.detail && <small>{choice.detail}</small>}
         {choice.disabled && <small>此账户暂不可用</small>}
       </span>

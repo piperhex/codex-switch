@@ -42,7 +42,9 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   // `official` describes account-pool provenance, not whether the account can use the official API.
   const accounts = props.accounts.map((entry) => ({
     kind: "account" as const, id: entry.id, name: entry.email,
-    detail: entry.plan, usage: entry.usage,
+    detail: entry.plan, accountDetails: { plan: entry.plan,
+      primaryRemainingPercent: entry.usage?.primary?.remainingPercent,
+      secondaryRemainingPercent: entry.usage?.secondary?.remainingPercent },
     selected: !thirdParty && entry.active, disabled: !entry.localProxyCompatible,
   }));
   const providers = props.providers.map((entry) => ({

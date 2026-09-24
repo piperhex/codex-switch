@@ -28,6 +28,11 @@ export function RemoteAccountPicker({ active, ready, client, computers, privacyM
     if (await accounts.select({ kind, id })) { setOpen(false); trigger.current?.focus(); }
   };
   const choices = accounts.snapshot?.choices.map((choice) => ({ ...choice,
+    // Older computers only send a full description; render it once without adding empty quota fields.
+    accountDetails: choice.kind === 'account' && choice.plan !== undefined
+      && choice.primaryRemainingPercent !== undefined && choice.secondaryRemainingPercent !== undefined
+      ? { plan: choice.plan, primaryRemainingPercent: choice.primaryRemainingPercent,
+        secondaryRemainingPercent: choice.secondaryRemainingPercent } : undefined,
     selected: selection?.kind === choice.kind && selection.id === choice.id, disabled: !choice.available })) ?? [];
   const panel = (devicePicker: ReactNode) => <GuiAccountList choices={choices} devicePicker={devicePicker}
     disabled={disabled} loading={accounts.loading || Boolean(accounts.saving)}

@@ -10,6 +10,7 @@ export interface GuiAccountChoice {
   searchDetail?: string;
   plan?: string;
   primaryRemainingPercent?: number | null;
+  secondaryRemainingPercent?: number | null;
   available: boolean;
 }
 export interface GuiAccountsSnapshot {

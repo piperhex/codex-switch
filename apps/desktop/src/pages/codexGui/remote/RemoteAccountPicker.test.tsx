@@ -15,7 +15,8 @@ let privacyMode: boolean;
 let computers: GuiComputerNavigation;
 const accountSnapshot: GuiAccountsSnapshot = { running: true, selection: { kind: 'account', id: 'remote-account' },
   choices: [{ kind: 'account', id: 'remote-account', name: 'remote@example.com',
-    detail: 'Plus · 主剩余 28% · 次剩余 63%', plan: 'Plus', primaryRemainingPercent: 28, available: true },
+    detail: 'Plus · 主剩余 28% · 次剩余 63%', plan: 'Plus', primaryRemainingPercent: 28,
+    secondaryRemainingPercent: 63, available: true },
     { kind: 'provider', id: 'remote-provider', name: 'Remote Provider', detail: 'Model', available: true }] };
 function Harness() { return <RemoteAccountPicker active={active} ready={ready} client={client} computers={computers}
   privacyMode={privacyMode} />; }
@@ -116,6 +117,44 @@ it('keeps descriptions from older computers and provider balances readable', asy
   await render();
   expect(container.textContent).toContain('钱包余额 ¥12.34');
   expect(container.querySelector('[role="progressbar"]')).toBeNull();
+});
+
+it('shows the plan and both remote quotas exactly once in the account list', async () => {
+  await render(); await accounts();
+  const row = accountList().querySelector('button')!;
+  expect(row.querySelector('[data-plan="plus"]')?.textContent).toBe('Plus');
+  expect(row.querySelector('[aria-label="主用量剩余 28%"]')).not.toBeNull();
+  expect(row.querySelector('[aria-label="次用量剩余 63%"]')).not.toBeNull();
+  expect(row.textContent?.match(/28%/g)).toHaveLength(1);
+  expect(row.textContent?.match(/63%/g)).toHaveLength(1);
+  expect(row.textContent).not.toContain('—');
+});
+
+it.each([true, false])('keeps legacy descriptions without extra quota placeholders (summary fields: %s)',
+  async (hasSummaryFields) => {
+    vi.mocked(client.read).mockResolvedValue({ ...accountSnapshot, choices: [{ ...accountSnapshot.choices[0],
+      plan: hasSummaryFields ? 'Plus' : undefined, primaryRemainingPercent: hasSummaryFields ? 28 : undefined,
+      secondaryRemainingPercent: undefined }] });
+    await render(); await accounts();
+    const row = accountList().querySelector('button')!;
+    expect(row.textContent).toBe('Rremote@example.comPlus · 主剩余 28% · 次剩余 63%');
+    expect(row.querySelector('[data-plan]')).toBeNull();
+    expect(row.querySelector('[aria-label^="主用量剩余"]')).toBeNull();
+    expect(row.querySelector('[aria-label^="次用量剩余"]')).toBeNull();
+  });
+
+it.each([
+  { primary: 0, secondary: null, expectedPrimary: '0%', expectedSecondary: '—' },
+  { primary: null, secondary: 100, expectedPrimary: '—', expectedSecondary: '100%' },
+  { primary: Number.NaN, secondary: 140, expectedPrimary: '—', expectedSecondary: '100%' },
+])('handles missing and zero remote list quotas: $expectedPrimary / $expectedSecondary', async (values) => {
+  vi.mocked(client.read).mockResolvedValue({ ...accountSnapshot, choices: [{ ...accountSnapshot.choices[0],
+    primaryRemainingPercent: values.primary, secondaryRemainingPercent: values.secondary }] });
+  await render(); await accounts();
+  const row = accountList().querySelector('button')!;
+  expect(row.querySelector(`[aria-label="主用量剩余 ${values.expectedPrimary}"]`)).not.toBeNull();
+  expect(row.querySelector(`[aria-label="次用量剩余 ${values.expectedSecondary}"]`)).not.toBeNull();
+  expect(row.textContent).not.toContain('主剩余');
 });
 
 it('clears quota after disconnecting and hides it when the remote proxy stops', async () => {
