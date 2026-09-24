@@ -4,14 +4,14 @@ import { Tooltip } from "antd";
 import { MAX_TERMINAL_TABS, type TerminalPanelState, type TerminalTab } from "./useTerminalPanel";
 import { useTerminalResize } from "./useTerminalResize";
 import { useTerminalSession } from "./useTerminalSession";
-import type { TerminalApi } from "./api";
+import type { TerminalApi } from "../../../../../../shared/terminal/types";
 import styles from "./terminal.module.less";
 import { TerminalKeys } from './TerminalKeys';
 
 const originalText = (source: string) => source;
 
 export default function TerminalPanel({ panel, active, api, fill = false, translate = originalText }: {
-  panel: TerminalPanelState; active: boolean; api?: TerminalApi; fill?: boolean;
+  panel: TerminalPanelState; active: boolean; api: TerminalApi; fill?: boolean;
   translate?: (source: string) => string;
 }) {
   const host = useRef<HTMLElement>(null);
@@ -47,7 +47,7 @@ export default function TerminalPanel({ panel, active, api, fill = false, transl
 }
 
 function TerminalPane({ tab, visible, api, translate, shortcuts }: {
-  tab: TerminalTab; visible: boolean; api?: TerminalApi; translate: (source: string) => string;
+  tab: TerminalTab; visible: boolean; api: TerminalApi; translate: (source: string) => string;
   shortcuts: boolean;
 }) {
   const { host, info, status, input } = useTerminalSession(tab.cwd, visible, api);

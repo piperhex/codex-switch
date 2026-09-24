@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
-import { connectTerminal } from "./connection";
+import { connectTerminal } from "../../../../../../shared/terminal/connection";
 import { terminalTheme } from "./theme";
-import type { TerminalApi, TerminalInfo } from "./api";
+import type { TerminalApi, TerminalInfo } from "../../../../../../shared/terminal/types";
 import "@xterm/xterm/css/xterm.css";
 
-export function useTerminalSession(cwd: string, visible: boolean, api?: TerminalApi) {
+export function useTerminalSession(cwd: string, visible: boolean, api: TerminalApi) {
   const host = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal>();
   const [info, setInfo] = useState<TerminalInfo>();

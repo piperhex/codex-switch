@@ -47,7 +47,7 @@ function Fixture() {
         <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: 20 }}>
           <p>聊天内容</p><textarea aria-label="聊天输入" placeholder="随心输入" style={{ marginTop: 'auto', minHeight: 80 }} />
         </div>
-        {panel.tabs.length > 0 && <TerminalPanel panel={panel} active />}
+        {panel.tabs.length > 0 && <TerminalPanel panel={panel} api={terminalApi} active />}
       </div>
     </DetailsWorkspace>
   </div>;

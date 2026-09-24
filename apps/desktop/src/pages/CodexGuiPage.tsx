@@ -25,6 +25,7 @@ import { useDreamSkin } from "./codexGui/useDreamSkin";
 import { guiComposer } from "./codexGui/composerBridge";
 import { FocusModeButton, type GuiFocusMode } from "./codexGui/FocusModeButton";
 import { useTerminalPanel } from "./codexGui/terminal/useTerminalPanel";
+import { terminalApi } from "./codexGui/terminal/api";
 import { MobileConnectionStatus } from "./codexGui/MobileConnectionStatus";
 import { GUI_VIEW_TITLES, type GuiView } from "./codexGui/GuiNavigation";
 import type { SkillsMarketPageProps } from "./skillsMarket/types";
@@ -162,7 +163,7 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
           <Composer ref={composer} state={state} controller={controller} active={conversationActive} />
         </>} />}
       {isDesktopApp && terminal.tabs.length > 0 && <Suspense fallback={null}>
-        <TerminalPanel panel={terminal} active={conversationActive} />
+        <TerminalPanel panel={terminal} active={conversationActive} api={terminalApi} />
       </Suspense>}
       </div>
     </div>
