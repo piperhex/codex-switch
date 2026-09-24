@@ -1,4 +1,15 @@
 export const app = {
+  "切换目标": "Switch target",
+  "代理接口模型": "Proxy API model",
+  "代理接口": "Proxy API",
+  "Codex GUI 模型": "Codex GUI model",
+  "代理接口模型已切换": "Proxy API model switched",
+  "Codex GUI 模型已切换": "Codex GUI model switched",
+  "仅切换 Codex GUI 使用的模型来源。": "Change the model source used by Codex GUI only.",
+  "仅切换代理接口使用的模型来源。": "Change the model source used by the proxy API only.",
+  "请先更新 PC 端，再切换 Codex GUI 模型。": "Update the desktop app to switch the Codex GUI model.",
+  "切换后，Codex GUI 的后续请求将使用所选来源，无需重启。":
+    "Future Codex GUI requests will use the selected source. No restart is needed.",
   "请输入有效的服务地址，例如 https://api.example.com": "Enter a valid server address, such as https://api.example.com",
   "服务地址仅支持 HTTP 或 HTTPS": "The server address must use HTTP or HTTPS",
   "请求失败（HTTP {value1}）": "Request failed (HTTP {value1})",

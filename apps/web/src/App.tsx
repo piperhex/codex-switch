@@ -1,4 +1,5 @@
 import { getLocale, t, useLanguage } from './i18n';
+import type { RemoteModelTarget } from '../../../shared/remote-chat/modelTarget';
 import { profileRole } from './i18n/profile';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Dialog, Form, Input, PullToRefresh, SafeArea, SpinLoading, TabBar, Toast } from "antd-mobile";
@@ -153,10 +154,11 @@ function DevicesPage() {
     } catch { /* Global toast */ }
   };
 
-  const switchOfficialModel = async (deviceId: string, accountId: string) => {
+  const switchOfficialModel = async (deviceId: string, accountId: string, target: RemoteModelTarget = 'proxy') => {
     try {
-      const result = await dispatch(switchDeviceAccount({ deviceId, accountId })).unwrap();
-      Toast.show({ icon: "success", content: t("已切换到官方模型") });
+      const result = await dispatch(switchDeviceAccount({ deviceId, accountId, target })).unwrap();
+      Toast.show({ icon: "success", content: target === 'gui'
+        ? t("Codex GUI 模型已切换") : t("代理接口模型已切换") });
       if (result.result.requiresRestart) {
         window.setTimeout(() => void promptModelRestart(deviceId), 0);
       }
@@ -166,10 +168,11 @@ function DevicesPage() {
     }
   };
 
-  const switchProviderModel = async (deviceId: string, providerId: string) => {
+  const switchProviderModel = async (deviceId: string, providerId: string, target: RemoteModelTarget = 'proxy') => {
     try {
-      const result = await dispatch(switchDeviceProvider({ deviceId, providerId })).unwrap();
-      Toast.show({ icon: "success", content: t("已切换到第三方 Provider") });
+      const result = await dispatch(switchDeviceProvider({ deviceId, providerId, target })).unwrap();
+      Toast.show({ icon: "success", content: target === 'gui'
+        ? t("Codex GUI 模型已切换") : t("代理接口模型已切换") });
       if (result.result.requiresRestart) {
         window.setTimeout(() => void promptModelRestart(deviceId), 0);
       }
@@ -202,6 +205,7 @@ function DevicesPage() {
         onDelete={(device) => void deleteDevice(device)} />
     </PullToRefresh>
     <RemoteModelSwitchSheet
+      key={modelDeviceId ?? 'closed'}
       device={modelDevice}
       accounts={accounts}
       providers={providers}

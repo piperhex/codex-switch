@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import type { AccountSummary, RemoteDevice, RemoteProviderSummary } from '../types';
+import { remoteModelOptions, type RemoteModelTarget } from '../../../../shared/remote-chat/modelTarget';
 import { deviceColors, styles } from './styles';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -15,9 +16,13 @@ function platformInfo(platform: string): { label: string; icon: IconName } {
   }
 }
 
-function modelLabel(device: RemoteDevice, account?: AccountSummary, provider?: RemoteProviderSummary) {
-  if (device.activeProviderGroup) return `分组 · ${device.activeProviderGroup}`;
-  if (!device.activeProviderId) return account ? `官方 · ${account.email}` : '未选择';
+function modelLabel(device: RemoteDevice, accounts: AccountSummary[], providers: RemoteProviderSummary[],
+  target: RemoteModelTarget) {
+  const selection = remoteModelOptions(device, target);
+  const account = accounts.find(item => item.id === selection.accountId);
+  const provider = providers.find(item => item.id === selection.providerId);
+  if (selection.group) return `分组 · ${selection.group}`;
+  if (!selection.providerId) return account ? `官方 · ${account.email}` : '未选择';
   if (!provider) return '模型信息暂不可用';
   return `${provider.name}${provider.model ? ` · ${provider.model}` : ''}`;
 }
@@ -64,7 +69,6 @@ export function DeviceCard({ device, accounts, providers, busy, onSwitchModel, o
   onOpenMenu: () => void;
 }) {
   const account = accounts.find((item) => item.id === device.activeAccountId);
-  const provider = providers.find((item) => item.id === device.activeProviderId);
   const authAccount = accounts.find((item) => item.id === device.openaiAuthAccountId);
   const disabled = !device.online || busy;
   return <View>
@@ -74,7 +78,9 @@ export function DeviceCard({ device, accounts, providers, busy, onSwitchModel, o
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       <DeviceIdentity device={device} busy={busy} />
       <View style={styles.divider} />
-      <DeviceDetail icon="person-outline" label="当前模型" value={modelLabel(device, account, provider)} />
+      <DeviceDetail icon="person-outline" label="代理接口" value={modelLabel(device, accounts, providers, 'proxy')} />
+      {device.capabilities.includes('gui-model-switch') && <DeviceDetail icon="desktop-outline" label="Codex GUI"
+        value={modelLabel(device, accounts, providers, 'gui')} />}
       <DeviceDetail icon="server-outline" label="设备账号"
         value={account?.email ?? (device.activeAccountId ? '账号信息暂不可用' : '未选择')} />
       <DeviceDetail icon="key-outline" label="代理登录态"

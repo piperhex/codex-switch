@@ -77,9 +77,12 @@ export interface ResetCreditsSummary {
   credits: ResetCredit[];
 }
 
-export type RemoteControlCapability = 'provider-switch' | 'provider-group-switch' | 'restart-codex';
+export type RemoteControlCapability =
+  | 'provider-switch' | 'provider-group-switch' | 'restart-codex' | 'gui-model-switch';
 
 export interface RemoteDevice {
+  guiAccountId?: string | null;
+  guiProviderId?: string | null;
   deviceId: string;
   name: string;
   platform: string;
@@ -102,6 +105,8 @@ export interface RemoteProviderSummary {
 }
 
 export interface RemoteModelSwitchResult {
+  guiAccountId?: string | null;
+  guiProviderId?: string | null;
   deviceId: string;
   activeAccountId?: string | null;
   activeProviderId?: string | null;

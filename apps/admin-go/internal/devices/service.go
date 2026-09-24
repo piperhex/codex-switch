@@ -21,6 +21,8 @@ type Device struct {
 	OpenAIAuthAccountID *string   `gorm:"column:openaiAuthAccountId"          json:"openaiAuthAccountId"`
 	ActiveProviderID    *string   `gorm:"column:activeProviderId"             json:"activeProviderId"`
 	ActiveProviderGroup *string   `gorm:"column:activeProviderGroup"          json:"activeProviderGroup"`
+	GuiAccountID        *string   `gorm:"column:guiAccountId"                 json:"guiAccountId"`
+	GuiProviderID       *string   `gorm:"column:guiProviderId"                json:"guiProviderId"`
 	LocalProxyRunning   bool      `gorm:"column:localProxyRunning"            json:"localProxyRunning"`
 	Capabilities        []string  `gorm:"column:capabilities;serializer:json" json:"capabilities"`
 	LastSeenAt          time.Time `gorm:"column:lastSeenAt"                   json:"lastSeenAt"`
@@ -94,6 +96,9 @@ func (s *Service) register(owner string, input platform.JSON) (*Device, error) {
 }
 
 func mergeDeviceState(device *Device, input platform.JSON) {
+	// Older desktops cannot report a GUI selection; do not retain stale choices after a downgrade.
+	device.GuiAccountID = nullableText(input["guiAccountId"])
+	device.GuiProviderID = nullableText(input["guiProviderId"])
 	if value, ok := input["activeAccountId"].(string); ok {
 		device.ActiveAccountID = &value
 	}
@@ -126,13 +131,22 @@ func normalizeCapabilities(value interface{}) []string {
 	values, _ := value.([]interface{})
 	for _, item := range values {
 		name, _ := item.(string)
-		if seen[name] || (name != "provider-switch" && name != "provider-group-switch" && name != "restart-codex") {
+		if seen[name] || !supportedCapability(name) {
 			continue
 		}
 		seen[name] = true
 		result = append(result, name)
 	}
 	return result
+}
+
+func supportedCapability(name string) bool {
+	switch name {
+	case "provider-switch", "provider-group-switch", "restart-codex", "gui-model-switch":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Service) touch(id string) error {

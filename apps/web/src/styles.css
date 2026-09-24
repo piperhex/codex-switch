@@ -209,10 +209,21 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
 .current-pill { justify-self: end; padding: 4px 7px; border-radius: 7px; color: #08725d; background: #e2f4ed; font-size: 9px; }
 .sheet-close { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; border: 0; border-radius: 10px; color: #718078; background: #f1f5f3; font-size: 22px; line-height: 1; cursor: pointer; }
 .model-switch-section + .model-switch-section { margin-top: 22px; }
+.model-switch-target { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: #eaf2ed; }
+.model-switch-target button {
+  flex: 1; min-width: 0; padding: 10px 6px; border: 0; border-radius: 9px;
+  color: var(--muted); background: transparent; font: inherit; font-size: 12px; font-weight: 700;
+}
+.model-switch-target button[aria-pressed="true"] { color: var(--green); background: white; }
+.model-switch-target button:disabled { cursor: wait; opacity: .6; }
+.model-switch-description { max-width: 400px; margin: 12px 0 18px; color: var(--muted); font-size: 11px; }
 .model-switch-section h3 { color: var(--ink); font-size: 13px; }
 .model-switch-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .model-switch-heading span { max-width: 240px; color: #9a6b18; font-size: 9px; text-align: right; }
 .model-switch-section .select-list { margin-top: 11px; }
+.model-switch-section .select-list button { grid-template-columns: 42px minmax(0, 1fr) auto; }
+.model-switch-section .current-pill { white-space: nowrap; }
+.model-switch-section button:has(.current-pill) { border-color: #9fd3c2; background: #f0faf6; opacity: 1; }
 .model-switch-empty { margin-top: 11px; padding: 14px; border-radius: 11px; color: var(--muted); background: #f5f8f6; font-size: 10px; }
 .provider-initial { color: #64540c; background: #f5efd0; }
 .model-switch-loading { justify-self: end; color: var(--green); font-size: 9px; font-weight: 700; }

@@ -23,6 +23,9 @@ var chatUserTrafficSchema string
 //go:embed 005_chat_relay_budgets.sql
 var chatRelayBudgetsSchema string
 
+//go:embed 006_device_gui_model_selection.sql
+var deviceGuiModelSchema string
+
 // InitializeEmpty never changes existing tables, constraints, indexes, or customer data.
 // Existing deployments continue to apply the versioned apps/admin-go/sql migrations.
 func InitializeEmpty(db *gorm.DB) error {
@@ -51,6 +54,9 @@ func InitializeEmpty(db *gorm.DB) error {
 		if err := tx.Exec(chatUserTrafficSchema).Error; err != nil {
 			return err
 		}
-		return tx.Exec(chatRelayBudgetsSchema).Error
+		if err := tx.Exec(chatRelayBudgetsSchema).Error; err != nil {
+			return err
+		}
+		return tx.Exec(deviceGuiModelSchema).Error
 	})
 }

@@ -145,3 +145,63 @@ test('slow refresh stays responsive and only one refresh runs', async ({ page })
     expect(calls).toBe(1);
   } finally { release(); }
 });
+
+test('device model targets keep their selections separate', async ({ page }, info) => {
+  await navigate(page, '设备');
+  const open = async () => page.locator('.device-card').filter({ hasText: '我的工作电脑' })
+    .getByRole('button', { name: /切换模型/ }).click();
+  await open();
+  await expect(page.getByRole('button', { name: '代理接口模型', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: /alex@example.test 官方模型/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /工作分组 同时启用/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Codex GUI 模型', exact: true }).click();
+  await expect(page.getByRole('button', { name: /studio@example.test 官方模型/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /工作分组 同时启用/ })).toHaveCount(0);
+  await noOverflow(page);
+  await page.screenshot({ path: info.outputPath('gui-model-switch.png') });
+  const guiRequest = page.waitForRequest('**/devices/sample-pc/gui-provider');
+  await page.getByRole('button', { name: /测试 Provider test-model/ }).click();
+  expect((await guiRequest).postDataJSON()).toEqual({ providerId: 'provider-1' });
+  await expect(page.getByText('Codex GUI 模型已切换', { exact: true })).toBeVisible();
+  await open();
+  await expect(page.getByRole('button', { name: /alex@example.test 官方模型/ })).toBeDisabled();
+  await page.getByRole('button', { name: 'Codex GUI 模型', exact: true }).click();
+  await expect(page.getByRole('button', { name: /测试 Provider test-model/ })).toBeDisabled();
+  const accountRequest = page.waitForRequest('**/devices/sample-pc/gui-account');
+  await page.getByRole('button', { name: /studio@example.test 官方模型/ }).click();
+  expect((await accountRequest).postDataJSON()).toEqual({ accountId: 'account-1' });
+  await open();
+  const proxyRequest = page.waitForRequest('**/devices/sample-pc/provider');
+  await page.getByRole('button', { name: /测试 Provider test-model/ }).click();
+  await proxyRequest;
+  await open();
+  await expect(page.getByRole('button', { name: /测试 Provider test-model/ })).toBeDisabled();
+  await page.getByRole('button', { name: 'Codex GUI 模型', exact: true }).click();
+  await expect(page.getByRole('button', { name: /studio@example.test 官方模型/ })).toBeDisabled();
+});
+
+test('pending GUI switch prevents duplicate actions and a failure preserves the selection', async ({ page }) => {
+  await navigate(page, '设备');
+  await page.locator('.device-card').filter({ hasText: '我的工作电脑' })
+    .getByRole('button', { name: /切换模型/ }).click();
+  await page.getByRole('button', { name: 'Codex GUI 模型', exact: true }).click();
+  let calls = 0;
+  let release: () => void = () => undefined;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/devices/sample-pc/gui-provider', async route => {
+    calls += 1;
+    await pending;
+    await route.fulfill({ status: 409, json: { message: '此账户已不可用，请重新选择。' } });
+  });
+  try {
+    await page.getByRole('button', { name: /测试 Provider test-model/ }).click();
+    await expect(page.getByRole('button', { name: '代理接口模型', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /alex@example.test 官方模型/ })).toBeDisabled();
+    await expect(page.getByText('切换中', { exact: true })).toBeVisible();
+    expect(calls).toBe(1);
+    await noOverflow(page);
+  } finally { release(); }
+  await expect(page.getByText('此账户已不可用，请重新选择。', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /测试 Provider test-model/ })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /studio@example.test 官方模型/ })).toBeDisabled();
+});

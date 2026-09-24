@@ -56,7 +56,7 @@
 }
 .device-details { display: grid; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #eaf0ed; }
 .device-detail {
-  display: grid; grid-template-columns: 18px 60px minmax(0, 1fr); align-items: center; gap: 9px;
+  display: grid; grid-template-columns: 18px 64px minmax(0, 1fr); align-items: center; gap: 9px;
   color: #78818f; font-size: 12px; line-height: 1.6;
 }
 .device-detail-value { color: #111522; text-align: right; overflow-wrap: anywhere; }

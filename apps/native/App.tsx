@@ -1,5 +1,6 @@
 import 'react-native-gesture-handler';
 import './src/chat/backgroundConnection';
+import { mergeRemoteModelState, type RemoteModelTarget } from '../../shared/remote-chat/modelTarget';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
@@ -129,10 +130,7 @@ function applyRemoteModelSwitch(
 ): RemoteDevice[] {
   return devices.map((device) => device.deviceId === result.deviceId
     ? {
-      ...device,
-      activeAccountId: result.activeAccountId ?? device.activeAccountId,
-      activeProviderId: result.activeProviderId ?? null,
-      activeProviderGroup: result.activeProviderGroup ?? null,
+      ...mergeRemoteModelState(device, result),
       online: result.online,
       lastSeenAt: new Date().toISOString(),
     }
@@ -469,8 +467,8 @@ function DeviceManagementPage({
   switchingOpenAiAuth: { deviceId: string; accountId: string } | null;
   onRefresh: () => Promise<void>;
   onDelete: (deviceId: string) => Promise<void>;
-  onSwitchAccount: (deviceId: string, accountId: string) => Promise<boolean>;
-  onSwitchProvider: (deviceId: string, providerId: string) => Promise<boolean>;
+  onSwitchAccount: (deviceId: string, accountId: string, target?: RemoteModelTarget) => Promise<boolean>;
+  onSwitchProvider: (deviceId: string, providerId: string, target?: RemoteModelTarget) => Promise<boolean>;
   onSwitchProviderGroup: (deviceId: string, group: string) => Promise<boolean>;
   onSetOpenAiAuthAccount: (deviceId: string, accountId: string) => Promise<boolean>;
 }) {
@@ -526,6 +524,7 @@ function DeviceManagementPage({
       onSelect={onSetOpenAiAuthAccount}
     />
     <RemoteModelSwitchSheet
+      key={modelDeviceId ?? 'closed'}
       device={modelDevice}
       accounts={accounts}
       providers={providers}
@@ -1102,13 +1101,14 @@ function AppContent() {
   const handleRemoteSwitch = useCallback(async (
     deviceId: string,
     accountId: string,
+    target: RemoteModelTarget = 'proxy',
   ): Promise<boolean> => {
     if (!session || switchingAccountId) return false;
     setSwitchingAccountId(accountId);
     try {
-      const result = await switchRemoteDeviceAccount(session, deviceId, accountId);
+      const result = await switchRemoteDeviceAccount(session, deviceId, accountId, target);
       setDevices((current) => applyRemoteModelSwitch(current, result));
-      Toast.success('PC 端已切换到官方模型');
+      Toast.success(target === 'gui' ? 'Codex GUI 模型已切换' : '代理接口模型已切换');
       if (result.requiresRestart) {
         setTimeout(() => promptModelRestart(deviceId), 0);
       }
@@ -1125,13 +1125,14 @@ function AppContent() {
   const handleRemoteProviderSwitch = useCallback(async (
     deviceId: string,
     providerId: string,
+    target: RemoteModelTarget = 'proxy',
   ): Promise<boolean> => {
     if (!session || switchingProvider) return false;
     setSwitchingProvider({ deviceId, providerId });
     try {
-      const result = await switchRemoteDeviceProvider(session, deviceId, providerId);
+      const result = await switchRemoteDeviceProvider(session, deviceId, providerId, target);
       setDevices((current) => applyRemoteModelSwitch(current, result));
-      Toast.success('PC 端已切换到第三方 Provider');
+      Toast.success(target === 'gui' ? 'Codex GUI 模型已切换' : '代理接口模型已切换');
       if (result.requiresRestart) {
         setTimeout(() => promptModelRestart(deviceId), 0);
       }

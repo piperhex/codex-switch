@@ -99,6 +99,11 @@ Get-FileHash -LiteralPath $archive -Algorithm SHA256
 只有确认缺失且兼容的升级才按版本顺序执行；目录移动不代表需要重新运行已应用的 SQL。
 生产保持 `POSTGRES_DB_SYNCHRONIZE=false`。它不是增量迁移开关，不能升级已有数据库。
 
+设备管理分别切换代理接口与 Codex GUI 模型需要先执行
+`sql/20260924-device-gui-model-selection.sql`，再更新 admin-go、Web/移动端及桌面端。
+新增的 `guiAccountId`、`guiProviderId` 字段仅保存 GUI 选择，不修改代理接口当前配置。
+旧桌面端仍支持原有代理切换，GUI 切换会提示更新；回滚 Go 镜像时保留新增字段即可。
+
 模型计价预设需要 `sql/20260923-token-cost-presets.sql`。已有库确认缺少
 `token_cost_preset_settings` 时，在备份后执行该增量脚本；它只新增配置表，不修改用户数据。
 

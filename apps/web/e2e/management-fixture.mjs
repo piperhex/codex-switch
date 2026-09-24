@@ -19,10 +19,15 @@ const accounts = [57, 100, 12, null].map((remaining, index) => ({
 }));
 const devices = [
   { deviceId: 'sample-pc', name: '我的工作电脑', platform: 'Windows', online: true,
-    activeAccountId: accounts[0].id, capabilities: [], lastSeenAt: now, localProxyRunning: false },
+    activeAccountId: accounts[0].id, activeProviderId: null, activeProviderGroup: null,
+    guiAccountId: accounts[1].id, guiProviderId: null,
+    capabilities: ['provider-switch', 'provider-group-switch', 'gui-model-switch'],
+    lastSeenAt: now, localProxyRunning: true },
   { deviceId: 'offline-pc', name: '备用电脑', platform: 'Windows', online: false,
     activeAccountId: accounts[0].id, capabilities: [], lastSeenAt: now, localProxyRunning: false },
 ];
+const initialDevices = structuredClone(devices);
+const providers = [{ id: 'provider-1', name: '测试 Provider', model: 'test-model', group: '工作分组' }];
 let credits = [{ issuedAt: now, expiresAt: '2027-12-31' }];
 let vault = { entries: ['GitHub', 'OpenAI', 'AWS'].map((issuer, index) => ({
   id: `totp-${index}`, issuer, accountName: `review-${index}@example.test`, secret: 'JBSWY3DPEHPK3PXP',
@@ -40,13 +45,29 @@ const server = http.createServer(async (request, response) => {
   let result;
   if (path === '/test/reset' && request.method === 'POST') {
     vault = structuredClone(initialVault);
+    devices.splice(0, devices.length, ...structuredClone(initialDevices));
     result = { ok: true };
   } else if (path === '/auth/login' || path === '/auth/refresh') {
     result = { accessToken: 'local-review', refreshToken: 'local-review-refresh', user: profile };
   } else if (path === '/auth/me') result = profile;
   else if (path === '/sync/accounts/web-summary') result = { accounts };
   else if (path === '/devices') result = { devices };
-  else if (path === '/devices/providers') result = { providers: [] };
+  else if (path === '/devices/providers') result = { providers };
+  else if (path?.startsWith('/devices/sample-pc/') && request.method === 'POST') {
+    const device = devices[0];
+    const input = JSON.parse(body);
+    switch (path.split('/').at(-1)) {
+      case 'gui-account': device.guiAccountId = input.accountId; device.guiProviderId = null; break;
+      case 'gui-provider': device.guiAccountId = null; device.guiProviderId = input.providerId; break;
+      case 'account':
+        device.activeAccountId = input.accountId; device.activeProviderId = null; device.activeProviderGroup = null;
+        break;
+      case 'provider': device.activeProviderId = input.providerId; device.activeProviderGroup = null; break;
+      case 'provider-group': device.activeProviderId = null; device.activeProviderGroup = input.group; break;
+      default: response.writeHead(404);
+    }
+    result = { ...device, requiresRestart: false };
+  }
   else if (path === '/sync/totp') {
     if (request.method === 'PUT') {
       const incoming = JSON.parse(body);

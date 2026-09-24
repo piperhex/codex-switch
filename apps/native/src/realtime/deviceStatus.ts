@@ -119,6 +119,8 @@ function remoteDevice(value: unknown): RemoteDevice | null {
       ? device.openaiAuthAccountId
       : null,
     activeProviderId: typeof device.activeProviderId === 'string' ? device.activeProviderId : null,
+    guiAccountId: typeof device.guiAccountId === 'string' ? device.guiAccountId : null,
+    guiProviderId: typeof device.guiProviderId === 'string' ? device.guiProviderId : null,
     activeProviderGroup: typeof device.activeProviderGroup === 'string'
       ? device.activeProviderGroup
       : null,
@@ -135,5 +137,6 @@ function remoteControlCapabilities(value: unknown): RemoteDevice['capabilities']
     capability === 'provider-switch'
     || capability === 'provider-group-switch'
     || capability === 'restart-codex'
+    || capability === 'gui-model-switch'
   ));
 }

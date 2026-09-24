@@ -12,6 +12,7 @@ use tauri::Runtime;
 use tungstenite::{stream::MaybeTlsStream, Error as WebSocketError, Message, WebSocket};
 
 use crate::cloud::RemoteControlConfig;
+use crate::codex_gui::account_selection::{self, GuiAccountSelection};
 
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
@@ -46,6 +47,18 @@ enum ServerMessage {
     RestartCodex {
         #[serde(rename = "commandId")]
         command_id: String,
+    },
+    SwitchGuiAccount {
+        #[serde(rename = "commandId")]
+        command_id: String,
+        #[serde(rename = "accountId")]
+        account_id: String,
+    },
+    SwitchGuiProvider {
+        #[serde(rename = "commandId")]
+        command_id: String,
+        #[serde(rename = "providerId")]
+        provider_id: String,
     },
 }
 
@@ -84,7 +97,13 @@ fn run_connection<R: Runtime>(
                 "activeProviderId": config.active_provider_id,
                 "activeProviderGroup": config.active_provider_group,
                 "localProxyRunning": config.local_proxy_running,
-                "capabilities": ["provider-switch", "provider-group-switch", "restart-codex"],
+                "guiAccountId": match &config.gui_selection {
+                    GuiAccountSelection::Account(id) => Some(id), _ => None,
+                },
+                "guiProviderId": match &config.gui_selection {
+                    GuiAccountSelection::Provider(id) => Some(id), _ => None,
+                },
+                "capabilities": ["provider-switch", "provider-group-switch", "restart-codex", "gui-model-switch"],
             })
             .to_string()
             .into(),
@@ -116,6 +135,24 @@ fn run_connection<R: Runtime>(
                     ServerMessage::RestartCodex { command_id } => {
                         handle_codex_restart(app, &mut socket, command_id)?
                     }
+                    ServerMessage::SwitchGuiAccount {
+                        command_id,
+                        account_id,
+                    } => handle_gui_switch(
+                        app,
+                        &mut socket,
+                        command_id,
+                        GuiAccountSelection::Account(account_id),
+                    )?,
+                    ServerMessage::SwitchGuiProvider {
+                        command_id,
+                        provider_id,
+                    } => handle_gui_switch(
+                        app,
+                        &mut socket,
+                        command_id,
+                        GuiAccountSelection::Provider(provider_id),
+                    )?,
                     ServerMessage::Authenticated { .. } => {}
                 }
             }
@@ -147,6 +184,7 @@ fn run_connection<R: Runtime>(
                 || next.active_provider_id != config.active_provider_id
                 || next.active_provider_group != config.active_provider_group
                 || next.local_proxy_running != config.local_proxy_running
+                || next.gui_selection != config.gui_selection
         }) {
             let _ = socket.close(None);
             return Ok(());
@@ -208,6 +246,18 @@ fn handle_codex_restart<R: Runtime>(
     send_command_result(socket, command_id, result, "Codex restart")
 }
 
+fn handle_gui_switch<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    command_id: String,
+    selection: GuiAccountSelection,
+) -> Result<(), String> {
+    let result = account_selection::switch_account(app, selection)
+        .map(|_| ())
+        .map_err(|error| error.to_string());
+    send_command_result(socket, command_id, result, "GUI model switch")
+}
+
 fn send_command_result(
     socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
     command_id: String,
@@ -247,6 +297,30 @@ fn set_read_timeout(
 #[cfg(test)]
 mod tests {
     use super::ServerMessage;
+
+    #[test]
+    fn parses_gui_switches_separately_from_proxy_commands() {
+        let account = serde_json::from_str::<ServerMessage>(
+            r#"{"type":"switch-gui-account","commandId":"gui-1","accountId":"account-1"}"#,
+        )
+        .unwrap();
+        assert!(
+            matches!(account, ServerMessage::SwitchGuiAccount { command_id, account_id }
+            if command_id == "gui-1" && account_id == "account-1")
+        );
+        let provider = serde_json::from_str::<ServerMessage>(
+            r#"{"type":"switch-gui-provider","commandId":"gui-2","providerId":"provider-1"}"#,
+        )
+        .unwrap();
+        assert!(
+            matches!(provider, ServerMessage::SwitchGuiProvider { command_id, provider_id }
+            if command_id == "gui-2" && provider_id == "provider-1")
+        );
+        assert!(serde_json::from_str::<ServerMessage>(
+            r#"{"type":"switch-gui-account","commandId":"gui-3","providerId":"wrong"}"#,
+        )
+        .is_err());
+    }
 
     #[test]
     fn parses_provider_switch_and_restart_commands() {

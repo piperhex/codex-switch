@@ -15,6 +15,8 @@ var deviceCommands = []commandSpec{
 	{"openai-auth-account", "set-openai-auth-account", "accountId", ""},
 	{"provider", "switch-provider", "providerId", "provider-switch"},
 	{"provider-group", "switch-provider-group", "group", "provider-group-switch"},
+	{"gui-account", "switch-gui-account", "accountId", "gui-model-switch"},
+	{"gui-provider", "switch-gui-provider", "providerId", "gui-model-switch"},
 	{"restart-codex", "restart-codex", "", "restart-codex"},
 }
 
@@ -120,7 +122,7 @@ func checkCapability(device *Device, spec commandSpec) error {
 	if !has {
 		return platform.NewError(409, "请先更新目标 PC 上的 Codex Switch")
 	}
-	if spec.path != "restart-codex" && !device.LocalProxyRunning {
+	if (spec.path == "provider" || spec.path == "provider-group") && !device.LocalProxyRunning {
 		return platform.NewError(409, "请先在目标 PC 上启动本地代理")
 	}
 	return nil
@@ -130,7 +132,7 @@ func (g *ControlGateway) validateTarget(owner, value string, spec commandSpec) e
 	if spec.field == "" {
 		return nil
 	}
-	kind := spec.path
+	kind := strings.TrimPrefix(spec.path, "gui-")
 	if kind == "openai-auth-account" {
 		kind = "account"
 	}
@@ -143,17 +145,8 @@ func (g *ControlGateway) saveCommand(previous *Device, spec commandSpec, value s
 		result["restarted"] = true
 		return result, nil
 	}
-	patch := platform.JSON{"lastSeenAt": time.Now().UTC().Truncate(time.Millisecond)}
-	switch spec.path {
-	case "account":
-		patch["activeAccountId"], patch["activeProviderId"], patch["activeProviderGroup"] = value, nil, nil
-	case "provider":
-		patch["activeProviderId"], patch["activeProviderGroup"] = value, nil
-	case "provider-group":
-		patch["activeProviderId"], patch["activeProviderGroup"] = nil, value
-	case "openai-auth-account":
-		patch["openaiAuthAccountId"] = value
-	}
+	patch := modelSwitchPatch(spec.path, value)
+	patch["lastSeenAt"] = time.Now().UTC().Truncate(time.Millisecond)
 	err := g.service.deps.DB.Model(&Device{}).
 		Where(`"ownerId" = ? AND "deviceId" = ?`, previous.OwnerID, previous.DeviceID).
 		Updates(patch).
@@ -172,6 +165,12 @@ func (g *ControlGateway) saveCommand(previous *Device, spec commandSpec, value s
 	result["activeAccountId"] = device.ActiveAccountID
 	result["activeProviderId"] = device.ActiveProviderID
 	result["activeProviderGroup"] = device.ActiveProviderGroup
+	result["guiAccountId"] = device.GuiAccountID
+	result["guiProviderId"] = device.GuiProviderID
+	if spec.capability == "gui-model-switch" {
+		result["requiresRestart"] = false
+		return result, nil
+	}
 	hadProvider := nonempty(previous.ActiveProviderID) || nonempty(previous.ActiveProviderGroup)
 	result["requiresRestart"] = !hadProvider && nonempty(previous.ActiveAccountID)
 	if spec.path == "account" {

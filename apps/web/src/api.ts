@@ -1,3 +1,4 @@
+import { remoteModelPath, type RemoteModelTarget } from '../../../shared/remote-chat/modelTarget';
 import type {
   AccountSummary,
   AuthResponse,
@@ -285,9 +286,11 @@ export async function consumeResetCredit(accountId: string) {
   });
 }
 
-export async function switchRemoteDeviceProvider(deviceId: string, providerId: string) {
+export async function switchRemoteDeviceProvider(
+  deviceId: string, providerId: string, target: RemoteModelTarget = 'proxy',
+) {
   return apiJson<RemoteModelSwitchResult>(
-    `/devices/${encodeURIComponent(deviceId)}/provider`,
+    `/devices/${encodeURIComponent(deviceId)}/${remoteModelPath('provider', target)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -325,6 +328,7 @@ function normalizeRemoteDevice(device: RemoteDevice): RemoteDevice {
         capability === "provider-switch"
         || capability === "provider-group-switch"
         || capability === "restart-codex"
+        || capability === "gui-model-switch"
       ))
       : [],
   };

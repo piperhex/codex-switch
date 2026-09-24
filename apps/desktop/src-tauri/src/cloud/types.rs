@@ -220,6 +220,7 @@ pub(super) struct CloudCredentials {
 }
 
 pub(crate) struct RemoteControlConfig {
+    pub(crate) gui_selection: crate::codex_gui::account_selection::GuiAccountSelection,
     pub(crate) websocket_url: String,
     pub(crate) access_token: String,
     pub(crate) device_id: String,

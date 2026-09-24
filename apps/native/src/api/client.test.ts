@@ -290,6 +290,22 @@ describe('mobile Codex API client', () => {
       .toEqual({ group: '工作' });
   });
 
+  it('sends GUI selections to their own device endpoints', async () => {
+    const result = { deviceId: 'device/1', guiAccountId: null, guiProviderId: 'provider-1',
+      requiresRestart: false, online: true };
+    const apiFetch = vi.fn().mockImplementation(async () => new Response(JSON.stringify(result), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+    await switchRemoteDeviceAccount(session, 'device/1', 'account-2', 'gui');
+    await expect(switchRemoteDeviceProvider(session, 'device/1', 'provider-1', 'gui')).resolves.toEqual(result);
+    expect(apiFetch.mock.calls.map(call => call[0])).toEqual([
+      'https://switch.example.com/devices/device%2F1/gui-account',
+      'https://switch.example.com/devices/device%2F1/gui-provider',
+    ]);
+    expect(apiFetch.mock.calls.map(call => JSON.parse(call[1].body))).toEqual([
+      { accountId: 'account-2' }, { providerId: 'provider-1' },
+    ]);
+  });
+
   it('restarts Codex on the selected remote desktop', async () => {
     const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ restarted: true }), {
       status: 200,

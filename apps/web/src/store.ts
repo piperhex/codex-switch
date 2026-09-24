@@ -1,4 +1,5 @@
 import { t } from './i18n';
+import { mergeRemoteModelState, remoteModelPath, type RemoteModelTarget } from '../../../shared/remote-chat/modelTarget';
 import { configureStore, createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import {
   apiJson,
@@ -103,10 +104,12 @@ export const removeDevice = createAsyncThunk("data/removeDevice", async (deviceI
 
 export const switchDeviceAccount = createAsyncThunk(
   "data/switchDeviceAccount",
-  async ({ deviceId, accountId }: { deviceId: string; accountId: string }) => ({
+  async ({ deviceId, accountId, target = 'proxy' }: {
+    deviceId: string; accountId: string; target?: RemoteModelTarget;
+  }) => ({
     accountId,
     result: await apiJson<RemoteModelSwitchResult>(
-      `/devices/${encodeURIComponent(deviceId)}/account`,
+      `/devices/${encodeURIComponent(deviceId)}/${remoteModelPath('account', target)}`,
       { method: "POST", body: JSON.stringify({ accountId }) },
     ),
   }),
@@ -114,9 +117,11 @@ export const switchDeviceAccount = createAsyncThunk(
 
 export const switchDeviceProvider = createAsyncThunk(
   "data/switchDeviceProvider",
-  async ({ deviceId, providerId }: { deviceId: string; providerId: string }) => ({
+  async ({ deviceId, providerId, target = 'proxy' }: {
+    deviceId: string; providerId: string; target?: RemoteModelTarget;
+  }) => ({
     providerId,
-    result: await switchRemoteDeviceProvider(deviceId, providerId),
+    result: await switchRemoteDeviceProvider(deviceId, providerId, target),
   }),
 );
 
@@ -153,10 +158,7 @@ function applyModelSwitchResult(
 ): RemoteDevice[] {
   return devices.map((device) => device.deviceId === result.deviceId
     ? {
-      ...device,
-      activeAccountId: result.activeAccountId ?? device.activeAccountId,
-      activeProviderId: result.activeProviderId ?? null,
-      activeProviderGroup: result.activeProviderGroup ?? null,
+      ...mergeRemoteModelState(device, result),
       online: result.online,
     }
     : device);

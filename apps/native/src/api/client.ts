@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { remoteModelPath, type RemoteModelTarget } from '../../../../shared/remote-chat/modelTarget';
 import type {
   AccountDetailsDraft,
   AccountOAuthPoll,
@@ -520,8 +521,10 @@ export async function switchRemoteDeviceAccount(
   session: AuthSession,
   deviceId: string,
   accountId: string,
+  target: RemoteModelTarget = 'proxy',
 ): Promise<RemoteModelSwitchResult> {
-  const response = await authorizedRequest(session, `/devices/${encodeURIComponent(deviceId)}/account`, {
+  const path = `/devices/${encodeURIComponent(deviceId)}/${remoteModelPath('account', target)}`;
+  const response = await authorizedRequest(session, path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ accountId }),
@@ -534,8 +537,10 @@ export async function switchRemoteDeviceProvider(
   session: AuthSession,
   deviceId: string,
   providerId: string,
+  target: RemoteModelTarget = 'proxy',
 ): Promise<RemoteModelSwitchResult> {
-  const response = await authorizedRequest(session, `/devices/${encodeURIComponent(deviceId)}/provider`, {
+  const path = `/devices/${encodeURIComponent(deviceId)}/${remoteModelPath('provider', target)}`;
+  const response = await authorizedRequest(session, path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ providerId }),

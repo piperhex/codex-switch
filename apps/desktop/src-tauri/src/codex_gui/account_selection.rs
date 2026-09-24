@@ -145,7 +145,10 @@ pub(crate) fn with_current<R: Runtime, T>(
     Ok((current.revision == expected).then(apply))
 }
 
-fn validate(app: &AppHandle, selection: &GuiAccountSelection) -> Result<(), SelectionError> {
+fn validate<R: Runtime>(
+    app: &AppHandle<R>,
+    selection: &GuiAccountSelection,
+) -> Result<(), SelectionError> {
     let paths = crate::storage::resolve_paths(app).map_err(|_| SelectionError::Storage)?;
     match selection {
         GuiAccountSelection::Account(id) => {
@@ -192,20 +195,26 @@ pub(crate) async fn codex_gui_switch_account(
     app: AppHandle,
     selection: GuiAccountSelection,
 ) -> Result<GuiAccountSelection, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        validate(&app, &selection)?;
-        let _guard = SELECTION_LOCK.lock().map_err(|_| SelectionError::Storage)?;
-        let root = app
-            .path()
-            .app_data_dir()
-            .map_err(|_| SelectionError::Storage)?;
-        save(&root.join(FILE_NAME), &selection)?;
-        crate::codex_gui::web::publish(&app, CHANGED_EVENT, &selection);
-        Ok::<_, SelectionError>(selection)
-    })
-    .await
-    .map_err(|_| SelectionError::Storage.to_string())?
-    .map_err(|error| error.to_string())
+    tauri::async_runtime::spawn_blocking(move || switch_account(&app, selection))
+        .await
+        .map_err(|_| SelectionError::Storage.to_string())?
+        .map_err(|error| error.to_string())
+}
+
+/// Switch only GUI routing. Call from a blocking worker or the remote control thread.
+pub(crate) fn switch_account<R: Runtime>(
+    app: &AppHandle<R>,
+    selection: GuiAccountSelection,
+) -> Result<GuiAccountSelection, SelectionError> {
+    validate(app, &selection)?;
+    let _guard = SELECTION_LOCK.lock().map_err(|_| SelectionError::Storage)?;
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| SelectionError::Storage)?;
+    save(&root.join(FILE_NAME), &selection)?;
+    super::web::publish(app, CHANGED_EVENT, &selection);
+    Ok(selection)
 }
 
 #[cfg(test)]
