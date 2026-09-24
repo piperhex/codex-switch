@@ -44,6 +44,19 @@ async function chooseComputer(page: Page, name: string) {
   await page.getByRole('region', { name: '设备列表' }).getByRole('button', { name: new RegExp(name) }).click();
 }
 
+async function accountSummaryRows(page: Page) {
+  return page.getByRole('button', { name: /^切换 GUI 账户：/ }).evaluate(button => {
+    const body = button.querySelector(':scope > span')!;
+    const summary = body.querySelector(':scope > span')!;
+    const rows = [...summary.children, body.querySelector(':scope > small')!];
+    const top = body.getBoundingClientRect().top;
+    return rows.map(row => {
+      const bounds = row.getBoundingClientRect();
+      return { top: bounds.top - top, height: bounds.height };
+    });
+  });
+}
+
 for (const blocked of [false, true]) {
   test(`remote desktop tools use the selected computer over ${blocked ? 'Relay' : 'P2P'}`, async ({ context, page }) => {
     test.setTimeout(90_000);
@@ -121,12 +134,14 @@ test('switches desktop GUI conversations and accounts between computers and back
   await page.bringToFront();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`/e2e/remote-gui-harness.html?socket=${encodeURIComponent(endpoint)}`);
+  const localRows = await accountSummaryRows(page);
   await chooseComputer(page, 'Office PC');
   await expect(page.getByRole('button', { name: 'Office conversation', exact: true })).toBeVisible();
   const quota = page.getByRole('progressbar', { name: '主用量剩余', exact: true });
   await expect(quota).toHaveAttribute('aria-valuenow', '28');
   await expect(quota).toBeVisible();
   await expect(page.getByRole('button', { name: /^切换 GUI 账户：/ })).toContainText('pro');
+  expect(await accountSummaryRows(page)).toEqual(localRows);
   await page.getByRole('button', { name: 'Office conversation', exact: true }).click();
   await expect(page.getByRole('textbox', { name: '聊天消息', exact: true })).toBeEnabled();
   await page.getByRole('textbox', { name: '聊天消息', exact: true }).fill('Continue slow task on the office computer');
