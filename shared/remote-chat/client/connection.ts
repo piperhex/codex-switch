@@ -211,11 +211,16 @@ export class ChatConnection {
 
   request<T>(method: RpcRequest['method'], body?: unknown): Promise<T> {
     if (!this.rpc) return Promise.reject(new Error('请先连接电脑。'));
-    let lastPercent = -1;
-    return this.rpc.request<T>(method, body, method === 'request' && hasUpload(body) ? (fraction) => {
+    let lastProgress = '';
+    let highestFraction = 0;
+    return this.rpc.request<T>(method, body, method === 'request' && hasUpload(body) ? (fraction, items) => {
+      if (fraction < highestFraction) return;
+      highestFraction = fraction;
       const progress = uploadProgress(fraction);
-      if (progress.percent === lastPercent) return;
-      lastPercent = progress.percent;
+      if (items) progress.items = items;
+      const key = JSON.stringify(progress);
+      if (key === lastProgress) return;
+      lastProgress = key;
       this.options.upload?.(progress);
     } : undefined);
   }

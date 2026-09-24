@@ -2,7 +2,40 @@ import { expect, it, vi } from 'vitest';
 import { ReliableDelivery } from '../../../../shared/remote-chat/delivery';
 import { SendQueue } from '../../../../shared/remote-chat/sendQueue';
 import { ChatRpc } from '../../../../shared/remote-chat/rpc';
-import { hasUpload, uploadProgress, type TransferProgress } from '../../../../shared/remote-chat/uploadProgress';
+import { hasUpload, itemUploadProgress, uploadProgress, type TransferProgress }
+  from '../../../../shared/remote-chat/uploadProgress';
+
+it('tracks unequal and repeated images independently of text, files and project references', async () => {
+  const image = 'data:image/png;base64,' + 'a'.repeat(4800);
+  const body = { text: '📷'.repeat(300), attachments: [
+    { kind: 'file', path: 'C:/notes.txt', name: 'notes.txt' },
+    { kind: 'file', path: '', name: '文件.txt', data: 'b'.repeat(6000) },
+  ], images: [image, 'data:image/png;base64,' + 'c'.repeat(9600), image] };
+  const reports: Parameters<TransferProgress>[] = [];
+  const queue = new SendQueue({ capacity: async () => {}, send: (_part, delivered) => delivered?.() });
+  const rpc = new ChatRpc({ prefix: 'items', event: () => {}, send: (message, report) => queue.send(message, report) });
+  const pending = rpc.request('request', body, (...args) => reports.push(args));
+  await vi.waitFor(() => expect(reports.at(-1)?.[0]).toBe(1));
+  const uploads = reports.map(([, items]) => items!);
+  expect(uploads[0].find(item => item.kind === 'attachment' && item.index === 0)).toBeUndefined();
+  expect(uploads.some(items => items.find(item => item.kind === 'attachment')!.percent > 0
+    && items.filter(item => item.kind === 'image').every(item => item.percent === 0))).toBe(true);
+  expect(uploads.some(items => items[0].percent === 100 && items[1].percent > 0
+    && items[1].percent < 100 && items[2].percent === 0)).toBe(true);
+  expect(uploads.at(-1)?.every(item => item.percent === 100)).toBe(true);
+  rpc.receive({ kind: 'response', id: 'items:1', data: true });
+  await pending;
+  queue.close(); rpc.close();
+});
+
+it('uses the selected draft index and keeps preparation and confirmation inside each item', () => {
+  expect(itemUploadProgress(undefined, 'image', 0)).toBeUndefined();
+  expect(itemUploadProgress({ phase: 'preparing', percent: 0 }, 'image', 1)?.percent).toBe(0);
+  expect(itemUploadProgress({ phase: 'confirming', percent: 100 }, 'image', 1)?.percent).toBe(100);
+  expect(itemUploadProgress({ phase: 'uploading', percent: 50, items: [
+    { kind: 'image', index: 0, percent: 100 }, { kind: 'image', index: 1, percent: 25 },
+  ] }, 'image', 1)?.percent).toBe(25);
+});
 
 it('only counts local files and photos as uploads', () => {
   expect(hasUpload({ attachments: [{ path: 'C:/notes.txt' }, { kind: 'plugin', path: 'plugin://test' }] })).toBe(false);

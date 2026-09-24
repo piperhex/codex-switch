@@ -2,7 +2,7 @@ import { MAX_MESSAGE_CHARS, parseMessage, type ConnectionMode, type RpcMessage }
 import { chatAttachmentDataLimit } from './composerAttachments';
 import { MIB } from './policy';
 
-const CHUNK_CHARS = 2400;
+export const CHUNK_CHARS = 2400;
 const MESSAGE_RESERVE_CHARS = 2 * MIB;
 export function chatMessageCharLimit(mode?: ConnectionMode) {
   return Math.min(Number.MAX_SAFE_INTEGER, Math.max(MAX_MESSAGE_CHARS,
@@ -12,11 +12,12 @@ const MAX_ASSEMBLIES = 8;
 const ASSEMBLY_TTL_MS = 60_000;
 interface Assembly { parts: Map<number, string>; total: number; size: number; updatedAt: number; limit: number }
 
-export function* chunks(message: RpcMessage, id: string, mode?: ConnectionMode) {
+export function* chunks(message: RpcMessage, id: string, mode?: ConnectionMode, onSerialized?: (text: string) => void) {
   // Escape surrogate code units so a chunk boundary cannot split an emoji during UTF-8 encoding.
   const text = JSON.stringify(message).replace(/[\ud800-\udfff]/g,
     (unit) => `\\u${unit.charCodeAt(0).toString(16).padStart(4, '0')}`);
   if (text.length > chatMessageCharLimit(mode)) throw new Error('对话内容过大，请缩小范围后重试。');
+  onSerialized?.(text);
   const total = Math.ceil(text.length / CHUNK_CHARS);
   for (let index = 0; index < total; index += 1) {
     yield JSON.stringify({ id, index, total, text: text.slice(index * CHUNK_CHARS, (index + 1) * CHUNK_CHARS) });

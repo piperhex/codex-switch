@@ -42,7 +42,11 @@ export class ChatRpc {
           : '电脑暂未确认结果，请刷新对话后再试，避免重复发送。'));
       }, requestTimeout(body));
       const report: TransferProgress | undefined = progress
-        ? (fraction) => { if (this.pending.has(id)) progress(fraction); } : undefined;
+        ? (fraction, items) => {
+          if (!this.pending.has(id)) return;
+          if (items) progress(fraction, items);
+          else progress(fraction);
+        } : undefined;
       this.pending.set(id, { request, resolve: (value) => resolve(value as T), reject, timer, progress: report });
       void this.options.send(request, report).catch((error: unknown) => this.fail(id, error));
     });

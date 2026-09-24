@@ -2,9 +2,12 @@ import { useRef } from 'react';
 import Feather from '@expo/vector-icons/Feather';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { AttachmentReference } from '../../../desktop/src/pages/codexGui/attachmentTypes';
+import { itemUploadProgress, type UploadProgress } from '../../../../shared/remote-chat/uploadProgress';
+import { ComposerUploadProgress } from './ComposerUploadProgress';
 
-export function ComposerReferences({ items, disabled, remove }: {
+export function ComposerReferences({ items, disabled, remove, upload, reconnecting }: {
   items: AttachmentReference[]; disabled: boolean; remove: (item: AttachmentReference) => void;
+  upload?: UploadProgress; reconnecting?: boolean;
 }) {
   const list = useRef<ScrollView>(null);
   if (!items.length) return null;
@@ -14,6 +17,8 @@ export function ComposerReferences({ items, disabled, remove }: {
     {items.map((item, index) => <View key={`${item.path}:${index}`} style={referenceStyles.item}>
       <Feather name={item.kind === 'plugin' ? 'box' : 'file-text'} size={18} color="#555" />
       <Text numberOfLines={1} style={referenceStyles.name}>{item.name}</Text>
+      {!!item.data && <ComposerUploadProgress inline progress={itemUploadProgress(upload, 'attachment', index)}
+        reconnecting={reconnecting} />}
       <Pressable accessibilityRole="button" accessibilityLabel={`移除附件 ${item.name}`}
         disabled={disabled} onPress={() => remove(item)} hitSlop={8} style={referenceStyles.remove}>
         <Feather name="x" size={16} color="#666" />

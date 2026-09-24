@@ -1,33 +1,35 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { UploadProgress } from '../../../../shared/remote-chat/uploadProgress';
 
-export function ComposerUploadProgress({ progress, reconnecting }: {
-  progress?: UploadProgress; reconnecting: boolean;
+export function ComposerUploadProgress({ progress, reconnecting = false, inline = false }: {
+  progress?: UploadProgress; reconnecting?: boolean; inline?: boolean;
 }) {
   if (!progress) return null;
-  const label = reconnecting ? '连接恢复后继续上传…' : {
-    preparing: '正在准备上传…', uploading: `正在上传附件 ${progress.percent}%`,
-    confirming: '上传完成，等待电脑确认…',
-  }[progress.phase];
-  return <View style={styles.container}>
-    <View style={styles.heading}>
-      <ActivityIndicator size="small" color="#238578" style={styles.spinner} />
-      <Text style={styles.label}>{label}</Text>
-    </View>
-    <View accessibilityRole="progressbar" accessibilityLabel={label}
-      accessibilityValue={{ min: 0, max: 100, now: progress.percent }} style={styles.track}>
+  let label = '上传中';
+  if (progress.percent === 0) label = '待上传';
+  if (progress.percent === 100) label = '已上传';
+  if (progress.phase === 'preparing') label = '准备中';
+  if (progress.phase === 'confirming') label = '等待确认';
+  if (reconnecting && progress.percent < 100) label = '等待连接';
+  return <View pointerEvents="none" style={inline ? styles.inline : styles.overlay}
+    accessibilityRole="progressbar" accessibilityLabel={`附件上传进度，${label}`}
+    accessibilityValue={{ min: 0, max: 100, now: progress.percent, text: `${label} ${progress.percent}%` }}>
+    <Text style={[styles.percent, inline && styles.inlineText]}>{progress.percent}%</Text>
+    <Text style={[styles.label, inline && styles.inlineText]}>{label}</Text>
+    {!inline && <View style={styles.track}>
       <View style={[styles.fill, { width: `${progress.percent}%` }]} />
-    </View>
+    </View>}
   </View>;
 }
 
 const styles = StyleSheet.create({
-  container: { width: '100%', maxWidth: 400, alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 8, gap: 7 },
-  heading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  spinner: { width: 24, height: 24, flexShrink: 0 },
-  // Android fonts need baseline room for low glyphs and filename underscores.
-  label: { color: '#28766c', fontSize: 13, lineHeight: 20, paddingVertical: 2,
-    includeFontPadding: true, textAlignVertical: 'center', flexShrink: 1 },
-  track: { height: 4, borderRadius: 2, backgroundColor: '#e1eeeb', overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 2, backgroundColor: '#238578' },
+  overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 2,
+    borderTopLeftRadius: 12, borderTopRightRadius: 12, padding: 6, backgroundColor: 'rgba(12, 24, 22, 0.6)' },
+  percent: { color: '#fff', fontSize: 18, lineHeight: 24, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  label: { color: '#fff', fontSize: 12, lineHeight: 18, includeFontPadding: true, textAlign: 'center' },
+  track: { position: 'absolute', bottom: 8, left: 10, right: 10, height: 3, borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)', overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 2, backgroundColor: '#fff' },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  inlineText: { color: '#28766c', fontSize: 11, lineHeight: 18 },
 });

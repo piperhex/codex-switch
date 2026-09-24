@@ -12,6 +12,7 @@ import { ChatAttachmentPreviews } from './ChatAttachments';
 import { pickChatImages } from './pickChatImages';
 import { ChatImageEditor } from './ChatImageEditor';
 import { ChatUploadProgress } from './ChatUploadProgress';
+import { itemUploadProgress } from '../../../../shared/remote-chat/uploadProgress';
 import { ChatQueue } from './ChatQueue';
 import { ComposerQuotes } from './ChatQuotes';
 import { ComposerAddMenu, ComposerPluginMenu, ChatCommandMenu, type ComposerAddAction } from './ComposerMenus';
@@ -98,7 +99,6 @@ export function ChatComposer(props: ComposerProps) {
       {props.compacting && <p role="status" className="chat-muted">{t("正在压缩上下文…")}</p>}
       {(draft.picking || attachments.busy || state.readingClipboard)
         && <p role="status" className="chat-muted">{t("正在添加附件…")}</p>}
-      <ChatUploadProgress progress={uploadProgress} reconnecting={!ready} />
       {(adding || menu.open) && <div className="chat-composer-popover" onKeyDown={event => {
         if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229) return;
         if (event.key === 'Escape') { setAdding(false); menu.close(); menu.input.current?.focus(); }
@@ -112,10 +112,14 @@ export function ChatComposer(props: ComposerProps) {
       <div className="chat-composer-field" aria-hidden={settings || undefined}>
         <div className="chat-composer-content">
           <ChatAttachmentPreviews images={draft.images} busy={busy} remove={draft.removeImage}
+            upload={sending ? uploadProgress : undefined} reconnecting={!ready}
             add={() => setAdding(true)} edit={id => { menu.input.current?.blur(); setEditingId(id); }} />
           <div className="chat-composer-capsules">{attachments.items.map((item, index) =>
             <span className="chat-capsule" key={`${item.path}:${index}`}><File size={14} />
-              <span title={item.name}>{item.name}</span><button type="button" aria-label={t("移除{value1}", { value1: item.name })}
+              <span title={item.name}>{item.name}</span>
+              {item.data && <ChatUploadProgress inline reconnecting={!ready}
+                progress={itemUploadProgress(sending ? uploadProgress : undefined, 'attachment', index)} />}
+              <button type="button" aria-label={t("移除{value1}", { value1: item.name })}
                 disabled={busy} onClick={() => attachments.remove(item)}><X size={14} /></button></span>)}</div>
           <ComposerQuotes disabled={busy} />
           <textarea ref={menu.input} aria-label={t("聊天消息")} value={draft.text} maxLength={100_000} rows={1}

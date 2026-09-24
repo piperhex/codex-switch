@@ -5,10 +5,15 @@ import { palette, styles } from './styles';
 import { ImageViewer } from './ImageViewer';
 import { ChatPhotoEditor } from './ChatPhotoEditor';
 import type { useChatPhotos } from './useChatPhotos';
+import { itemUploadProgress, type UploadProgress } from '../../../../shared/remote-chat/uploadProgress';
+import { ComposerUploadProgress } from './ComposerUploadProgress';
 
-interface Props { photos: ReturnType<typeof useChatPhotos>; disabled: boolean; active: boolean }
+interface Props {
+  photos: ReturnType<typeof useChatPhotos>; disabled: boolean; active: boolean;
+  upload?: UploadProgress; reconnecting?: boolean;
+}
 
-export function ChatPhotoPicker({ photos, disabled, active }: Props) {
+export function ChatPhotoPicker({ photos, disabled, active, upload, reconnecting }: Props) {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const preview = photos.photos.find((photo) => photo.id === previewId);
@@ -25,6 +30,7 @@ export function ChatPhotoPicker({ photos, disabled, active }: Props) {
           style={photoStyles.previewButton} onPress={() => setPreviewId(photo.id)}>
           <Image source={{ uri: photo.uri }} style={photoStyles.preview} resizeMode="cover"
             accessibilityLabel={`照片 ${index + 1}`} />
+          <ComposerUploadProgress progress={itemUploadProgress(upload, 'image', index)} reconnecting={reconnecting} />
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={`编辑照片 ${index + 1}`} disabled={busy}
           style={[photoStyles.edit, busy && styles.disabled]}

@@ -1,8 +1,22 @@
-export type TransferProgress = (fraction: number) => void;
+export interface UploadItemProgress {
+  kind: 'image' | 'attachment';
+  index: number;
+  percent: number;
+}
+
+export type TransferProgress = (fraction: number, items?: UploadItemProgress[]) => void;
 
 export interface UploadProgress {
   phase: 'preparing' | 'uploading' | 'confirming';
   percent: number;
+  items?: UploadItemProgress[];
+}
+
+/** Indexes match the submitted draft, including references that do not need uploading. */
+export function itemUploadProgress(progress: UploadProgress | undefined, kind: UploadItemProgress['kind'], index: number) {
+  if (!progress) return undefined;
+  const item = progress.items?.find(entry => entry.kind === kind && entry.index === index);
+  return { phase: progress.phase, percent: item?.percent ?? (progress.phase === 'confirming' ? 100 : 0) };
 }
 
 /** Only local attachment data needs transferring; project paths and plugins do not. */

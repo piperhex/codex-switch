@@ -14,7 +14,6 @@ import { ComposerAddMenu, type ComposerAddAction } from './ComposerAddMenu';
 import { ComposerPopover } from './ComposerPopover';
 import { ComposerPluginMenu } from './ComposerPluginMenu';
 import { ComposerReferences } from './ComposerReferences';
-import { ComposerUploadProgress } from './ComposerUploadProgress';
 import type { UploadProgress } from '../../../../shared/remote-chat/uploadProgress';
 import { ComposerQuotes } from './ComposerQuotes';
 import { useChatQuotes } from './ChatQuotes';
@@ -172,7 +171,6 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
     {!!(attachmentError || attachments.error) && <Text accessibilityRole="alert" style={styles.error}>
       {attachmentError || attachments.error}</Text>}
     {attachments.busy && <Text style={styles.status}>正在读取文件…</Text>}
-    <ComposerUploadProgress progress={sending ? upload : undefined} reconnecting={reconnecting} />
     {(adding || menu.open) && <ComposerPopover anchor={anchor} anchorHeight={anchorHeight} wide={!adding}
       close={() => { setAdding(false); menu.close(); }}>
       {menuContent()}
@@ -181,8 +179,10 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
       onLayout={({ nativeEvent }) => setAnchorHeight(nativeEvent.layout.height)}>
       <ScrollView style={styles.composerContent} keyboardShouldPersistTaps="always" nestedScrollEnabled
         contentContainerStyle={styles.composerContentInner}>
-      <ChatPhotoPicker photos={photos} disabled={sending} active={active} />
-      <ComposerReferences items={attachments.items} disabled={attachmentBusy} remove={attachments.remove} />
+      <ChatPhotoPicker photos={photos} disabled={sending} active={active}
+        upload={sending ? upload : undefined} reconnecting={reconnecting} />
+      <ComposerReferences items={attachments.items} disabled={attachmentBusy} remove={attachments.remove}
+        upload={sending ? upload : undefined} reconnecting={reconnecting} />
       <ComposerQuotes disabled={sending} active={active} />
       <TextInput ref={menu.input} accessibilityLabel="聊天消息"
         style={[styles.input, compactField && styles.inputCompact]}

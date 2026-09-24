@@ -55,6 +55,27 @@ async function type(text: string) {
   });
 }
 
+it('shows separate progress inside each photo and restores the draft controls after failure', async () => {
+  mocks.pick.mockResolvedValueOnce([draftImage(url), draftImage(url)]);
+  await render(); await choose();
+  await render({ sending: true, uploadProgress: { phase: 'uploading', percent: 61, items: [
+    { kind: 'image', index: 0, percent: 100 }, { kind: 'image', index: 1, percent: 22 },
+  ] } });
+  const previews = container.querySelectorAll('.chat-attachment-preview');
+  expect(previews[0].querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('100');
+  expect(previews[1].querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('22');
+  expect(previews[0].textContent).toContain('已上传');
+  expect(container.querySelector('.chat-upload-progress')).toBeNull();
+  expect(button('移除图片 1')!.disabled).toBe(true);
+  await render({ ready: false });
+  expect(previews[1].textContent).toContain('等待连接');
+  expect(previews[0].textContent).toContain('已上传');
+  await render({ sending: false, uploadProgress: undefined, ready: true });
+  expect(container.querySelectorAll('img')).toHaveLength(2);
+  expect(container.querySelector('[role="progressbar"]')).toBeNull();
+  expect(button('移除图片 1')!.disabled).toBe(false);
+});
+
 it('opens the album from an empty composer, previews, removes and sends an image without text', async () => {
   await render();
   expect(button('发送消息')!.disabled).toBe(true);

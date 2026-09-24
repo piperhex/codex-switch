@@ -1,21 +1,23 @@
 import { t, useLanguage } from '../i18n';
-import { LoaderCircle } from 'lucide-react';
 import type { UploadProgress } from '../../../../shared/remote-chat/uploadProgress';
 import './uploadProgress.css';
 
-export function ChatUploadProgress({ progress, reconnecting }: {
-  progress?: UploadProgress; reconnecting: boolean;
+export function ChatUploadProgress({ progress, reconnecting = false, inline = false }: {
+  progress?: UploadProgress; reconnecting?: boolean; inline?: boolean;
 }) {
   useLanguage();
   if (!progress) return null;
-  const label = reconnecting ? t("连接恢复后继续上传…") : {
-    preparing: t("正在准备上传…"), uploading: t("正在上传附件 {value1}%", { value1: progress.percent }),
-    confirming: t("上传完成，等待电脑确认…"),
-  }[progress.phase];
-  return <div className="chat-upload-progress">
-    <div role="status"><LoaderCircle className="spin" size={17} /><span>{label}</span></div>
-    <div className="chat-upload-track" role="progressbar" aria-label={t("附件上传进度")}
-      aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}>
-      <i style={{ width: `${progress.percent}%` }} /></div>
-  </div>;
+  let label = t('上传中');
+  if (progress.percent === 0) label = t('待上传');
+  if (progress.percent === 100) label = t('已上传');
+  if (progress.phase === 'preparing') label = t('准备中');
+  if (progress.phase === 'confirming') label = t('等待确认');
+  if (reconnecting && progress.percent < 100) label = t('等待连接');
+  return <span className={inline ? 'chat-upload-inline' : 'chat-upload-overlay'}
+    role="progressbar" aria-label={t('附件上传进度')} aria-valuetext={`${label} ${progress.percent}%`}
+    aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}>
+    <span className="chat-upload-percent">{progress.percent}%</span>
+    <span className="chat-upload-label">{label}</span>
+    {!inline && <span className="chat-upload-track"><i style={{ width: `${progress.percent}%` }} /></span>}
+  </span>;
 }

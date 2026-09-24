@@ -2,10 +2,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatConnection } from '../../../../shared/remote-chat/client/connection';
 import type { LinkOptions } from '../../../../shared/remote-chat/linkOptions';
 import type { RpcMessage } from '../../../../shared/remote-chat/protocol';
+import type { TransferProgress } from '../../../../shared/remote-chat/uploadProgress';
 import { getChatPolicy, DEFAULT_CHAT_POLICY } from '../../../../shared/remote-chat/policy';
 
 const state = vi.hoisted(() => ({ options: undefined as LinkOptions | undefined,
-  send: vi.fn(async (_message: RpcMessage) => undefined), relay: vi.fn(), close: vi.fn() }));
+  send: vi.fn(async (_message: RpcMessage, _progress?: TransferProgress) => undefined), relay: vi.fn(), close: vi.fn() }));
 vi.mock('../../../../shared/remote-chat/link', () => ({ ChatLink: class {
   resumable = true;
   constructor(options: LinkOptions) { state.options = options; }
@@ -31,11 +32,12 @@ let connection: ChatConnection;
 const mode = vi.fn();
 const ready = vi.fn();
 const error = vi.fn();
+const upload = vi.fn();
 beforeEach(async () => {
   vi.useFakeTimers(); vi.setSystemTime(100_000); vi.clearAllMocks();
   Socket.instances = [];
   vi.stubGlobal('WebSocket', Socket);
-  connection = new ChatConnection({ deviceId: 'pc', mode, ready, error, event: vi.fn(),
+  connection = new ChatConnection({ deviceId: 'pc', mode, ready, error, upload, event: vi.fn(),
     authorize: async () => ({ baseUrl: 'https://test', accessToken: 'token' }),
     randomBytes: (size) => new Uint8Array(size).fill(1),
     createPeer: () => { throw new Error('unused'); },
@@ -48,6 +50,25 @@ beforeEach(async () => {
   state.options!.mode('direct');
 });
 afterEach(() => { connection.stop(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+it('publishes individual image changes within one total percent and ignores replayed progress', async () => {
+  const request = connection.request('request', { images: ['data:image/png;base64,YWJj'] });
+  const [message, report] = state.send.mock.calls.at(-1)!;
+  report?.(0.501, [{ kind: 'image', index: 0, percent: 1 }]);
+  report?.(0.502, [{ kind: 'image', index: 0, percent: 2 }]);
+  expect(upload).toHaveBeenCalledTimes(2);
+  expect(upload).toHaveBeenLastCalledWith({ phase: 'uploading', percent: 50,
+    items: [{ kind: 'image', index: 0, percent: 2 }] });
+  report?.(0.502, [{ kind: 'image', index: 0, percent: 2 }]);
+  report?.(0.1, [{ kind: 'image', index: 0, percent: 0 }]);
+  expect(upload).toHaveBeenCalledTimes(2);
+  report?.(1, [{ kind: 'image', index: 0, percent: 100 }]);
+  expect(upload).toHaveBeenLastCalledWith({ phase: 'confirming', percent: 100,
+    items: [{ kind: 'image', index: 0, percent: 100 }] });
+  if (message.kind !== 'request') throw new Error('Expected upload request');
+  state.options!.message({ kind: 'response', id: message.id, data: true });
+  await expect(request).resolves.toBe(true);
+});
 
 it('updates client transfer allowances before mode notifications and restores them on stop', () => {
   expect(getChatPolicy().fileUploadMaxMb).toBe(Number.MAX_SAFE_INTEGER);

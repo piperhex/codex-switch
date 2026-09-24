@@ -1,8 +1,13 @@
-.chat-upload-progress { width: 100%; max-width: 400px; margin: 0 auto; padding: 8px 12px; }
-.chat-upload-progress > div:first-child { display: flex; align-items: center; gap: 8px;
-  color: #28766c; font-size: 13px; line-height: 20px; }
-.chat-upload-progress svg { flex-shrink: 0; }
-.chat-upload-progress span { min-width: 0; overflow-wrap: anywhere; }
-.chat-upload-track { height: 4px; margin-top: 7px; overflow: hidden; border-radius: 2px; background: #e1eeeb; }
-.chat-upload-track i { display: block; height: 100%; border-radius: inherit; background: #238578; }
+.chat-upload-overlay { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px; padding: 6px; border-radius: 10px;
+  background: rgb(12 24 22 / 60%); color: #fff; pointer-events: none; }
+.chat-upload-percent { font-size: 15px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chat-upload-label { max-width: 100%; font-size: 10px; line-height: 14px; text-align: center; overflow-wrap: anywhere; }
+.chat-upload-track { position: absolute; bottom: 6px; left: 8px; right: 8px; height: 3px;
+  overflow: hidden; border-radius: 2px; background: rgb(255 255 255 / 25%); }
+.chat-upload-track i { display: block; height: 100%; border-radius: inherit; background: #fff; }
+.chat-attachment-preview.is-uploading button { visibility: hidden; }
+.chat-upload-inline { display: inline-flex; flex-shrink: 0; align-items: center; gap: 4px; color: #28766c; }
+.chat-upload-inline .chat-upload-percent { font-size: 12px; line-height: 18px; }
+.chat-upload-inline .chat-upload-label { font-size: 11px; line-height: 18px; }
 .chat-connection-info .chat-reconnect { flex-shrink: 0; margin-left: 6px; color: #238578; }
