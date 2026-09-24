@@ -7,6 +7,7 @@ import { mergeHistory } from './history';
 import { contentHash, HISTORY_CHANGED } from '../historySync';
 import type { HistoryPage } from '../historyPage';
 import { HistoryReader } from './historyReader';
+import type { HistoryVersionSource } from './historyPreparation';
 import { HistoryCache } from './historyCache';
 import { ImageCache } from './imageCache';
 import { OfflineWriter, type OfflineHistoryStore } from './offline';
@@ -63,7 +64,7 @@ export class ChatController {
   private readonly images = new ImageCache(<T>(body: Parameters<ConstructorParameters<typeof ImageCache>[0]>[0]) =>
     this.connection.request<T>('request', body));
   private readonly histories = new HistoryCache();
-  private readonly historyReader = new HistoryReader((body) => this.connection.request('request', body));
+  private readonly historyReader: HistoryReader;
   private readonly historyPages = new Map<string, HistoryPage>();
   private historyTimer?: ReturnType<typeof setTimeout>;
   private historyDirty = false;
@@ -82,7 +83,8 @@ export class ChatController {
   };
 
   constructor(createConnection: (events: ConnectionEvents) => Pick<ChatConnection, 'request' | 'start' | 'stop'>,
-    private readonly offline?: OfflineHistoryStore) {
+    private readonly offline?: OfflineHistoryStore, versions?: HistoryVersionSource) {
+    this.historyReader = new HistoryReader((body) => this.connection.request('request', body), versions);
     if (offline) this.offlineWriter = new OfflineWriter(offline, this.cacheFailure);
     this.connection = createConnection({
       mode: (mode) => this.changeMode(mode), error: (error) => this.update({ error }),

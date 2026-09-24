@@ -8,6 +8,7 @@ import { historyDelta, type HistoryVersion } from '../../../../shared/remote-cha
 import { sliceHistory, type HistoryWindow } from '../../../../shared/remote-chat/historyPage';
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), events: null as ConnectionEvents | null }));
+vi.mock('react-native', () => ({ Platform: { OS: 'android' }, NativeModules: {} }));
 vi.mock('./connection', () => ({ MobileChatConnection: class {
   constructor(events: ConnectionEvents) { mocks.events = events; }
   start() { mocks.events!.mode('relay'); mocks.events!.ready(); }

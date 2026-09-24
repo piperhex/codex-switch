@@ -7,6 +7,7 @@ import { THREAD_COUNT_LIMIT, THREAD_CHAR_LIMIT, HISTORY_CHAR_LIMIT, IMAGE_CHAR_L
 import type { Thread } from '../types';
 import { sliceHistory } from '../../../../../shared/remote-chat/historyPage';
 import { DEFAULT_CHAT_POLICY, setChatPolicy } from '../../../../../shared/remote-chat/policy';
+import { contentHash } from '../../../../../shared/remote-chat/historySync';
 
 const state = vi.hoisted(() => ({ db: null as Database | null, reads: [] as string[] }));
 vi.mock('expo-sqlite', () => {
@@ -57,6 +58,25 @@ afterAll(() => state.db?.close());
 afterEach(() => setChatPolicy(DEFAULT_CHAT_POLICY));
 
 describe('persistent chat cache using SQLite', () => {
+  it('reopens worker-prepared rows with the existing schema and updates terminal turn status', async () => {
+    const prepare = vi.fn(async (value: object, omit = '') => {
+      const data = JSON.stringify(Object.fromEntries(Object.entries(value).filter(([key]) => key !== omit)));
+      return { data, hash: contentHash(data), fields: {} };
+    });
+    const native = new SqliteHistoryStore(account, 'pc', prepare);
+    const thread = history('worker', 25);
+    thread.turns![0].status = 'inProgress';
+    await native.save({ thread, page: { hasMore: false }, archived: false });
+    const reopened = await store().read(thread.id, {});
+    expect(items(reopened)).toEqual(thread.turns![0].items.slice(-10));
+    const recent = sliceHistory({ ...thread, turns: [{ ...thread.turns![0], status: 'completed' }] });
+    await native.save({ ...recent, archived: false });
+    const older = await store().read(thread.id, { start: reopened!.page.start, older: true });
+    expect(older?.thread.turns?.[0].status).toBe('completed');
+    expect(items(older)).toEqual(thread.turns![0].items.slice(-20));
+    expect(prepare).toHaveBeenCalled();
+  });
+
   it('loads more than 100 messages per page and applies updated settings to older history', async () => {
     await store().save({ thread: history('chat', 500), page: { hasMore: false }, archived: false });
     setChatPolicy({ ...DEFAULT_CHAT_POLICY, historyPageSize: 150 });

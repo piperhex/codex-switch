@@ -78,6 +78,7 @@
       "./plugins/withChatScroll.cjs",
       "./plugins/withChatTransport.cjs",
       "./plugins/withChatPacketCipher.cjs",
+      "./plugins/withChatHistoryWorker.cjs",
       "./plugins/withAppUpdate.cjs",
       "./plugins/withSharedBundleInputs.cjs",
       [

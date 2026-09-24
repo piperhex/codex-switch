@@ -3,6 +3,7 @@ import type { AuthSession } from '../../types';
 import type { Thread } from '../types';
 import type { CachedConversation, OfflineHistoryStore } from '../../../../../shared/remote-chat/client/offline';
 import type { HistoryWindow } from '../../../../../shared/remote-chat/historyPage';
+import type { PrepareHistoryObject } from '../../../../../shared/remote-chat/client/historyPreparation';
 import { getChatPolicy } from '../../../../../shared/remote-chat/policy';
 import { cacheTransaction, withCache } from './database';
 import { decodeRecords, RecordEncoder, type MessageRecord, HISTORY_CHAR_LIMIT,
@@ -15,9 +16,10 @@ export function accountScope(session: Pick<AuthSession, 'baseUrl' | 'email'>) {
 
 export class SqliteHistoryStore implements OfflineHistoryStore {
   private readonly scope: string;
-  private encoder = new RecordEncoder();
-  constructor(session: Pick<AuthSession, 'baseUrl' | 'email'>, deviceId: string) {
+  private readonly encoder: RecordEncoder;
+  constructor(session: Pick<AuthSession, 'baseUrl' | 'email'>, deviceId: string, prepare?: PrepareHistoryObject) {
     this.scope = JSON.stringify([accountScope(session), deviceId]);
+    this.encoder = new RecordEncoder(prepare);
   }
   list = () => withCache(async (db) => {
     const rows = await db.getAllAsync<ConversationRow>(
@@ -49,7 +51,7 @@ export class SqliteHistoryStore implements OfflineHistoryStore {
   });
 
   save = (value: CachedConversation) => withCache(async (db) => {
-    const rows = this.encoder.encode(value.thread);
+    const rows = await this.encoder.encode(value.thread);
     const { turns: _turns, ...metadata } = value.thread;
     const json = JSON.stringify(metadata);
     if (json.length > THREAD_CHAR_LIMIT || (!rows.length && value.thread.turns?.some((turn) => turn.items.length))) {

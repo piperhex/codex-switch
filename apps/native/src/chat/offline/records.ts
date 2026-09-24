@@ -1,5 +1,6 @@
 import type { Item, Thread, Turn } from '../types';
 import { contentHash } from '../../../../../shared/remote-chat/historySync';
+import type { PrepareHistoryObject } from '../../../../../shared/remote-chat/client/historyPreparation';
 
 export const THREAD_CHAR_LIMIT = 2 * 1024 * 1024;
 export const HISTORY_CHAR_LIMIT = 16 * 1024 * 1024;
@@ -7,6 +8,7 @@ export const IMAGE_CHAR_LIMIT = 24 * 1024 * 1024;
 export const IMAGE_COUNT_LIMIT = 128;
 export const THREAD_COUNT_LIMIT = 20;
 const MAX_ROWS = 2000;
+const PREPARE_BATCH_SIZE = 16;
 
 export interface MessageRecord {
   position: number; turn: string; item: string; turn_data: string; data: string; size: number; signature: string;
@@ -15,7 +17,9 @@ export interface MessageRecord {
 /** Weak keys reuse serialization for unchanged messages without retaining old conversations. */
 export class RecordEncoder {
   private encoded = new WeakMap<Item, { data: string; hash: string }>();
-  encode(thread: Thread): Omit<MessageRecord, 'position'>[] {
+  constructor(private readonly prepare?: PrepareHistoryObject) {}
+  encode(thread: Thread): Omit<MessageRecord, 'position'>[] | Promise<Omit<MessageRecord, 'position'>[]> {
+    if (this.prepare) return encodePreparedRecords(thread, this.prepare);
     const rows: Omit<MessageRecord, 'position'>[] = [];
     let size = 0;
     for (const turn of [...(thread.turns ?? [])].reverse()) {
@@ -41,6 +45,32 @@ export class RecordEncoder {
     const encoded = { data, hash: contentHash(data) };
     this.encoded.set(item, encoded);
     return encoded;
+  }
+}
+
+async function encodePreparedRecords(thread: Thread, prepare: PrepareHistoryObject) {
+  const rows: Omit<MessageRecord, 'position'>[] = [];
+  let size = 0;
+  for (const turn of [...(thread.turns ?? [])].reverse()) {
+    const metadata = await prepare(turn, 'items');
+    for await (const { item, record } of preparedItems(turn.items, prepare)) {
+      const chars = record.data.length + metadata.data.length;
+      if (size + chars > THREAD_CHAR_LIMIT || rows.length >= MAX_ROWS) return rows.reverse();
+      rows.push({ turn: turn.id, item: item?.id ?? '', turn_data: metadata.data, data: record.data,
+        size: chars, signature: `${metadata.hash}:${record.hash}` });
+      size += chars;
+    }
+  }
+  return rows.reverse();
+}
+
+async function* preparedItems(items: Item[], prepare: PrepareHistoryObject) {
+  const reversed = [...(items.length ? items : [null])].reverse();
+  for (let offset = 0; offset < reversed.length; offset += PREPARE_BATCH_SIZE) {
+    const batch = await Promise.all(reversed.slice(offset, offset + PREPARE_BATCH_SIZE).map(async (item) => ({
+      item, record: item ? await prepare(item) : { data: 'null', hash: '' },
+    })));
+    yield* batch;
   }
 }
 

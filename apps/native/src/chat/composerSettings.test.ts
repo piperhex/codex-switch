@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { ChatController } from './controller';
+vi.mock('react-native', () => ({ Platform: { OS: 'android' }, NativeModules: {} }));
 import type { AuthSession } from '../types';
 import type { Thread } from './types';
 import type { ConnectionEvents } from '../../../../shared/remote-chat/client/connection';
