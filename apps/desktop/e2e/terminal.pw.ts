@@ -48,4 +48,9 @@ test("embedded terminal themes, tab lifecycle, resize, input and concurrent chat
   await page.setViewportSize({ width: 640, height: 600 });
   await expect(panel).toBeVisible();
   await expect.poll(async () => (await snapshot(page)).sizes.length).toBeGreaterThan(0);
+  // The backend rejects unknown fields, including xterm's internal resize flags.
+  for (const size of (await snapshot(page)).sizes) {
+    expect(Object.keys(size).sort()).toEqual(["cols", "rows"]);
+  }
+  await expect(panel.getByRole("status")).toHaveCount(0);
 });

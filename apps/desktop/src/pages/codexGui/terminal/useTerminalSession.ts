@@ -31,7 +31,8 @@ export function useTerminalSession(cwd: string, visible: boolean, api?: Terminal
         }
       } });
     const input = terminal.onData(connection.input);
-    const resize = terminal.onResize(connection.resize);
+    // xterm also emits internal flags that the terminal request does not accept.
+    const resize = terminal.onResize(({ cols, rows }) => connection.resize({ cols, rows }));
     let frame = 0;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
