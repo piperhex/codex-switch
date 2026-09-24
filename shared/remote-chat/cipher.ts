@@ -4,6 +4,7 @@ import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { decodeChatUtf8 } from './utf8';
+import type { PacketCipher, PacketCipherFactory } from './packetCipher';
 
 const REPLAY_WINDOW = 1024;
 
@@ -16,34 +17,49 @@ export function keyPair(random: (length: number) => Uint8Array) {
 export class SessionCipher {
   private readonly key: Uint8Array;
   private readonly context: Uint8Array;
+  private readonly packetCipher?: PacketCipher;
+  private destroyed = false;
   private sequence = 0;
   private highestReceived = 0;
   private readonly received = new Uint32Array(REPLAY_WINDOW);
 
-  constructor(options: { secret: Uint8Array; publicKey: string; sessionId: string; desktop: boolean }) {
+  constructor(options: {
+    secret: Uint8Array; publicKey: string; sessionId: string; desktop: boolean;
+    createPacketCipher?: PacketCipherFactory;
+  }) {
     const shared = x25519.getSharedSecret(options.secret, hexToBytes(options.publicKey));
     this.context = utf8ToBytes(`codex-switch-chat-v1:${options.sessionId}`);
     this.key = hkdf(sha256, shared, this.context, 'chat encryption', 32);
     shared.fill(0);
     this.direction = options.desktop ? 1 : 2;
+    try {
+      this.packetCipher = options.createPacketCipher?.({ key: this.key, context: this.context });
+    } catch (error) { this.key.fill(0); throw error; }
+    if (this.packetCipher) this.key.fill(0);
   }
 
   private readonly direction: number;
 
   encrypt(text: string) {
+    if (this.destroyed) throw new Error('Session closed');
     this.sequence += 1;
     if (this.sequence > 0xffffffff) throw new Error('请重新连接电脑。');
     const nonce = new Uint8Array(12);
     const view = new DataView(nonce.buffer);
     view.setUint32(0, this.direction);
     view.setUint32(8, this.sequence);
+    if (this.packetCipher) return this.packetCipher.encrypt(text, bytesToHex(nonce));
     const encrypted = chacha20poly1305(this.key, nonce, this.context).encrypt(utf8ToBytes(text));
     return bytesToHex(nonce) + bytesToHex(encrypted);
   }
 
   decrypt(payload: string): string | null {
-    if (payload.length > 40_000 || payload.length < 56 || !/^[a-f0-9]+$/.test(payload)) throw new Error('Invalid packet');
-    const bytes = hexToBytes(payload);
+    if (this.destroyed) throw new Error('Session closed');
+    if (payload.length > 40_000 || payload.length < 56 || payload.length % 2 !== 0) throw new Error('Invalid packet');
+    // Native codecs validate and decode the ciphertext. Hermes only needs the fixed-size nonce for replay checks.
+    const encoded = this.packetCipher ? payload.slice(0, 24) : payload;
+    if (!/^[a-f0-9]+$/.test(encoded)) throw new Error('Invalid packet');
+    const bytes = hexToBytes(encoded);
     const nonce = bytes.subarray(0, 12);
     const view = new DataView(nonce.buffer, nonce.byteOffset, nonce.byteLength);
     const sequence = view.getUint32(8);
@@ -52,12 +68,19 @@ export class SessionCipher {
     }
     const slot = sequence % REPLAY_WINDOW;
     if (this.received[slot] === sequence || sequence <= this.highestReceived - REPLAY_WINDOW) return null;
-    const plain = chacha20poly1305(this.key, nonce, this.context).decrypt(bytes.subarray(12));
+    const plain = this.packetCipher ? this.packetCipher.decrypt(payload)
+      : decodeChatUtf8(chacha20poly1305(this.key, nonce, this.context).decrypt(bytes.subarray(12)));
     // Only authenticated packets enter the ring. Sequences sharing a slot cannot both be inside the replay window.
     this.received[slot] = sequence;
     this.highestReceived = Math.max(this.highestReceived, sequence);
-    return decodeChatUtf8(plain);
+    return plain;
   }
 
-  destroy() { this.key.fill(0); this.received.fill(0); }
+  destroy() {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.key.fill(0);
+    this.received.fill(0);
+    this.packetCipher?.destroy();
+  }
 }

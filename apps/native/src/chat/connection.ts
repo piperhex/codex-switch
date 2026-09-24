@@ -5,12 +5,14 @@ import { fetchUserProfile } from '../api/client';
 import type { AuthSession } from '../types';
 import { ChatConnection, type ConnectionEvents } from '../../../../shared/remote-chat/client/connection';
 import { RtcPeer } from '../../../../shared/remote-chat/rtcPeer';
+import { createNativePacketCipher } from './packetCipher';
 
 interface Options extends ConnectionEvents { session: AuthSession; deviceId: string }
 
 export class MobileChatConnection extends ChatConnection {
   constructor({ session, ...options }: Options) {
     super({ ...options, randomBytes: getRandomBytes,
+      createPacketCipher: createNativePacketCipher,
       clientInfo: { name: Platform.OS === 'android' ? Platform.constants.Model : 'iPhone / iPad',
         platform: Platform.OS === 'android' ? 'Android' : 'iOS' },
       authorize: async () => { await fetchUserProfile(session); return session; },

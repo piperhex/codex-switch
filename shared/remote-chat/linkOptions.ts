@@ -1,4 +1,5 @@
 import type { ConnectionMode, IceServer, PeerFactory, RpcMessage } from './protocol';
+import type { PacketCipherFactory } from './packetCipher';
 
 export interface LinkOptions {
   sessionId: string;
@@ -7,6 +8,7 @@ export interface LinkOptions {
   publicKey?: string;
   iceServers: IceServer[];
   createPeer: PeerFactory;
+  createPacketCipher?: PacketCipherFactory;
   signal: (message: object) => void;
   relayBuffered: () => number;
   message: (message: RpcMessage) => void;

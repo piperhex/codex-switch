@@ -1,5 +1,6 @@
 import { CHAT_POLICY_MESSAGE, setChatConnectionMode, setChatPolicy } from '../policy';
 import { keyPair } from '../cipher';
+import type { PacketCipherFactory } from '../packetCipher';
 import { ChatLink } from '../link';
 import { ChatRpc } from '../rpc';
 import { browserChatSocket, type ChatSocket } from './socket';
@@ -26,6 +27,7 @@ interface ConnectionOptions extends ConnectionEvents {
   deviceId: string;
   authorize: () => Promise<{ baseUrl: string; accessToken: string }>;
   randomBytes: (length: number) => Uint8Array;
+  createPacketCipher?: PacketCipherFactory;
   createPeer: (options: import('../protocol').PeerOptions) => import('../protocol').Peer;
 }
 
@@ -184,6 +186,7 @@ export class ChatConnection {
       sessionId: input.id, desktop: false, secret: input.keys.secret, iceServers: input.iceServers,
       transportVersion: input.transportVersion, reconnectRelay: () => this.fail(CONNECTION_ERRORS.network, true),
       createPeer: this.options.createPeer,
+      createPacketCipher: this.options.createPacketCipher,
       signal: (frame) => {
         if (this.socket?.readyState !== WebSocket.OPEN) throw new Error('Disconnected');
         this.socket.send(JSON.stringify(frame));
