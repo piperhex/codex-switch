@@ -5,8 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import type { GuiToolsClient } from '../../../../../shared/remote-chat/guiTools';
 import { remoteTerminalApi } from '../../../../../shared/remote-chat/terminalApi';
-import { createTerminalBridge } from '../../../../../shared/terminal/webviewBridge';
+import { createTerminalBridge, parseTerminalMessage } from '../../../../../shared/terminal/webviewBridge';
 import { terminalDocument } from './terminalDocument';
+import { useTerminalOrientation } from './useTerminalOrientation';
 import { terminalStyles as styles } from './styles';
 
 export function TerminalSession({ client, cwd, visible, deviceName, hide, close }: {
@@ -17,7 +18,12 @@ export function TerminalSession({ client, cwd, visible, deviceName, hide, close 
   const [html, setHtml] = useState('');
   const [status, setStatus] = useState('正在打开终端…');
   const [generation, setGeneration] = useState(0);
+  const [wrap, setWrap] = useState(true);
+  const orientation = useTerminalOrientation(visible);
   const source = useMemo(() => ({ html }), [html]);
+  const updateDisplay = () => {
+    webview.current?.injectJavaScript(`window.remoteTerminal?.({type:'display',wrap:${wrap}}); true;`);
+  };
   const bridge = useMemo(() => createTerminalBridge({ cwd, api: remoteTerminalApi(client), status: setStatus,
     emit: event => webview.current?.injectJavaScript(`window.remoteTerminal(${JSON.stringify(event)}); true;`),
   }), [client, cwd]);
@@ -32,14 +38,28 @@ export function TerminalSession({ client, cwd, visible, deviceName, hide, close 
       .catch(() => { if (!cancelled) setStatus('终端未能加载，请关闭后重新打开。'); });
     return () => { cancelled = true; };
   }, []);
+  useEffect(() => { if (visible) updateDisplay(); }, [wrap, visible]);
+  const message = status || orientation.error;
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={hide}
-    statusBarTranslucent supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
-    <SafeAreaProvider><SafeAreaView style={styles.overlay} edges={['bottom']}>
-      <Pressable accessibilityRole="button" accessibilityLabel="收起终端" style={styles.backdrop} onPress={hide} />
-      <View style={styles.drawer} accessibilityViewIsModal>
+    statusBarTranslucent navigationBarTranslucent
+    supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
+    <SafeAreaProvider><SafeAreaView style={[styles.overlay, orientation.landscape && styles.fullscreenOverlay]}
+      edges={orientation.landscape ? ['top', 'right', 'bottom', 'left'] : ['bottom']}>
+      {!orientation.landscape && <Pressable accessibilityRole="button" accessibilityLabel="收起终端"
+        style={styles.backdrop} onPress={hide} />}
+      <View style={[styles.drawer, orientation.landscape && styles.fullscreen]} accessibilityViewIsModal>
         <View style={styles.header}>
           <View style={styles.heading}><Text style={styles.title}>远程终端</Text>
             <Text numberOfLines={1} style={styles.subtitle}>{deviceName}{cwd ? ` · ${cwd}` : ''}</Text></View>
+          <Pressable accessibilityRole="switch" accessibilityLabel="自动换行" accessibilityState={{ checked: wrap }}
+            style={[styles.wrapButton, wrap && styles.selected]} onPress={() => setWrap(value => !value)}>
+            <Ionicons name="return-down-back-outline" size={20} color={wrap ? '#14806f' : '#718078'} />
+            <Text style={styles.wrapLabel}>自动换行</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={orientation.landscape ? '切换竖屏' : '切换横屏'}
+            accessibilityState={{ disabled: orientation.rotating }} disabled={orientation.rotating}
+            style={[styles.button, orientation.rotating && styles.disabled]} onPress={orientation.rotate}>
+            <Ionicons name={orientation.landscape ? 'phone-portrait-outline' : 'phone-landscape-outline'}
+              size={22} color="#17211b" /></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="关闭终端" style={styles.button} onPress={close}>
             <Ionicons name="trash-outline" size={21} color="#718078" /></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="收起终端" style={styles.button} onPress={hide}>
@@ -47,14 +67,19 @@ export function TerminalSession({ client, cwd, visible, deviceName, hide, close 
         </View>
         {html ? <WebView key={generation} ref={webview} source={source} style={styles.screen}
           originWhitelist={['about:blank']} javaScriptEnabled scrollEnabled={false} bounces={false}
+          showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false}
           allowFileAccess={false} allowFileAccessFromFileURLs={false} allowUniversalAccessFromFileURLs={false}
           sharedCookiesEnabled={false} thirdPartyCookiesEnabled={false} setSupportMultipleWindows={false}
           javaScriptCanOpenWindowsAutomatically={false} keyboardDisplayRequiresUserAction={false}
           onShouldStartLoadWithRequest={({ url }) => url === 'about:blank'}
-          onMessage={({ nativeEvent }) => { if (visible) bridge.receive(nativeEvent.data); }}
+          onMessage={({ nativeEvent }) => {
+            if (!visible) return;
+            if (parseTerminalMessage(nativeEvent.data)?.type === 'ready') updateDisplay();
+            bridge.receive(nativeEvent.data);
+          }}
           onError={() => setStatus('终端显示遇到问题，请收起后重新打开。')} />
           : <ActivityIndicator style={styles.loading} color="#14806f" />}
-        {!!status && <Text accessibilityRole="alert" style={styles.status}>{status}</Text>}
+        {!!message && <Text accessibilityRole="alert" style={styles.status}>{message}</Text>}
       </View>
     </SafeAreaView></SafeAreaProvider>
   </Modal>;
