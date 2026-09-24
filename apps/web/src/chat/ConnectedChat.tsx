@@ -33,6 +33,7 @@ export interface ConnectedChatProps {
   chooseLocal?: () => void; accountPicker?: ReactNode; headerActions?: ReactNode;
   renderSidebar?: (actions: ChatSidebarActions) => ReactNode;
   composerHeader?: ReactNode;
+  conversationFooter?: ReactNode;
   readClipboardImages?: () => Promise<File[]>;
 }
 
@@ -44,7 +45,8 @@ export interface ChatSidebarActions {
 
 /** Conversation UI shared by the web client and the desktop's remote workspace. */
 export function ConnectedChat({ chat, device, devices, active, scope, email, chooseDevice,
-  chooseLocal, accountPicker, headerActions, renderSidebar, composerHeader, readClipboardImages }: ConnectedChatProps) {
+  chooseLocal, accountPicker, headerActions, renderSidebar, composerHeader, conversationFooter,
+  readClipboardImages }: ConnectedChatProps) {
   useLanguage();
   const { state, controller, foreground } = chat;
   const [drawer, setDrawer] = useState(false);
@@ -122,6 +124,7 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
       active={active} ready={ready && !state.selectedArchived} sending={state.sending} running={running}
       interrupted={state.selected?.turns?.at(-1)?.status === 'interrupted'}
       send={(input) => controller.send(input)} interrupt={() => controller.interrupt()} />
+    {conversationFooter}
     </div>
     <ChatSidebar desktop={desktop} open={listOpen} onClose={closeList} customHeading={Boolean(renderSidebar)}>
       {renderSidebar ? renderSidebar({ newChat, onClose: selectedFromList, openSearch: () => setSearching(true) })

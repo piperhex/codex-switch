@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { ConfigProvider } from 'antd';
 import { ConnectedChat } from '../../../../../web/src/chat/ConnectedChat';
 import { FocusModeButton, type GuiFocusMode } from '../FocusModeButton';
@@ -9,8 +9,14 @@ import { useDreamSkin } from '../useDreamSkin';
 import { RemoteGuiSidebar } from './RemoteGuiSidebar';
 import { RemoteGuiProject } from './RemoteGuiProject';
 import { readRemoteClipboardImages } from './clipboardImages';
+import { DetailsWorkspace } from '../DetailsWorkspace';
+import { useTerminalPanel } from '../terminal/useTerminalPanel';
+import { remoteTerminalApi } from './terminalApi';
+import { RemoteGuiTools } from './RemoteGuiTools';
 import styles from '../styles.module.less';
 import './remoteGui.less';
+
+const TerminalPanel = lazy(() => import('../terminal/TerminalPanel'));
 
 export default function RemoteGuiWorkspace(props: {
   active: boolean; identity: GuiCloudIdentity; device: GuiComputer; computers: GuiComputerNavigation;
@@ -18,12 +24,15 @@ export default function RemoteGuiWorkspace(props: {
 }) {
   const { active, identity, device, computers } = props;
   const chat = useRemoteGui(identity, device.deviceId, active);
+  const terminal = useTerminalPanel(chat.state.selected?.cwd ?? chat.state.draftProject?.cwd ?? '');
+  const terminalApi = useMemo(() => remoteTerminalApi(chat.controller.guiTools.terminal), [chat.controller]);
   const skinStyle = useDreamSkin(active);
   const workspace = useRef<HTMLElement>(null);
   const popupContainer = useCallback(() => workspace.current ?? document.body, []);
   const accountPicker = <RemoteAccountPicker active={active} ready={chat.state.ready}
     client={chat.controller.guiAccounts} computers={computers} privacyMode={props.privacyMode} />;
-  return <section ref={workspace} className={`${styles.page} chat-page gui-remote-workspace`}
+  return <DetailsWorkspace selected={chat.state.selected?.id ?? null} active={active}>
+    <section ref={workspace} className={`${styles.page} chat-page gui-remote-workspace`}
     data-dream-skin={skinStyle ? 'true' : undefined} style={skinStyle} aria-label={`Codex GUI：${device.name}`}>
     <ConfigProvider getPopupContainer={popupContainer}>
     <ConnectedChat chat={chat} active={active} device={device} devices={computers.devices} email=""
@@ -31,12 +40,16 @@ export default function RemoteGuiWorkspace(props: {
       chooseLocal={() => computers.choose(null)}
       chooseDevice={(id) => { const device = computers.devices.find((entry) => entry.deviceId === id);
         if (device) computers.choose(device); }}
-      headerActions={<><FocusModeButton {...props.focusMode} />{props.focusMode.focused && props.windowControls}</>}
+      headerActions={<><RemoteGuiTools controller={chat.controller} state={chat.state} active={active} terminal={terminal} />
+        <FocusModeButton {...props.focusMode} />{props.focusMode.focused && props.windowControls}</>}
+      conversationFooter={terminal.tabs.length > 0 && <Suspense fallback={null}>
+        <TerminalPanel panel={terminal} active={active} api={terminalApi} />
+      </Suspense>}
       readClipboardImages={readRemoteClipboardImages}
       composerHeader={<RemoteGuiProject state={chat.state} controller={chat.controller} deviceName={device.name}
         active={active} />}
       renderSidebar={actions => <RemoteGuiSidebar state={chat.state} controller={chat.controller}
         actions={actions} accountPicker={accountPicker} focusMode={props.focusMode} />} />
     </ConfigProvider>
-  </section>;
+  </section></DetailsWorkspace>;
 }

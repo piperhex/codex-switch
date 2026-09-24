@@ -44,6 +44,57 @@ async function chooseComputer(page: Page, name: string) {
   await page.getByRole('region', { name: '设备列表' }).getByRole('button', { name: new RegExp(name) }).click();
 }
 
+for (const blocked of [false, true]) {
+  test(`remote desktop tools use the selected computer over ${blocked ? 'Relay' : 'P2P'}`, async ({ context, page }) => {
+    test.setTimeout(90_000);
+    const office = await context.newPage();
+    await office.goto(`/e2e/chat-harness.html?role=desktop&demo&device=computer-one&title=Office`
+      + `&blocked=${blocked}&socket=${encodeURIComponent(endpoint)}`);
+    await expect(office.locator('#status')).toHaveText('registered');
+    await office.evaluate(() => {
+      window.chatTest.demoState().threads[0].turns![0].diff =
+        'diff --git a/remote.txt b/remote.txt\n--- a/remote.txt\n+++ b/remote.txt\n@@ -1 +1 @@\n-before\n+remote edit\n';
+    });
+    await page.bringToFront();
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(`/e2e/remote-gui-harness.html?socket=${encodeURIComponent(endpoint)}`);
+    await chooseComputer(page, 'Office PC');
+    await page.getByRole('button', { name: 'Office', exact: true }).click();
+    await expect(page.locator('.chat-connection')).toContainText(blocked ? 'Relay' : 'P2P');
+    await expect(page.getByRole('button', { name: '远程 Codex CLI 更新' })).toContainText('0.155.0');
+    await page.getByRole('button', { name: '重新连接远程 Codex' }).click();
+    await expect.poll(() => office.evaluate(() => window.chatTest.demoState().operations
+      .some(operation => operation.operation === 'guiReconnect'))).toBe(true);
+    await page.getByRole('button', { name: '查看文件更改' }).click();
+    await expect(page.getByRole('complementary', { name: '文件更改详情' })).toContainText('remote edit');
+    await page.getByRole('button', { name: '关闭详情抽屉' }).click();
+    await page.getByRole('button', { name: '打开远程终端' }).click();
+    await expect(page.getByRole('region', { name: '终端', exact: true })).toBeVisible();
+    const terminal = page.locator('.xterm-helper-textarea');
+    await terminal.fill('echo remote');
+    await terminal.press('Enter');
+    await expect.poll(() => office.evaluate(() => window.chatTest.demoState().operations
+      .filter(operation => operation.operation === 'guiTerminalWrite').map(operation => operation.data).join('')))
+      .toContain('echo remote');
+    await page.getByRole('button', { name: '远程 Codex CLI 更新' }).click();
+    await page.getByRole('button', { name: '检查版本', exact: true }).click();
+    await page.getByRole('button', { name: '更新到 0.156.0' }).click();
+    await expect(page.getByText('正在下载 Codex…')).toBeVisible();
+    const beats = await page.evaluate(() => window.remoteGuiFixture.beats());
+    await page.getByRole('button', { name: '远程 Codex CLI 更新' }).click();
+    await page.getByRole('textbox', { name: '聊天消息', exact: true }).fill('Draft while remote tools are active');
+    await expect.poll(() => page.evaluate(() => window.remoteGuiFixture.beats())).toBeGreaterThan(beats + 5);
+    await expect(page.getByRole('button', { name: '远程 Codex CLI 更新' })).toContainText('0.156.0');
+    await page.screenshot({ path: `../../.codex-tmp/gui-remote-tools-${blocked ? 'relay' : 'p2p'}.png` });
+    await page.getByRole('button', { name: '关闭终端 1', exact: true }).click();
+    await expect.poll(() => office.evaluate(() => window.chatTest.demoState().operations
+      .some(operation => operation.operation === 'guiTerminalClose'))).toBe(true);
+    await chooseComputer(page, '本机');
+    expect(await page.evaluate(() => window.remoteGuiFixture.commands
+      .filter(command => /codex_gui_(cli_|terminal_|connect$)/.test(command)))).toEqual([]);
+  });
+}
+
 test('switches desktop GUI conversations and accounts between computers and back to local', async ({ context, page }) => {
   test.setTimeout(90_000);
   const errors: string[] = [];
@@ -113,7 +164,7 @@ test('matches local GUI layout and sends pasted images over Relay under the desk
   expect((await page.locator('.chat-header').boundingBox())!.height).toBe(38);
   await expect(page.locator('.chat-conversation')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await page.evaluate(() => {
-    document.documentElement.style.setProperty('--gui-font-size', '16px');
+    window.remoteGuiFixture.setFontSize(16);
     window.dispatchEvent(new CustomEvent('codex-switch:dream-skin-status-changed', { detail: {
       installed: true, session: 'running', activeThemeId: 'fixture', activeThemeAppearance: 'dark',
       activeThemeOverlayOpacity: 0.85,

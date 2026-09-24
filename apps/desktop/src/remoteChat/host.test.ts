@@ -7,7 +7,8 @@ import { DEFAULT_CHAT_POLICY, getChatPolicy, setChatPolicy } from '../../../../s
 import type { HostTransportEvent } from './nativeTransport';
 
 const links = vi.hoisted(() => new Map<string, { mode: (mode: ConnectionMode) => void; close: () => void }>());
-const native = vi.hoisted(() => ({ receive: undefined as ((event: HostTransportEvent) => void) | undefined }));
+const native = vi.hoisted(() => ({ receive: undefined as ((event: HostTransportEvent) => void) | undefined,
+  release: vi.fn() }));
 vi.mock('./nativeTransport', () => ({ NativeChatTransport: class {
   ready = true; bufferedAmount = 0;
   constructor(receive: (event: HostTransportEvent) => void) { native.receive = receive; }
@@ -15,7 +16,7 @@ vi.mock('./nativeTransport', () => ({ NativeChatTransport: class {
 } }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { subscribe: vi.fn(async () => vi.fn()) } }));
 vi.mock('../pages/codexGui/webEvents', () => ({ subscribeGuiEvent: vi.fn(async () => vi.fn()) }));
-vi.mock('./operations', () => ({ ChatOperations: class {} }));
+vi.mock('./operations', () => ({ ChatOperations: class { release = native.release; } }));
 vi.mock('../../../../shared/remote-chat/link', () => ({ ChatLink: class {
   private closed = false;
   constructor(private options: { sessionId: string; mode: (mode: ConnectionMode) => void }) {
@@ -34,6 +35,7 @@ let host: ChatHost;
 const message = (data: object) => native.receive!({ type: 'message', generation: 1, data: JSON.stringify(data) });
 
 beforeEach(() => {
+  native.release.mockClear();
   links.clear();
   mobileConnection.setConnected(false);
   host = new ChatHost(mobileConnection.setConnected);
@@ -83,6 +85,7 @@ it('stays disconnected until transport is ready and follows reconnects and peer 
   expect(mobileConnection.getSnapshot()).toBe(true);
   await receive('peer-close', 'phone');
   expect(mobileConnection.getSnapshot()).toBe(false);
+  expect(native.release).toHaveBeenCalledWith('phone');
 });
 
 it('stays connected until the last phone disconnects and resets when the host closes', async () => {

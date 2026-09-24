@@ -4,25 +4,28 @@ import { isDesktopApp } from "../../api/backend";
 import type { useCliInstaller } from "./useCliInstaller";
 import styles from "./styles.module.less";
 
-export function Installer({ installer, compact = false, running = false }: {
+export function Installer({ installer, compact = false, running = false, remote = false, disabled = false }: {
   installer: ReturnType<typeof useCliInstaller>; compact?: boolean; running?: boolean;
+  remote?: boolean; disabled?: boolean;
 }) {
   const { version, release, checking, installing, progress, checked, check, install } = installer;
   const available = release && release.version !== version;
+  const description = version ? "检查官方版本，让 Codex 保持更新。"
+    : "下载 Codex 后，就能在这里开始对话、处理代码和管理任务。";
   return <div className={compact ? styles.installCompact : styles.install}>
     {!compact && <div className={styles.welcomeIcon}><Terminal size={30} /></div>}
     <h2>{version ? `Codex ${version}` : "开始使用 Codex GUI"}</h2>
-    <p>{version ? "检查官方版本，让 Codex 保持更新。" : "下载 Codex 后，就能在这里开始对话、处理代码和管理任务。"}</p>
+    <p>{remote ? "在当前远程电脑上检查和更新 Codex。" : description}</p>
     {!compact && <p className={styles.muted}>{isDesktopApp
       ? "这里的对话独立保存，不会影响官方 Codex 的聊天记录。"
       : "Codex 在运行 Codex Switch 的主机上安装和运行，对话也保存在该主机。"}</p>}
     <div className={styles.installActions}>
       {available && <Button type="primary" icon={<Download size={16} />} loading={installing}
-        disabled={running} onClick={() => void install()}>
+        disabled={running || disabled} onClick={() => void install()}>
         {version ? "更新到" : "下载并开始"} {release.version}
       </Button>}
       {!available && <Button loading={checking || !checked} icon={<RefreshCw size={15} />}
-        disabled={installing} onClick={() => void check()}>{release && version ? "已是最新版本" : "检查版本"}</Button>}
+        disabled={installing || disabled} onClick={() => void check()}>{release && version ? "已是最新版本" : "检查版本"}</Button>}
       <Button type="text" icon={<ExternalLink size={14} />} href="https://github.com/openai/codex/releases"
         target="_blank" rel="noopener noreferrer">官方发布页</Button>
     </div>

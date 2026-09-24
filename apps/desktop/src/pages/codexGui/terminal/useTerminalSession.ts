@@ -3,10 +3,10 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { connectTerminal } from "./connection";
 import { terminalTheme } from "./theme";
-import type { TerminalInfo } from "./api";
+import type { TerminalApi, TerminalInfo } from "./api";
 import "@xterm/xterm/css/xterm.css";
 
-export function useTerminalSession(cwd: string, visible: boolean) {
+export function useTerminalSession(cwd: string, visible: boolean, api?: TerminalApi) {
   const host = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal>();
   const [info, setInfo] = useState<TerminalInfo>();
@@ -20,7 +20,7 @@ export function useTerminalSession(cwd: string, visible: boolean) {
     terminalRef.current = terminal;
     const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(element);
     if (element.clientWidth && element.clientHeight) fit.fit();
-    const connection = connectTerminal({ cwd, size: { cols: terminal.cols, rows: terminal.rows },
+    const connection = connectTerminal({ api, cwd, size: { cols: terminal.cols, rows: terminal.rows },
       onReady: (value) => { setInfo(value); setStatus(""); }, onError: setStatus,
       onEvent: (event) => {
         if (event.type === "output") terminal.write(new Uint8Array(event.data));
@@ -47,7 +47,7 @@ export function useTerminalSession(cwd: string, visible: boolean) {
       cancelAnimationFrame(frame); observer.disconnect(); themeObserver.disconnect();
       input.dispose(); resize.dispose(); connection.dispose(); terminal.dispose(); terminalRef.current = undefined;
     };
-  }, [cwd]);
+  }, [cwd, api]);
   useEffect(() => { if (visible) terminalRef.current?.focus(); }, [visible]);
   return { host, info, status };
 }

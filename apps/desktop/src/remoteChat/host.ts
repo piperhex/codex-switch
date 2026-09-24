@@ -95,6 +95,7 @@ export class ChatHost {
     for (const link of links) link.close();
     this.stream.close();
     this.stream = new EventStream((event) => this.broadcast(event));
+    this.operations.release();
     this.operations = new ChatOperations();
     this.onConnectionChange(false);
   }
@@ -139,7 +140,7 @@ export class ChatHost {
     if (message.type === 'signal') await link.acceptSignal(message.payload as Signal);
     if (message.type === 'relay' && typeof message.payload === 'string') link.receive(message.payload);
     if (message.type === 'relay-ready') link.enableRelay();
-    if (message.type === 'peer-close') { link.close(); this.links.delete(sessionId); }
+    if (message.type === 'peer-close') this.drop(sessionId);
   }
 
   private open(sessionId: string, message: Record<string, unknown>) {
@@ -159,7 +160,7 @@ export class ChatHost {
       error: () => this.drop(sessionId),
       message: (request) => {
         if (request.kind !== 'request') return;
-        void this.operations.execute(request, link.connectionMode).then((response) => {
+        void this.operations.execute(request, link.connectionMode, sessionId).then((response) => {
           // A history response may include buffered fragments. Deliver those first to avoid replaying them afterward.
           this.stream.flush();
           return link.send(response);
@@ -183,6 +184,7 @@ export class ChatHost {
   }
 
   private drop(sessionId: string) {
+    this.operations.release(sessionId);
     connectionDetails.remove(sessionId);
     const link = this.links.get(sessionId);
     this.links.delete(sessionId);
@@ -211,6 +213,7 @@ export class ChatHost {
     this.unsubscribeMessages();
     this.unsubscribeBalances();
     this.stream.close();
+    this.operations.release();
     for (const link of this.links.values()) link.close();
     this.links.clear();
     this.transport.close();

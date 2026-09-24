@@ -21,3 +21,5 @@ export const terminalApi = {
   }),
   close: (id: string) => invoke<void>("codex_gui_terminal_command", { request: { type: "close", id } }),
 };
+
+export type TerminalApi = typeof terminalApi;

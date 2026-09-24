@@ -36,8 +36,14 @@ keys and encrypted chat frames through the existing direct connection and relay 
 
 The desktop remote workspace uses the viewing computer's GUI font size and Dream Skin appearance,
 including dark themes. Its project sidebar, recent/archived filter, message spacing, project bar and
-composer follow the local GUI layout. Remote-only controls continue to address the selected computer;
-local plugin, installer and terminal actions are not exposed as remote actions.
+composer follow the local GUI layout. The header can reconnect remote Codex, check and update its CLI,
+open a remote terminal, and toggle the current conversation's file changes in the right sidebar.
+Both computers need a version of Codex Switch that supports these tools. CLI installation and terminal
+commands run on the selected remote computer over the existing authenticated P2P or Relay connection.
+Updates show download progress and refuse to start while that computer has an active GUI task.
+Terminals start in the current remote project, support multiple tabs and resizing, and close when the
+remote session ends. Hiding the terminal panel keeps its shells running. A started CLI download continues
+if the viewer disconnects; reconnecting shows its current status.
 
 Screenshot paste and copied image files both add image previews before sending. Copied files are read
 off the UI thread and sent as image bytes, never as paths on the viewing computer. Relay image preparation

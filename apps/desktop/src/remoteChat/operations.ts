@@ -27,6 +27,9 @@ import { encodeTokenSummary, QUOTA_HISTORY_FORMAT } from '../../../../shared/rem
 import { readTokenSummary } from './tokenSummary';
 import { CONTEXT_READ_OPERATION, CONTEXT_WRITE_OPERATION } from '../../../../shared/remote-chat/contextSettings';
 import { contextSettingsRequest } from './contextSettings';
+import { GUI_TOOL_OPERATIONS } from '../../../../shared/remote-chat/guiTools';
+import { guiToolRequest } from './guiTools';
+import { RemoteTerminals } from './terminals';
 
 const OPERATIONS = new Set([
   'fileOpen', 'fileRead', 'fileClose',
@@ -40,6 +43,7 @@ interface Cached {
   fingerprint: string; result: Promise<RpcResponse>; expires: number; completed: boolean; readOnly: boolean;
 }
 const READ_OPERATIONS = new Set([
+  'guiCliStatus', 'guiCliRelease', 'guiTerminalRead',
   'fileOpen', 'fileRead', 'fileClose',
   CONTEXT_READ_OPERATION,
   TOKEN_SUMMARY_OPERATION,
@@ -67,37 +71,45 @@ function response(request: RpcRequest, data: unknown, mode: ConnectionMode): Rpc
 }
 
 export class ChatOperations {
+  private readonly terminals = new RemoteTerminals();
   private readonly cache = new Map<string, Cached>();
   private readonly images = new RemoteImages();
   private readonly liveHistory = new LiveHistory();
 
-  execute(request: RpcRequest, mode: ConnectionMode = 'relay'): Promise<RpcResponse> {
+  execute(request: RpcRequest, mode: ConnectionMode = 'relay', owner = 'default'): Promise<RpcResponse> {
     if (typeof request.id !== 'string' || request.id.length > 160) return Promise.reject(new Error('Invalid request'));
     const fingerprint = JSON.stringify([request.method, request.body]);
-    const cached = this.cache.get(request.id);
+    const cacheKey = JSON.stringify([owner, request.id]);
+    const cached = this.cache.get(cacheKey);
     if (cached) {
       if (cached.fingerprint !== fingerprint) return Promise.reject(new Error('Request id reused'));
       return cached.result;
     }
     this.prune();
     if (this.cache.size >= 512) return Promise.reject(new Error('请求较多，请稍后重试。'));
-    const result = this.run(request, mode).then((data) => response(request, data, mode))
+    const result = this.run(request, mode, owner).then((data) => response(request, data, mode))
       .catch((error: unknown): RpcResponse => ({ kind: 'response', id: request.id, error: operationError(error) }));
     const operation = (request.body as { operation?: string } | undefined)?.operation;
     const readOnly = request.method === 'request' && READ_OPERATIONS.has(operation ?? '');
     const entry: Cached = { fingerprint, result, expires: Date.now() + CACHE_TTL_MS, completed: false, readOnly };
-    this.cache.set(request.id, entry);
+    this.cache.set(cacheKey, entry);
     void result.then(() => {
       entry.completed = true;
       // Range reads are repeatable; caching their payloads would retain an entire file in memory.
-      if (operation === 'videoRead' || operation === 'fileRead') this.cache.delete(request.id);
+      if (operation === 'videoRead' || operation === 'fileRead') this.cache.delete(cacheKey);
     });
     return result;
   }
 
-  private async run(request: RpcRequest, mode: ConnectionMode): Promise<unknown> {
+  release(owner?: string) { this.terminals.release(owner); }
+
+  private async run(request: RpcRequest, mode: ConnectionMode, owner: string): Promise<unknown> {
     if (request.method === 'connect') return this.connect(request.body);
     const body = { ...object(request.body) };
+    if (request.method === 'request' && GUI_TOOL_OPERATIONS.has(String(body.operation))) {
+      return String(body.operation).startsWith('guiTerminal')
+        ? this.terminals.request(body, owner) : guiToolRequest(body);
+    }
     if (request.method === 'request'
       && [CONTEXT_READ_OPERATION, CONTEXT_WRITE_OPERATION].includes(String(body.operation))) {
       return contextSettingsRequest(body);

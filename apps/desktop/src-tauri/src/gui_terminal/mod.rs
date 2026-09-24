@@ -1,4 +1,4 @@
-//! Interactive shells are available only to the local main window, never to hosted web clients.
+//! Only the main window can open shells; its remote host scopes forwarded handles to authenticated sessions.
 mod platform;
 mod service;
 #[cfg(test)]

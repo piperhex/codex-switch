@@ -5,7 +5,7 @@ import type { Conversation } from "./types";
 import { useTurnChangedFiles } from "./useTurnChangedFiles";
 import { useDetailsEntry } from "./detailsContext";
 
-export function ConversationChangesButton({ value }: { value?: Conversation }) {
+export function ConversationChangesButton({ value }: { value?: Pick<Conversation, 'turns'> }) {
   const id = useId();
   const turn = value?.turns.slice().reverse().find((entry) => entry.diff
     || entry.items.some((item) => item.type === "fileChange" && item.changes?.length));

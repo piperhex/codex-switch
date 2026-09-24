@@ -4,9 +4,12 @@ import { Tooltip } from "antd";
 import { MAX_TERMINAL_TABS, type TerminalPanelState, type TerminalTab } from "./useTerminalPanel";
 import { useTerminalResize } from "./useTerminalResize";
 import { useTerminalSession } from "./useTerminalSession";
+import type { TerminalApi } from "./api";
 import styles from "./terminal.module.less";
 
-export default function TerminalPanel({ panel, active }: { panel: TerminalPanelState; active: boolean }) {
+export default function TerminalPanel({ panel, active, api }: {
+  panel: TerminalPanelState; active: boolean; api?: TerminalApi;
+}) {
   const host = useRef<HTMLElement>(null);
   const resize = useTerminalResize(host);
   const visible = panel.open && active;
@@ -33,12 +36,13 @@ export default function TerminalPanel({ panel, active }: { panel: TerminalPanelS
       <button className={`${styles.iconButton} ${styles.close}`} aria-label="收起终端" onClick={panel.hide}>
         <X size={17} /></button>
     </div>
-    {panel.tabs.map((tab) => <TerminalPane key={tab.id} tab={tab} visible={visible && panel.selected === tab.id} />)}
+    {panel.tabs.map((tab) => <TerminalPane key={tab.id} tab={tab} api={api}
+      visible={visible && panel.selected === tab.id} />)}
   </section>;
 }
 
-function TerminalPane({ tab, visible }: { tab: TerminalTab; visible: boolean }) {
-  const { host, info, status } = useTerminalSession(tab.cwd, visible);
+function TerminalPane({ tab, visible, api }: { tab: TerminalTab; visible: boolean; api?: TerminalApi }) {
+  const { host, info, status } = useTerminalSession(tab.cwd, visible, api);
   return <div className={styles.pane} hidden={!visible} role="tabpanel" id={`terminal-pane-${tab.id}`}
     aria-labelledby={`terminal-tab-${tab.id}`}>
     <div ref={host} className={styles.screen} aria-label={info?.shell ?? "终端"} />

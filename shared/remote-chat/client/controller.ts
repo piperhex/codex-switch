@@ -26,6 +26,7 @@ import { QueueConnection } from './queueConnection';
 import { AsyncAnswers } from './asyncAnswers';
 import { createGuiAccountsClient } from './guiAccounts';
 import { createContextSettingsClient } from './contextSettings';
+import { createGuiToolsClient } from '../guiTools';
 import type { UsageSummary } from '../usage';
 import { TOKEN_SUMMARY_OPERATION, type ReadTokenSummary } from '../tokenSummary';
 import { decodeTokenSummary, QUOTA_HISTORY_FORMAT, type TokenSummaryResponse } from '../tokenSummaryCodec';
@@ -49,6 +50,7 @@ export class ChatController {
   readonly guiAccounts = createGuiAccountsClient({
     request: (body) => this.connection.request('request', body), subscribe: (listener) => this.subscribeEvents(listener),
   });
+  readonly guiTools = createGuiToolsClient(<T>(body: object) => this.connection.request<T>('request', body));
   private listGeneration = 0;
   private readGeneration = 0;
   private refreshThreadId: string | null = null;

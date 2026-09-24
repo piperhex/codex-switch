@@ -1,4 +1,6 @@
 import type { RpcRequest } from '../../../shared/remote-chat/protocol';
+import { GUI_TOOL_OPERATIONS } from '../../../shared/remote-chat/guiTools';
+import { demoGuiTools } from './demo-gui-tools';
 import type { ChatLink } from '../../../shared/remote-chat/link';
 import type { GuiEvent, Item, Thread, Turn } from '../src/pages/codexGui/types';
 import previewImage from '../src-tauri/icons/32x32.png?inline';
@@ -63,6 +65,7 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
   if (request.method === 'connect') return [...approvals.values()].map(({ event }) => event);
   const input = (request.body ?? {}) as Record<string, unknown>;
   operations.push({ ...input, method: request.method });
+  if (GUI_TOOL_OPERATIONS.has(String(input.operation))) return demoGuiTools(input);
   if (input.operation === 'usageSummary') return { totalTokens: 123456, estimatedCostUsd: 1.25,
     primaryRemainingPercent: 75, primaryRemainingAggregated: false, providerEstimatedCost: null };
   if (input.operation === 'tokenSummary') return demoTokenSummary(input);

@@ -1,5 +1,6 @@
 import type { Channel } from '@tauri-apps/api/core';
 import previewImage from '../src-tauri/icons/32x32.png?inline';
+import { saveGuiFontSize } from '../src/pages/codexGui/guiAppearance';
 
 const endpoint = new URLSearchParams(location.search).get('socket')!;
 const sockets = new Map<string, WebSocket>();
@@ -53,7 +54,8 @@ async function invoke(command: string, args: NativeArgs) {
 }
 
 Object.assign(window, { __TAURI_INTERNALS__: { invoke, transformCallback: () => ++callbackId, unregisterCallback: () => {} },
-  remoteGuiFixture: { commands, beats: () => beats, pauseDirectory: () => { holdDirectory = true; },
+  remoteGuiFixture: { commands, beats: () => beats, setFontSize: saveGuiFontSize,
+    pauseDirectory: () => { holdDirectory = true; },
     copyImage: () => { clipboardImages = [{ mimeType: 'image/png', data: previewImage.split(',')[1] }]; },
     pauseClipboard: () => { holdClipboard = true; },
     releaseClipboard: () => { holdClipboard = false; pendingClipboard.splice(0).forEach(resolve => resolve()); },
@@ -63,6 +65,7 @@ await import('./remote-gui-harness');
 declare global {
   interface Window { remoteGuiFixture: {
     commands: string[]; beats: () => number; pauseDirectory: () => void; releaseDirectory: () => void;
+    setFontSize: (size: number) => boolean;
     copyImage: () => void; pauseClipboard: () => void; releaseClipboard: () => void;
   } }
 }
