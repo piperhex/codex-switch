@@ -119,6 +119,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
         .manage(codex_gui::GuiState::default())
+        .manage(codex_gui::releases::CliUpdateState::default())
         .manage(codex_gui::scheduled_tasks::ScheduledTasksState::default())
         .manage(std::sync::Arc::new(gui_terminal::TerminalState::default()))
         .manage(codex_gui::git::GitState::default())
@@ -162,6 +163,7 @@ pub fn run() {
                 main_window::restore_or_set_default(app)?;
             }
             commands::initialize_local_state(app.handle());
+            codex_gui::releases::start(app.handle());
             chrome_plugin::refresh_on_startup();
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
             if let Err(error) = app.deep_link().register_all() {
@@ -295,6 +297,8 @@ pub fn run() {
             cloud::codex_gui_devices,
             codex_gui::releases::codex_gui_cli_status,
             codex_gui::releases::codex_gui_cli_release,
+            codex_gui::releases::updates::codex_gui_cli_check,
+            codex_gui::releases::updates::codex_gui_cli_prepare,
             codex_gui::releases::codex_gui_cli_install,
             codex_gui::codex_gui_request,
             codex_gui::codex_gui_respond,

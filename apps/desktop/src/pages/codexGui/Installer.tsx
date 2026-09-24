@@ -10,7 +10,7 @@ export function Installer({ installer, compact = false, running = false, remote 
 }) {
   const { version, release, checking, installing, progress, checked, check, install } = installer;
   const available = release && release.version !== version;
-  const description = version ? "检查官方版本，让 Codex 保持更新。"
+  const description = version ? "进入 Codex GUI 时自动检查并下载更新，重启后生效，也可手动更新。"
     : "下载 Codex 后，就能在这里开始对话、处理代码和管理任务。";
   return <div className={compact ? styles.installCompact : styles.install}>
     {!compact && <div className={styles.welcomeIcon}><Terminal size={30} /></div>}
@@ -29,7 +29,9 @@ export function Installer({ installer, compact = false, running = false, remote 
       <Button type="text" icon={<ExternalLink size={14} />} href="https://github.com/openai/codex/releases"
         target="_blank" rel="noopener noreferrer">官方发布页</Button>
     </div>
-    {available && !installing && <small>下载约 {Math.ceil(release.size / 1024 / 1024)} MB</small>}
+    {available && !installing && <small>{release.ready
+      ? "更新已下载，重启 Codex Switch 后生效，也可立即更新。"
+      : `下载约 ${Math.ceil(release.size / 1024 / 1024)} MB`}</small>}
     {running && available && <small>当前任务完成后即可更新。</small>}
     {installing && <div className={styles.downloadProgress}>
       <Progress percent={progress ? Math.floor(progress.downloaded / Math.max(progress.total, 1) * 100) : 0}

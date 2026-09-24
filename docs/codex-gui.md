@@ -174,11 +174,17 @@ the host and reconnecting loads their current state.
 
 ## Installation and storage
 
-The first visit offers a download from [official Codex Releases](https://github.com/openai/codex/releases).
-Nothing is installed until the user clicks the download button. The installer chooses the current platform's
-complete `codex-package` archive, checks its size and GitHub SHA-256 digest, extracts into a staging directory,
-and activates the version only after successful extraction. Updates retain earlier version directories.
-The app's network proxy settings also apply to the download.
+Every entry into the local Codex GUI tab checks [official Codex Releases](https://github.com/openai/codex/releases)
+and silently downloads the latest version. Checks and downloads do not interrupt conversations; background
+failures are retried on the next visit. A verified update is activated when Codex Switch next starts, even offline,
+or when the user clicks the update button. Manual updates check again for a newer release before activation.
+The newest discovered version replaces any previous pending update, including while a download is in progress;
+an incomplete newer download never falls back to activating an older pending version.
+
+The installer chooses the current platform's complete `codex-package` archive, checks its size and GitHub
+SHA-256 digest, and extracts into a staging directory before marking it ready. The first installation also
+requires clicking **下载并开始** or restarting after the download finishes. Earlier version directories are retained.
+The app's network proxy settings also apply to downloads. Remote computer updates remain manually controlled.
 
 Both the executable and the conversation data live under the Tauri application data directory (`dev.codex.switch`):
 
@@ -186,6 +192,7 @@ Both the executable and the conversation data live under the Tauri application d
 dev.codex.switch/
 ├── codex-cli/
 │   ├── installed.json
+│   ├── pending.json        # Newest discovered update; activated only when its package is complete
 │   └── <version>/
 │       ├── bin/codex[.exe]
 │       ├── codex-resources/

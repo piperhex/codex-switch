@@ -1,7 +1,11 @@
 use super::error::{GuiError, Result};
+#[path = "release_store.rs"]
+mod store;
 #[cfg(test)]
 #[path = "release_tests.rs"]
 mod tests;
+#[path = "release_updates.rs"]
+pub(crate) mod updates;
 use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -9,14 +13,13 @@ use std::{
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
-    sync::Mutex,
     time::Duration,
 };
 use tauri::{AppHandle, Manager};
+pub(crate) use updates::{codex_gui_cli_check, codex_gui_cli_prepare, start, CliUpdateState};
 
 const RELEASE_API: &str = "https://api.github.com/repos/openai/codex/releases";
 const MAX_DOWNLOAD: u64 = 512 * 1024 * 1024;
-static INSTALL_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Deserialize)]
 struct Release {
@@ -35,11 +38,13 @@ struct Asset {
 pub(crate) struct Installed {
     pub(crate) version: Option<String>,
 }
-#[derive(Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReleaseInfo {
     version: String,
     size: u64,
+    #[serde(default)]
+    ready: bool,
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -62,19 +67,8 @@ fn valid_version(version: &str) -> bool {
 }
 
 pub(super) fn installed(app: &AppHandle) -> Result<Installed> {
-    let root = root(app)?;
-    let content = match fs::read_to_string(root.join("installed.json")) {
-        Ok(content) => content,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(Installed { version: None })
-        }
-        Err(_) => return Err(GuiError::Startup),
-    };
-    let installed: Installed = serde_json::from_str(&content).map_err(|_| GuiError::Startup)?;
-    let version = installed.version.filter(|version| {
-        valid_version(version) && root.join(version).join(entrypoint()).is_file()
-    });
-    Ok(Installed { version })
+    updates::initialize(app);
+    store::installed(&root(app)?)
 }
 
 pub(super) struct Executable {
@@ -239,51 +233,53 @@ pub(super) fn unpack(archive: &Path, destination: &Path) -> Result<()> {
     Ok(())
 }
 
-fn install(app: &AppHandle, version: String) -> Result<Installed> {
-    let _guard = INSTALL_LOCK.try_lock().map_err(|_| GuiError::Installing)?;
-    let client = http_client()?;
-    let (version, asset) = release(&client, Some(&version))?;
+fn prepare_package(app: &AppHandle, version: &str, asset: &Asset, silent: bool) -> Result<()> {
     let root = root(app)?;
+    let client = http_client()?;
     fs::create_dir_all(&root).map_err(|_| GuiError::Install)?;
     let archive = root.join(format!("download-{}.tar.gz", uuid::Uuid::new_v4()));
     let staging = root.join(format!("staging-{}", uuid::Uuid::new_v4()));
     let outcome = (|| {
-        download(|progress| publish(app, progress), &client, &asset, &archive)?;
-        publish(
-            app,
-            Progress {
-                downloaded: asset.size,
-                total: asset.size,
-                phase: "installing",
+        download(
+            |progress| {
+                if !silent {
+                    publish(app, progress);
+                }
             },
-        );
+            &client,
+            asset,
+            &archive,
+        )?;
+        if !silent {
+            publish(
+                app,
+                Progress {
+                    downloaded: asset.size,
+                    total: asset.size,
+                    phase: "installing",
+                },
+            );
+        }
         fs::create_dir(&staging).map_err(|_| GuiError::Install)?;
         unpack(&archive, &staging)?;
-        let destination = root.join(&version);
+        let destination = root.join(version);
         if !destination.exists() {
             fs::rename(&staging, destination).map_err(|_| GuiError::Install)?;
         }
-        let installed = Installed {
-            version: Some(version),
-        };
-        crate::storage::write_json_atomic(
-            &root.join("installed.json"),
-            &serde_json::json!(installed),
-        )
-        .map_err(|_| GuiError::Install)?;
-        Ok(installed)
+        Ok(())
     })();
+    cleanup_package(&root, &archive, &staging);
+    outcome
+}
+
+fn cleanup_package(root: &Path, archive: &Path, staging: &Path) {
     // These paths are generated children of the verified installation root, never frontend input.
-    if archive.is_file() && fs::remove_file(&archive).is_err() {
+    if archive.is_file() && fs::remove_file(archive).is_err() {
         eprintln!("Codex GUI download cleanup failed");
     }
-    if staging.is_dir()
-        && staging.parent() == Some(root.as_path())
-        && fs::remove_dir_all(&staging).is_err()
-    {
+    if staging.is_dir() && staging.parent() == Some(root) && fs::remove_dir_all(staging).is_err() {
         eprintln!("Codex GUI staging cleanup failed");
     }
-    outcome
 }
 
 #[tauri::command]
@@ -301,6 +297,7 @@ pub(crate) async fn codex_gui_cli_release() -> std::result::Result<ReleaseInfo, 
         Ok(ReleaseInfo {
             version,
             size: asset.size,
+            ready: false,
         })
     })
     .await
@@ -313,8 +310,11 @@ pub(crate) async fn codex_gui_cli_install(
     app: AppHandle,
     version: String,
 ) -> std::result::Result<Installed, String> {
-    tauri::async_runtime::spawn_blocking(move || install(&app, version))
+    if !valid_version(&version) {
+        return Err(GuiError::InvalidRequest.to_string());
+    }
+    // The displayed version is only a hint: a newer release may have arrived since the last check.
+    updates::install(app)
         .await
-        .map_err(|_| GuiError::Install.to_string())?
         .map_err(|error| error.to_string())
 }

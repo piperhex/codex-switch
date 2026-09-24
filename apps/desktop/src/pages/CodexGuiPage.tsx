@@ -71,7 +71,7 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
   const composer = useRef<ComposerHandle>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900);
-  const installer = useCliInstaller(active, controller);
+  const installer = useCliInstaller(active, controller, true);
   useEffect(retainGuiSession, [controller]);
   useTitleSettings(active, controller.titles.settings);
   const models = useMemo(() => providerModels(providers, aggregateApis), [providers, aggregateApis]);

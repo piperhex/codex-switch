@@ -52,8 +52,6 @@ pub(super) enum GuiError {
     Integrity,
     #[error("Codex 安装未完成，请检查磁盘空间后重试。")]
     Install,
-    #[error("Codex 正在下载，请稍候。")]
-    Installing,
 }
 
 impl GuiError {

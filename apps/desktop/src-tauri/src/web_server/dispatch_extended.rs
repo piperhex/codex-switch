@@ -2,6 +2,8 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
     match command {
         "codex_gui_cli_status" => serialize(block_on(crate::codex_gui::releases::codex_gui_cli_status(app))),
         "codex_gui_cli_release" => serialize(block_on(crate::codex_gui::releases::codex_gui_cli_release())),
+        "codex_gui_cli_check" => serialize(block_on(crate::codex_gui::releases::codex_gui_cli_check(app))),
+        "codex_gui_cli_prepare" => serialize(block_on(crate::codex_gui::releases::codex_gui_cli_prepare(app))),
         "codex_gui_cli_install" => serialize(block_on(crate::codex_gui::releases::codex_gui_cli_install(
             app, argument(&args, "version")?,
         ))),
