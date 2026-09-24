@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
   applyThemeMode,
   isThemeModeStorageEvent,
@@ -7,16 +7,13 @@ import {
   type ThemeMode,
 } from "../utils/themeMode";
 
-export function useThemeMode() {
-  const [mode, setModeState] = useState<ThemeMode>(() => {
-    const initialMode = loadThemeMode();
-    applyThemeMode(initialMode);
-    return initialMode;
-  });
+export function useThemeMode(override?: ThemeMode) {
+  const [mode, setModeState] = useState<ThemeMode>(loadThemeMode);
+  const appliedMode = override ?? mode;
+  useLayoutEffect(() => applyThemeMode(appliedMode), [appliedMode]);
 
   const setMode = useCallback((nextMode: ThemeMode) => {
     persistThemeMode(nextMode);
-    applyThemeMode(nextMode);
     setModeState(nextMode);
   }, []);
 
@@ -24,7 +21,6 @@ export function useThemeMode() {
     const syncMode = (event: StorageEvent) => {
       if (!isThemeModeStorageEvent(event)) return;
       const nextMode = loadThemeMode();
-      applyThemeMode(nextMode);
       setModeState(nextMode);
     };
     window.addEventListener("storage", syncMode);
@@ -35,5 +31,5 @@ export function useThemeMode() {
     setMode(mode === "dark" ? "light" : "dark");
   }, [mode, setMode]);
 
-  return { mode, setMode, toggleMode };
+  return { mode, appliedMode, setMode, toggleMode };
 }

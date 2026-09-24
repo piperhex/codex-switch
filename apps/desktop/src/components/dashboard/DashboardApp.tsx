@@ -109,6 +109,7 @@ import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { WindowControls } from "../WindowControls";
 import { GuiWorkspace } from "../../pages/codexGui/GuiWorkspace";
+import { useGuiTheme } from "../../pages/codexGui/guiTheme";
 import codexGuiStyles from "../../pages/codexGui/styles.module.less";
 import { CODEX_CONFIG_TOPBAR_ID, CodexConfigPage } from "../../pages/CodexConfigPage";
 import codexConfigStyles from "../../pages/codexConfig/pageStyles.module.less";
@@ -370,8 +371,9 @@ export function DashboardApp() {
   const privacyMode = usePrivacyMode(notify);
   const accountDisplayMode = useAccountDisplayMode();
   const navigationStyle = useNavigationStyle();
-  const themeColor = useThemeColor(notify);
-  const themeMode = useThemeMode();
+  const guiTheme = useGuiTheme();
+  const themeColor = useThemeColor(notify, page === "codexGui" ? guiTheme.color ?? undefined : undefined);
+  const themeMode = useThemeMode(page === "codexGui" && guiTheme.mode !== "inherit" ? guiTheme.mode : undefined);
   const tokenUsagePreferences = useTokenUsagePreferences(notify);
   const sseIdleTimeout = useSseIdleTimeout(notify);
   const upstream429RetryTimeout = useUpstream429RetryTimeout(notify);
@@ -1218,11 +1220,11 @@ export function DashboardApp() {
 
   return (
     <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
-      algorithm: themeMode.mode === "dark"
+      algorithm: themeMode.appliedMode === "dark"
         ? [antdTheme.darkAlgorithm, antdTheme.compactAlgorithm]
         : antdTheme.compactAlgorithm,
       token: {
-        colorPrimary: themeColor.color,
+        colorPrimary: themeColor.appliedColor,
         borderRadius: 6,
         fontFamily: "\"DM Sans\", \"Microsoft YaHei UI\", sans-serif",
       },

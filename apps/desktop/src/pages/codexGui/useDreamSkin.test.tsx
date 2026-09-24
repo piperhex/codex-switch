@@ -6,6 +6,7 @@ import { loadDreamSkinStatus, loadDreamSkinThemePreview } from "../../api/backen
 import type { DreamSkinStatus } from "../../types";
 import { publishDreamSkinStatus } from "../dreamSkin/statusEvents";
 import { dreamSkinStyle, useDreamSkin } from "./useDreamSkin";
+import { saveGuiTheme } from "./guiTheme";
 
 vi.mock("../../api/backend", () => ({ loadDreamSkinStatus: vi.fn(), loadDreamSkinThemePreview: vi.fn() }));
 const status: DreamSkinStatus = { supported: true, platform: "windows", installed: true,
@@ -16,12 +17,26 @@ let current: ReturnType<typeof useDreamSkin>;
 function Fixture({ active = true }: { active?: boolean }) { current = useDreamSkin(active); return null; }
 
 beforeEach(() => {
+  localStorage.clear();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.mocked(loadDreamSkinStatus).mockResolvedValue(status);
   vi.mocked(loadDreamSkinThemePreview).mockImplementation(async (id) => `data:image/png;base64,${id}`);
   root = createRoot(document.createElement("div"));
 });
-afterEach(async () => { await act(async () => root.unmount()); vi.resetAllMocks(); vi.unstubAllGlobals(); });
+afterEach(async () => {
+  await act(async () => root.unmount()); localStorage.clear(); vi.resetAllMocks(); vi.unstubAllGlobals();
+});
+
+it("preserves the background while giving explicit GUI appearance and color precedence", async () => {
+  await act(async () => root.render(<Fixture />));
+  await act(async () => { saveGuiTheme({ color: "#123456" }); });
+  expect(current?.["--green-soft"]).toBeUndefined();
+  expect(current?.colorScheme).toBe("dark");
+  await act(async () => { saveGuiTheme({ mode: "light" }); });
+  expect(current?.["--gui-skin-image"]).toContain("first");
+  expect(current?.["--panel"]).toBeUndefined();
+  expect(current?.colorScheme).toBeUndefined();
+});
 
 it("loads the applied theme on entry and synchronizes opacity, pause, and restore", async () => {
   await act(async () => root.render(<Fixture />));

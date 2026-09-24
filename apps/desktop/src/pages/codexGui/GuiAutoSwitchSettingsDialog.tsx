@@ -10,6 +10,7 @@ import type { GuiAutoSwitchAccountRule, GuiAutoSwitchSettings } from "./autoSwit
 import { useGuiAutoSwitchSettings } from "./useGuiAutoSwitchSettings";
 import { GuiAccountUsage } from "./GuiAccountUsage";
 import { GuiAppearanceSettings } from "./GuiAppearanceSettings";
+import { GuiThemeSettings } from "./GuiThemeSettings";
 import styles from "./GuiAutoSwitchSettingsDialog.module.less";
 
 type SettingsEditor = ReturnType<typeof useGuiAutoSwitchSettings>;
@@ -133,7 +134,7 @@ export function GuiAutoSwitchSettingsDialog({ accounts, providers, privacyMode, 
       <span>Codex GUI 设置</span><p className={styles.hint}>按你的习惯调整 Codex GUI。</p>
     </div>}
     onCancel={onClose} closable={!editor.saving} maskClosable={!editor.saving} keyboard={!editor.saving}
-    footer={tab === "appearance" && !editor.dirty ? <Button onClick={onClose}>完成</Button> : <>
+    footer={tab !== "accounts" && !editor.dirty ? <Button onClick={onClose}>完成</Button> : <>
       <Button disabled={editor.saving} onClick={onClose}>取消</Button>
       <Button type="primary" loading={editor.saving} disabled={editor.loading || !editor.settings}
         onClick={() => void save()}>保存</Button>
@@ -152,6 +153,7 @@ export function GuiAutoSwitchSettingsDialog({ accounts, providers, privacyMode, 
         </>}
       </div> },
       { key: "appearance", label: "界面", disabled: editor.saving, children: <GuiAppearanceSettings /> },
+      { key: "theme", label: "主题", disabled: editor.saving, children: <GuiThemeSettings /> },
     ]} />
   </Modal>;
 }

@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { loadAppSettings, subscribeToThemeColorChanges, updateThemeColor } from "../api/backend";
 import { applyThemeColor, DEFAULT_THEME_COLOR, normalizeThemeColor } from "../utils/theme";
 
-export function useThemeColor(notify: (message: string) => void) {
-  const [color, setColor] = useState(() => applyThemeColor(DEFAULT_THEME_COLOR));
+export function useThemeColor(notify: (message: string) => void, override?: string) {
+  const [color, setColor] = useState(DEFAULT_THEME_COLOR);
   const [loading, setLoading] = useState(true);
+  const appliedColor = override ?? color;
+  useLayoutEffect(() => { applyThemeColor(appliedColor); }, [appliedColor]);
 
   useEffect(() => {
     let active = true;
     void loadAppSettings()
       .then((settings) => {
         if (!active) return;
-        const nextColor = applyThemeColor(normalizeThemeColor(settings.themeColor));
+        const nextColor = normalizeThemeColor(settings.themeColor);
         setColor(nextColor);
       })
       .catch((error) => notify(String(error)))
@@ -22,24 +24,24 @@ export function useThemeColor(notify: (message: string) => void) {
   }, [notify]);
 
   useEffect(() => subscribeToThemeColorChanges((nextColor) => {
-    setColor(applyThemeColor(nextColor));
+    setColor(normalizeThemeColor(nextColor));
   }), []);
 
   const updateColor = useCallback(async (nextColor: string) => {
     const normalized = normalizeThemeColor(nextColor);
     const previous = color;
-    setColor(applyThemeColor(normalized));
+    setColor(normalized);
     setLoading(true);
     try {
       const settings = await updateThemeColor(normalized);
-      setColor(applyThemeColor(normalizeThemeColor(settings.themeColor)));
+      setColor(normalizeThemeColor(settings.themeColor));
     } catch (error) {
-      setColor(applyThemeColor(previous));
+      setColor(previous);
       notify(String(error));
     } finally {
       setLoading(false);
     }
   }, [color, notify]);
 
-  return { color, loading, setColor: updateColor };
+  return { color, appliedColor, loading, setColor: updateColor };
 }

@@ -92,6 +92,42 @@ it("keeps appearance available when account settings cannot be loaded", async ()
   expect(onClose).toHaveBeenCalledOnce();
 });
 
+it("saves theme choices immediately even when account settings are unavailable", async () => {
+  vi.mocked(invoke).mockRejectedValue(new Error("unavailable"));
+  await render();
+  await click([...document.querySelectorAll<HTMLElement>('[role="tab"]')]
+    .find((element) => element.textContent === "主题")!);
+  const mode = (label: string) => [...document.querySelectorAll<HTMLElement>(".ant-segmented-item")]
+    .find((element) => element.textContent === label)!;
+  await click(mode("深色"));
+  expect(JSON.parse(localStorage.getItem("codex-switch:gui-theme")!)).toEqual({ mode: "dark", color: null });
+  await click(document.querySelector<HTMLButtonElement>("#gui-theme-color-inherit")!);
+  expect(JSON.parse(localStorage.getItem("codex-switch:gui-theme")!).color).toMatch(/^#[0-9a-f]{6}$/i);
+  const reset = [...document.querySelectorAll<HTMLButtonElement>("button")]
+    .find((element) => element.textContent?.replace(/ /g, "") === "恢复默认")!;
+  await click(reset);
+  expect(JSON.parse(localStorage.getItem("codex-switch:gui-theme")!)).toEqual({ mode: "inherit", color: null });
+  await click(footerButton("完成"));
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(invoke).toHaveBeenCalledExactlyOnceWith("codex_gui_auto_switch_settings");
+});
+
+it("reports a theme save failure and preserves pending account changes on the theme tab", async () => {
+  await render();
+  await click(button("自动切换账号"));
+  await click([...document.querySelectorAll<HTMLElement>('[role="tab"]')]
+    .find((element) => element.textContent === "主题")!);
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("unavailable"); });
+  await click([...document.querySelectorAll<HTMLElement>(".ant-segmented-item")]
+    .find((element) => element.textContent === "深色")!);
+  expect(document.querySelector('[role="alert"]')?.textContent).toBe("主题未保存，请重试。");
+  await click(footerButton("保存"));
+  expect(invoke).toHaveBeenLastCalledWith("codex_gui_set_auto_switch_settings", {
+    settings: { ...defaults, enabled: true },
+  });
+  expect(onClose).toHaveBeenCalledOnce();
+});
+
 it("keeps pending account changes saveable after switching to appearance", async () => {
   await render();
   await click(button("自动切换账号"));
