@@ -15,8 +15,7 @@ import { styles } from './styles';
 import { isVideoPath, type VideoClient } from '../../../../shared/remote-chat/video';
 import { VideoViewer } from './video/VideoViewer';
 import type { FileClient } from '../../../../shared/remote-chat/fileDownload';
-import { useFileDownload } from '../../../../shared/remote-chat/useFileDownload';
-import { nativeDownloadTarget } from './fileDownloadTarget';
+import { useManagedDownload } from '../downloads/useManagedDownload';
 
 const BINARY_FILE = /\.(?:exe|apk|aab|msi|zip|7z|rar|gz|tar|dmg|pdf|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|mp3|wav)$/i;
 
@@ -41,8 +40,7 @@ function FilePreview({ file, threadId, ready, load, files, close }: PreviewProps
   const binary = BINARY_FILE.test(file.path);
   const html = isHtmlPath(file.path);
   const markdown = isMarkdownPath(file.path);
-  const download = useFileDownload({ client: files, threadId, ready, path: file.path,
-    target: nativeDownloadTarget, success: '文件已保存到下载文件夹' });
+  const download = useManagedDownload({ client: files, threadId, ready, path: file.path });
   useEffect(() => {
     if (!threadId || !ready || binary) return;
     let cancelled = false;
@@ -54,7 +52,7 @@ function FilePreview({ file, threadId, ready, load, files, close }: PreviewProps
   }, [threadId, ready, load, file.path, attempt, binary]);
   return <BottomSheet fullWidthContent visible tall title="文件" subtitle={file.path} onClose={close} dragFromHeaderOnly
     actions={[{ label: download.label, onPress: download.busy ? download.cancel : download.start,
-      tone: 'primary', disabled: !download.busy && (!ready || !threadId) },
+      tone: 'primary', disabled: !download.busy && !download.completed && (!ready || !threadId) },
     ...(error ? [{ label: '重新预览', onPress: () => setAttempt(attempt + 1), disabled: !ready }] : [])]}>
     <SheetScrollView style={{ flexShrink: 1 }}
       contentContainerStyle={{ paddingBottom: result && (html || markdown) ? 0 : 20 }}>

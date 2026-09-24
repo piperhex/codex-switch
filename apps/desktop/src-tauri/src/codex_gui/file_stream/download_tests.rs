@@ -130,6 +130,34 @@ fn rejects_downloads_outside_the_conversation_workspace() {
 }
 
 #[test]
+fn reopening_a_changed_file_returns_a_new_revision_even_when_size_is_unchanged() {
+    let fixture = Fixture::new();
+    let streams = FileStreams::downloads();
+    let path = fixture.root().join("resume.bin");
+    fs::write(&path, [1, 2, 3]).unwrap();
+    let before = fixture.open(&streams, "resume.bin").unwrap();
+    fs::write(&path, [4, 5, 6]).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_times(
+            fs::FileTimes::new()
+                .set_modified(std::time::SystemTime::now() + Duration::from_secs(2)),
+        )
+        .unwrap();
+    let after = fixture.open(&streams, "resume.bin").unwrap();
+    assert_eq!(before.size, after.size);
+    assert_ne!(before.revision, after.revision);
+    assert_eq!(
+        STANDARD
+            .decode(streams.read_chunk(read(&after, 1)).unwrap().data)
+            .unwrap(),
+        [5, 6]
+    );
+}
+
+#[test]
 fn rejects_symbolic_links_outside_the_workspace() {
     let fixture = Fixture::new();
     fs::write(fixture.0.join("private"), [1]).unwrap();

@@ -11,16 +11,27 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 export const output = path.join(root, '.codex-tmp', process.env.ANDROID_CHAT_OUTPUT ?? 'android-chat-regression');
 export const apiPort = Number(process.env.CHAT_TEST_API_PORT ?? 1490);
 export const apiUrl = `http://127.0.0.1:${apiPort}`;
-export const apk = path.join(root, 'apps/native/android/app/build/outputs/apk/release/app-release.apk');
+export const apk = path.resolve(root,
+  process.env.ANDROID_CHAT_APK ?? 'apps/native/android/app/build/outputs/apk/release/app-release.apk');
 export const serial = process.env.ANDROID_SERIAL ?? 'emulator-5580';
 if (!serial.startsWith('emulator-')) throw new Error('This test is restricted to an Android emulator.');
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function adb(...args) {
-  const { stdout } = await exec('adb', ['-s', serial, ...args], {
-    encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: 30_000,
-  });
-  return stdout.trim();
+  const run = async () => {
+    const { stdout } = await exec('adb', ['-s', serial, ...args], {
+      encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: 30_000,
+    });
+    return stdout.trim();
+  };
+  try { return await run(); }
+  catch (error) {
+    // A shared ADB service can restart between hierarchy snapshots. Never replay taps or other mutations.
+    if (args[0] !== 'shell' || args[1] !== 'uiautomator'
+      || !/daemon|device offline|device.*not found/i.test(String(error))) throw error;
+    await pause(1_000);
+    return run();
+  }
 }
 
 export async function serverState() {

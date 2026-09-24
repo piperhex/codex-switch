@@ -80,6 +80,9 @@ async function receive({ data }: MessageEvent<string>) {
         else if (isHistory && historyDelay) setTimeout(send, historyDelay);
         else if (isSkills && demoSkillsDelay()) setTimeout(send, demoSkillsDelay());
         else if (isTokenSummary && tokenSummaryDelay) setTimeout(send, tokenSummaryDelay);
+        else if (query.has('demo') && (message.body as { operation?: string })?.operation === 'fileRead') {
+          setTimeout(send, 300);
+        }
         else send();
       },
     });

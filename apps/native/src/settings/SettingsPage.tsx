@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { DownloadManagerSheet } from '../downloads/DownloadManagerSheet';
 import { BottomSheet } from '../components/BottomSheet';
 import { TotpSyncSettings } from '../totp/TotpSyncSettings';
 import type { TotpManagerState } from '../totp/types';
@@ -22,7 +23,7 @@ interface SettingsPageProps {
   totpManager: TotpManagerState;
 }
 
-type SettingsPanel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'logout' | null;
+type SettingsPanel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'logout' | 'downloads' | null;
 
 function identityLabel(profile?: UserProfile | null) {
   if (!profile) return '加载中…';
@@ -66,6 +67,10 @@ export function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalR
           icon="shield-checkmark-outline" color={settingsColors.green} background="#e5fbf3"
           onPress={() => setPanel('totp')} />
       </View>
+      {Platform.OS === 'android' && <View style={styles.group}>
+        <SettingsRow label="下载管理" icon="download-outline" color={settingsColors.green}
+          background="#e5fbf3" onPress={() => setPanel('downloads')} />
+      </View>}
       {activeProfile?.role === 'admin' && <View style={styles.group}>
         <SettingsRow label="管理控制台" icon="grid-outline" color={settingsColors.green}
           background="#e5fbf3" onPress={onOpenAdmin} />
@@ -101,6 +106,7 @@ export function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalR
       <View style={styles.sheetBody}><TotpSyncSettings manager={totpManager} /></View>
     </BottomSheet>
     {panel === 'password' && <PasswordSheet session={session} onClose={close} />}
+    {panel === 'downloads' && <DownloadManagerSheet session={session} close={close} />}
     <BottomSheet visible={panel === 'logout'} title="退出登录" onClose={close} actions={[
       { label: '继续使用', onPress: close },
       { label: '退出登录', tone: 'danger', onPress: () => { close(); onLogout(); } },

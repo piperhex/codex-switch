@@ -52,6 +52,7 @@ pub(super) struct StreamInfo {
     size: u64,
     mime_type: String,
     name: String,
+    revision: String,
 }
 #[derive(Serialize)]
 pub(super) struct StreamChunk {
@@ -84,6 +85,14 @@ fn response(value: impl Serialize) -> Result<GuiResponse> {
 }
 
 impl FileStreams {
+    pub(super) fn insert_response(
+        &self,
+        root: PathBuf,
+        options: StreamOpen,
+    ) -> Result<GuiResponse> {
+        response(self.insert(root, options)?)
+    }
+
     pub(super) fn downloads() -> Self {
         Self {
             kind: StreamKind::Download,

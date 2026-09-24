@@ -21,6 +21,7 @@ import { ChatDevices } from './ChatDevices';
 import { ChatConnectionInfo } from './ChatConnectionInfo';
 import { ChatTerminal } from './ChatTerminal';
 import { useChat } from './useChat';
+import { useDownloadConnection } from '../downloads/useDownloadConnection';
 import { useChatDevice } from './useChatDevice';
 import { useOfflineDevices } from './offline/devices';
 import { useChatDrawerSwipe } from './useChatDrawerSwipe';
@@ -67,6 +68,7 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
 }) {
   const active = pageActive && !tokenSummary;
   const { state, controller, foreground, catalog } = useChat(session, device?.deviceId ?? '', Boolean(device));
+  useDownloadConnection({ session, deviceId: device?.deviceId ?? '', deviceName: device?.name ?? '', controller });
   useChatCompletionNotifications(controller, session, device?.deviceId ?? '');
   useOpenChatNotification({ controller, target: notification?.deviceId === device?.deviceId ? notification : null,
     ready: state.ready, sending: state.sending, handled: notificationHandled });

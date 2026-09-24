@@ -564,6 +564,13 @@ export class ChatController {
     close: (threadId, id) => this.connection.request('request', { operation: 'fileClose', threadId, id }),
   };
 
+  downloads: import('../downloads').DownloadClient = {
+    open: (options) => this.connection.request('request', { operation: 'downloadOpen', ...options }),
+    browse: (options) => this.connection.request('request', { operation: 'downloadBrowse', ...options }),
+    read: (request) => this.files.read(request),
+    close: (transferId, id) => this.files.close(transferId, id),
+  };
+
   textPreview = (threadId: string, path: string) =>
     this.connection.request<import('../textPreview').TextPreview>('request', { operation: 'textPreview', threadId, path });
 

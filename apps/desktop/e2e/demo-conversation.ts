@@ -23,6 +23,7 @@ import { demoTokenSummary } from './demo-token-summary';
 import { detailText, seedDemoDetails } from './demo-details';
 import { demoVideoResponse, seedDemoVideo } from './demo-videos';
 import { demoChatParityOperation, seedChatParity, seedAsyncQuestion } from './demo-chat-parity';
+import { configureDownloadFixture, demoDownloads, seedDownloads } from './demo-downloads';
 
 const images = new RemoteImages();
 const synchronization: { bytes: number; changedItems: number; text: string }[] = [];
@@ -65,6 +66,8 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
   if (request.method === 'connect') return [...approvals.values()].map(({ event }) => event);
   const input = (request.body ?? {}) as Record<string, unknown>;
   operations.push({ ...input, method: request.method });
+  const download = demoDownloads(input);
+  if (download) return download.value;
   if (GUI_TOOL_OPERATIONS.has(String(input.operation))) return demoGuiTools(input);
   if (input.operation === 'usageSummary') return { totalTokens: 123456, estimatedCostUsd: 1.25,
     primaryRemainingPercent: 75, primaryRemainingAggregated: false, providerEstimatedCost: null };
@@ -191,6 +194,7 @@ function queueHost(thread: Thread, link: ChatLink) {
 }
 
 export function changeDemoSidebar(action: string, link: ChatLink) {
+  configureDownloadFixture(action);
   sidebarLink = link;
   if (action === 'context-usage') {
     const tokens = { totalTokens: 14550, inputTokens: 14000, cachedInputTokens: 0,
@@ -208,6 +212,7 @@ export function changeDemoSidebar(action: string, link: ChatLink) {
   if (action === 'message-details') seedDemoDetails(welcome);
   if (action === 'video-preview') seedDemoVideo(welcome);
   if (action === 'web-parity') seedChatParity(welcome);
+  if (action === 'downloads') seedDownloads(welcome);
   if (action === 'async-parity') seedAsyncQuestion(welcome);
   if (action === 'start' && welcome.turns?.some((turn) => turn.status === 'inProgress')) {
     throw new Error('Wait for the current demo turn before starting a background turn');

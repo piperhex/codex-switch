@@ -104,6 +104,7 @@ impl StreamFile {
             size: metadata.len(),
             mime_type,
             name,
+            revision: format!("{}:{:?}", metadata.len(), modified),
         };
         Ok(Self {
             file,

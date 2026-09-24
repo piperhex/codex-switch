@@ -32,6 +32,7 @@ import { guiToolRequest } from './guiTools';
 import { RemoteTerminals } from './terminals';
 
 const OPERATIONS = new Set([
+  'downloadOpen', 'downloadBrowse',
   'fileOpen', 'fileRead', 'fileClose',
   'videoOpen', 'videoRead', 'videoClose',
   'projectDirectories',
@@ -43,6 +44,7 @@ interface Cached {
   fingerprint: string; result: Promise<RpcResponse>; expires: number; completed: boolean; readOnly: boolean;
 }
 const READ_OPERATIONS = new Set([
+  'downloadOpen', 'downloadBrowse',
   'guiCliStatus', 'guiCliRelease', 'guiTerminalRead',
   'fileOpen', 'fileRead', 'fileClose',
   CONTEXT_READ_OPERATION,
@@ -161,7 +163,7 @@ export class ChatOperations {
     }
     if (body.operation === 'list') body.limit = getChatPolicy().threadPageSize;
     if (body.operation === 'textPreview') body.maxBytes = textPreviewByteLimit(mode);
-    if (body.operation === 'fileOpen' || body.operation === 'fileRead') {
+    if (body.operation === 'fileOpen' || body.operation === 'fileRead' || body.operation === 'downloadOpen') {
       body.maxBytes = fileDownloadByteLimit(mode);
     }
     if (body.operation === 'videoOpen' || body.operation === 'videoRead') {

@@ -35,7 +35,7 @@ vi.mock('./ChatMarkdownPreview', () => ({ ChatMarkdownPreview: 'MarkdownPreview'
 vi.mock('./ChatHtmlPreview', () => ({ ChatHtmlPreview: 'Html', isHtmlPath: (path: string) => /\.html?$/i.test(path) }));
 vi.mock('./ChatCodeHighlight', () => ({ fileLanguage: () => 'text' }));
 vi.mock('./fileDownloadTarget', () => ({ nativeDownloadTarget: {} }));
-vi.mock('../../../../shared/remote-chat/useFileDownload', () => ({ useFileDownload: () => ({
+vi.mock('../downloads/useManagedDownload', () => ({ useManagedDownload: () => ({
   label: '下载', busy: false, start: vi.fn(), cancel: vi.fn(),
 }) }));
 vi.mock('./video/VideoViewer', () => ({ VideoViewer: 'Video' }));

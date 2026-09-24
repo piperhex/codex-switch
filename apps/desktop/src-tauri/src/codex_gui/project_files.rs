@@ -60,7 +60,7 @@ pub(super) async fn list(client: &Client, options: ProjectFilesRequest) -> Resul
     Ok(GuiResponse { data })
 }
 
-fn browse(root: &Path, directory: &str, images_only: bool) -> Result<serde_json::Value> {
+pub(super) fn browse(root: &Path, directory: &str, images_only: bool) -> Result<serde_json::Value> {
     if !root.is_absolute() || directory.len() > 4096 {
         return Err(GuiError::ProjectFiles);
     }

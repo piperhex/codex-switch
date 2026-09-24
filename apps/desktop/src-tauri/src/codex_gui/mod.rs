@@ -14,6 +14,7 @@ mod clipboard_paths;
 mod computer_use_setup;
 pub(crate) mod context_settings;
 pub(crate) mod deletion;
+mod downloads;
 mod error;
 pub(crate) mod file_actions;
 mod file_stream;
@@ -159,6 +160,10 @@ pub(crate) async fn codex_gui_request(
 async fn execute_request(state: &GuiState, request: GuiRequest) -> Result<GuiResponse> {
     let client = connected(state).await?;
     match request {
+        GuiRequest::DownloadBrowse(options) => return downloads::browse(&client, options).await,
+        GuiRequest::DownloadOpen(options) => {
+            return downloads::open(&client, Arc::clone(&state.downloads.0), options).await
+        }
         GuiRequest::GenerateTitle(options) => return client.generate_title(options).await,
         GuiRequest::FileOpen(options) => {
             return Arc::clone(&state.downloads.0).open(&client, options).await

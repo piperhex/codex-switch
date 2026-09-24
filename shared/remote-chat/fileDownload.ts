@@ -3,7 +3,7 @@ import { base64Bytes, checkDownloadSize, isDirectChat } from './policy';
 export const FILE_CHUNK_BYTES = 256 * 1024;
 // Reserve RPC/assembly capacity for chat and video, and bound read-ahead to 1 MiB of original bytes per download.
 const DIRECT_READ_AHEAD = 4;
-export interface FileInfo { id: string; size: number; name: string; mimeType: string }
+export interface FileInfo { id: string; size: number; name: string; mimeType: string; revision?: string }
 export interface FileRead { threadId: string; id: string; offset: number; length: number }
 export interface FileChunk { offset: number; data: string }
 export type FileRequest =
