@@ -169,6 +169,8 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
         || state.compacting === state.selected?.id}
       answer={controller.answerAsyncQuestion} />
     <ChatComposer queue={queueProps(state, controller)}
+      connection={{ client: controller.guiAccounts, deviceName: device?.name,
+        chooseDevice: () => setPickingDevice(true) }}
       goals={controller.goals} goal={state.selected ? state.goals?.[state.selected.id] : null} goalBusy={state.goalBusy}
       threadId={state.selected?.id ?? null} models={state.models} selection={state.settings}
       contextSettings={controller.contextSettings}

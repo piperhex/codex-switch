@@ -1,4 +1,5 @@
 import type { Model, SendInput, ThreadTokenUsage } from './types';
+import type { ChatConnectionProps } from './ChatProfileMenu';
 import type { ComposerSettings } from '../../../../shared/remote-chat/composer';
 import type { ReadUsage } from '../../../../shared/remote-chat/usage';
 import type { ContextSettingsApi } from '../../../../shared/remote-chat/contextSettings';
@@ -11,6 +12,7 @@ import type { RemoteComposerCatalog } from '../../../../shared/remote-chat/compo
 import type { ProjectFilesRequest, ProjectFilesResponse } from '../../../../shared/remote-chat/projectFiles';
 
 export interface ComposerProps {
+  connection: ChatConnectionProps;
   readClipboardImages?: () => Promise<File[]>;
   uploadProgress?: UploadProgress;
   queue?: QueueProps;

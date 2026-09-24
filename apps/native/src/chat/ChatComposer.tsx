@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ChatSettings } from './ChatSettings';
+import type { ChatConnectionProps } from './ChatProfileMenu';
 import { ComposerGoal } from './ComposerGoal';
 import { useGoalMode } from '../../../../shared/remote-chat/client/useGoalMode';
 import type { RemoteGoals } from '../../../../shared/remote-chat/client/goals';
@@ -38,6 +39,7 @@ import type { QueueProps } from '../../../../shared/remote-chat/client/queueProp
 import { useQueueEditor } from '../../../../shared/remote-chat/client/useQueueEditor';
 
 interface Props {
+  connection: ChatConnectionProps;
   upload?: UploadProgress;
   reconnecting?: boolean;
   goals?: RemoteGoals;
@@ -71,7 +73,7 @@ interface Props {
 }
 
 export function ChatComposer({ models, selection, settingsBusy, settingsError, updateSettings,
-  readUsage, usageActive, tokenUsage, contextSettings, queue, goals, goal, goalBusy,
+  readUsage, usageActive, tokenUsage, contextSettings, connection, queue, goals, goal, goalBusy,
   threadId, active, ready, sending, running, upload, reconnecting = false, interrupted = false, send, interrupt,
   catalog, cwd, compactReason, compacting, compact, loadCatalog, loadFiles }: Props) {
   const [settings, setSettings] = useState(false);
@@ -221,7 +223,7 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
       load={loadFiles} close={() => setProjectFiles(null)} choose={(file) => {
         attachments.addFile({ kind: 'file', name: file.name, path: file.path }); setProjectFiles(null);
       }} />}
-    {settings && <ChatSettings models={models} selection={selection}
+    {settings && <ChatSettings models={models} selection={selection} connection={connection}
       threadId={threadId} contextSettings={contextSettings}
       readUsage={readUsage} usageActive={active && usageActive} tokenUsage={tokenUsage}
       saving={settingsBusy} error={settingsError} ready={ready}

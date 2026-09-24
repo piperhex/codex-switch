@@ -179,6 +179,7 @@ export function ChatComposer(props: ComposerProps) {
         attachments.add({ kind: 'file', name: file.name, path: file.path }); setProjectFiles(null);
       }} />}
     {!desktop && settings && <ChatSettings models={models} selection={selection} threadId={threadId}
+      connection={props.connection}
       contextSettings={props.contextSettings} readUsage={readUsage} tokenUsage={tokenUsage}
       saving={settingsBusy} error={settingsError} ready={ready}
       updateSettings={updateSettings} onClose={() => setSettings(false)} />}

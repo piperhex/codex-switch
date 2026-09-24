@@ -26,6 +26,10 @@ beforeEach(() => {
   });
   container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container);
   props = { models: [], selection: { model: 'astra', effort: 'high', access: 'workspace-write' },
+    connection: { deviceName: '测试电脑', chooseDevice: vi.fn(), client: {
+      read: vi.fn().mockResolvedValue({ selection: { kind: 'none' }, choices: [], running: false }),
+      select: vi.fn(), subscribe: vi.fn(() => vi.fn()),
+    } },
     readUsage: vi.fn(),
     contextSettings: { read: vi.fn(), write: vi.fn() }, goals: { load: vi.fn(), clear: vi.fn() }, goalBusy: false,
     catalog: { skills: [], loaded: true, loading: false, error: '', refresh: vi.fn() }, cwd: '',

@@ -7,14 +7,19 @@ import type { GuiAccountChoice, GuiAccountsClient } from '../../../../shared/rem
 import { useGuiAccounts } from '../../../../shared/remote-chat/client/useGuiAccounts';
 import { palette, styles } from './styles';
 
-interface Props {
-  client: GuiAccountsClient; deviceName?: string; ready: boolean; active: boolean;
-  email: string; chooseDevice: () => void; openTokenSummary: () => void;
+export interface ChatConnectionProps {
+  client: GuiAccountsClient; deviceName?: string; chooseDevice: () => void;
 }
+
+type Props = ChatConnectionProps & { ready: boolean; active: boolean } & (
+  { variant: 'settings' } | { variant?: 'avatar'; email: string; openTokenSummary: () => void }
+);
 
 const ACCOUNT_REFRESH_INTERVAL_MS = 60_000;
 
-export function ChatProfileMenu({ client, deviceName, ready, active, email, chooseDevice, openTokenSummary }: Props) {
+export function ChatProfileMenu(props: Props) {
+  const { client, deviceName, ready, active, chooseDevice } = props;
+  const settings = props.variant === 'settings';
   const [panel, setPanel] = useState<'profile' | 'accounts' | null>(null);
   const [query, setQuery] = useState('');
   const accounts = useGuiAccounts(client, active && ready, panel === 'accounts' ? ACCOUNT_REFRESH_INTERVAL_MS : 0);
@@ -31,37 +36,43 @@ export function ChatProfileMenu({ client, deviceName, ready, active, email, choo
 
   const select = async (choice: GuiAccountChoice) => {
     if (disabled || !choice.available || choice === current) return;
-    if (await accounts.select({ kind: choice.kind, id: choice.id })) setPanel('profile');
+    if (await accounts.select({ kind: choice.kind, id: choice.id })) setPanel(settings ? null : 'profile');
   };
 
+  const connectionOptions = <>
+    <Pressable accessibilityRole="button" accessibilityLabel="切换电脑"
+      style={[pickerStyles.option, settings && pickerStyles.settingOption]}
+      onPress={() => { setPanel(null); chooseDevice(); }}>
+      <Feather name="monitor" size={22} color={palette.ink} />
+      <View style={pickerStyles.copy}><Text style={styles.title}>切换电脑</Text>
+        <Text numberOfLines={1} style={styles.subtitle}>{deviceName || '选择电脑'}</Text></View>
+      <Feather name="chevron-right" size={18} color={palette.muted} />
+    </Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="切换账户"
+      style={[pickerStyles.option, settings && pickerStyles.settingOption]}
+      onPress={() => { setQuery(''); setPanel('accounts'); if (ready) accounts.refresh(); }}>
+      <Feather name="user" size={22} color={palette.ink} />
+      <View style={pickerStyles.copy}><Text style={styles.title}>切换账户</Text>
+        <Text numberOfLines={1} style={styles.subtitle}>{name}</Text></View>
+      <Feather name="chevron-right" size={18} color={palette.muted} />
+    </Pressable>
+  </>;
   return <>
-    <Pressable accessibilityRole="button" accessibilityLabel="打开头像菜单"
+    {settings ? connectionOptions : <Pressable accessibilityRole="button" accessibilityLabel="打开头像菜单"
       accessibilityState={{ expanded: panel !== null && active }} style={pickerStyles.trigger}
       onPress={() => setPanel('profile')}>
       <Text style={pickerStyles.initials}>{initials}</Text>
-    </Pressable>
+    </Pressable>}
     <BottomSheet fullWidthContent visible={panel !== null && active} title={panel === 'accounts' ? '切换账户' : '账户与电脑'}
       subtitle={panel === 'accounts' ? '与电脑共用当前聊天账户' : undefined}
       onClose={() => setPanel(null)} dismissible={!accounts.saving} dragFromHeaderOnly
-      onBack={panel === 'accounts' && !accounts.saving ? () => setPanel('profile') : undefined}>
-      {panel === 'profile' ? <SheetInset style={[pickerStyles.panel, pickerStyles.readable]}>
-        <Text style={pickerStyles.email}>{email}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="切换电脑" style={pickerStyles.option}
-          onPress={() => { setPanel(null); chooseDevice(); }}>
-          <Feather name="monitor" size={22} color={palette.ink} />
-          <View style={pickerStyles.copy}><Text style={styles.title}>切换电脑</Text>
-            <Text numberOfLines={1} style={styles.subtitle}>{deviceName || '选择电脑'}</Text></View>
-          <Feather name="chevron-right" size={18} color={palette.muted} />
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="切换账户" style={pickerStyles.option}
-          onPress={() => { setQuery(''); setPanel('accounts'); if (ready) accounts.refresh(); }}>
-          <Feather name="user" size={22} color={palette.ink} />
-          <View style={pickerStyles.copy}><Text style={styles.title}>切换账户</Text>
-            <Text numberOfLines={1} style={styles.subtitle}>{name}</Text></View>
-          <Feather name="chevron-right" size={18} color={palette.muted} />
-        </Pressable>
+      onBack={panel === 'accounts' && !accounts.saving ? () => setPanel(settings ? null : 'profile') : undefined}>
+      {panel === 'profile' && props.variant !== 'settings'
+        ? <SheetInset style={[pickerStyles.panel, pickerStyles.readable]}>
+        <Text style={pickerStyles.email}>{props.email}</Text>
+        {connectionOptions}
         <Pressable accessibilityRole="button" accessibilityLabel="Token 汇总" style={pickerStyles.option}
-          onPress={() => { setPanel(null); openTokenSummary(); }}>
+          onPress={() => { setPanel(null); props.openTokenSummary(); }}>
           <Feather name="bar-chart-2" size={22} color={palette.ink} />
           <View style={pickerStyles.copy}><Text style={styles.title}>Token 汇总</Text>
             <Text style={styles.subtitle}>查看用量趋势与消耗排行</Text></View>
@@ -121,6 +132,7 @@ const pickerStyles = StyleSheet.create({
   readable: { width: '100%', maxWidth: SHEET_READABLE_WIDTH, alignSelf: 'center' },
   list: { maxHeight: 360 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 64, padding: 12, borderRadius: 12 },
+  settingOption: { borderWidth: 1, borderColor: palette.border },
   selected: { backgroundColor: palette.pale },
   copy: { flex: 1, minWidth: 0 },
   empty: { color: palette.muted, fontSize: 13, lineHeight: 20, paddingVertical: 16 },

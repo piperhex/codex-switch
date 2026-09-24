@@ -6,10 +6,16 @@ import type { GuiAccountChoice, GuiAccountsClient } from '../../../../shared/rem
 import { useGuiAccounts } from '../../../../shared/remote-chat/client/useGuiAccounts';
 
 const ACCOUNT_REFRESH_MS = 60_000;
-export function ChatProfileMenu({ client, deviceName, ready, email, chooseDevice, openTokenSummary }: {
-  client: GuiAccountsClient; deviceName: string; ready: boolean; email: string;
-  chooseDevice: () => void; openTokenSummary: () => void;
-}) {
+export interface ChatConnectionProps {
+  client: GuiAccountsClient; deviceName: string; chooseDevice: () => void;
+}
+type Props = ChatConnectionProps & { ready: boolean } & (
+  { variant: 'settings' } | { variant?: 'avatar'; email: string; openTokenSummary: () => void }
+);
+
+export function ChatProfileMenu(props: Props) {
+  const { client, deviceName, ready, chooseDevice } = props;
+  const settings = props.variant === 'settings';
   useLanguage();
   const [panel, setPanel] = useState<'profile' | 'accounts' | null>(null);
   const [query, setQuery] = useState('');
@@ -21,26 +27,30 @@ export function ChatProfileMenu({ client, deviceName, ready, email, chooseDevice
     `${choice.name} ${choice.detail} ${choice.searchDetail ?? ''}`.toLowerCase().includes(query.trim().toLowerCase())) ?? [];
   const select = async (choice: GuiAccountChoice) => {
     if (!disabled && choice.available && choice !== current
-      && await accounts.select({ kind: choice.kind, id: choice.id })) setPanel('profile');
+      && await accounts.select({ kind: choice.kind, id: choice.id })) setPanel(settings ? null : 'profile');
   };
   const close = () => { if (!accounts.saving) setPanel(null); };
+  const connectionOptions = <>
+    <button type="button" className="chat-profile-option" aria-label={t("切换电脑")}
+      onClick={() => { close(); chooseDevice(); }}><Monitor size={22} /><span className="chat-grow">
+        <strong>{t("切换电脑")}</strong><small>{deviceName}</small></span><span>›</span></button>
+    <button type="button" className="chat-profile-option" aria-label={t("切换账户")}
+      onClick={() => { setQuery(''); setPanel('accounts'); if (ready) accounts.refresh(); }}>
+      <User size={22} /><span className="chat-grow"><strong>{t("切换账户")}</strong>
+        <small>{current?.name || t("选择账户")}</small></span><span>›</span></button>
+  </>;
   return <>
-    <button type="button" className="chat-profile-avatar" aria-label={t("打开头像菜单")} aria-expanded={panel !== null}
-      onClick={() => setPanel('profile')}>{Array.from(current?.name.trim() || '').slice(0, 2).join('') || t("我")}</button>
+    {settings ? connectionOptions : <button type="button" className="chat-profile-avatar"
+      aria-label={t("打开头像菜单")} aria-expanded={panel !== null} onClick={() => setPanel('profile')}>
+      {Array.from(current?.name.trim() || '').slice(0, 2).join('') || t("我")}</button>}
     {panel && <AdaptiveSheet open title={panel === 'accounts' ? t("切换账户") : t("账户与电脑")} width={400}
       subtitle={panel === 'accounts' ? t("与电脑共用当前聊天账户") : undefined} onClose={close}
-      onBack={panel === 'accounts' && !accounts.saving ? () => setPanel('profile') : undefined}>
-      {panel === 'profile' ? <div className="chat-detail-stack">
-        <p className="chat-muted">{email}</p>
-        <button type="button" className="chat-profile-option" aria-label={t("切换电脑")}
-          onClick={() => { close(); chooseDevice(); }}><Monitor size={22} /><span className="chat-grow">
-            <strong>{t("切换电脑")}</strong><small>{deviceName}</small></span><span>›</span></button>
-        <button type="button" className="chat-profile-option" aria-label={t("切换账户")}
-          onClick={() => { setQuery(''); setPanel('accounts'); if (ready) accounts.refresh(); }}>
-          <User size={22} /><span className="chat-grow"><strong>{t("切换账户")}</strong>
-            <small>{current?.name || t("选择账户")}</small></span><span>›</span></button>
+      onBack={panel === 'accounts' && !accounts.saving ? () => setPanel(settings ? null : 'profile') : undefined}>
+      {panel === 'profile' && props.variant !== 'settings' ? <div className="chat-detail-stack">
+        <p className="chat-muted">{props.email}</p>
+        {connectionOptions}
         <button type="button" className="chat-profile-option" aria-label={t("Token 汇总")}
-          onClick={() => { close(); openTokenSummary(); }}><BarChart3 size={22} /><span className="chat-grow">
+          onClick={() => { close(); props.openTokenSummary(); }}><BarChart3 size={22} /><span className="chat-grow">
             <strong>{t("Token 汇总")}</strong><small>{t("查看用量趋势与消耗排行")}</small></span><span>›</span></button>
       </div> : <div className="chat-detail-stack">
         <input className="chat-answer" aria-label={t("搜索账户")} placeholder={t("搜索名称或备注")} value={query}

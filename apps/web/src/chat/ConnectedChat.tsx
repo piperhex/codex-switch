@@ -120,6 +120,8 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
         || state.compacting === state.selected?.id} answer={controller.answerAsyncQuestion} />
     {composerHeader}
     <ChatComposer queue={queueProps(state, controller)} readClipboardImages={readClipboardImages}
+      connection={{ client: controller.guiAccounts, deviceName: device?.name ?? t("选择电脑"),
+        chooseDevice: () => setPickingDevice(true) }}
       goals={controller.goals} goal={state.selected ? state.goals?.[state.selected.id] : null} goalBusy={!!state.goalBusy}
       contextSettings={controller.contextSettings} cwd={cwd} catalog={catalog}
       compactReason={compactUnavailableReason(state)} compacting={!!state.compacting
