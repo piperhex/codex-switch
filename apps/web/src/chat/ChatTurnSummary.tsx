@@ -1,5 +1,8 @@
 import { t, useLanguage } from '../i18n';
 import { ChevronRight, FileText } from 'lucide-react';
+import { useContext, useMemo } from 'react';
+import { DetailsContext } from '../../../desktop/src/pages/codexGui/detailsContext';
+import { ChatFilesSummary } from './ChatFilesSummary';
 import type { Turn } from './types';
 import { completedTurnFiles } from '../../../../shared/chat/turnPresentation';
 import { generatedImageSource } from '../../../../shared/chat/imageSources';
@@ -17,7 +20,8 @@ export function ChatTurnSummary({ turn, onOpen, hideStopped = false }: {
   turn: Turn; onOpen: (panel: TurnPanel) => void; hideStopped?: boolean;
 }) {
   useLanguage();
-  const files = completedTurnFiles(turn);
+  const details = useContext(DetailsContext);
+  const files = useMemo(() => completedTurnFiles(turn), [turn]);
   const generated = [...new Set(turn.items.filter(item => item.type === 'imageGeneration'
     && item.status === 'completed' && !item.failure).map(generatedImageSource).filter(Boolean))];
   const paths = [...new Set(files.map(file => file.path))];
@@ -27,7 +31,7 @@ export function ChatTurnSummary({ turn, onOpen, hideStopped = false }: {
       onClick={() => onOpen('plan')}><strong>{t("任务计划")}</strong>
       <span>{turn.plan.filter(step => step.status === 'completed').length}/{turn.plan.length}</span>
       <ChevronRight size={15} /></button>}
-    {!!files.length && <div className="chat-files-summary">
+    {!!files.length && (details ? <ChatFilesSummary files={files} /> : <div className="chat-files-summary">
       <button type="button" aria-label={t("查看本轮修改：{value1} 个文件", { value1: paths.length })} onClick={() => onOpen('changes')}>
         <FileText size={21} /><strong>{t("已编辑")} {paths.length}  {t("个文件")}</strong>
         <b className="chat-added">+{files.reduce((sum, file) => sum + file.added, 0)}</b>
@@ -36,7 +40,7 @@ export function ChatTurnSummary({ turn, onOpen, hideStopped = false }: {
       {paths.slice(0, 3).map(path => <button key={path} type="button" onClick={() => onOpen('changes')}>
         <span className="chat-ellipsis">{path}</span></button>)}
       {paths.length > 3 && <button type="button" onClick={() => onOpen('changes')}>{t("再显示")} {paths.length - 3}  {t("个文件")}</button>}
-    </div>}
+    </div>)}
     {turn.status === 'interrupted' && !hideStopped && <p className="chat-muted">{t("已停止生成")}</p>}
     {(turn.error || turn.retryError || turn.status === 'failed') && <button type="button"
       className="chat-error-notice" aria-label={t("查看报错详情")} onClick={() => onOpen('error')}>

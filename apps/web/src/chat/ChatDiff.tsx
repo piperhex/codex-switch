@@ -1,9 +1,11 @@
 import { t, useLanguage } from '../i18n';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { ChevronDown, FileText, Folder } from 'lucide-react';
 import type { DiffFile } from '../../../../shared/chat/diff';
 import { groupDiffFiles } from '../../../../shared/chat/diffGroups';
 import { ChatCopyButton } from './ChatCopyButton';
+import { DetailsContext } from '../../../desktop/src/pages/codexGui/detailsContext';
+import { ChatFilesSummary } from './ChatFilesSummary';
 
 const PAGE_LINES = 160;
 function DiffContent({ file }: { file: DiffFile }) {
@@ -24,8 +26,10 @@ function DiffContent({ file }: { file: DiffFile }) {
   </div>;
 }
 
-export function ChatDiff({ files }: { files: DiffFile[] }) {
+export function ChatDiff({ files, status }: { files: DiffFile[]; status?: string }) {
   useLanguage();
+  const panel = useContext(DetailsContext);
+  if (panel) return <ChatFilesSummary files={files} title="文件修改记录" status={status} />;
   return <div className="chat-diff">{groupDiffFiles(files).map(group =>
     <section key={group.directory}><h3><Folder size={17} />{group.showPath ? group.directory : group.name}</h3>
       {group.entries.map(({ file, index }) => <details key={index} className="chat-diff-file">

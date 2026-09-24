@@ -45,6 +45,13 @@ Terminals start in the current remote project, support multiple tabs and resizin
 remote session ends. Hiding the terminal panel keeps its shells running. A started CLI download continues
 if the viewer disconnects; reconnecting shows its current status.
 
+Desktop web chat and the PC remote workspace use the same file-change cards and right-side diff panel
+as the local GUI. Cards show per-file line counts, initially list three files, and expand in place.
+Click a file to review only that path, or **审核** to review the whole turn. The panel supports highlighted
+code, unified and side-by-side views, resizing, minimizing and expanding. Incoming changes update the
+current review without switching the selected file. Remote file paths open their diffs on the selected
+computer. Mobile web chat keeps its compact diff drawer; resizing the browser preserves unsent drafts.
+
 Screenshot paste and copied image files both add image previews before sending. Copied files are read
 off the UI thread and sent as image bytes, never as paths on the viewing computer. Relay image preparation
 uses inline data URLs compatible with the packaged WebView image policy. The send button waits for

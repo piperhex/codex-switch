@@ -9,7 +9,6 @@ import { useDreamSkin } from '../useDreamSkin';
 import { RemoteGuiSidebar } from './RemoteGuiSidebar';
 import { RemoteGuiProject } from './RemoteGuiProject';
 import { readRemoteClipboardImages } from './clipboardImages';
-import { DetailsWorkspace } from '../DetailsWorkspace';
 import { useTerminalPanel } from '../terminal/useTerminalPanel';
 import { remoteTerminalApi } from './terminalApi';
 import { RemoteGuiTools } from './RemoteGuiTools';
@@ -31,17 +30,17 @@ export default function RemoteGuiWorkspace(props: {
   const popupContainer = useCallback(() => workspace.current ?? document.body, []);
   const accountPicker = <RemoteAccountPicker active={active} ready={chat.state.ready}
     client={chat.controller.guiAccounts} computers={computers} privacyMode={props.privacyMode} />;
-  return <DetailsWorkspace selected={chat.state.selected?.id ?? null} active={active}>
-    <section ref={workspace} className={`${styles.page} chat-page gui-remote-workspace`}
+  return <section ref={workspace} className={`${styles.page} chat-page gui-remote-workspace`}
     data-dream-skin={skinStyle ? 'true' : undefined} style={skinStyle} aria-label={`Codex GUI：${device.name}`}>
     <ConfigProvider getPopupContainer={popupContainer}>
-    <ConnectedChat chat={chat} active={active} device={device} devices={computers.devices} email=""
+    <ConnectedChat chat={chat} active={active} device={device} devices={computers.devices} email="" desktopDiffs
       scope={JSON.stringify([identity.baseUrl, identity.userId, device.deviceId])}
       chooseLocal={() => computers.choose(null)}
       chooseDevice={(id) => { const device = computers.devices.find((entry) => entry.deviceId === id);
         if (device) computers.choose(device); }}
       headerActions={<><RemoteGuiTools controller={chat.controller} state={chat.state} active={active} terminal={terminal} />
-        <FocusModeButton {...props.focusMode} />{props.focusMode.focused && props.windowControls}</>}
+        <span className="gui-remote-focus"><FocusModeButton {...props.focusMode} /></span></>}
+      headerEnd={props.focusMode.focused && props.windowControls}
       conversationFooter={terminal.tabs.length > 0 && <Suspense fallback={null}>
         <TerminalPanel panel={terminal} active={active} api={terminalApi} />
       </Suspense>}
@@ -51,5 +50,5 @@ export default function RemoteGuiWorkspace(props: {
       renderSidebar={actions => <RemoteGuiSidebar state={chat.state} controller={chat.controller}
         actions={actions} accountPicker={accountPicker} focusMode={props.focusMode} />} />
     </ConfigProvider>
-  </section></DetailsWorkspace>;
+  </section>;
 }

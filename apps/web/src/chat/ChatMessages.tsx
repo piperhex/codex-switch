@@ -1,5 +1,5 @@
 import { t, useLanguage } from '../i18n';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 import type { ChatMessagesProps } from '../../../../shared/remote-chat/client/messageProps';
 import { useConversationEntries } from '../../../../shared/chat/useConversationEntries';
@@ -74,6 +74,8 @@ export function ChatMessages(props: ChatMessagesProps) {
   const timeline = useMemo(() => desktop ? desktopTimeline(entries) : entries, [desktop, entries]);
   const scroll = useHistoryScroll(props);
   const [selection, setSelection] = useState<Selection | null>(null);
+  // Dismiss the previous layout's sheets before switching to inline work and docked reviews.
+  useEffect(() => { setSelection(null); }, [desktop]);
   const work = selection?.type === 'work' ? findWorkEntry(entries, selection.id) : undefined;
   const item = selection?.type === 'item'
     ? turns.flatMap(turn => turn.items).find(item => item.id === selection.id) : undefined;

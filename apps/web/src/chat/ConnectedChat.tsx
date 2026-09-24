@@ -15,6 +15,8 @@ import { useDesktopLayout, usePanelVisibility } from '../useDesktopLayout';
 import { ChatDevices } from './ChatDevices';
 import { ChatConnectionInfo } from './ChatConnectionInfo';
 import { ChatQuotesProvider } from './ChatQuotes';
+import { ChatDetailsWorkspace } from './ChatDetailsWorkspace';
+import { ConversationChangesButton } from '../../../desktop/src/pages/codexGui/ConversationChangesButton';
 import { ChatAsyncQuestions } from './ChatAsyncQuestions';
 import { ChatSearch } from './ChatSearch';
 import { ChatProfileMenu } from './ChatProfileMenu';
@@ -31,9 +33,11 @@ export interface ConnectedChatProps {
   device?: ChatComputer; devices: ChatComputer[]; active: boolean;
   scope: string; email: string; chooseDevice: (id: string) => void;
   chooseLocal?: () => void; accountPicker?: ReactNode; headerActions?: ReactNode;
+  headerEnd?: ReactNode;
   renderSidebar?: (actions: ChatSidebarActions) => ReactNode;
   composerHeader?: ReactNode;
   conversationFooter?: ReactNode;
+  desktopDiffs?: boolean;
   readClipboardImages?: () => Promise<File[]>;
 }
 
@@ -45,8 +49,8 @@ export interface ChatSidebarActions {
 
 /** Conversation UI shared by the web client and the desktop's remote workspace. */
 export function ConnectedChat({ chat, device, devices, active, scope, email, chooseDevice,
-  chooseLocal, accountPicker, headerActions, renderSidebar, composerHeader, conversationFooter,
-  readClipboardImages }: ConnectedChatProps) {
+  chooseLocal, accountPicker, headerActions, headerEnd, renderSidebar, composerHeader, conversationFooter,
+  readClipboardImages, desktopDiffs }: ConnectedChatProps) {
   useLanguage();
   const { state, controller, foreground } = chat;
   const [drawer, setDrawer] = useState(false);
@@ -74,7 +78,9 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
   useEffect(() => {
     if (!active) { setDrawer(false); setPickingDevice(false); setSearching(false); setTokenSummary(false); }
   }, [active]);
-  return <ChatQuotesProvider scope={state.selected?.id ?? null} sending={state.sending}
+  const showDesktopDiffs = desktopDiffs ?? desktop;
+  return <ChatDetailsWorkspace selected={state.selected?.id ?? null} active={active} enabled={showDesktopDiffs}>
+    <ChatQuotesProvider scope={state.selected?.id ?? null} sending={state.sending}
     enabled={active && !state.selectedArchived}>
     <div className="chat-conversation">
     <header className="chat-header">
@@ -89,6 +95,9 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
         onClick={() => { void controller.archive().then(() => setDrawer(true)); }}>
         {t("恢复")}</button>}
       {headerActions}
+      {showDesktopDiffs && <ConversationChangesButton
+        value={state.selected?.turns ? { turns: state.selected.turns } : undefined} />}
+      {headerEnd}
     </header>
     {!!state.error && <p role="alert" className="chat-error">{t(state.error)}</p>}
     <ChatImageContext.Provider value={{ threadId: state.selected?.id ?? null, ready, load: controller.imagePreview }}>
@@ -140,5 +149,5 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
       deviceName={device?.name} onClose={() => setTokenSummary(false)} />}
     {pickingDevice && <ChatDevices chooseLocal={chooseLocal} devices={devices} onClose={() => setPickingDevice(false)}
       choose={(id) => { chooseDevice(id); setPickingDevice(false); }} />}
-  </ChatQuotesProvider>;
+  </ChatQuotesProvider></ChatDetailsWorkspace>;
 }

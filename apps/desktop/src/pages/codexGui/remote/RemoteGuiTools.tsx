@@ -5,7 +5,6 @@ import type { ChatState } from '../../../../../../shared/remote-chat/client/type
 import type { ChatController } from '../../../../../../shared/remote-chat/client/controller';
 import type { TerminalPanelState } from '../terminal/useTerminalPanel';
 import { Installer } from '../Installer';
-import { ConversationChangesButton } from '../ConversationChangesButton';
 import { useRemoteCliInstaller } from './useRemoteCliInstaller';
 
 export function RemoteGuiTools({ controller, state, active, terminal }: {
@@ -42,7 +41,6 @@ export function RemoteGuiTools({ controller, state, active, terminal }: {
       <Button type="text" icon={<PanelBottom size={16} />} aria-label={terminalLabel}
         aria-expanded={terminal.open} disabled={!connected && !terminal.open} onClick={terminal.toggle} />
     </Tooltip>
-    <ConversationChangesButton value={state.selected?.turns ? { turns: state.selected.turns } : undefined} />
     {error && <Popover open content={<Alert type="error" message={error} closable onClose={() => setError('')} />}
       placement="bottomRight" styles={{ root: { maxWidth: 400 } }}><span /></Popover>}
   </div>;

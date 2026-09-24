@@ -1,4 +1,5 @@
 import { t, useLanguage } from '../i18n';
+import { useMemo } from 'react';
 import type { Item } from './types';
 import { messageSections } from '../../../../shared/chat/messageDetails';
 import { toolText } from '../../../../shared/chat/toolText';
@@ -12,6 +13,10 @@ import { ChatMarkdown } from './ChatMarkdown';
 import { ChatDiff } from './ChatDiff';
 import { ChatToolResult } from './ChatToolResult';
 import { ChatImage } from './ChatImage';
+
+const FILE_CHANGE_STATUS: Record<string, string> = {
+  declined: '未应用', failed: '修改失败', inProgress: '正在修改',
+};
 
 function SearchContent({ item }: { item: Item }) {
   useLanguage();
@@ -30,6 +35,7 @@ function SearchContent({ item }: { item: Item }) {
 export function ChatToolContent({ item }: { item: Item }) {
   useLanguage();
   const text = toolText(item);
+  const files = useMemo(() => item.type === 'fileChange' ? changedFiles(item.changes ?? []) : [], [item]);
   if (['agentMessage', 'reasoning', 'plan', 'enteredReviewMode', 'exitedReviewMode'].includes(item.type)) {
     return <ChatMarkdown text={text} />;
   }
@@ -40,7 +46,8 @@ export function ChatToolContent({ item }: { item: Item }) {
       label={t("输出")} copyLabel={t("复制输出")} />
     {item.exitCode != null && <p className={item.exitCode ? 'chat-error' : 'chat-muted'}>{t("退出码：")}{item.exitCode}</p>}
   </>;
-  if (item.type === 'fileChange') return <ChatDiff files={changedFiles(item.changes ?? [])} />;
+  if (item.type === 'fileChange') return <ChatDiff files={files}
+    status={FILE_CHANGE_STATUS[item.status ?? '']} />;
   if (['mcpToolCall', 'dynamicToolCall', 'functionCallOutput'].includes(item.type)) return <ChatToolResult item={item} />;
   if (item.type === 'webSearch') return <SearchContent item={item} />;
   if (isCollaborationActivity(item)) return <>

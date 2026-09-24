@@ -66,7 +66,18 @@ for (const blocked of [false, true]) {
     await expect.poll(() => office.evaluate(() => window.chatTest.demoState().operations
       .some(operation => operation.operation === 'guiReconnect'))).toBe(true);
     await page.getByRole('button', { name: '查看文件更改' }).click();
-    await expect(page.getByRole('complementary', { name: '文件更改详情' })).toContainText('remote edit');
+    const details = page.getByRole('complementary', { name: '文件更改详情' });
+    await expect(details).toContainText('remote edit');
+    await page.getByRole('button', { name: '关闭详情抽屉' }).click();
+    const summary = page.getByRole('region', { name: '本轮修改', exact: true });
+    await expect(summary).toContainText('已编辑 1 个文件');
+    await expect(summary.locator('li')).toContainText('+1−1');
+    await summary.getByRole('button', { name: '查看 remote.txt 的差异', exact: true }).click();
+    await details.getByRole('button', { name: '并排', exact: true }).click();
+    await expect(details.getByText('修改前', { exact: true })).toBeVisible();
+    await expect(details).toContainText('remote edit');
+    await expect(page.locator('.chat-diff-workspace')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await page.screenshot({ path: `../../.codex-tmp/gui-remote-diff-${blocked ? 'relay' : 'p2p'}.png` });
     await page.getByRole('button', { name: '关闭详情抽屉' }).click();
     await page.getByRole('button', { name: '打开远程终端' }).click();
     await expect(page.getByRole('region', { name: '终端', exact: true })).toBeVisible();
@@ -91,7 +102,7 @@ for (const blocked of [false, true]) {
       .some(operation => operation.operation === 'guiTerminalClose'))).toBe(true);
     await chooseComputer(page, '本机');
     expect(await page.evaluate(() => window.remoteGuiFixture.commands
-      .filter(command => /codex_gui_(cli_|terminal_|connect$)/.test(command)))).toEqual([]);
+      .filter(command => /codex_gui_(cli_|terminal_|connect$|file_)/.test(command)))).toEqual([]);
   });
 }
 

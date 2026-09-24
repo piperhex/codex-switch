@@ -46,21 +46,36 @@ test('renders rich replies, folded work, nested output, file previews and reply 
     await page.getByRole('button', { name: /查看处理过程/ }).click();
   }
   await page.getByRole('button', { name: /^文件修改/ }).click();
-  await expect(page.locator(desktop ? '.chat-messages .chat-diff' : '.ant-drawer-right .chat-diff')).toBeVisible();
-  await page.locator('.chat-diff-file summary').first().click();
-  await expect(page.locator('.chat-diff-line.remove').first()).toBeVisible();
+  if (desktop) {
+    await page.getByRole('button', { name: /^查看文件修改记录：/ }).click();
+    await expect(page.getByRole('complementary', { name: '文件更改详情' })).toBeVisible();
+    await page.getByRole('button', { name: '关闭详情抽屉' }).click();
+  } else {
+    await expect(page.locator('.ant-drawer-right .chat-diff')).toBeVisible();
+    await page.locator('.chat-diff-file summary').first().click();
+    await expect(page.locator('.chat-diff-line.remove').first()).toBeVisible();
+  }
   if (desktop) await page.getByRole('button', { name: /^文件修改/ }).click();
   else await page.getByRole('button', { name: '返回上一层' }).click();
   await expect(page.getByRole('button', { name: /^文件修改/ })).toBeVisible();
   if (desktop) await page.getByRole('button', { name: /查看处理过程/ }).click();
   else await closeSheet(page);
   await page.getByRole('button', { name: /查看本轮修改：3 个文件/ }).click();
-  await expect(page.locator('.ant-drawer-right .chat-diff')).toBeVisible();
-  await expect(page.locator('.chat-diff > section')).toHaveCount(2);
-  await page.locator('.chat-diff-file summary').first().click();
-  await expect(page.locator('.chat-diff-line.add').first()).toBeVisible();
+  if (desktop) {
+    const details = page.getByRole('complementary', { name: '文件更改详情' });
+    await expect(details).toBeVisible();
+    await expect(details).toContainText('3 个文件');
+    await details.getByRole('button', { name: '并排', exact: true }).click();
+    await expect(details.getByText('修改前', { exact: true })).toBeVisible();
+  } else {
+    await expect(page.locator('.ant-drawer-right .chat-diff')).toBeVisible();
+    await expect(page.locator('.chat-diff > section')).toHaveCount(2);
+    await page.locator('.chat-diff-file summary').first().click();
+    await expect(page.locator('.chat-diff-line.add').first()).toBeVisible();
+  }
   await screenshot(page, info, 'grouped-diff');
-  await closeSheet(page);
+  if (desktop) await page.getByRole('button', { name: '关闭详情抽屉' }).click();
+  else await closeSheet(page);
   await page.getByRole('button', { name: '查看文件', exact: true }).click();
   await expect(page.getByText('引用位置：第 2 行')).toBeVisible();
   await expect(page.getByRole('button', { name: '复制文件内容' })).toBeVisible();
