@@ -8,6 +8,7 @@ pub(crate) mod auto_switch_policy;
 pub(crate) mod auto_switch_settings;
 mod client;
 pub(crate) mod clipboard;
+mod clipboard_dingtalk;
 pub(crate) mod clipboard_images;
 mod clipboard_paths;
 mod computer_use_setup;

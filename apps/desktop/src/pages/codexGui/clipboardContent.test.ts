@@ -15,6 +15,13 @@ it('recognizes actual QQ HTML file references without losing the accompanying te
   expect(result).toEqual({ files: [], text: '检查更新\n', hasImages: true, missingImages: true });
 });
 
+it('recognizes DingTalk HTML images so desktop paste can load the missing bytes', () => {
+  const result = clipboard({ text: '[图片]图片说明', html: `<article class="4ever-article">
+    <img src="https://static.dingtalk.com/media/example_4032_3024.jpg" width="4032" height="3024">
+    <span data-type="text"><span data-type="leaf">图片说明</span></span></article>` });
+  expect(result).toEqual({ files: [], text: '[图片]图片说明', hasImages: true, missingImages: true });
+});
+
 it('preserves text alongside image files and does not decode duplicate HTML images', () => {
   const file = image();
   expect(clipboard({ text: '说明文字', html: `<img src="${png}">`, files: [file] }))

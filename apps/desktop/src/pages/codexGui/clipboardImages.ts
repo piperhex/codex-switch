@@ -14,7 +14,7 @@ async function imageFile(image: ClipboardImage, index: number) {
   return new File(parts, `clipboard-${index + 1}`, { type: image.mimeType });
 }
 
-export async function readRemoteClipboardImages(): Promise<File[]> {
+export async function readClipboardImages(): Promise<File[]> {
   const images = await invoke<ClipboardImage[]>('codex_gui_remote_clipboard_images');
   const files: File[] = [];
   for (const [index, image] of images.entries()) files.push(await imageFile(image, index));

@@ -1,6 +1,7 @@
 import { useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { invoke, isDesktopApp } from "../../api/backend";
 import type { AttachmentReference } from "./attachmentTypes";
+import { readClipboardImages } from "./clipboardImages";
 import { MISSING_CLIPBOARD_IMAGES, readPastedContent } from "../../../../../shared/chat/clipboard";
 
 interface PasteOptions {
@@ -9,7 +10,7 @@ interface PasteOptions {
   addImages: (files: File[]) => void;
   report: (message: string) => void;
 }
-interface PendingPaste { fallback?: () => void }
+interface PendingPaste { fallback?: () => void | Promise<void> }
 
 /** Native file copies may not produce a WebView paste event; also listen for the paste shortcut. */
 export function useFilePaste({ key, addAttachments, addImages, report }: PasteOptions) {
@@ -23,9 +24,9 @@ export function useFilePaste({ key, addAttachments, addImages, report }: PasteOp
     setReading((values) => ({ ...values, [key]: true }));
     void invoke<AttachmentReference[]>("codex_gui_clipboard_files").then((files) => {
       if (files.length) addAttachments(files);
-      else request.fallback?.();
+      else return request.fallback?.();
     }).catch(() => {
-      if (request.fallback) request.fallback();
+      if (request.fallback) return request.fallback();
       else report("文件粘贴失败，请重新复制后再试。");
     }).finally(() => {
       pending.current.delete(key);
@@ -46,11 +47,19 @@ export function useFilePaste({ key, addAttachments, addImages, report }: PasteOp
       if (request) request.fallback = () => {};
       return;
     }
-    const fallback = () => {
-      const images = files.filter((file) => file.type.startsWith("image/"));
+    const fallback = async () => {
+      let images = files.filter((file) => file.type.startsWith("image/"));
+      let missing = missingImages;
+      // Preserve browser-only images that the native clipboard cannot reproduce.
+      if (isDesktopApp && missingImages && !images.length) {
+        try {
+          const native = await readClipboardImages();
+          if (native.length) { images = native; missing = false; }
+        } catch { /* Keep browser images and report unavailable rich-text images below. */ }
+      }
       if (images.length) addImages(images);
-      if (missingImages) report(MISSING_CLIPBOARD_IMAGES);
-      if (images.length !== files.length) report("请通过“添加文件”选择这些文件。");
+      if (missing) report(MISSING_CLIPBOARD_IMAGES);
+      if (files.some((file) => !file.type.startsWith("image/"))) report("请通过“添加文件”选择这些文件。");
     };
     if (isDesktopApp) {
       // SkillInput inserts the accompanying text synchronously at the current caret.

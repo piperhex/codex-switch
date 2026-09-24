@@ -8,7 +8,7 @@ import type { GuiCloudIdentity, GuiComputer, GuiComputerNavigation } from './typ
 import { useDreamSkin } from '../useDreamSkin';
 import { RemoteGuiSidebar } from './RemoteGuiSidebar';
 import { RemoteGuiProject } from './RemoteGuiProject';
-import { readRemoteClipboardImages } from './clipboardImages';
+import { readClipboardImages } from '../clipboardImages';
 import { useTerminalPanel } from '../terminal/useTerminalPanel';
 import { remoteTerminalApi } from './terminalApi';
 import { RemoteGuiTools } from './RemoteGuiTools';
@@ -44,7 +44,7 @@ export default function RemoteGuiWorkspace(props: {
       conversationFooter={terminal.tabs.length > 0 && <Suspense fallback={null}>
         <TerminalPanel panel={terminal} active={active} api={terminalApi} />
       </Suspense>}
-      readClipboardImages={readRemoteClipboardImages}
+      readClipboardImages={readClipboardImages}
       composerHeader={<RemoteGuiProject state={chat.state} controller={chat.controller} deviceName={device.name}
         active={active} />}
       renderSidebar={actions => <RemoteGuiSidebar state={chat.state} controller={chat.controller}
