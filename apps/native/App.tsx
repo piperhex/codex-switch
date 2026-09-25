@@ -85,6 +85,7 @@ import {
 } from './src/realtime/deviceStatus';
 import { installDownloadedAndroidUpdate } from './src/update/appUpdate';
 import { useAndroidUpdateDownloadState } from './src/update/useAndroidUpdateDownloadState';
+import { StartupUpdatePrompt } from './src/update/StartupUpdatePrompt';
 import { AboutPage } from './src/about/AboutPage';
 import { AgreementConsent } from './src/auth/AgreementConsent';
 import { useAgreementConsent } from '../../shared/legal/useAgreementConsent';
@@ -1293,6 +1294,7 @@ export default function App() {
   return <SafeAreaProvider initialMetrics={initialWindowMetrics}>
     <StartupErrorBoundary>
       <AndroidUpdateInstallPrompt />
+      <StartupUpdatePrompt />
       <AppContent />
     </StartupErrorBoundary>
     <AppToastHost />

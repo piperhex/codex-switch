@@ -1,4 +1,10 @@
 export const settings = {
+  '发现新版本': 'Update available',
+  '忽略本版本': 'Skip this version',
+  '立即更新': 'Update now',
+  '未能保存，请重试': 'Could not save. Please try again.',
+  'Codex Switch v{version} 已发布，刷新页面即可更新。':
+    'Codex Switch v{version} is available. Refresh the page to update.',
   '电脑端版本': 'Desktop version',
   '安装电脑端更新': 'Install desktop update',
   '选择电脑': 'Choose a computer',

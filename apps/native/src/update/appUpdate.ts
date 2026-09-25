@@ -3,12 +3,9 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import appConfig from '../../app.json';
 import { getAndroidDownloadStatus } from './androidDownloadStatus';
-import {
-  normalizedVersion,
-  parseVersion,
-  versionFromReleaseMetadata,
-} from './version';
+import { compareAppVersions, versionFromReleaseMetadata } from '../../../../shared/app-update/version';
 
+export { compareAppVersions } from '../../../../shared/app-update/version';
 export { versionFromReleaseMetadata } from './version';
 
 const RELEASE_API_URL = 'https://api.github.com/repos/piperhex/codex-switch/releases/latest';
@@ -78,39 +75,6 @@ let downloadState: AndroidUpdateDownloadState = { status: 'idle' };
 let activeDownload: Promise<string> | null = null;
 let stateRefresh: Promise<AndroidUpdateDownloadState> | null = null;
 const downloadListeners = new Set<DownloadListener>();
-
-function comparePrerelease(left: string[], right: string[]) {
-  if (!left.length && !right.length) return 0;
-  if (!left.length) return 1;
-  if (!right.length) return -1;
-
-  const length = Math.max(left.length, right.length);
-  for (let index = 0; index < length; index += 1) {
-    const leftPart = left[index];
-    const rightPart = right[index];
-    if (leftPart === undefined) return -1;
-    if (rightPart === undefined) return 1;
-    if (leftPart === rightPart) continue;
-    const leftNumeric = /^\d+$/.test(leftPart);
-    const rightNumeric = /^\d+$/.test(rightPart);
-    if (leftNumeric && rightNumeric) return Number(leftPart) > Number(rightPart) ? 1 : -1;
-    if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
-    return leftPart.localeCompare(rightPart);
-  }
-  return 0;
-}
-
-export function compareAppVersions(left: string, right: string) {
-  const parsedLeft = parseVersion(left);
-  const parsedRight = parseVersion(right);
-  if (!parsedLeft || !parsedRight) return normalizedVersion(left).localeCompare(normalizedVersion(right));
-
-  for (let index = 0; index < parsedLeft.core.length; index += 1) {
-    if (parsedLeft.core[index] === parsedRight.core[index]) continue;
-    return parsedLeft.core[index] > parsedRight.core[index] ? 1 : -1;
-  }
-  return comparePrerelease(parsedLeft.prerelease, parsedRight.prerelease);
-}
 
 function textValue(value: unknown) {
   return typeof value === 'string' ? value : '';
