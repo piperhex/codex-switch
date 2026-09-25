@@ -28,7 +28,7 @@ export const markdownStyles = StyleSheet.create({
     borderRadius: 2, marginTop: 6, marginLeft: 3, alignItems: 'center', justifyContent: 'center' },
   checked: { backgroundColor: palette.green, borderColor: palette.green },
   checkmark: { color: '#fff', fontSize: 10, lineHeight: 12, fontWeight: '700' },
-  table: { marginVertical: 10 },
+  table: { marginVertical: 10, flexGrow: 0, flexShrink: 0 },
   tableRow: { flexDirection: 'row' },
   cell: { width: 160, paddingVertical: 6, paddingHorizontal: 12,
     borderWidth: 0.5, borderColor: palette.border },

@@ -5,7 +5,8 @@ import { parseMarkdown, type MarkdownNode } from './markdownTree';
 export type MarkdownContent = { type: 'block'; node: MarkdownNode } | { type: 'review'; comment: ReviewComment };
 
 /** Share desktop directive parsing so fenced examples and partial streamed comments remain Markdown. */
-export function markdownContent(text: string): MarkdownContent[] {
+export function markdownContent(text: string, user = false): MarkdownContent[] {
+  if (user) return parseMarkdown(text, true).map(node => ({ type: 'block', node }));
   return messageSections(text).flatMap<MarkdownContent>((section) => section.type === 'review'
     ? [section] : parseMarkdown(section.text).map((node) => ({ type: 'block', node })));
 }

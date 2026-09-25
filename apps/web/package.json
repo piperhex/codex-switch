@@ -24,16 +24,20 @@
     "@xterm/xterm": "^6.0.0",
     "antd": "^5.29.3",
     "antd-mobile": "^5.41.1",
+    "katex": "^0.16.47",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "react-redux": "^9.2.0",
-    "remark-gfm": "^4.0.1"
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "@types/katex": "^0.16.8",
     "@types/node": "^22.10.7",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",

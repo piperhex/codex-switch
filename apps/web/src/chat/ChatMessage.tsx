@@ -34,7 +34,7 @@ export const ChatMessage = memo(function ChatMessage({ item, onOpen, process = f
       {content.quotes.map((quote, index) => <details className="chat-message-quote" key={index}>
         <summary><Quote size={14} /><span>{quote}</span></summary><blockquote>{quote}</blockquote>
       </details>)}
-      {content.text && <div>{content.text}</div>}
+      {content.text && <ChatMarkdown text={content.text} desktop={desktop} />}
       {!desktop && images.map((source, index) => <ChatImage key={index} source={source} />)}
     </div> : <ChatMarkdown text={text} process={process} desktop={desktop} />}
     {!!text.trim() && !running && !(desktop && process) && <div className="chat-message-actions" data-quote-exclude>

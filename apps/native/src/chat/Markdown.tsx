@@ -4,8 +4,9 @@ import { parseDiff } from '../../../../shared/chat/diff';
 import { ChatCodeBlock } from './ChatCodeBlock';
 import { ChatDiff } from './ChatDiff';
 import { ChatCodeReview } from './ChatCodeReview';
+import { ChatMath } from './ChatMath';
 import { MarkdownParagraph, type MarkdownContext } from './MarkdownInline';
-import type { MarkdownNode } from './markdownTree';
+import { renderMathParagraph, type MarkdownNode } from './markdownTree';
 import { markdownContent } from './markdownContent';
 import { markdownStyles } from './Markdown.styles';
 import { styles } from './styles';
@@ -73,6 +74,8 @@ function TableRow({ node, context }: { node: MarkdownNode; context: MarkdownCont
 
 function Block({ node, context = {} }: { node: MarkdownNode; context?: MarkdownContext }) {
   const { token, children } = node;
+  if (token.type.startsWith('math_')) return <ChatMath markup={renderMathParagraph([node])}
+    muted={context.muted || context.tone === 'process'} copy={context.copy} />;
   if (token.type === 'fence' || token.type === 'code_block') return <Code node={node} copy={context.copy} />;
   if (PARAGRAPH_TYPES.has(token.type)) {
     const inline = token.type === 'inline' ? children : children.flatMap((child) => child.children);
@@ -96,11 +99,12 @@ function Block({ node, context = {} }: { node: MarkdownNode; context?: MarkdownC
   </View>;
 }
 
-export const ChatMarkdown = memo(function ChatMarkdown({ text, tone = 'default', copy }: {
-  text: string; tone?: 'default' | 'process'; copy?: CopyAction;
+export const ChatMarkdown = memo(function ChatMarkdown({ text, tone = 'default', copy, user = false }: {
+  text: string; tone?: 'default' | 'process'; copy?: CopyAction; user?: boolean;
 }) {
-  const content = useMemo(() => markdownContent(text), [text]);
+  const content = useMemo(() => markdownContent(text, user), [text, user]);
   return <View><MarkdownPage nodes={content} render={(entry, index) => entry.type === 'review'
     ? <ChatCodeReview key={index} comment={entry.comment} copy={index === content.length - 1 ? copy : undefined} />
-    : <Block key={index} node={entry.node} context={childContext({ tone, copy }, index, content.length)} />} /></View>;
+    : <Block key={index} node={entry.node}
+      context={childContext({ tone, copy, preserveLineBreaks: user }, index, content.length)} />} /></View>;
 });

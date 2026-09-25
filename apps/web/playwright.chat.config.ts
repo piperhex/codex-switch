@@ -6,7 +6,7 @@ export default defineConfig({
     '**/skill-menu.pw.ts', '**/i18n-chat.pw.ts', '**/chat-history-scroll.pw.ts', '**/image-editor.pw.ts',
     '**/file-preview.pw.ts', '**/chat-devices.pw.ts', '**/image-editor-csp.pw.ts', '**/chat-diff.pw.ts',
     '**/chat-terminal.pw.ts', '**/chat-terminal-display.pw.ts', '**/chat-activities.pw.ts', '**/downloads.pw.ts',
-    '**/thread-actions.pw.ts'],
+    '**/thread-actions.pw.ts', '**/chat-markdown.pw.ts'],
   workers: 1, timeout: 150_000,
   outputDir: '../../.codex-tmp/h5-chat-playwright',
   reporter: [['list'], ['html', { outputFolder: '../../.codex-tmp/h5-chat-report', open: 'never' }]],

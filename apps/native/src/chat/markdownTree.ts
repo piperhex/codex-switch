@@ -1,10 +1,22 @@
 import MarkdownIt from 'markdown-it';
+import texmath from 'markdown-it-texmath';
+import katex from 'katex';
 import { parseFileReference } from '../../../../shared/chat/fileReference';
+import { mathOptions, normalizeMathDelimiters } from '../../../../shared/chat/mathMarkdown';
 
-// Tokenize HTML only to discard it, matching the desktop renderer's skipHtml behavior.
-const parser = new MarkdownIt({ html: true, linkify: true, typographer: false, maxNesting: 20 });
-const validateLink = parser.validateLink.bind(parser);
-parser.validateLink = (url) => validateLink(url) || Boolean(parseFileReference(url));
+function createParser(html: boolean) {
+  const result = new MarkdownIt({ html, linkify: true, typographer: false, maxNesting: 20 });
+  result.use(texmath, { engine: katex, delimiters: ['dollars'], katexOptions: { ...mathOptions } });
+  result.renderer.rules.html_inline = () => '';
+  result.renderer.rules.html_block = () => '';
+  const validateLink = result.validateLink.bind(result);
+  result.validateLink = (url) => validateLink(url) || Boolean(parseFileReference(url));
+  return result;
+}
+
+// Assistant HTML is discarded; user-authored tags remain visible as literal text.
+const parser = createParser(true);
+const userParser = createParser(false);
 type Token = ReturnType<typeof parser.parse>[number];
 export interface MarkdownNode { token: Token; children: MarkdownNode[]; task?: boolean }
 
@@ -39,12 +51,29 @@ function markTasks(nodes: MarkdownNode[]) {
 }
 
 /** Keep complete blocks intact so large fenced code stays formatted and copies in full. */
-export function parseMarkdown(text: string): MarkdownNode[] {
-  const nodes = tree(parser.parse(text, {}));
+export function parseMarkdown(text: string, user = false): MarkdownNode[] {
+  const nodes = tree((user ? userParser : parser).parse(normalizeMathDelimiters(text), {}));
   markTasks(nodes);
   return nodes;
 }
 
 export function hasMarkdownImage(node: MarkdownNode): boolean {
   return node.token.type === 'image' || node.children.some(hasMarkdownImage);
+}
+
+export function hasMarkdownMath(node: MarkdownNode): boolean {
+  return node.token.type.startsWith('math_') || node.children.some(hasMarkdownMath);
+}
+
+/** Rebuild closing tokens to reuse the safe HTML renderer for paragraphs containing math. */
+export function renderMathParagraph(nodes: MarkdownNode[]): string {
+  const tokens = nodes.flatMap(function flatten(node): Token[] {
+    const token = node.token;
+    if (token.type === 'html_inline' || token.type === 'html_block') return [];
+    if (token.nesting !== 1) return [token];
+    const closing = Object.assign(Object.create(Object.getPrototypeOf(token)), token, { nesting: -1,
+      type: token.type.replace(/_open$/, '_close') }) as Token;
+    return [token, ...node.children.flatMap(flatten), closing];
+  });
+  return parser.renderer.renderInline(tokens, parser.options, {});
 }

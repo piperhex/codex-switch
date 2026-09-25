@@ -12,7 +12,7 @@
     "prebuild:android": "node ./scripts/expo.cjs prebuild --platform android --clean --no-install",
     "build:apk": "node ./scripts/build-apk.cjs",
     "prebuild:ios": "node ./scripts/expo.cjs prebuild --platform ios --clean --no-install",
-    "check": "node ./scripts/build-terminal-document.cjs --check && tsc --noEmit",
+    "check": "node ./scripts/build-terminal-document.cjs --check && node ./scripts/build-math-css.cjs --check && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
@@ -41,8 +41,10 @@
     "expo-sqlite": "~15.2.14",
     "expo-status-bar": "~2.2.3",
     "expo-system-ui": "~5.0.11",
+    "katex": "^0.16.47",
     "lowlight": "^3.3.0",
     "markdown-it": "^15.0.1",
+    "markdown-it-texmath": "^1.0.0",
     "react": "19.0.0",
     "react-native": "0.79.5",
     "react-native-blob-util": "^0.24.10",
@@ -55,6 +57,7 @@
   },
   "devDependencies": {
     "@types/hast": "^3.0.5",
+    "@types/katex": "^0.16.8",
     "@types/react": "~19.0.10",
     "@types/sql.js": "^1.4.11",
     "@xterm/addon-fit": "^0.11.0",
