@@ -63,6 +63,8 @@ npm run test:management:e2e -w @codex-switch/web
 浏览器回归在手机尺寸和桌面尺寸下操作实际 H5 页面，连接本机 PC/admin 测试端，
 覆盖直连、加密中转、聊天操作及重连；不请求真实模型。需要本机 Edge，
 其他环境可设置 `CHAT_TEST_BROWSER=chromium` 并安装 Playwright Chromium。
+聊天视口回归还使用 WebKit 模拟 iPhone Safari，首次运行需执行 `npx playwright install webkit`。
+该回归覆盖键盘高度延迟更新、页面偏移和键盘收起后的布局恢复；真实 iPhone 的软键盘仍需实机确认。
 报告与截图保存在 `.codex-tmp/h5-chat-report` 和 `.codex-tmp/h5-chat-playwright`。
 
 Android Chrome 实测使用可丢弃的 Android 15 模拟器。首次在该模拟器的 Chrome 中完成欢迎页，
