@@ -3299,10 +3299,12 @@ export async function downloadAvailableUpdate(onProgress?: (progress: number | n
   }
 }
 
-export async function installDownloadedUpdate(): Promise<void> {
+export async function installDownloadedUpdate(expectedVersion?: string): Promise<void> {
   if (!isDesktopApp) return;
+  if (updateInstallInProgress) return;
   const update = pendingAppUpdate;
   if (!update || !appUpdateDownloaded) throw new Error("The update has not finished downloading");
+  if (expectedVersion && update.version !== expectedVersion) throw new Error("The available update has changed");
 
   updateInstallInProgress = true;
   forgetPendingAppUpdate();

@@ -10,6 +10,7 @@
     "check": "tsc --noEmit -p tsconfig.json && npm run build",
     "preview": "vite preview",
     "test:management:e2e": "playwright test --config playwright.management.config.ts",
+    "test:desktop-update:e2e": "playwright test --config playwright.desktop-update.config.ts",
     "test:chat:e2e": "playwright test --config playwright.chat.config.ts",
     "test:chat:android": "playwright test --config playwright.android.config.ts"
   },

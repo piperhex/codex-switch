@@ -12,7 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
-type controlSession struct{ owner, device, kind string }
+type controlSession struct {
+	owner, device, kind string
+	expires             time.Time
+}
 type pendingCommand struct {
 	owner, device string
 	result        chan error
@@ -24,11 +27,13 @@ type ControlGateway struct {
 	sockets     map[string]*peer
 	subscribers map[string]map[*peer]bool
 	pending     map[string]pendingCommand
+	updates     map[string]pendingAppUpdate
 }
 
 func newControlGateway(service *Service) *ControlGateway {
 	return &ControlGateway{service: service, sessions: map[*peer]controlSession{}, sockets: map[string]*peer{},
-		subscribers: map[string]map[*peer]bool{}, pending: map[string]pendingCommand{}}
+		subscribers: map[string]map[*peer]bool{}, pending: map[string]pendingCommand{},
+		updates: map[string]pendingAppUpdate{}}
 }
 
 func (g *ControlGateway) serve(c *gin.Context) {
@@ -70,6 +75,17 @@ func (g *ControlGateway) receive(client *peer, message platform.JSON, timer *tim
 			return g.subscribe(client, message, timer)
 		}
 		return errors.New("authentication required")
+	}
+	if session.kind == "subscriber" && message["type"] == "app-update" {
+		if !session.expires.IsZero() && !time.Now().Before(session.expires) {
+			return errors.New("authentication expired")
+		}
+		g.requestAppUpdate(client, session, message)
+		return nil
+	}
+	if session.kind == "device" && message["type"] == "app-update-result" {
+		g.receiveAppUpdate(client, session, message)
+		return nil
 	}
 	if session.kind != "device" || message["type"] != "switch-result" {
 		return nil
@@ -134,7 +150,7 @@ func (g *ControlGateway) authenticateDevice(client *peer, message platform.JSON,
 	timer.Stop()
 	g.mu.Lock()
 	previous := g.sockets[owner+":"+id]
-	g.sessions[client] = controlSession{owner, id, "device"}
+	g.sessions[client] = controlSession{owner: owner, device: id, kind: "device"}
 	g.sockets[owner+":"+id] = client
 	g.mu.Unlock()
 	if previous != nil && previous != client {
@@ -147,13 +163,13 @@ func (g *ControlGateway) authenticateDevice(client *peer, message platform.JSON,
 
 func (g *ControlGateway) subscribe(client *peer, message platform.JSON, timer *time.Timer) error {
 	token, _ := message["accessToken"].(string)
-	owner, _, err := socketIdentity(g.service.deps, token)
+	owner, expires, err := socketIdentity(g.service.deps, token)
 	if err != nil {
 		return err
 	}
 	timer.Stop()
 	g.mu.Lock()
-	g.sessions[client] = controlSession{owner: owner, kind: "subscriber"}
+	g.sessions[client] = controlSession{owner: owner, kind: "subscriber", expires: expires}
 	if g.subscribers[owner] == nil {
 		g.subscribers[owner] = map[*peer]bool{}
 	}
@@ -208,6 +224,7 @@ func (g *ControlGateway) command(owner, id string, command platform.JSON) error 
 
 func (g *ControlGateway) disconnect(client *peer) {
 	g.mu.Lock()
+	g.disconnectAppUpdates(client)
 	session, exists := g.sessions[client]
 	delete(g.sessions, client)
 	if !exists {

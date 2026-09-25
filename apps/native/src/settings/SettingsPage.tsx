@@ -9,6 +9,7 @@ import { CURRENT_APP_VERSION } from '../update/appUpdate';
 import { PasswordSheet } from './PasswordSheet';
 import { RefreshIntervalSheet } from './RefreshIntervalSheet';
 import { SettingsRow } from './SettingsRow';
+import { DesktopVersionSheet } from './DesktopVersionSheet';
 import { settingsColors, styles } from './styles';
 
 interface SettingsPageProps {
@@ -23,7 +24,7 @@ interface SettingsPageProps {
   totpManager: TotpManagerState;
 }
 
-type SettingsPanel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'logout' | null;
+type SettingsPanel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'logout' | 'desktop' | null;
 
 function identityLabel(profile?: UserProfile | null) {
   if (!profile) return '加载中…';
@@ -80,6 +81,8 @@ export function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalR
           background="#fff6e6" onPress={() => setPanel('password')} />
       </View>
       <View style={styles.group}>
+        <SettingsRow label="电脑端版本" icon="desktop-outline" color={settingsColors.blue}
+          background="#e7f3ff" divider onPress={() => setPanel('desktop')} />
         <SettingsRow label="关于 Codex Switch" value={`v${CURRENT_APP_VERSION}`} icon="information-circle-outline"
           color={settingsColors.blue} background="#e7f3ff" onPress={onOpenAbout} />
       </View>
@@ -106,6 +109,7 @@ export function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalR
       <View style={styles.sheetBody}><TotpSyncSettings manager={totpManager} /></View>
     </BottomSheet>
     {panel === 'password' && <PasswordSheet session={session} onClose={close} />}
+    {panel === 'desktop' && <DesktopVersionSheet session={session} onClose={close} />}
     <BottomSheet visible={panel === 'logout'} title="退出登录" onClose={close} actions={[
       { label: '继续使用', onPress: close },
       { label: '退出登录', tone: 'danger', onPress: () => { close(); onLogout(); } },

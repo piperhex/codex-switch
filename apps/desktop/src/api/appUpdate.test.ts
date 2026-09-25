@@ -57,6 +57,28 @@ describe("automatic app updates", () => {
 
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
+  it("refuses a remote install when the downloaded version differs from the confirmation", async () => {
+    const { backend } = await loadApp();
+    await backend.downloadAvailableUpdate();
+    await expect(backend.installDownloadedUpdate("other-version")).rejects.toThrow("available update has changed");
+    expect(update.install).not.toHaveBeenCalled();
+    expect(updater.relaunch).not.toHaveBeenCalled();
+    await backend.installDownloadedUpdate(UPDATE_VERSION);
+    expect(update.install).toHaveBeenCalledOnce();
+  });
+
+  it("does not start a second installer when local and remote requests overlap", async () => {
+    const { backend } = await loadApp();
+    await backend.downloadAvailableUpdate();
+    const installing = deferred<undefined>();
+    update.install.mockImplementation(() => installing.promise);
+    const first = backend.installDownloadedUpdate(UPDATE_VERSION);
+    await backend.installDownloadedUpdate(UPDATE_VERSION);
+    expect(update.install).toHaveBeenCalledOnce();
+    installing.resolve(undefined); await first;
+    expect(updater.relaunch).toHaveBeenCalledOnce();
+  });
+
   it("defaults to enabled and installs a pending update on launch", async () => {
     stored.set(PENDING_VERSION_KEY, UPDATE_VERSION);
     const { backend, preferences } = await loadApp();

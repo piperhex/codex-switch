@@ -2,13 +2,14 @@ import { t, useLanguage } from '../i18n';
 import { useState } from 'react';
 import { Button, Dialog, Switch } from 'antd-mobile';
 import { ChevronRight, Grid2X2, IdCard, Info, LockKeyhole, LogOut,
-  Download, Languages, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
+  Download, Languages, Monitor, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { signOut } from '../store';
 import type { useTotpVault } from '../useTotpVault';
 import { AdaptiveSheet } from '../components/AdaptiveSheet';
 import { version } from '../../../../package.json';
 import { SettingsRow } from './SettingsRow';
+import { DesktopVersionSheet } from './DesktopVersionSheet';
 import { loadRefreshMinutes } from './refreshInterval';
 import { RefreshIntervalSheet } from './RefreshIntervalSheet';
 import { PasswordSheet } from './PasswordSheet';
@@ -20,7 +21,7 @@ import './styles.css';
 import { DownloadManagerPage } from '../downloads/DownloadManagerPage';
 import { downloadOwner } from '../downloads/manager';
 
-type Panel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'about' | 'language' | 'downloads' | null;
+type Panel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'about' | 'language' | 'downloads' | 'desktop' | null;
 
 export function SettingsPage({ totpManager }: { totpManager: ReturnType<typeof useTotpVault> }) {
   useLanguage();
@@ -64,7 +65,9 @@ export function SettingsPage({ totpManager }: { totpManager: ReturnType<typeof u
         </section>}
         <section className="settings-group"><SettingsRow label={t("修改密码")} icon={LockKeyhole} tone="orange"
           onClick={() => setPanel('password')} /></section>
-        <section className="settings-group"><SettingsRow label={t("关于 Codex Switch")} value={`v${version}`}
+        <section className="settings-group">
+          <SettingsRow label={t('电脑端版本')} icon={Monitor} tone="blue" onClick={() => setPanel('desktop')} />
+          <SettingsRow label={t("关于 Codex Switch")} value={`v${version}`}
           icon={Info} tone="blue" onClick={() => setPanel('about')} /></section>
       </div></div>
       <Button className="settings-logout" block color="danger" fill="outline" onClick={() => void logout()}>
@@ -83,5 +86,6 @@ export function SettingsPage({ totpManager }: { totpManager: ReturnType<typeof u
     {panel === 'refresh' && <RefreshIntervalSheet minutes={minutes} onSaved={setMinutes} onClose={close} />}
     {panel === 'password' && <PasswordSheet onClose={close} />}
     {panel === 'language' && <LanguageSheet onClose={close} />}
+    {panel === 'desktop' && <DesktopVersionSheet onClose={close} />}
   </>;
 }

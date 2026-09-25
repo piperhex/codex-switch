@@ -14,9 +14,17 @@ use tungstenite::{stream::MaybeTlsStream, Error as WebSocketError, Message, WebS
 use crate::cloud::RemoteControlConfig;
 use crate::codex_gui::account_selection::{self, GuiAccountSelection};
 
+mod app_update;
+
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 enum ServerMessage {
+    AppUpdate {
+        #[serde(rename = "commandId")]
+        command_id: String,
+        action: app_update::UpdateAction,
+        version: Option<String>,
+    },
     Authenticated {
         #[serde(rename = "deviceId")]
         _device_id: String,
@@ -103,7 +111,7 @@ fn run_connection<R: Runtime>(
                 "guiProviderId": match &config.gui_selection {
                     GuiAccountSelection::Provider(id) => Some(id), _ => None,
                 },
-                "capabilities": ["provider-switch", "provider-group-switch", "restart-codex", "gui-model-switch"],
+                "capabilities": ["provider-switch", "provider-group-switch", "restart-codex", "gui-model-switch", "app-update"],
             })
             .to_string()
             .into(),
@@ -111,12 +119,25 @@ fn run_connection<R: Runtime>(
         .map_err(|error| format!("Could not authenticate WebSocket: {error}"))?;
 
     let mut last_ping = Instant::now();
+    let mut updates = app_update::UpdateBridge::new(app);
     loop {
+        for response in updates.responses() {
+            socket
+                .send(Message::Text(response.to_string().into()))
+                .map_err(|error| format!("Could not send update status: {error}"))?;
+        }
         match socket.read() {
             Ok(Message::Text(text)) => {
                 let message = serde_json::from_str::<ServerMessage>(&text)
                     .map_err(|error| format!("Invalid remote control message: {error}"))?;
                 match message {
+                    ServerMessage::AppUpdate {
+                        command_id,
+                        action,
+                        version,
+                    } => {
+                        updates.request(command_id, action, version)?;
+                    }
                     ServerMessage::SwitchAccount {
                         command_id,
                         account_id,
