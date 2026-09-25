@@ -1,0 +1,276 @@
+[
+  {
+    "chapter": "01 / 手机随时接",
+    "shots": [
+      {
+        "file": "phone-result-scroll.mp4",
+        "start": 0,
+        "box": [1300, 160, 360, 800]
+      }
+    ],
+    "labels": [
+      {
+        "text": "离开电脑\n也能继续用 Codex",
+        "pos": [90, 235],
+        "size": 76
+      },
+      {
+        "text": "电脑继续跑，手机随时接",
+        "pos": [96, 485],
+        "size": 38,
+        "color": "0x84e9cc"
+      },
+      {
+        "text": "安卓真机 × Windows 虚拟机",
+        "pos": [96, 770],
+        "size": 28,
+        "color": "0xa5bdb6"
+      },
+      {
+        "text": "真实任务演示 · 等待过程已剪辑",
+        "pos": [96, 825],
+        "size": 25,
+        "color": "0xa5bdb6"
+      }
+    ]
+  },
+  {
+    "chapter": "02 / 连接工作电脑",
+    "shots": [
+      {
+        "file": "phone-connect.mp4",
+        "start": 0,
+        "box": [1320, 152, 370, 822]
+      }
+    ],
+    "labels": [
+      {
+        "text": "工作环境，就在手机里",
+        "pos": [90, 230],
+        "size": 64
+      },
+      {
+        "text": "01   两端登录同一个账号\n02   选择在线电脑\n03   打开对话，继续任务",
+        "pos": [96, 430],
+        "size": 42
+      },
+      {
+        "text": "使用时，请让电脑保持在线并运行 Codex Switch",
+        "pos": [96, 845],
+        "size": 25,
+        "color": "0xa5bdb6"
+      }
+    ]
+  },
+  {
+    "chapter": "03 / 用手机发起任务",
+    "shots": [
+      {
+        "file": "phone-send.mp4",
+        "start": 47,
+        "box": [1300, 150, 380, 844]
+      }
+    ],
+    "labels": [
+      {
+        "text": "想到什么，直接说",
+        "pos": [90, 220],
+        "size": 66
+      },
+      {
+        "text": "「把按钮改成：周末就出发」",
+        "pos": [96, 395],
+        "size": 46,
+        "color": "0x84e9cc"
+      },
+      {
+        "text": "露营网页已经生成\n在同一条对话里，继续补充想法",
+        "pos": [100, 535],
+        "size": 38
+      },
+      {
+        "text": "从手机补充要求，电脑继续修改文件",
+        "pos": [100, 820],
+        "size": 28,
+        "color": "0xa5bdb6"
+      }
+    ]
+  },
+  {
+    "chapter": "04 / 电脑执行，手机同步",
+    "shots": [
+      {
+        "file": "desktop-followup.mp4",
+        "start": 20,
+        "box": [70, 280, 1138, 600]
+      },
+      {
+        "file": "phone-send.mp4",
+        "start": 60,
+        "box": [1380, 150, 370, 822]
+      }
+    ],
+    "labels": [
+      {
+        "text": "真正工作的，还是你的电脑",
+        "pos": [80, 170],
+        "size": 50
+      },
+      {
+        "text": "WINDOWS  /  任务执行中",
+        "pos": [78, 912],
+        "size": 24,
+        "color": "0x84e9cc"
+      },
+      {
+        "text": "ANDROID  /  同步进度",
+        "pos": [1350, 106],
+        "size": 25,
+        "color": "0x84e9cc"
+      }
+    ]
+  },
+  {
+    "chapter": "05 / 查看改动，继续沟通",
+    "shots": [
+      {
+        "file": "phone-diff-final.mp4",
+        "start": 14,
+        "box": [1040, 175, 798, 834],
+        "crop": [28, 850, 665, 695]
+      }
+    ],
+    "labels": [
+      {
+        "text": "改了哪里，一眼看清",
+        "pos": [90, 245],
+        "size": 66
+      },
+      {
+        "text": "展开执行过程\n查看文件差异\n同一条对话，接着提需求",
+        "pos": [96, 440],
+        "size": 43
+      },
+      {
+        "text": "每一次修改，都能回到具体文件",
+        "pos": [96, 835],
+        "size": 28,
+        "color": "0xa5bdb6"
+      }
+    ]
+  },
+  {
+    "chapter": "06 / 在手机上看成果",
+    "shots": [
+      {
+        "file": "phone-preview-final.mp4",
+        "start": 9,
+        "box": [1090, 160, 660, 815],
+        "crop": [24, 600, 672, 830]
+      }
+    ],
+    "labels": [
+      {
+        "text": "做完了\n手机直接预览",
+        "pos": [90, 255],
+        "size": 70
+      },
+      {
+        "text": "星野露营  /  index.html",
+        "pos": [96, 530],
+        "size": 37,
+        "color": "0x84e9cc"
+      },
+      {
+        "text": "查看成果，补充想法\n不用等回到桌前",
+        "pos": [96, 690],
+        "size": 36
+      }
+    ]
+  },
+  {
+    "chapter": "07 / 回电脑，接着做",
+    "shots": [
+      {
+        "file": "desktop-followup.mp4",
+        "start": 55,
+        "box": [80, 225, 1386, 730]
+      },
+      {
+        "file": "phone-send.mp4",
+        "start": 85,
+        "box": [1510, 225, 324, 720]
+      }
+    ],
+    "labels": [
+      {
+        "text": "同一个任务，不用重新讲一遍",
+        "pos": [90, 160],
+        "size": 48
+      }
+    ]
+  },
+  {
+    "chapter": "08 / 开始前，记住这两点",
+    "shots": [
+      {
+        "file": "phone-send.mp4",
+        "start": 85,
+        "box": [1360, 168, 350, 778]
+      }
+    ],
+    "labels": [
+      {
+        "text": "电脑在线，连接就绪",
+        "pos": [90, 245],
+        "size": 68
+      },
+      {
+        "text": "电脑保持联网\nCodex Switch 保持运行",
+        "pos": [96, 445],
+        "size": 44,
+        "color": "0x84e9cc"
+      },
+      {
+        "text": "本片：安卓真机 + Windows 虚拟机实录\n等待过程经过剪辑；实际速度取决于网络与模型",
+        "pos": [96, 765],
+        "size": 27,
+        "color": "0xa5bdb6"
+      }
+    ]
+  },
+  {
+    "chapter": "09 / 让任务跟着你走",
+    "shots": [
+      {
+        "file": "phone-preview-final.mp4",
+        "start": 12,
+        "box": [1350, 160, 360, 800]
+      }
+    ],
+    "labels": [
+      {
+        "text": "Codex GUI",
+        "pos": [90, 235],
+        "size": 100
+      },
+      {
+        "text": "电脑继续跑\n手机随时接",
+        "pos": [96, 410],
+        "size": 72,
+        "color": "0x84e9cc"
+      },
+      {
+        "text": "项目与下载地址见简介",
+        "pos": [96, 740],
+        "size": 38
+      },
+      {
+        "text": "piperhex / codex-switch",
+        "pos": [98, 825],
+        "size": 28,
+        "color": "0xa5bdb6"
+      }
+    ]
+  }
+]
