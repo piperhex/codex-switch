@@ -30,6 +30,25 @@ try {
   await tap('打开聊天列表'); await tap('移动端聊天体验');
   await waitText('下载安装包');
 
+  await check('00-download-page-and-back-navigation', async () => {
+    await tap('设置', { last: true }); await tap('下载管理');
+    await waitText('暂无下载'); await waitText('返回设置');
+    assert.equal(await hasText('修改密码'), false, 'settings must be replaced by the downloads page');
+    await screenshot('00-empty-download-page');
+    await tap('此电脑'); await waitText('打开文件夹：C:/');
+    await tap('打开文件夹：C:/'); await waitText('下载：regression.apk');
+    await tap('返回上一级'); await waitText('打开文件夹：C:/');
+    await tap('打开文件夹：C:/'); await waitText('下载：regression.apk');
+    await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+    await waitText('打开文件夹：C:/');
+    await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+    await waitText('暂无下载');
+    await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+    await waitText('修改密码');
+    await tap('下载管理'); await waitText('返回设置'); await tap('返回设置');
+    await waitText('修改密码'); await tap('聊天', { last: true }); await waitText('下载安装包');
+  });
+
   await check('01-close-preview-keeps-downloading', async () => {
     await tap('下载安装包'); await tap('下载');
     await waitFor(async () => (await reads()).length > 1, 'download started');
@@ -38,6 +57,10 @@ try {
     await tap('设置', { last: true }); await tap('下载管理');
     await waitText('regression.apk');
     await waitFor(async () => (await reads()).length > before + 1, 'download continued after drawer closed');
+    await tap('返回设置'); await waitText('修改密码');
+    const away = (await reads()).length;
+    await waitFor(async () => (await reads()).length > away + 1, 'download continued after leaving page');
+    await tap('下载管理'); await waitText('regression.apk');
   });
   let resumeIndex;
   await check('02-pause-resume-from-offset', async () => {

@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { DownloadManagerSheet } from '../downloads/DownloadManagerSheet';
 import { BottomSheet } from '../components/BottomSheet';
 import { TotpSyncSettings } from '../totp/TotpSyncSettings';
 import type { TotpManagerState } from '../totp/types';
@@ -19,11 +18,12 @@ interface SettingsPageProps {
   onGlobalRefreshMinutesChange: (minutes: number) => Promise<void>;
   onOpenAbout: () => void;
   onOpenAdmin: () => void;
+  onOpenDownloads: () => void;
   onLogout: () => void;
   totpManager: TotpManagerState;
 }
 
-type SettingsPanel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'logout' | 'downloads' | null;
+type SettingsPanel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'logout' | null;
 
 function identityLabel(profile?: UserProfile | null) {
   if (!profile) return '加载中…';
@@ -33,7 +33,7 @@ function identityLabel(profile?: UserProfile | null) {
 }
 
 export function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshMinutesChange,
-  onOpenAbout, onOpenAdmin, onLogout, totpManager }: SettingsPageProps) {
+  onOpenAbout, onOpenAdmin, onOpenDownloads, onLogout, totpManager }: SettingsPageProps) {
   const [panel, setPanel] = useState<SettingsPanel>(null);
   const activeProfile = profile ?? session.profile;
   const username = activeProfile?.email ?? session.email;
@@ -69,7 +69,7 @@ export function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalR
       </View>
       {Platform.OS === 'android' && <View style={styles.group}>
         <SettingsRow label="下载管理" icon="download-outline" color={settingsColors.green}
-          background="#e5fbf3" onPress={() => setPanel('downloads')} />
+          background="#e5fbf3" onPress={onOpenDownloads} />
       </View>}
       {activeProfile?.role === 'admin' && <View style={styles.group}>
         <SettingsRow label="管理控制台" icon="grid-outline" color={settingsColors.green}
@@ -106,7 +106,6 @@ export function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalR
       <View style={styles.sheetBody}><TotpSyncSettings manager={totpManager} /></View>
     </BottomSheet>
     {panel === 'password' && <PasswordSheet session={session} onClose={close} />}
-    {panel === 'downloads' && <DownloadManagerSheet session={session} close={close} />}
     <BottomSheet visible={panel === 'logout'} title="退出登录" onClose={close} actions={[
       { label: '继续使用', onPress: close },
       { label: '退出登录', tone: 'danger', onPress: () => { close(); onLogout(); } },

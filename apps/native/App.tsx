@@ -75,6 +75,7 @@ import { ChatPage } from './src/chat/ChatPage';
 import { palette as chatPalette } from './src/chat/styles';
 import { useChatNotificationNavigation } from './src/chat/useChatNotificationNavigation';
 import { SettingsPage } from './src/settings/SettingsPage';
+import { DownloadManagerPage } from './src/downloads/DownloadManagerPage';
 import { useTotpVault } from './src/totp/useTotpVault';
 import {
   createDeviceStatusReceiver,
@@ -549,7 +550,8 @@ function DeviceManagementPage({
   </>;
 }
 
-type AppPage = 'accounts' | 'devices' | 'chat' | 'totp' | 'admin' | 'settings' | 'about' | 'token-summary';
+type AppPage = 'accounts' | 'devices' | 'chat' | 'totp' | 'admin' | 'settings' | 'about'
+  | 'token-summary' | 'downloads';
 const DEFAULT_APP_PAGE: AppPage = 'chat';
 
 function BottomNavigation({ activePage, onChange }: {
@@ -999,7 +1001,9 @@ function AppContent() {
   useEffect(() => {
     // Android's system Back action also covers the edge-swipe gesture. Keep
     // top-level tabs in the app before allowing the Activity to finish.
-    if (!session || activePage === DEFAULT_APP_PAGE || activePage === 'admin') return undefined;
+    if (!session || activePage === DEFAULT_APP_PAGE || activePage === 'admin' || activePage === 'downloads') {
+      return undefined;
+    }
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       setActivePage(activePage === 'about' ? 'settings' : DEFAULT_APP_PAGE);
       return true;
@@ -1239,7 +1243,7 @@ function AppContent() {
   return <SafeAreaView style={[styles.app, activePage === 'totp' && totpPageStyles.page,
     activePage === 'accounts' && accountStyles.page,
     activePage === 'chat' && styles.chatCanvas,
-    (activePage === 'settings' || activePage === 'about') && styles.settingsCanvas]}>
+    (activePage === 'settings' || activePage === 'about' || activePage === 'downloads') && styles.settingsCanvas]}>
     <StatusBar style="dark" />
     <ChatPage session={session} devices={devices} active={activePage === 'chat' || activePage === 'token-summary'}
       devicesLoaded={devicesLoaded}
@@ -1247,7 +1251,9 @@ function AppContent() {
       closeTokenSummary={() => setActivePage('chat')}
       notification={chatNotification.target} notificationError={chatNotification.error}
       notificationHandled={chatNotification.handled} />
-    {activePage === 'chat' || activePage === 'token-summary' ? null : activePage === 'accounts'
+    {activePage === 'downloads' && <DownloadManagerPage session={session} onBack={() => setActivePage('settings')} />}
+    {activePage === 'chat' || activePage === 'token-summary' || activePage === 'downloads'
+      ? null : activePage === 'accounts'
       ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading}
         syncingServer={syncingServer} refreshingUsage={refreshingUsage} consumingQuota={consumingQuota}
         refreshingAccountId={refreshingAccountId} switchingAccountId={switchingAccountId}
@@ -1275,9 +1281,11 @@ function AppContent() {
                 onGlobalRefreshMinutesChange={handleGlobalRefreshMinutesChange}
                 onOpenAbout={() => setActivePage('about')}
                 onOpenAdmin={() => setActivePage('admin')}
+                onOpenDownloads={() => setActivePage('downloads')}
                 onLogout={handleLogout}
                 totpManager={totpManager} />}
-    {activePage !== 'token-summary' && <BottomNavigation activePage={activePage} onChange={setActivePage} />}
+    {activePage !== 'token-summary' && activePage !== 'downloads'
+      && <BottomNavigation activePage={activePage} onChange={setActivePage} />}
   </SafeAreaView>;
 }
 
