@@ -4,5 +4,8 @@ import { chat } from './chat';
 import { settings } from './settings';
 import { shared } from './shared';
 import { errors } from './errors';
+import { downloads } from './downloads';
 
-export const messages: Readonly<Record<string, string>> = { ...accounts, ...app, ...chat, ...settings, ...shared, ...errors };
+export const messages: Readonly<Record<string, string>> = {
+  ...accounts, ...app, ...chat, ...settings, ...shared, ...errors, ...downloads,
+};

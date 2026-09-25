@@ -18,6 +18,29 @@ const summary = (page: Page) => page.getByRole('region', { name: '本轮修改',
 const update = (page: Page, value: Thread) => page.evaluate(detail =>
   window.dispatchEvent(new CustomEvent('display-fixture', { detail })), value);
 
+test('keeps running edits in a compact pill and expands the summary only after completion', async ({ page }, info) => {
+  const value = fixture();
+  value.turns![0].status = 'inProgress';
+  value.turns![0].items.push({ id: 'running', type: 'commandExecution', status: 'inProgress', command: 'npm test' });
+  await open(page, value);
+  const pill = page.locator('.chat-changes-pill');
+  await expect(pill).toContainText('已编辑 5 个文件');
+  await expect(pill).toContainText('+5−5');
+  expect((await pill.boundingBox())!.height).toBeLessThan(45);
+  expect((await pill.boundingBox())!.width).toBeLessThan(300);
+  await expect(page.locator('.chat-turn-summary li, .chat-files-summary')).toHaveCount(0);
+  await page.screenshot({ path: `../../.codex-tmp/web-running-edits-${info.project.name}.png` });
+  await pill.click();
+  if (info.project.name === 'mobile') await page.locator('.chat-diff-file summary').first().click();
+  await expect(page.getByText('const newValue = 0;', { exact: false }).last()).toBeVisible();
+  await page.getByRole('button', { name: /关闭详情抽屉|^关闭$/ }).last().click();
+  value.turns![0].status = 'completed';
+  await update(page, value);
+  await expect(pill).toHaveCount(0);
+  await expect(page.locator('.chat-turn-summary')).toContainText('已编辑');
+  await expect(page.locator('.chat-turn-summary')).toContainText(paths[0]);
+});
+
 test('matches local summaries and opens a docked diff with file scope, split view and panel controls', async ({ page }) => {
   test.skip(test.info().project.name !== 'desktop');
   await page.setViewportSize({ width: 1600, height: 1000 });

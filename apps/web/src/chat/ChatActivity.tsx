@@ -1,5 +1,5 @@
 import { t, useLanguage } from '../i18n';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ChevronRight, FileText, Lightbulb, Search, Terminal, Users, Wrench } from 'lucide-react';
 import { ChatToolContent } from './ChatToolContent';
 import type { Item } from './types';
@@ -28,9 +28,9 @@ function activityLabel(item: Item) {
   return [t(messageLabel(item)), detail, STATUS[item.status ?? '']].filter(Boolean).join(' · ');
 }
 
-export function ChatActivity({ item, onOpen, running, inline = false, onInspect }: {
+export function ChatActivity({ item, onOpen, running, inline = false, onInspect, count, content }: {
   item: Item; onOpen: (id: string) => void; running?: boolean;
-  inline?: boolean; onInspect?: () => void;
+  inline?: boolean; onInspect?: () => void; count?: number; content?: ReactNode;
 }) {
   useLanguage();
   const [expanded, setExpanded] = useState(false);
@@ -40,13 +40,15 @@ export function ChatActivity({ item, onOpen, running, inline = false, onInspect 
   const Icon = isCollaborationActivity(item) ? Users : icons[item.type as keyof typeof icons] || Wrench;
   return <div className={inline ? 'chat-inline-activity' : undefined}>
     <button type="button" className={`chat-activity${running ? ' is-running' : ''}`}
+      aria-label={count ? t('查看连续操作，{value1} 项活动', { value1: count }) : undefined}
       aria-expanded={inline ? expanded : undefined} onClick={() => {
         if (!inline) return onOpen(item.id);
         if (!expanded) onInspect?.();
         setExpanded(value => !value);
-      }}><Icon size={16} /><span className="chat-activity-text">{label}</span><ChevronRight size={15} /></button>
+      }}><Icon size={16} /><span className="chat-activity-text">{label}</span>
+      {count && <span className="chat-activity-count">{count}</span>}<ChevronRight size={15} /></button>
     {inline && expanded && <div className="chat-inline-tool-content chat-detail-stack">
-      <ChatToolContent item={item} />
+      {content ?? <ChatToolContent item={item} />}
     </div>}
   </div>;
 }

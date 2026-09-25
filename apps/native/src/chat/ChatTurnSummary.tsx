@@ -26,7 +26,7 @@ function FileCounts({ added, removed }: { added: number; removed: number }) {
   </View>;
 }
 
-function FileSummary({ files, onOpen }: { files: DiffFile[]; onOpen: () => void }) {
+function FileSummary({ files, onOpen, running }: { files: DiffFile[]; onOpen: () => void; running: boolean }) {
   const summary = new Map<string, { path: string; added: number; removed: number }>();
   for (const file of files) {
     const previous = summary.get(file.path);
@@ -36,6 +36,13 @@ function FileSummary({ files, onOpen }: { files: DiffFile[]; onOpen: () => void 
   const paths = [...summary.values()];
   const added = paths.reduce((total, file) => total + file.added, 0);
   const removed = paths.reduce((total, file) => total + file.removed, 0);
+  if (running) return <Pressable accessibilityRole="button"
+    accessibilityLabel={`查看本轮修改：${paths.length} 个文件`} style={summaryStyles.pill} onPress={onOpen}>
+    <Ionicons name="document-text-outline" size={15} color={palette.muted} />
+    <Text style={summaryStyles.pillLabel}>已编辑 {paths.length} 个文件</Text>
+    <FileCounts added={added} removed={removed} />
+    <Ionicons name="chevron-forward" size={14} color={palette.muted} />
+  </Pressable>;
   return <View style={summaryStyles.files}>
     <Pressable accessibilityRole="button" accessibilityLabel={`查看本轮修改：${paths.length} 个文件`}
       style={summaryStyles.fileHeader} onPress={onOpen}>
@@ -73,7 +80,8 @@ export function ChatTurnSummary({ turn, onOpen }: Props) {
       <Text style={styles.subtitle}>{completed}/{turn.plan.length}</Text>
       <Ionicons name="chevron-forward" size={15} color={palette.muted} />
     </Pressable>}
-    {!!files.length && <FileSummary files={files} onOpen={() => onOpen(turn.id, 'changes')} />}
+    {!!files.length && <FileSummary files={files} running={turn.status === 'inProgress'}
+      onOpen={() => onOpen(turn.id, 'changes')} />}
     {turn.status === 'interrupted' && <Text style={styles.subtitle}>已停止生成</Text>}
     {(turn.error || turn.retryError || turn.status === 'failed') && <Pressable accessibilityRole="button"
       accessibilityLabel="查看报错详情" onPress={() => onOpen(turn.id, 'error')}>
@@ -90,6 +98,9 @@ const summaryStyles = StyleSheet.create({
   plan: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1,
     borderColor: palette.border, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14 },
   files: { borderWidth: 1, borderColor: palette.border, borderRadius: 14, overflow: 'hidden' },
+  pill: { alignSelf: 'flex-start', maxWidth: '100%', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
+    gap: 6, borderWidth: 1, borderColor: palette.border, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10 },
+  pillLabel: { color: palette.muted, fontSize: 12, lineHeight: 20, flexShrink: 1 },
   fileHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   fileList: { borderTopWidth: 1, borderTopColor: palette.border },
   fileRow: { flexDirection: 'row', alignItems: 'baseline', gap: 14, paddingVertical: 10, paddingHorizontal: 16 },

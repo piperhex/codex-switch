@@ -51,8 +51,13 @@ function QuestionCard({ item, disabled, error, answer, onDelete }: Omit<Props, '
             value={answers[index] ?? ''} onChange={event => update(index, event.target.value)} />
         </fieldset>)}
         {(error || failure) && <p role="alert" className="chat-error">{error || failure}</p>}
-        <button type="submit" className="chat-button chat-primary"
-          disabled={busy || disabled || answers.some(value => !value.trim())}>{busy ? t("正在提交…") : t("提交回答")}</button>
+        <div className="chat-question-actions">
+          <button type="button" className="chat-button" disabled={busy}
+            onClick={() => { if (!submitting.current) { setOpen(false); onDelete(); } }}>{t('取消回答')}</button>
+          <button type="submit" className="chat-button chat-primary"
+            disabled={busy || disabled || answers.some(value => !value.trim())}>
+            {busy ? t("正在提交…") : t("提交回答")}</button>
+        </div>
       </form>
     </AdaptiveSheet>}
   </>;

@@ -2,7 +2,7 @@ import { t, useLanguage } from '../i18n';
 import { useState } from 'react';
 import { Button, Dialog, Switch } from 'antd-mobile';
 import { ChevronRight, Grid2X2, IdCard, Info, LockKeyhole, LogOut,
-  Languages, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
+  Download, Languages, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../hooks';
 import { signOut } from '../store';
 import type { useTotpVault } from '../useTotpVault';
@@ -17,8 +17,10 @@ import { LanguageSheet } from './LanguageSheet';
 import { getLanguage } from '../i18n';
 import { profileRole } from '../i18n/profile';
 import './styles.css';
+import { DownloadManagerPage } from '../downloads/DownloadManagerPage';
+import { downloadOwner } from '../downloads/manager';
 
-type Panel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'about' | 'language' | null;
+type Panel = 'profile' | 'identity' | 'refresh' | 'totp' | 'password' | 'about' | 'language' | 'downloads' | null;
 
 export function SettingsPage({ totpManager }: { totpManager: ReturnType<typeof useTotpVault> }) {
   useLanguage();
@@ -36,6 +38,7 @@ export function SettingsPage({ totpManager }: { totpManager: ReturnType<typeof u
     if (confirmed) void dispatch(signOut());
   };
   if (panel === 'about') return <AboutPage onBack={close} />;
+  if (panel === 'downloads' && session) return <DownloadManagerPage owner={downloadOwner(session)} onBack={close} />;
   return <>
     <div className="page-body settings-page">
       <div className="settings-layout"><section className="settings-group settings-profile-group">
@@ -47,6 +50,7 @@ export function SettingsPage({ totpManager }: { totpManager: ReturnType<typeof u
       </section>
       <div className="settings-preferences">
         <section className="settings-group">
+          <SettingsRow label={t('下载管理')} icon={Download} onClick={() => setPanel('downloads')} />
           <SettingsRow label={t("语言")} value={getLanguage() === 'en' ? 'English' : '简体中文'} icon={Languages}
             onClick={() => setPanel('language')} />
           <SettingsRow label={t("自动刷新用量")} value={t("{value1} 分钟", { value1: minutes })} icon={RefreshCw}

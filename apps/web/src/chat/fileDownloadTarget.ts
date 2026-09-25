@@ -11,7 +11,7 @@ interface SavePicker { showSaveFilePicker?: (options: { suggestedName: string })
 const DOWNLOAD_URL_LIFETIME_MS = 60_000;
 function bytes(data: string) { return Uint8Array.from(atob(data), (char) => char.charCodeAt(0)); }
 
-function downloadBlob(blob: Blob, name: string) {
+export function downloadBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url; link.download = name;

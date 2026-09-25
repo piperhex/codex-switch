@@ -1,10 +1,12 @@
 import type { Thread } from '../src/pages/codexGui/types';
+import { demoVideoResponse } from './demo-videos';
 
 const MIB = 1024 * 1024;
 const sizes: Record<string, number> = {
   'regression.apk': 32 * MIB + 17, 'small.zip': MIB + 3, 'outside.bin': MIB + 7, empty: 0,
 };
 const handles = new Map<string, number>();
+const videoHandles = new Set<string>();
 let revision = 0;
 let corrupt = false;
 
@@ -25,11 +27,20 @@ export function demoDownloads(input: Record<string, unknown>): { value: unknown 
   }
   if (input.operation === 'downloadOpen') {
     const name = String(input.path).split('/').pop()!;
+    if (name === 'test.mp4') {
+      const info = demoVideoResponse({ ...input, operation: 'videoOpen' }) as { id: string };
+      videoHandles.add(info.id);
+      return { value: { ...info, name, revision: 'parity-video-v1' } };
+    }
     if (!(name in sizes)) throw new Error('Missing download fixture');
     const id = crypto.randomUUID();
     handles.set(id, sizes[name]);
     return { value: { id, name, size: sizes[name],
       mimeType: 'application/octet-stream', revision: `fixture-v${revision}` } };
+  }
+  if (videoHandles.has(String(input.id)) && ['fileRead', 'fileClose'].includes(String(input.operation))) {
+    if (input.operation === 'fileClose') videoHandles.delete(String(input.id));
+    return { value: demoVideoResponse({ ...input, operation: String(input.operation).replace('file', 'video') }) };
   }
   if (!handles.has(String(input.id))) return;
   if (input.operation === 'fileClose') { handles.delete(String(input.id)); return { value: null }; }

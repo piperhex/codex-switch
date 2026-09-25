@@ -6,6 +6,7 @@ import { ChatTerminal } from './ChatTerminal';
 import { useChat } from './useChat';
 import { useChatViewport } from './useChatViewport';
 import { loadLastConnectedDevice } from './lastConnectedDevice';
+import { useDownloadConnection } from '../downloads/useDownloadConnection';
 
 interface Props { session: AuthSession; devices: RemoteDevice[]; active: boolean }
 
@@ -30,6 +31,8 @@ function WebChat({ session, device, ...props }: Props & {
   device?: RemoteDevice; chooseDevice: (id: string) => void;
 }) {
   const chat = useChat(session, device?.deviceId ?? '', props.active && Boolean(device));
+  useDownloadConnection({ session, deviceId: device?.deviceId ?? '', deviceName: device?.name ?? '',
+    controller: chat.controller });
   return <ConnectedChat {...props} chat={chat} device={device} email={session.email}
     headerActions={<ChatTerminal client={chat.controller.guiTools.terminal} active={props.active}
       connected={chat.state.ready} deviceName={device?.name}

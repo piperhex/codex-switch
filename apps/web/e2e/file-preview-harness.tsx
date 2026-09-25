@@ -8,6 +8,10 @@ import '../src/chat/messages.css';
 const files: Record<string, string> = {
   'verification.md': markdown, 'README.MARKDOWN': markdown, 'long.md': longMarkdown,
   'empty.md': ' \n', 'source.ts': 'const ready = true;\n',
+  'page.HTML': '<h1>页面预览</h1><script>document.body.dataset.ready = "yes";'
+    + 'try { parent.previewScriptRan = true } catch {}'
+    + 'try { localStorage.setItem("unsafe", "yes") } catch {}'
+    + '</script>',
 };
 const context: FilePreviewContext = {
   threadId: 'file-preview', ready: true,

@@ -3,7 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 import type { ChatMessagesProps } from '../../../../shared/remote-chat/client/messageProps';
 import { useConversationEntries } from '../../../../shared/chat/useConversationEntries';
-import { findWorkEntry, type TurnEntry, type WorkEntry } from '../../../../shared/chat/turnPresentation';
+import { findWorkEntry, type WorkEntry } from '../../../../shared/chat/turnPresentation';
+import { activityTimeline, findActivityEntry, latestActivity, type TimelineEntry as Entry }
+  from '../../../../shared/chat/activityTimeline';
+import { ChatActivity } from './ChatActivity';
 import { turnElapsedMs } from '../../../desktop/src/pages/codexGui/turnTiming';
 import { formatTurnDuration } from './formatters';
 import { AdaptiveSheet } from '../components/AdaptiveSheet';
@@ -18,7 +21,8 @@ import { ChatSelectionQuote } from './ChatSelectionQuote';
 import './messages.css';
 import './desktopMessages.css';
 
-type Selection = { type: 'work'; id: string } | { type: 'item'; id: string; workId?: string }
+type WorkSelection = { type: 'work' | 'activities'; id: string };
+type Selection = WorkSelection | { type: 'item'; id: string; back?: WorkSelection }
   | { type: 'turn'; id: string; panel: TurnPanel };
 
 function WorkSummary({ entry, open, inline, desktop }: {
@@ -45,10 +49,20 @@ function WorkSummary({ entry, open, inline, desktop }: {
 }
 
 function TimelineEntry({ entry, open, inline, desktop }: {
-  entry: TurnEntry; open: (selection: Selection) => void; inline: (id: string, value: boolean) => void;
+  entry: Entry; open: (selection: Selection) => void; inline: (id: string, value: boolean) => void;
   desktop: boolean;
 }) {
   useLanguage();
+  if (entry.kind === 'activities') {
+    const item = latestActivity(entry.items);
+    return item && <ChatActivity item={item} count={entry.items.length}
+      running={entry.turn.status === 'inProgress' && item.status === 'inProgress'}
+      inline={desktop} onInspect={() => inline(entry.turn.id, true)}
+      content={desktop ? entry.items.map(activity => <ChatMessage key={activity.id} item={activity} process desktop
+        running={entry.turn.status === 'inProgress' && activity.status === 'inProgress'}
+        onInspect={() => inline(entry.turn.id, true)} onOpen={id => open({ type: 'item', id })} />) : undefined}
+      onOpen={() => open({ type: 'activities', id: entry.id })} />;
+  }
   if (entry.kind === 'duration') {
     if (desktop) return <p className="chat-turn-duration"><ChatTurnTiming turn={entry.turn} /></p>;
     const elapsed = turnElapsedMs(entry.turn, 0);
@@ -71,16 +85,17 @@ export function ChatMessages(props: ChatMessagesProps) {
   const turns = useMemo(() => (thread?.turns ?? []).map(turn => offline && turn.status === 'inProgress'
     ? { ...turn, status: 'cached' } : turn), [thread?.turns, offline]);
   const { entries, setInline } = useConversationEntries(turns);
-  const timeline = useMemo(() => desktop ? desktopTimeline(entries) : entries, [desktop, entries]);
+  const timeline = useMemo(() => activityTimeline(desktop ? desktopTimeline(entries) : entries), [desktop, entries]);
   const scroll = useHistoryScroll(props);
   const [selection, setSelection] = useState<Selection | null>(null);
   // Dismiss the previous layout's sheets before switching to inline work and docked reviews.
   useEffect(() => { setSelection(null); }, [desktop]);
-  const work = selection?.type === 'work' ? findWorkEntry(entries, selection.id) : undefined;
+  const work = selection?.type === 'work' ? findWorkEntry(entries, selection.id)
+    : selection?.type === 'activities' ? findActivityEntry(entries, selection.id) : undefined;
   const item = selection?.type === 'item'
     ? turns.flatMap(turn => turn.items).find(item => item.id === selection.id) : undefined;
   const turn = selection?.type === 'turn' ? turns.find(turn => turn.id === selection.id) : undefined;
-  const workId = selection?.type === 'item' ? selection.workId : undefined;
+  const back = selection?.type === 'item' ? selection.back : undefined;
   const close = () => setSelection(null);
   return <>
     <div className="chat-message-region">
@@ -111,10 +126,11 @@ export function ChatMessages(props: ChatMessagesProps) {
       subtitle={t("{value1} 项活动", { value1: work.items.length })} width={760} onClose={close}>
       <div className="chat-detail-stack">{work.items.map(item => <ChatMessage key={item.id} item={item} process
         running={work.turn.status === 'inProgress' && item.status !== 'completed'} onQuote={close}
-        onOpen={id => setSelection({ type: 'item', id, workId: work.id })} />)}</div>
+        onOpen={id => setSelection({ type: 'item', id,
+          back: { type: work.kind === 'activities' ? 'activities' : 'work', id: work.id } })} />)}</div>
     </AdaptiveSheet>}
     {item && <ChatToolDetails item={item} onClose={close}
-      onBack={workId ? () => setSelection({ type: 'work', id: workId }) : undefined} />}
+      onBack={back ? () => setSelection(back) : undefined} />}
     {turn && selection?.type === 'turn' && <ChatTurnDetails turn={turn} panel={selection.panel} onClose={close} />}
   </>;
 }

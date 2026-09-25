@@ -39,7 +39,7 @@ export function validateFileInfo(info: FileInfo) {
   checkDownloadSize(info.size);
   return info;
 }
-function validateChunk(chunk: FileChunk, offset: number, length: number) {
+export function validateChunk(chunk: FileChunk, offset: number, length: number) {
   if (!chunk || chunk.offset !== offset || typeof chunk.data !== 'string'
     || chunk.data.length !== Math.ceil(length / 3) * 4
     || !/^[A-Za-z0-9+/]*={0,2}$/.test(chunk.data)

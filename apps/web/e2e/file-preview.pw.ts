@@ -9,6 +9,20 @@ async function clipboard(page: Page) {
   return page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'));
 }
 
+test('previews HTML scripts in an isolated frame and retains source and download actions', async ({ page }) => {
+  await open(page, 'page.HTML');
+  const frame = page.frameLocator('iframe[title="HTML 预览"]');
+  await expect(frame.getByRole('heading', { name: '页面预览' })).toBeVisible();
+  await expect(frame.locator('body')).toHaveAttribute('data-ready', 'yes');
+  expect(await page.evaluate(() => Reflect.get(window, 'previewScriptRan'))).toBeUndefined();
+  expect(await page.evaluate(() => localStorage.getItem('unsafe'))).toBeNull();
+  await page.getByRole('button', { name: '源码', exact: true }).click();
+  await expect(page.locator('.chat-html-preview pre')).toContainText('<h1>页面预览</h1>');
+  await expect(page.getByRole('button', { name: '下载', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '预览', exact: true }).click();
+  await expect(frame.getByRole('heading', { name: '页面预览' })).toBeVisible();
+});
+
 test('renders Markdown, preserves source copying and contains tables on narrow screens', async ({ page }, info) => {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await open(page);

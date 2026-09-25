@@ -64,6 +64,23 @@
 .chat-detail-stack summary { cursor: pointer; color: #60766a; padding-block: 8px; }
 .chat-turn-summary { display: flex; flex-direction: column; gap: 8px; }
 .chat-turn-summary:empty { display: none; }
+.chat-changes-pill {
+  display: inline-flex; align-items: center; align-self: flex-start; flex-wrap: wrap; gap: 6px;
+  max-width: 100%; box-sizing: border-box; padding: 6px 10px; border: 1px solid #dfe5e1;
+  border-radius: 999px; background: transparent; color: #6c7a71; font: inherit; font-size: 12px; cursor: pointer;
+}
+.chat-changes-pill svg { flex-shrink: 0; }
+.chat-changes-pill:hover { background: #e3f3ed; }
+.chat-activity-count { flex-shrink: 0; font-size: 12px; }
+.chat-question-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+@media (prefers-reduced-motion: no-preference) {
+  .chat-activity.is-running .chat-activity-text {
+    background: linear-gradient(100deg, #7a8880 35%, #14806f 50%, #7a8880 65%);
+    background-size: 250% 100%; background-clip: text; color: transparent;
+    animation: chat-activity-sweep 2.4s linear infinite;
+  }
+  @keyframes chat-activity-sweep { from { background-position: 200% 0; } to { background-position: -100% 0; } }
+}
 .chat-plan-summary, .chat-files-summary button { display: flex; align-items: center; gap: 10px;
   width: 100%; border: 0; padding: 10px 12px; background: transparent; color: #6c7a71;
   text-align: left; font: inherit; font-size: 13px; cursor: pointer; }
