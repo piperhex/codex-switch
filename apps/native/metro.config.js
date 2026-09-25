@@ -3,9 +3,11 @@ process.env.EXPO_NO_METRO_WORKSPACE_ROOT = '1';
 const path = require('node:path');
 const { getDefaultConfig } = require('expo/metro-config');
 const { applyDrawerTapPatch } = require('./scripts/patch-drawer-taps.cjs');
+const { applyListRenderRangePatch } = require('./scripts/patch-list-render-range.cjs');
 
 // Cover direct Metro/Gradle builds, including installations made with --ignore-scripts.
 applyDrawerTapPatch();
+applyListRenderRangePatch();
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
