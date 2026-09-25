@@ -20,6 +20,13 @@
 - Whenever a user request involves writing prompts or copy, proactively refine and improve the wording so it is concise, friendly, and accurate instead of simply repeating the user's original wording.
 - Keep temporary messages, including hover tooltips, popovers, and confirmation prompts shown after a click, visually compact. Limit the text area to a maximum width of `400px`, which is roughly one line of 25 full-width Chinese characters at the standard body-text size. Wrap longer copy onto additional lines instead of widening the message.
 
+## Mobile and Web Parity
+
+- 用户提出移动端或手机端改动时，默认在同一任务中同步修改 `apps/native` 和 `apps/web` 的对应功能、界面效果、交互及文案，无需用户另行提醒；用户明确限定范围时，以用户要求为准。
+- 同步 Web 时同时考虑手机窄屏和桌面宽屏，保持对应行为一致，并按各自布局适配；能复用的业务逻辑优先放在共享模块，避免两端后续遗漏同步。
+- Android/iOS 系统能力等平台专属改动，不要求照搬到浏览器；应检查 Web 是否需要对应适配，并在交付时说明未同步的部分及原因。
+- 完成前验证两端受影响的功能与展示效果，并在交付时说明同步结果，不得只修改原生端就将移动端需求视为完成。
+
 ## Tauri 2 WebView Window Creation On Windows
 
 - Do not create a `WebviewWindowBuilder` from a synchronous Tauri command on Windows. In this repo, opening the Token Usage window from a sync `#[tauri::command]` produced a native window shell, but the WebView content stayed white, the close button did not work reliably, and DevTools could not be opened.
