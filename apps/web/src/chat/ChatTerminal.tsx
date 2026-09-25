@@ -7,24 +7,27 @@ import { remoteTerminalApi } from '../../../../shared/remote-chat/terminalApi';
 import { useDesktopLayout } from '../useDesktopLayout';
 import { t, useLanguage } from '../i18n';
 import './terminal.css';
+import { useToolLaunch } from '../../../../shared/remote-chat/useToolLaunch';
 
 const TerminalPanel = lazy(() => import('../../../desktop/src/pages/codexGui/terminal/TerminalPanel'));
 
 /** Switching projects detaches the view; each PC retains the project's terminal sessions. */
-export function ChatTerminal({ client, cwd, active, connected, deviceName }: {
+export function ChatTerminal({ client, cwd, active, connected, deviceName, launchId = 0, hideTrigger = false }: {
   client: GuiToolsClient['terminal']; cwd: string; active: boolean; connected: boolean; deviceName?: string;
+  launchId?: number; hideTrigger?: boolean;
 }) {
   useLanguage();
   const desktop = useDesktopLayout();
   const panel = useRemoteTerminalLauncher({ client, cwd, connected });
+  useToolLaunch(launchId, panel.toggle, connected && !panel.busy);
   const api = useMemo(() => remoteTerminalApi(client), [client]);
   const visible = active && panel.open;
   const label = panel.open ? t('收起远程终端') : t('打开远程终端');
   return <>
-    <button type="button" className="chat-terminal-toggle" aria-label={label} data-error={!!panel.error}
+    {!hideTrigger && <button type="button" className="chat-terminal-toggle" aria-label={label} data-error={!!panel.error}
       aria-expanded={visible} disabled={panel.busy || (!connected && !panel.tabs.length && !panel.error)}
       onClick={panel.toggle}>
-      <SquareTerminal size={22} /></button>
+      <SquareTerminal size={22} /></button>}
     {(panel.open || panel.tabs.length > 0) && <Drawer open={visible} placement={desktop ? 'right' : 'bottom'}
       height="90%" width={desktop ? '70%' : undefined}
       title={t('远程终端')} extra={<span className="chat-terminal-device">{deviceName}</span>}

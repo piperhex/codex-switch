@@ -1,0 +1,34 @@
+import { useState } from 'react';
+import { Popover } from 'antd';
+import { GitBranch, SquareTerminal, Wrench } from 'lucide-react';
+import type { GuiToolsClient } from '../../../../shared/remote-chat/guiTools';
+import { ChatTerminal } from './ChatTerminal';
+import { ChatGit } from './git/ChatGit';
+import { t } from '../i18n';
+import './git/git.css';
+
+interface Props {
+  client: GuiToolsClient; cwd: string; active: boolean; connected: boolean; deviceName?: string;
+}
+export function ChatTools(props: Props) { return <ProjectTools key={props.cwd} {...props} />; }
+
+function ProjectTools({ client, ...props }: Props) {
+  const [menu, setMenu] = useState(false);
+  const [launchId, setLaunchId] = useState(0);
+  const [git, setGit] = useState(false);
+  return <>
+    <Popover trigger="click" placement="bottomRight" open={menu && props.active} onOpenChange={setMenu}
+      content={<div className="chat-tools-menu">
+        <button type="button" disabled={!props.connected}
+          onClick={() => { setMenu(false); setLaunchId(value => value + 1); }}>
+          <SquareTerminal size={20} />{t('终端')}</button>
+        <button type="button" onClick={() => { setMenu(false); setGit(true); }}>
+          <GitBranch size={20} />{t('Git')}</button>
+      </div>}>
+      <button type="button" className="chat-terminal-toggle" aria-label={t('打开工具')} aria-expanded={menu}>
+        <Wrench size={22} /></button>
+    </Popover>
+    <ChatTerminal {...props} client={client.terminal} launchId={launchId} hideTrigger />
+    {git && <ChatGit {...props} client={client.git} onClose={() => setGit(false)} />}
+  </>;
+}

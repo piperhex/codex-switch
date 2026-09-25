@@ -7,6 +7,7 @@ import { palette } from './styles';
 const panel = vi.hoisted(() => ({ tabs: [], selected: '', open: false, busy: false, error: '',
   toggle: vi.fn(), hide: vi.fn(), retry: vi.fn() }));
 vi.mock('../../../../shared/remote-chat/useRemoteTerminalLauncher', () => ({ useRemoteTerminalLauncher: () => panel }));
+vi.mock('../../../../shared/remote-chat/useToolLaunch', () => ({ useToolLaunch: vi.fn() }));
 vi.mock('react-native', () => ({ Pressable: 'Pressable', Text: 'Text', ScrollView: 'ScrollView',
   ActivityIndicator: 'Spinner', Keyboard: { dismiss: vi.fn() }, StyleSheet: { create: <T,>(value: T) => value } }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Icon' }));

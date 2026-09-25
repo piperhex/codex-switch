@@ -1,0 +1,28 @@
+export const gitMessages: Record<string, string> = {
+  '打开工具': 'Open tools', '终端': 'Terminal', '关闭 Git': 'Close Git', '刷新 Git': 'Refresh Git',
+  'Git 仓库': 'Git repository', 'Git 视图': 'Git view', '改动': 'Changes', '提交记录': 'History',
+  '请先选择一个项目。': 'Choose a project first.',
+  '电脑连接后即可使用 Git。': 'Connect to your computer to use Git.',
+  '已提交 {hash}': 'Committed {hash}',
+  '差异较大，仅显示部分内容。': 'This diff is large. Only part of it is shown.',
+  '没有可显示的文本差异。': 'No text diff to display.', '正在处理…': 'Working…',
+  '已选 {count} 个文件': '{count} files selected', '全选': 'Select all',
+  '工作区没有未提交的改动。': 'There are no uncommitted changes.',
+  '选择 {path}': 'Select {path}', '冲突': 'Conflict', '提交说明': 'Commit message',
+  '填写提交说明': 'Write a commit message',
+  '提交所选文件的全部改动，包含已暂存和未暂存的内容。':
+    'Commit all changes in the selected files, including staged and unstaged changes.',
+  '提交 {count} 个文件': 'Commit {count} files', '还没有提交记录。': 'No commits yet.',
+  '加载更多提交': 'Load more commits', '无法读取 Git 信息，请稍后重试。': 'Unable to load Git. Please try again.',
+  '文件信息无效，请刷新后重试。': 'Invalid file information. Refresh and try again.',
+  '改动文件过多，请先在电脑上整理后重试。': 'Too many changed files. Review them on your computer first.',
+  '文件或分支已变化，请刷新并重新选择要提交的文件。': 'Files or branches have changed. Refresh and select the files again.',
+  '请先在电脑上解决冲突或完成正在进行的合并。': 'Resolve conflicts or finish the merge on your computer first.',
+  'Git 正在执行其他操作，请稍后重试。': 'Git is busy. Please try again shortly.',
+  '提交未完成，请在电脑上检查 Git 用户信息、提交检查和签名设置。':
+    'The commit failed. Check your Git identity, commit checks and signing settings on your computer.',
+  '请选择文件并填写提交说明。': 'Select files and write a commit message.',
+  '这个文件夹不是 Git 仓库。': 'This folder is not a Git repository.',
+  '无法运行 Git，请确认已安装 Git。': 'Unable to run Git. Check that Git is installed.',
+  '操作未完成，请稍后重试。': 'The operation failed. Please try again.',
+};

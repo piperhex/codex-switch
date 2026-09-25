@@ -35,6 +35,10 @@ async function install(version: string) {
 
 export async function guiToolRequest(body: Record<string, unknown>) {
   switch (body.operation) {
+    case 'guiGitChanges': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'changes' } });
+    case 'guiGitDiff': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'diff' } });
+    case 'guiGitHistory': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'history' } });
+    case 'guiGitCommit': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'commit' } });
     case 'guiCliStatus': return status();
     case 'guiCliRelease': return invoke<CliRelease>('codex_gui_cli_release');
     case 'guiCliInstall': {

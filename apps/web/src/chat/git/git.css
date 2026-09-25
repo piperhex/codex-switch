@@ -1,0 +1,55 @@
+.chat-tools-menu { display: grid; gap: 4px; min-width: 150px; max-width: min(400px, 90vw); }
+.chat-tools-menu button { display: flex; align-items: center; gap: 12px; border: 0; padding: 12px;
+  border-radius: 8px; background: transparent; color: #17211b; cursor: pointer; }
+.chat-tools-menu button:hover { background: #eef4f1; }
+.chat-git { display: flex; flex-direction: column; min-height: 0; width: 100%; color: #17211b; background: #fff; }
+.chat-git button { font: inherit; cursor: pointer; }
+.chat-git button:disabled { cursor: default; opacity: .45; }
+.git-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 0; gap: 12px; }
+.git-branch { font-weight: 600; overflow-wrap: anywhere; }
+.git-toolbar button { border: 0; background: transparent; padding: 10px; }
+.git-project { padding: 0 16px 12px; font-size: 11px; color: #718078; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.git-tabs { display: flex; border-bottom: 1px solid #dfe5df; flex-shrink: 0; }
+.git-tabs button { flex: 1; border: 0; border-bottom: 2px solid transparent; padding: 12px; background: transparent; }
+.git-tabs button[aria-selected="true"] { color: #0b8065; border-bottom-color: #0b8065; font-weight: 600; }
+.git-notice, .git-error { max-width: 400px; margin: 10px 16px; font-size: 12px;
+  line-height: 1.6; overflow-wrap: anywhere; }
+.git-notice { color: #718078; }.git-error { color: #c74e47; }
+.git-loading { display: flex; gap: 10px; align-items: center; justify-content: center; padding: 8px; font-size: 12px; }
+.git-selection { display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; font-size: 12px; }
+.git-selection label { display: flex; align-items: center; gap: 8px; }
+.chat-git input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; accent-color: #0b8065; }
+.git-files, .git-history, .git-diff-scroll { overflow: auto; flex: 1; min-height: 0; overscroll-behavior: contain; }
+.git-file { display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid #eef2ef; }
+.git-file button { display: flex; align-items: center; flex: 1; min-width: 0; text-align: left; gap: 12px;
+  padding: 14px 0; border: 0; background: transparent; font-size: 12px; overflow-wrap: anywhere; }
+.git-file small { display: block; color: #718078; padding-top: 4px; }
+.git-status { font: 11px monospace; color: #0b8065; min-width: 22px; white-space: pre; }
+.git-status[data-conflict="true"] { color: #c74e47; }
+.git-commit-form { padding: 12px 16px; border-top: 1px solid #dfe5df; display: grid; gap: 8px; }
+.git-commit-form textarea { box-sizing: border-box; width: 100%; min-height: 68px; max-height: 150px; resize: vertical;
+  border: 1px solid #dfe5df; border-radius: 8px; padding: 10px; font: inherit; font-size: 13px; }
+.git-commit-form p { max-width: 400px; margin: 0; color: #718078; font-size: 11px; line-height: 1.5; }
+.git-submit { padding: 12px; background: #0b8065; color: white; border: 0; border-radius: 8px; }
+.git-history-row { display: flex; align-items: center; text-align: left; min-width: 100%; width: max-content;
+  padding: 0 16px; height: 76px; border: 0; background: transparent; }
+.git-history-row:hover { background: #f4f7f5; }
+.git-history-text { display: flex; flex-direction: column; justify-content: center; gap: 5px;
+  width: min(480px, 64vw); font-size: 12px; }
+.git-history-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.git-history-text small { color: #718078; font-size: 10px; white-space: nowrap; }
+.git-refs { display: flex; gap: 4px; white-space: nowrap; }
+.git-refs:empty { display: none; }.git-refs em { font-size: 10px; font-style: normal; color: #0b8065;
+  background: #e7f5ef; border-radius: 4px; padding: 2px 5px; }
+.git-more { width: 100%; background: #f4f7f5; border: 0; padding: 12px; }
+.git-detail-title { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 0;
+  background: #f4f7f5; text-align: left; }.git-detail-title svg { flex-shrink: 0; }
+.git-detail-title span { overflow-wrap: anywhere; font-size: 12px; }
+.git-diff { margin: 0; padding: 12px; font: 12px/1.6 Consolas, monospace; width: max-content; min-width: 100%; }
+.git-diff span { display: block; white-space: pre; min-height: 1.6em; }
+.git-diff span[data-kind="+"] { color: #166b40; background: #e8f5ec; }
+.git-diff span[data-kind="-"] { color: #a73535; background: #ffeded; }
+.git-diff span[data-kind="@"] { color: #6477ac; background: #eef2fa; }
+@media (min-width: 900px) { .git-history-text { width: min(650px, 54vw); } }

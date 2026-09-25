@@ -303,6 +303,7 @@ pub fn run() {
             codex_gui::codex_gui_request,
             codex_gui::codex_gui_respond,
             codex_gui::git::codex_gui_git,
+            codex_gui::git::tool::codex_gui_git_tool,
             codex_gui::file_actions::codex_gui_file_applications,
             codex_gui::file_actions::codex_gui_file_action,
             codex_gui::undo::codex_gui_undo,

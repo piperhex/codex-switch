@@ -11,6 +11,7 @@ use tauri::{AppHandle, Manager, State};
 #[cfg(test)]
 #[path = "git_tests.rs"]
 mod tests;
+pub(crate) mod tool;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum GitError {
@@ -28,6 +29,20 @@ pub(super) enum GitError {
     Worktree,
     #[error("操作未完成，请稍后重试。")]
     Operation,
+    #[error("文件信息无效，请刷新后重试。")]
+    File,
+    #[error("改动文件过多，请先在电脑上整理后重试。")]
+    TooManyFiles,
+    #[error("文件或分支已变化，请刷新并重新选择要提交的文件。")]
+    Changed,
+    #[error("请先在电脑上解决冲突或完成正在进行的合并。")]
+    Conflict,
+    #[error("Git 正在执行其他操作，请稍后重试。")]
+    Locked,
+    #[error("提交未完成，请在电脑上检查 Git 用户信息、提交检查和签名设置。")]
+    Commit,
+    #[error("请选择文件并填写提交说明。")]
+    Selection,
 }
 pub(super) type Result<T> = std::result::Result<T, GitError>;
 
@@ -74,11 +89,18 @@ struct Branch {
 }
 
 pub(super) fn command(cwd: &Path) -> Command {
+    command_options(cwd, true)
+}
+
+fn command_options(cwd: &Path, disable_hooks: bool) -> Command {
     let mut command = Command::new("git");
     command
         .current_dir(cwd)
-        .args(["-c", "core.hooksPath=", "-c", "core.fsmonitor=false"])
+        .args(["-c", "core.fsmonitor=false"])
         .env("GIT_TERMINAL_PROMPT", "0");
+    if disable_hooks {
+        command.args(["-c", "core.hooksPath="]);
+    }
     // A GUI launched by Git (including checks in hooks) must not inherit another checkout's index or paths.
     for variable in [
         "GIT_DIR",

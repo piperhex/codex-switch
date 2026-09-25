@@ -20,7 +20,7 @@ import { ChatSearch } from './ChatSearch';
 import { ChatDrawer, type ChatDrawerMethods } from './ChatDrawer';
 import { ChatDevices } from './ChatDevices';
 import { ChatConnectionInfo } from './ChatConnectionInfo';
-import { ChatTerminal } from './ChatTerminal';
+import { ChatTools } from './ChatTools';
 import { useChat } from './useChat';
 import { useDownloadConnection } from '../downloads/useDownloadConnection';
 import { useChatDevice } from './useChatDevice';
@@ -145,7 +145,7 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
         style={styles.compactButton} disabled={!ready || running}
         onPress={() => { void controller.archive().then(openDrawer); }}>
         <Text style={styles.buttonText}>恢复</Text></Pressable>}
-      <ChatTerminal client={controller.guiTools.terminal} active={active && foreground} connected={ready}
+      <ChatTools client={controller.guiTools} active={active && foreground} connected={ready}
         deviceName={device?.name} cwd={state.selected?.cwd ?? state.draftProject?.cwd ?? ''} />
     </View>
     {!!state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}

@@ -7,22 +7,25 @@ import { TerminalSession } from './terminal/TerminalSession';
 import { terminalStyles as styles } from './terminal/styles';
 import { BottomSheet } from '../components/BottomSheet';
 import { palette } from './styles';
+import { useToolLaunch } from '../../../../shared/remote-chat/useToolLaunch';
 
 /** Project views may disappear; shells stay on their PC until the user explicitly closes them. */
-export function ChatTerminal({ client, cwd, active, connected, deviceName }: {
+export function ChatTerminal({ client, cwd, active, connected, deviceName, launchId = 0, hideTrigger = false }: {
   client: GuiToolsClient['terminal']; cwd: string; active: boolean; connected: boolean; deviceName?: string;
+  launchId?: number; hideTrigger?: boolean;
 }) {
   const panel = useRemoteTerminalLauncher({ client, cwd, connected });
+  useToolLaunch(launchId, panel.toggle, connected && !panel.busy);
   const selected = panel.tabs.find(tab => tab.id === panel.selected);
   const disabled = panel.busy || (!connected && !panel.tabs.length && !panel.error);
   const hide = () => { Keyboard.dismiss(); panel.hide(); };
   const show = () => { Keyboard.dismiss(); panel.toggle(); };
   return <>
-    <Pressable accessibilityRole="button" accessibilityLabel="打开远程终端"
+    {!hideTrigger && <Pressable accessibilityRole="button" accessibilityLabel="打开远程终端"
       accessibilityState={{ disabled, expanded: active && panel.open }} disabled={disabled}
       style={[styles.button, disabled && styles.disabled]} onPress={show}>
       <Ionicons name="terminal-outline" size={24} color={panel.error ? palette.danger : palette.ink} />
-    </Pressable>
+    </Pressable>}
     {!selected && <BottomSheet visible={active && panel.open} title="远程终端" subtitle={deviceName}
       onClose={hide} maxWidth={400} actions={[{ label: panel.error ? '重试' : '新建终端',
         onPress: panel.retry, disabled: !connected, loading: panel.busy }]}>

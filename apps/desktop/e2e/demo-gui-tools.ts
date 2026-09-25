@@ -1,12 +1,14 @@
 import type { TerminalInfo } from '../src/pages/codexGui/terminal/api';
 import { TerminalOutput } from '../src/remoteChat/terminalOutput';
 import { terminalBelongsToProject } from '../../../shared/remote-chat/terminalProject';
+import { demoGitTools } from './demo-git-tools';
 
 let version = '0.155.0';
 let completedAt = 0;
 const terminals = new Map<string, { info: TerminalInfo; output: TerminalOutput }>();
 
 export function demoGuiTools(input: Record<string, unknown>) {
+  if (String(input.operation).startsWith('guiGit')) return demoGitTools(input);
   if (input.operation === 'guiCliRelease') return { version: '0.156.0', size: 50_000_000 };
   if (input.operation === 'guiCliInstall') completedAt = Date.now() + 1800;
   if (input.operation === 'guiCliStatus' || input.operation === 'guiCliInstall') {
