@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Keyboard, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AuthSession, RemoteDevice } from '../types';
 import { ChatApproval } from './ChatApprovals';
 import { ChatAsyncQuestions } from './ChatAsyncQuestions';
@@ -67,6 +68,7 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
   device?: RemoteDevice; chooseDevice: (id: string) => void;
 }) {
   const active = pageActive && !tokenSummary;
+  const insets = useSafeAreaInsets();
   const { state, controller, foreground, catalog } = useChat(session, device?.deviceId ?? '', Boolean(device));
   useDownloadConnection({ session, deviceId: device?.deviceId ?? '', deviceName: device?.name ?? '', controller });
   useChatCompletionNotifications(controller, session, device?.deviceId ?? '');
@@ -127,6 +129,8 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
         ready={ready} active={active && foreground && drawer && !searching} />}
       select={(thread) => closeDrawer(() => { void controller.select(thread); })} />}>
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      // The drawer resets local Y to zero; iOS keyboard coordinates still include the top safe area.
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       {...drawerSwipeHandlers}>
     <ChatOverlay>
     <View style={styles.header}>
