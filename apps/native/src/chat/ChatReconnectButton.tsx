@@ -16,9 +16,10 @@ export function ChatReconnectButton({ retryAt, onPress }: { retryAt: number | nu
   const seconds = retryAt === null ? null : Math.max(0, Math.ceil((retryAt - tick.now) / MILLISECONDS_PER_SECOND));
   return <Pressable accessibilityRole="button" accessibilityLabel="立即连接" onPress={onPress}
     style={reconnectStyles.button} hitSlop={6}>
-    <Text style={[styles.headerMeta, reconnectStyles.text]}>
+    <Text numberOfLines={1} style={[styles.headerMeta, reconnectStyles.text]}>
       立即连接{seconds === null ? '' : `（${seconds}秒）`}</Text>
-    <Text style={[styles.headerMeta, reconnectStyles.text, reconnectStyles.dots]}>{DOTS[tick.dots]}</Text>
+    <Text numberOfLines={1} style={[styles.headerMeta, reconnectStyles.text, reconnectStyles.dots]}>
+      {DOTS[tick.dots]}</Text>
   </Pressable>;
 }
 
