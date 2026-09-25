@@ -1,6 +1,6 @@
 [
   {
-    "chapter": "01 / 手机随时接",
+    "chapter": "01 / 国庆假期，随时接着做",
     "shots": [
       {
         "file": "phone-result-scroll.mp4",
@@ -10,12 +10,12 @@
     ],
     "labels": [
       {
-        "text": "离开电脑\n也能继续用 Codex",
+        "text": "国庆出门\nCodex 随身",
         "pos": [90, 235],
         "size": 76
       },
       {
-        "text": "电脑继续跑，手机随时接",
+        "text": "手机远程连接，电脑继续执行",
         "pos": [96, 485],
         "size": 38,
         "color": "0x84e9cc"
@@ -91,7 +91,7 @@
     ]
   },
   {
-    "chapter": "04 / 电脑执行，手机同步",
+    "chapter": "04 / 原模型 · 原推理设置",
     "shots": [
       {
         "file": "desktop-followup.mp4",
@@ -106,18 +106,24 @@
     ],
     "labels": [
       {
-        "text": "真正工作的，还是你的电脑",
+        "text": "远程操作，模型配置照旧",
         "pos": [80, 170],
         "size": 50
       },
       {
-        "text": "WINDOWS  /  任务执行中",
+        "text": "沿用所选模型与推理强度",
+        "pos": [80, 231],
+        "size": 27,
+        "color": "0x84e9cc"
+      },
+      {
+        "text": "电脑  /  所选模型执行",
         "pos": [78, 912],
         "size": 24,
         "color": "0x84e9cc"
       },
       {
-        "text": "ANDROID  /  同步进度",
+        "text": "手机  /  同步进度",
         "pos": [1350, 106],
         "size": 25,
         "color": "0x84e9cc"
@@ -249,7 +255,7 @@
         "size": 100
       },
       {
-        "text": "电脑继续跑\n手机随时接",
+        "text": "国庆出门\nCodex 随身",
         "pos": [96, 410],
         "size": 72,
         "color": "0x84e9cc"
