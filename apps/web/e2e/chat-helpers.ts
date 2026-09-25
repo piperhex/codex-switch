@@ -71,6 +71,7 @@ export async function login(page: Page) {
   await page.getByPlaceholder('name@example.com').fill('mobile-test@example.test');
   await page.getByPlaceholder('输入登录密码').fill('local-test');
   await page.getByPlaceholder('输入登录密码').press('Enter');
+  await page.getByRole('button', { name: '同意并登录' }).click();
   await expect(page.locator('.app-shell')).toBeVisible();
 }
 
