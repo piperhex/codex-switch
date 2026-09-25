@@ -560,7 +560,8 @@ function BottomNavigation({ activePage, onChange }: {
   onChange: (page: AppPage) => void;
 }) {
   const settingsActive = ['admin', 'about', 'settings'].includes(activePage);
-  return <View style={styles.bottomNavigation} accessibilityRole="tablist">
+  // Keep the home-indicator area inside the navigation background.
+  return <SafeAreaView edges={['bottom']} style={styles.bottomNavigation} accessibilityRole="tablist">
     <Pressable accessibilityRole="tab" accessibilityState={{ selected: activePage === 'chat' }}
       onPress={() => onChange('chat')} style={styles.navItem}>
       <Ionicons name="chatbubble-outline" size={23} color={activePage === 'chat' ? '#00c98b' : '#858991'} />
@@ -590,7 +591,7 @@ function BottomNavigation({ activePage, onChange }: {
       <Ionicons name="settings" size={23} color={settingsActive ? '#00c98b' : '#858991'} />
       <Text style={[styles.navText, settingsActive && styles.navTextActive]}>设置</Text>
     </Pressable>
-  </View>;
+  </SafeAreaView>;
 }
 
 function DeviceSwitchDrawer({ account, devices, switching, onClose, onSwitch }: {
@@ -1237,11 +1238,13 @@ function AppContent() {
     setActivePage(DEFAULT_APP_PAGE);
   }, []);
 
+  const showBottomNavigation = activePage !== 'token-summary' && activePage !== 'downloads';
   if (initializing) return <View style={styles.boot}><StatusBar style="dark" /><ActivityIndicator size="large" color={COLORS.green} /><Text style={styles.bootText}>Codex Switch</Text></View>;
   if (!session) return <View style={styles.app}>
     <LoginScreen initialBaseUrl={DEFAULT_CLOUD_BASE_URL} onLoggedIn={handleLogin} />
   </View>;
-  return <SafeAreaView style={[styles.app, activePage === 'totp' && totpPageStyles.page,
+  return <SafeAreaView edges={showBottomNavigation ? ['top', 'left', 'right'] : undefined}
+    style={[styles.app, activePage === 'totp' && totpPageStyles.page,
     activePage === 'accounts' && accountStyles.page,
     activePage === 'chat' && styles.chatCanvas,
     (activePage === 'settings' || activePage === 'about' || activePage === 'downloads') && styles.settingsCanvas]}>
@@ -1285,8 +1288,7 @@ function AppContent() {
                 onOpenDownloads={() => setActivePage('downloads')}
                 onLogout={handleLogout}
                 totpManager={totpManager} />}
-    {activePage !== 'token-summary' && activePage !== 'downloads'
-      && <BottomNavigation activePage={activePage} onChange={setActivePage} />}
+    {showBottomNavigation && <BottomNavigation activePage={activePage} onChange={setActivePage} />}
   </SafeAreaView>;
 }
 

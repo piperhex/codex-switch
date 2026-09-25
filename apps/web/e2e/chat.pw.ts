@@ -155,7 +155,7 @@ test('falls back after direct discovery fails and keeps the composer within a sm
     await expect(page.getByRole('status').filter({ hasText: 'Relay' })).toBeVisible({ timeout: 16_000 });
     expect(Date.now() - started).toBeGreaterThanOrEqual(10_000);
     await openChatList(page);
-    await page.getByRole('button', { name: /移动端聊天体验/ }).click();
+    await page.getByRole('button', { name: '移动端聊天体验', exact: true }).click();
     await send(page, 'encrypted relay from H5');
     await settled(page);
     await page.setViewportSize({ width: 390, height: 480 });
