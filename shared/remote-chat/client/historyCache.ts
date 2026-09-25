@@ -45,7 +45,7 @@ export class HistoryCache {
     }
   }
 
-  private remove(id: string) {
+  remove(id: string) {
     const previous = this.entries.get(id);
     if (previous) this.chars -= previous.chars;
     this.entries.delete(id);

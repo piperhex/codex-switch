@@ -54,6 +54,7 @@ export interface ChatState {
   historyLoadingMore: boolean;
   historyHasMore: boolean;
   sending: boolean;
+  threadActionBusy?: string;
   compacting?: string;
   error: string;
 }

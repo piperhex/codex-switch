@@ -2,7 +2,9 @@ import { t, useLanguage } from '../i18n';
 import type { ReactNode } from 'react';
 import { ChevronDown, ChevronRight, LoaderCircle, Plus, RefreshCw, Search } from 'lucide-react';
 import type { ChatController, ChatProject, ChatState } from './types';
-import { threadPresentation } from '../../../../shared/remote-chat/sidebar';
+import { useThreadActions } from '../../../../shared/remote-chat/client/useThreadActions';
+import { ChatThreadActions } from './ChatThreadActions';
+import { ChatThreadRow } from './ChatThreadRow';
 import { useThreadGroups } from '../../../../shared/remote-chat/client/useThreadGroups';
 import { useThreadListScroll } from './useThreadListScroll';
 
@@ -16,6 +18,7 @@ export function ChatThreads({ state, controller, newChat, onClose, openSearch, p
   const { groups, toggle, toggleCollapse } = useThreadGroups(state);
   const pagination = useThreadListScroll(state, controller);
   const ready = state.ready;
+  const actions = useThreadActions(state, controller);
   return <>
     <div className="chat-padded chat-thread-controls">
       <button type="button" className="chat-search-trigger" aria-label={t("搜索聊天")} onClick={openSearch}>
@@ -42,17 +45,8 @@ export function ChatThreads({ state, controller, newChat, onClose, openSearch, p
             {group.cwd && <button type="button" className="chat-back" aria-label={t("在 {value1} 中新建对话", { value1: group.label })}
               disabled={state.sending} onClick={() => newChat(group)}><Plus size={18} aria-hidden="true" /></button>}
           </div>
-          {group.data.map((thread) => {
-            const view = threadPresentation(thread, state.sidebar, t);
-            return <button type="button" className="chat-thread" key={thread.id} aria-label={view.title}
-              aria-current={state.selected?.id === thread.id ? 'page' : undefined} disabled={!ready || state.sending}
-              onClick={() => { void controller.select(thread); onClose(); }}>
-              <span className="chat-grow chat-ellipsis">{view.title}</span>
-              <span className="chat-thread-status">{view.running
-                ? <LoaderCircle size={14} className="chat-spinner" aria-label={t("正在回复")} />
-                : view.unread && <span className="chat-unread-dot" aria-label={t("未读回复")} />}</span>
-            </button>;
-          })}
+          {group.data.map(thread => <ChatThreadRow key={thread.id} thread={thread} state={state}
+            select={() => { void controller.select(thread); onClose(); }} openActions={() => actions.open(thread)} />)}
           {group.canToggle && <button type="button" className="chat-group-more" aria-expanded={group.expanded}
             aria-label={`${group.expanded ? t("收起") : t("展开显示")}：${group.label}`} onClick={() => toggle(group.cwd)}>
             {group.expanded ? t("收起") : t("展开显示")}</button>}
@@ -69,5 +63,6 @@ export function ChatThreads({ state, controller, newChat, onClose, openSearch, p
     <div className="chat-drawer-footer"><button className="chat-new-button" type="button"
       disabled={state.sending} onClick={() => newChat()}><Plus size={20} />{t("新聊天")}</button>{profile}</div>
     {accountPicker}
+    <ChatThreadActions actions={actions} />
   </>;
 }

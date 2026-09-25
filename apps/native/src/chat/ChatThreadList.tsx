@@ -6,16 +6,18 @@ import { useThreadGroups } from '../../../../shared/remote-chat/client/useThread
 import { useThreadListScroll } from './useThreadListScroll';
 import type { ChatController } from './controller';
 import { palette, styles } from './styles';
+import { THREAD_LONG_PRESS_MS } from '../../../../shared/remote-chat/client/threadActions';
 
 interface Props {
   state: ChatState; newChat: (project?: ChatProject) => void; select: (thread: Thread) => void;
   controller: ChatController;
   bottomInset: number;
+  openActions: (thread: Thread) => void;
 }
 
 const LIST_BOTTOM_SPACING = 16;
 
-export function ChatThreadList({ state, newChat, select, controller, bottomInset }: Props) {
+export function ChatThreadList({ state, newChat, select, controller, bottomInset, openActions }: Props) {
   const { groups, toggle, toggleCollapse } = useThreadGroups(state);
   const layoutKey = JSON.stringify(groups.map(group => [group.cwd, group.data.length, group.canToggle]));
   const pagination = useThreadListScroll(state, controller, layoutKey);
@@ -46,6 +48,10 @@ export function ChatThreadList({ state, newChat, select, controller, bottomInset
       renderItem={({ item }) => {
         const view = threadPresentation(item, state.sidebar);
         return <Pressable accessibilityRole="button" accessibilityLabel={view.title}
+          accessibilityHint="长按管理对话" delayLongPress={THREAD_LONG_PRESS_MS}
+          onLongPress={() => openActions(item)}
+          accessibilityActions={[{ name: 'longpress', label: '对话操作' }]}
+          onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'longpress') openActions(item); }}
           accessibilityState={{ selected: state.selected?.id === item.id }}
           disabled={(!ready && !state.cachedThreadIds?.includes(item.id)) || state.sending}
           style={[listStyles.thread, state.selected?.id === item.id && listStyles.selected]}

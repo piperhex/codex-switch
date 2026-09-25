@@ -1,0 +1,19 @@
+export const threadActions = {
+  '对话操作': 'Chat actions',
+  '管理对话：{name}': 'Manage chat: {name}',
+  '重命名对话': 'Rename chat',
+  '删除对话': 'Delete chat',
+  '归档': 'Archive',
+  '对话名称': 'Chat name',
+  '删除这条对话？': 'Delete this chat?',
+  '删除后可在电脑端“会话管理”的回收站中恢复。':
+    'You can restore it from the trash in Conversation Manager on your computer.',
+  '连接电脑后即可管理对话。': 'Connect to your computer to manage chats.',
+  '请等待当前操作完成。': 'Wait for the current action to finish.',
+  '请等待回复结束后再操作。': 'Wait for the reply to finish before continuing.',
+  '请先发送或删除待发送消息。': 'Send or remove queued messages first.',
+  '请输入 1 至 120 个字符的对话名称。': 'Enter a chat name between 1 and 120 characters.',
+  '正在处理…': 'Working…',
+  '请选择有效的对话。': 'Select an available chat.',
+  '删除未完成，请稍后重试。': 'Could not delete the chat. Try again later.',
+};

@@ -10,6 +10,7 @@ import { HistoryReader } from './historyReader';
 import type { HistoryVersionSource } from './historyPreparation';
 import { HistoryCache } from './historyCache';
 import { ImageCache } from './imageCache';
+import { ThreadActions, threadMutationPatch, type ThreadMutation } from './threadActions';
 import { OfflineWriter, type OfflineHistoryStore } from './offline';
 import { offlineImage } from './offlineImages';
 import { validateChatImages } from '../attachments';
@@ -37,6 +38,9 @@ import { initialChatState, type ApprovalReply, type ChatProject, type ChatState,
 const SYNCHRONIZATION_RETRY_MS = 3000;
 
 export class ChatController {
+  readonly threadActions = new ThreadActions({ snapshot: () => this.state, update: patch => this.update(patch),
+    request: body => this.connection.request('request', body), complete: body => this.completeThreadMutation(body),
+    refresh: () => this.list() });
   readonly goals = new RemoteGoals({ snapshot: () => this.state, update: (patch) => this.update(patch),
     request: (body) => this.request(body), created: (id, settings) => this.composer.created(id, settings),
     generation: () => this.synchronization });
@@ -156,8 +160,7 @@ export class ChatController {
     if (!event?.params || typeof event.method !== 'string') return;
     for (const listener of this.eventListeners) listener(event);
     if (event.method === 'thread/deleted' && event.params.threadId) {
-      if (this.loadedThreadId === event.params.threadId) this.loadedThreadId = null;
-      this.offlineWriter?.forget(event.params.threadId);
+      this.completeThreadMutation({ operation: 'delete', threadId: event.params.threadId });
     }
     if (event?.method === HISTORY_CHANGED) {
       if (event.params.threadId === this.state.selected?.id) this.scheduleHistory();
@@ -500,6 +503,7 @@ export class ChatController {
   }
 
   async send(input: SendInput) {
+    if (this.state.threadActionBusy) return false;
     if (input.goalMode) return this.goals.start(input);
     const images = input.images ?? [];
     if (this.state.selectedArchived) { this.update({ error: '请先恢复聊天，再发送消息。' }); return false; }
@@ -652,15 +656,34 @@ export class ChatController {
     } catch (error) { this.failure(error); }
   }
 
+  private completeThreadMutation(body: ThreadMutation) {
+    const { threadId, operation } = body;
+    this.listGeneration += 1;
+    if (operation !== 'rename' && this.state.selected?.id === threadId) {
+      this.readGeneration += 1; this.refreshThreadId = null; this.loadedThreadId = null;
+      this.olderQueued = false;
+      this.update({ selected: null, selectedArchived: false, historyLoading: false,
+        historyLoadingMore: false, historyHasMore: false });
+    }
+    this.histories.remove(threadId);
+    if (operation === 'delete') {
+      this.historyPages.delete(threadId);
+      this.offlineWriter?.forget(threadId);
+    } else {
+      const thread = this.state.threads.find(entry => entry.id === threadId);
+      const archived = operation === 'rename' ? this.state.archived : operation === 'archive';
+      if (thread) void this.flushCache().then(() => this.offline?.updateSummaries?.([
+        operation === 'rename' ? { ...thread, name: body.name } : thread,
+      ], archived)).catch(this.cacheFailure);
+    }
+    this.update(threadMutationPatch(this.state, body));
+  }
+
   async archive() {
     const thread = this.state.selected;
     if (!thread) return;
-    if (this.state.queue.threads[thread.id]?.length) {
-      this.update({ error: '请先处理待发送消息，再归档聊天。' }); return;
-    }
     try {
-      await this.request({ operation: this.state.selectedArchived ? 'unarchive' : 'archive', threadId: thread.id });
-      this.back();
+      await this.threadActions.run(thread, this.state.selectedArchived ? 'unarchive' : 'archive');
     } catch (error) { this.failure(error); }
   }
 }

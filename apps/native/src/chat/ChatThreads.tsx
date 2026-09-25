@@ -4,6 +4,8 @@ import Feather from '@expo/vector-icons/Feather';
 import type { ChatController } from './controller';
 import type { ChatProject, ChatState, Thread } from './types';
 import { ChatThreadList } from './ChatThreadList';
+import { ChatThreadActions } from './ChatThreadActions';
+import { useThreadActions } from '../../../../shared/remote-chat/client/useThreadActions';
 import { palette, styles } from './styles';
 
 interface Props {
@@ -13,6 +15,7 @@ interface Props {
 
 export function ChatThreads({ state, controller, newChat, openSearch, select, profileMenu }: Props) {
   const [footerHeight, setFooterHeight] = useState(0);
+  const actions = useThreadActions(state, controller);
   return <View style={styles.fill}>
     <View style={styles.padded}>
       <View style={styles.row}>
@@ -25,7 +28,9 @@ export function ChatThreads({ state, controller, newChat, openSearch, select, pr
         <Text style={styles.subtitle}>{state.archived ? '已归档 ▾' : '最近聊天 ▾'}</Text>
       </Pressable>
     </View>
-    <ChatThreadList state={state} controller={controller} newChat={newChat} select={select} bottomInset={footerHeight} />
+    <ChatThreadList state={state} controller={controller} newChat={newChat} select={select}
+      openActions={actions.open} bottomInset={footerHeight} />
+    <ChatThreadActions actions={actions} />
     <View style={listStyles.footer} pointerEvents="box-none"
       onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
       <Pressable accessibilityRole="button" accessibilityLabel="新聊天" disabled={state.sending}

@@ -30,6 +30,7 @@ import { contextSettingsRequest } from './contextSettings';
 import { GUI_TOOL_OPERATIONS } from '../../../../shared/remote-chat/guiTools';
 import { guiToolRequest } from './guiTools';
 import { remoteTerminals, type RemoteTerminals } from './terminals';
+import { deleteRemoteThread } from './threadActions';
 
 const OPERATIONS = new Set([
   'downloadOpen', 'downloadBrowse',
@@ -114,6 +115,7 @@ export class ChatOperations {
   private async run(request: RpcRequest, mode: ConnectionMode, owner: string): Promise<unknown> {
     if (request.method === 'connect') return this.connect(request.body);
     const body = { ...object(request.body) };
+    if (request.method === 'request' && body.operation === 'delete') return deleteRemoteThread(body.threadId);
     if (request.method === 'request' && GUI_TOOL_OPERATIONS.has(String(body.operation))) {
       return String(body.operation).startsWith('guiTerminal')
         ? this.terminals.request(body, owner) : guiToolRequest(body);

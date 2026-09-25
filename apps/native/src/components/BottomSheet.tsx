@@ -38,6 +38,7 @@ interface BottomSheetProps {
   tall?: boolean;
   dragFromHeaderOnly?: boolean;
   fullWidthContent?: boolean;
+  maxWidth?: number;
 }
 
 export function BottomSheet({
@@ -52,6 +53,7 @@ export function BottomSheet({
   tall = false,
   dragFromHeaderOnly = false,
   fullWidthContent = false,
+  maxWidth,
 }: BottomSheetProps) {
   const translateY = useRef(new Animated.Value(0)).current;
 
@@ -115,6 +117,7 @@ export function BottomSheet({
         edges={['bottom']}
         style={[
           styles.sheet,
+          maxWidth !== undefined && { maxWidth, width: '100%', alignSelf: 'center' },
           tall && styles.sheetTall,
           { transform: [{ translateY }] },
         ]}
