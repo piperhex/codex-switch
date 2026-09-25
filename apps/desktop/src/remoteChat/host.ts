@@ -160,7 +160,9 @@ export class ChatHost {
       error: () => this.drop(sessionId),
       message: (request) => {
         if (request.kind !== 'request') return;
-        void this.operations.execute(request, link.connectionMode, sessionId).then((response) => {
+        // This namespace is added by Rust from its cloud identity, never from a mobile request.
+        const terminalOwner = typeof message.terminalOwner === 'string' ? message.terminalOwner : sessionId;
+        void this.operations.execute(request, link.connectionMode, sessionId, terminalOwner).then((response) => {
           // A history response may include buffered fragments. Deliver those first to avoid replaying them afterward.
           this.stream.flush();
           return link.send(response);

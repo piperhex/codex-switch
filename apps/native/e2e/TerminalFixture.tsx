@@ -8,7 +8,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import type { GuiToolsClient } from '../../../shared/remote-chat/guiTools';
-import type { TerminalEvent } from '../../../shared/terminal/types';
+import type { TerminalEvent, TerminalInfo } from '../../../shared/terminal/types';
 import { ChatTerminal } from '../src/chat/ChatTerminal';
 
 function App() {
@@ -20,23 +20,27 @@ function App() {
   const [input, setInput] = useState('');
   const [size, setSize] = useState('');
   const client = useMemo<GuiToolsClient['terminal']>(() => {
-    let events: TerminalEvent[] = [];
+    const events: TerminalEvent[] = [];
+    let session: TerminalInfo | undefined;
     return {
+      list: async () => session ? [session] : [],
       open: async cwd => {
         setOpened(value => value + 1);
         const history = Array.from({ length: 120 }, (_, index) => `History line ${index + 1}`).join('\r\n');
         const longLine = `LONG_START_${'0123456789'.repeat(12)}_LONG_END`;
         events.push({ type: 'output', data: Array.from(`${history}\r\n${longLine}\r\n$ `,
           char => char.charCodeAt(0)) });
-        return { id: computer, cwd, shell: 'Fixture shell' };
+        session = { id: computer, cwd, shell: 'Fixture shell' };
+        return session;
       },
       write: async (_id, data) => {
         setInput(value => value + data);
         events.push({ type: 'output', data: Array.from(data, char => char.charCodeAt(0)) });
       },
-      read: async () => { const next = events; events = []; return next; },
+      read: async (_id, cursor) => ({ found: !!session, cursor: events.length,
+        truncated: false, events: events.slice(cursor) }),
       resize: async (_id, next) => { setSize(`${next.cols} x ${next.rows}`); },
-      close: async () => { setClosed(value => value + 1); },
+      close: async () => { session = undefined; setClosed(value => value + 1); },
     };
   }, [computer]);
   return <SafeAreaProvider><SafeAreaView style={{ flex: 1, backgroundColor: '#f4f4f4' }}>

@@ -8,7 +8,8 @@ import { Installer } from '../Installer';
 import { useRemoteCliInstaller } from './useRemoteCliInstaller';
 
 export function RemoteGuiTools({ controller, state, active, terminal }: {
-  controller: ChatController; state: ChatState; active: boolean; terminal: TerminalPanelState;
+  controller: ChatController; state: ChatState; active: boolean;
+  terminal: TerminalPanelState & { error?: string; busy?: boolean };
 }) {
   const connected = state.mode === 'direct' || state.mode === 'relay';
   const installer = useRemoteCliInstaller(controller.guiTools, active && connected);
@@ -39,8 +40,10 @@ export function RemoteGuiTools({ controller, state, active, terminal }: {
     </Popover>
     <Tooltip title={terminalLabel} styles={{ root: { maxWidth: 400 } }}>
       <Button type="text" icon={<PanelBottom size={16} />} aria-label={terminalLabel}
-        aria-expanded={terminal.open} disabled={!connected && !terminal.open} onClick={terminal.toggle} />
+        aria-expanded={terminal.open} disabled={terminal.busy || (!connected && !terminal.open)}
+        onClick={terminal.toggle} />
     </Tooltip>
+    {terminal.error && !terminal.open && <span role="alert" style={{ maxWidth: 400 }}>{terminal.error}</span>}
     {error && <Popover open content={<Alert type="error" message={error} closable onClose={() => setError('')} />}
       placement="bottomRight" styles={{ root: { maxWidth: 400 } }}><span /></Popover>}
   </div>;

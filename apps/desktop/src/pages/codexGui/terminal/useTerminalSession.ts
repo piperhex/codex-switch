@@ -6,7 +6,7 @@ import { terminalTheme } from "./theme";
 import type { TerminalApi, TerminalInfo } from "../../../../../../shared/terminal/types";
 import "@xterm/xterm/css/xterm.css";
 
-export function useTerminalSession(cwd: string, visible: boolean, api: TerminalApi) {
+export function useTerminalSession(cwd: string, visible: boolean, api: TerminalApi, session?: TerminalInfo) {
   const host = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal>();
   const [info, setInfo] = useState<TerminalInfo>();
@@ -20,10 +20,15 @@ export function useTerminalSession(cwd: string, visible: boolean, api: TerminalA
     terminalRef.current = terminal;
     const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(element);
     if (element.clientWidth && element.clientHeight) fit.fit();
-    const connection = connectTerminal({ api, cwd, size: { cols: terminal.cols, rows: terminal.rows },
+    const connection = connectTerminal({ api, cwd, session, size: { cols: terminal.cols, rows: terminal.rows },
       onReady: (value) => { setInfo(value); setStatus(""); }, onError: setStatus,
       onEvent: (event) => {
         if (event.type === "output") terminal.write(new Uint8Array(event.data));
+        if (event.type === 'reset') terminal.reset();
+        if (event.type === 'connection') {
+          terminal.options.disableStdin = !event.connected;
+          setStatus(event.connected ? '' : '连接中断，恢复后可继续使用。');
+        }
         if (event.type === "error") setStatus(event.message);
         if (event.type === "exit") {
           terminal.options.disableStdin = true;
@@ -48,7 +53,7 @@ export function useTerminalSession(cwd: string, visible: boolean, api: TerminalA
       cancelAnimationFrame(frame); observer.disconnect(); themeObserver.disconnect();
       input.dispose(); resize.dispose(); connection.dispose(); terminal.dispose(); terminalRef.current = undefined;
     };
-  }, [cwd, api]);
+  }, [cwd, api, session]);
   useEffect(() => { if (visible) terminalRef.current?.focus(); }, [visible]);
   return { host, info, status, input: (data: string) => terminalRef.current?.input(data, true) };
 }

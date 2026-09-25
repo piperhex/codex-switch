@@ -1,28 +1,36 @@
-import { terminalApi, type TerminalEvent, type TerminalSize } from '../pages/codexGui/terminal/api';
+import { terminalApi, type TerminalInfo, type TerminalSize } from '../pages/codexGui/terminal/api';
+import { TerminalOutput } from './terminalOutput';
 
-const MAX_OUTPUT_BYTES = 256 * 1024;
-const MAX_READ_BYTES = 32 * 1024;
 const MAX_TERMINALS = 8;
-interface Session { id?: string; events: TerminalEvent[]; bytes: number; closed: boolean }
+interface Session { info?: TerminalInfo; output: TerminalOutput; exited: boolean; legacyCursor: number }
 
-/** Terminal handles belong to one authenticated remote session, including pending opens. */
+/** PC-owned shells survive transport sessions. The native transport supplies the authenticated owner. */
 export class RemoteTerminals {
   private readonly owners = new Map<string, Set<Session>>();
 
   async request(body: Record<string, unknown>, owner: string) {
+    if (body.operation === 'guiTerminalList') {
+      return [...(this.owners.get(owner) ?? [])].flatMap(session => session.info ? [session.info] : []);
+    }
     if (body.operation === 'guiTerminalOpen') return this.open(body, owner);
-    const session = [...(this.owners.get(owner) ?? [])].find(entry => entry.id === body.id);
-    if (!session?.id) throw new Error('远程终端已关闭，请新建终端。');
+    const session = [...(this.owners.get(owner) ?? [])].find(entry => entry.info?.id === body.id);
+    if (body.operation === 'guiTerminalRead') return readOutput(session, body.cursor);
+    if (!session?.info) {
+      if (body.operation === 'guiTerminalClose') return;
+      throw new Error('终端已关闭，请新建终端。');
+    }
     switch (body.operation) {
-      case 'guiTerminalRead': return this.read(session);
       case 'guiTerminalWrite':
-        if (session.closed || typeof body.data !== 'string') throw new Error('无法发送终端输入，请新建终端。');
-        return terminalApi.write(session.id, body.data);
-      case 'guiTerminalResize': return terminalApi.resize(session.id, body.size as TerminalSize);
+        if (session.exited || typeof body.data !== 'string') throw new Error('终端已结束，请新建终端。');
+        return terminalApi.write(session.info.id, body.data);
+      case 'guiTerminalResize':
+        if (!session.exited) return terminalApi.resize(session.info.id, body.size as TerminalSize);
+        return;
       case 'guiTerminalClose':
+        await terminalApi.close(session.info.id);
         this.owners.get(owner)?.delete(session);
-        session.closed = true;
-        return terminalApi.close(session.id);
+        if (!this.owners.get(owner)?.size) this.owners.delete(owner);
+        return;
       default: throw new Error('当前版本暂不支持此终端操作。');
     }
   }
@@ -32,51 +40,31 @@ export class RemoteTerminals {
     const sessions = this.owners.get(owner) ?? new Set<Session>();
     if (sessions.size >= MAX_TERMINALS) throw new Error('终端较多，请先关闭一个再试。');
     this.owners.set(owner, sessions);
-    const session: Session = { events: [], bytes: 0, closed: false };
+    const session: Session = { output: new TerminalOutput(), exited: false, legacyCursor: 0 };
     sessions.add(session);
     try {
       // The typed Rust command validates the directory, size and input limits off the UI thread.
-      const info = await terminalApi.open(body.cwd, body.size as TerminalSize, event => this.receive(session, event));
-      session.id = info.id;
-      if (session.closed) await terminalApi.close(info.id);
-      return info;
+      session.info = await terminalApi.open(body.cwd, body.size as TerminalSize, event => {
+        session.output.push(event);
+        if (event.type === 'exit') session.exited = true;
+      });
+      return session.info;
     } catch (error) { sessions.delete(session); throw error; }
   }
-
-  private receive(session: Session, event: TerminalEvent) {
-    if (session.closed) return;
-    const bytes = event.type === 'output' ? event.data.length : 0;
-    if (session.bytes + bytes > MAX_OUTPUT_BYTES) {
-      session.events.push({ type: 'error', message: '终端输出过多，已停止接收。请新建终端重试。' },
-        { type: 'exit', code: null });
-      this.close(session);
-      return;
-    }
-    session.events.push(event); session.bytes += bytes;
-    if (event.type === 'exit') session.closed = true;
-  }
-
-  private read(session: Session) {
-    const events: TerminalEvent[] = [];
-    let bytes = 0;
-    while (session.events.length && bytes < MAX_READ_BYTES) {
-      const event = session.events.shift()!;
-      events.push(event);
-      if (event.type === 'output') { bytes += event.data.length; session.bytes -= event.data.length; }
-    }
-    return events;
-  }
-
-  private close(session: Session) {
-    session.closed = true;
-    if (session.id) void terminalApi.close(session.id).catch(() => console.error('Remote terminal cleanup failed'));
-  }
-
-  release(owner?: string) {
-    const owners = owner === undefined ? [...this.owners.keys()] : [owner];
-    for (const key of owners) {
-      for (const session of this.owners.get(key) ?? []) this.close(session);
-      this.owners.delete(key);
-    }
-  }
 }
+
+function readOutput(session: Session | undefined, requestedCursor: unknown) {
+  const cursor = requestedCursor ?? session?.legacyCursor ?? 0;
+  if (!Number.isSafeInteger(cursor) || Number(cursor) < 0) throw new Error('无法读取终端，请重新打开。');
+  const result = session?.output.read(Number(cursor))
+    ?? { found: false, events: [], cursor: 0, truncated: false };
+  // Older phones consume arrays; cursor-aware phones can replay retained output after reconnecting.
+  if (requestedCursor === undefined) {
+    if (session) session.legacyCursor = result.cursor;
+    return result.events;
+  }
+  return result;
+}
+
+// Independent of ChatHost resets, token refreshes and remote client lifetimes.
+export const remoteTerminals = new RemoteTerminals();

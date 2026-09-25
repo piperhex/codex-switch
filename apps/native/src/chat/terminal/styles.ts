@@ -19,6 +19,10 @@ export const terminalStyles = StyleSheet.create({
   title: { color: '#17211b', fontSize: 16, fontWeight: '600' },
   subtitle: { color: '#718078', fontSize: 11, marginTop: 4 },
   screen: { flex: 1, backgroundColor: '#fff' },
+  tabs: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: '#dfe5df' },
+  tabItems: { alignItems: 'center', paddingHorizontal: 10, gap: 6 },
+  tab: { paddingHorizontal: 14, minHeight: 40, justifyContent: 'center', borderRadius: 8 },
+  tabLabel: { color: '#17211b', fontSize: 12 },
   loading: { flex: 1 },
   status: { maxWidth: 400, alignSelf: 'center', fontSize: 12, color: '#718078', padding: 10 },
 });

@@ -10,9 +10,10 @@ import { TerminalKeys } from './TerminalKeys';
 
 const originalText = (source: string) => source;
 
-export default function TerminalPanel({ panel, active, api, fill = false, translate = originalText }: {
+export default function TerminalPanel({ panel, active, api, fill = false, translate = originalText, notice }: {
   panel: TerminalPanelState; active: boolean; api: TerminalApi; fill?: boolean;
   translate?: (source: string) => string;
+  notice?: string;
 }) {
   const host = useRef<HTMLElement>(null);
   const resize = useTerminalResize(host);
@@ -41,6 +42,7 @@ export default function TerminalPanel({ panel, active, api, fill = false, transl
       {!fill && <button className={`${styles.iconButton} ${styles.close}`}
         aria-label={translate("收起终端")} onClick={panel.hide}><X size={17} /></button>}
     </div>
+    {notice && <div className={styles.status} role="alert">{translate(notice)}</div>}
     {panel.tabs.map((tab) => <TerminalPane key={tab.id} tab={tab} api={api} translate={translate} shortcuts={fill}
       visible={visible && panel.selected === tab.id} />)}
   </section>;
@@ -50,7 +52,7 @@ function TerminalPane({ tab, visible, api, translate, shortcuts }: {
   tab: TerminalTab; visible: boolean; api: TerminalApi; translate: (source: string) => string;
   shortcuts: boolean;
 }) {
-  const { host, info, status, input } = useTerminalSession(tab.cwd, visible, api);
+  const { host, info, status, input } = useTerminalSession(tab.cwd, visible, api, tab.session);
   return <div className={styles.pane} hidden={!visible} role="tabpanel" id={`terminal-pane-${tab.id}`}
     aria-labelledby={`terminal-tab-${tab.id}`}>
     <div ref={host} className={styles.screen} aria-label={info?.shell ?? translate("终端")} />

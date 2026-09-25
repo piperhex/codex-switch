@@ -422,6 +422,8 @@ const send = message => window.ReactNativeWebView.postMessage(JSON.stringify(mes
 terminal.onData(data => send({ type: 'input', data }));
 terminal.onResize(({ cols, rows }) => send({ type: 'resize', cols, rows }));
 window.remoteTerminal = event => {
+  if (event.type === 'reset') terminal.reset();
+  if (event.type === 'connection') terminal.options.disableStdin = !event.connected;
   if (event.type === 'output') terminal.write(new Uint8Array(event.data));
   if (event.type === 'exit') terminal.options.disableStdin = true;
   if (event.type === 'display') { wrap = event.wrap; fitTerminal(); }

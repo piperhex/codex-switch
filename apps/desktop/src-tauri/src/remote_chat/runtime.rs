@@ -331,7 +331,7 @@ impl Runtime {
         if text.len() > FRAME_LIMIT {
             return Err(ChatError::InvalidFrame);
         }
-        let message: serde_json::Value =
+        let mut message: serde_json::Value =
             serde_json::from_str(text).map_err(|_| ChatError::InvalidFrame)?;
         if message["type"] == "chat-policy" {
             self.binary_relay |= message["binaryRelay"] == true;
@@ -343,9 +343,18 @@ impl Runtime {
         if message["type"] == "registered" {
             self.registered = true;
         } else {
-            self.emit(Event::Message {
-                data: text.to_owned(),
-            });
+            let data = if message["type"] == "peer-open" {
+                let config = self.config.as_ref().ok_or(ChatError::Transport)?;
+                // Stable across reconnects; a different account or server cannot attach old terminals.
+                message["terminalOwner"] =
+                    json!(
+                        json!([config.websocket_url, config.owner, config.device_id]).to_string()
+                    );
+                message.to_string()
+            } else {
+                text.to_owned()
+            };
+            self.emit(Event::Message { data });
         }
         Ok(())
     }

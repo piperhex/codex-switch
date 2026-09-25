@@ -1,19 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import type { GuiToolsClient } from '../../../../../shared/remote-chat/guiTools';
+import type { TerminalInfo } from '../../../../../shared/terminal/types';
 import { remoteTerminalApi } from '../../../../../shared/remote-chat/terminalApi';
 import { createTerminalBridge, parseTerminalMessage } from '../../../../../shared/terminal/webviewBridge';
 import { terminalDocument } from './terminalDocument';
 import { useTerminalOrientation } from './useTerminalOrientation';
 import { terminalStyles as styles } from './styles';
 
-export function TerminalSession({ client, cwd, visible, deviceName, hide, close }: {
-  client: GuiToolsClient['terminal']; cwd: string; visible: boolean; deviceName?: string;
+export function TerminalSession({ client, session, visible, deviceName, hide, close, tabs, notice }: {
+  client: GuiToolsClient['terminal']; session: TerminalInfo; visible: boolean; deviceName?: string;
   hide: () => void; close: () => void;
+  tabs?: ReactNode; notice?: string;
 }) {
+  const cwd = session.cwd;
   const webview = useRef<WebView>(null);
   const [html, setHtml] = useState('');
   const [status, setStatus] = useState('正在打开终端…');
@@ -24,9 +27,9 @@ export function TerminalSession({ client, cwd, visible, deviceName, hide, close 
   const updateDisplay = () => {
     webview.current?.injectJavaScript(`window.remoteTerminal?.({type:'display',wrap:${wrap}}); true;`);
   };
-  const bridge = useMemo(() => createTerminalBridge({ cwd, api: remoteTerminalApi(client), status: setStatus,
+  const bridge = useMemo(() => createTerminalBridge({ cwd, session, api: remoteTerminalApi(client), status: setStatus,
     emit: event => webview.current?.injectJavaScript(`window.remoteTerminal(${JSON.stringify(event)}); true;`),
-  }), [client, cwd]);
+  }), [client, cwd, session]);
   useEffect(() => () => bridge.dispose(), [bridge]);
   useEffect(() => {
     if (!visible) bridge.detach();
@@ -39,7 +42,7 @@ export function TerminalSession({ client, cwd, visible, deviceName, hide, close 
     return () => { cancelled = true; };
   }, []);
   useEffect(() => { if (visible) updateDisplay(); }, [wrap, visible]);
-  const message = status || orientation.error;
+  const message = notice || status || orientation.error;
   // A translucent navigation bar disables Android's modal resize when the keyboard opens.
   // Let Android resize the WebView; iOS needs explicit keyboard avoidance.
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={hide}
@@ -69,6 +72,7 @@ export function TerminalSession({ client, cwd, visible, deviceName, hide, close 
           <Pressable accessibilityRole="button" accessibilityLabel="收起终端" style={styles.button} onPress={hide}>
             <Ionicons name="chevron-down" size={24} color="#17211b" /></Pressable>
         </View>
+        {tabs}
         {html ? <WebView key={generation} ref={webview} source={source} style={styles.screen}
           originWhitelist={['about:blank']} javaScriptEnabled scrollEnabled={false} bounces={false}
           showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false}

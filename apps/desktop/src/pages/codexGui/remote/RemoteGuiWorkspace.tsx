@@ -9,7 +9,7 @@ import { useDreamSkin } from '../useDreamSkin';
 import { RemoteGuiSidebar } from './RemoteGuiSidebar';
 import { RemoteGuiProject } from './RemoteGuiProject';
 import { readClipboardImages } from '../clipboardImages';
-import { useTerminalPanel } from '../terminal/useTerminalPanel';
+import { useRemoteTerminalPanel } from '../../../../../../shared/remote-chat/useRemoteTerminalPanel';
 import { remoteTerminalApi } from './terminalApi';
 import { RemoteGuiTools } from './RemoteGuiTools';
 import styles from '../styles.module.less';
@@ -23,7 +23,8 @@ export default function RemoteGuiWorkspace(props: {
 }) {
   const { active, identity, device, computers } = props;
   const chat = useRemoteGui(identity, device.deviceId, active);
-  const terminal = useTerminalPanel(chat.state.selected?.cwd ?? chat.state.draftProject?.cwd ?? '');
+  const terminal = useRemoteTerminalPanel({ client: chat.controller.guiTools.terminal, connected: chat.state.ready,
+    cwd: chat.state.selected?.cwd ?? chat.state.draftProject?.cwd ?? '' });
   const terminalApi = useMemo(() => remoteTerminalApi(chat.controller.guiTools.terminal), [chat.controller]);
   const skinStyle = useDreamSkin(active);
   const workspace = useRef<HTMLElement>(null);
@@ -42,7 +43,7 @@ export default function RemoteGuiWorkspace(props: {
         <span className="gui-remote-focus"><FocusModeButton {...props.focusMode} /></span></>}
       headerEnd={props.focusMode.focused && props.windowControls}
       conversationFooter={terminal.tabs.length > 0 && <Suspense fallback={null}>
-        <TerminalPanel panel={terminal} active={active} api={terminalApi} />
+        <TerminalPanel panel={terminal} active={active} api={terminalApi} notice={terminal.error} />
       </Suspense>}
       readClipboardImages={readClipboardImages}
       composerHeader={<RemoteGuiProject state={chat.state} controller={chat.controller} deviceName={device.name}

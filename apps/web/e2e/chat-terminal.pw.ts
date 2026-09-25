@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { connect, fixtureUrl, login, openChatList, operationCount, screenshot, state } from './chat-helpers';
 
-test.beforeEach(({}, info) => test.skip(info.project.name !== 'mobile', 'Phone terminal drawer'));
+test.beforeEach(({}, info) => test.skip(info.project.name !== 'mobile' && !info.title.startsWith('desktop'),
+  'Phone terminal drawer'));
 
 test('opens a 90 percent terminal drawer, preserves its shell and draft, and sends input over P2P and Relay',
   async ({ page, request }, info) => {
@@ -54,7 +55,7 @@ test('opens a 90 percent terminal drawer, preserves its shell and draft, and sen
     await expect(drawer).toHaveCount(0);
   });
 
-test('switching computers clears the hidden terminal and opens a fresh session', async ({ page, request }) => {
+test('switching computers detaches the hidden terminal without closing the PC shell', async ({ page, request }) => {
   await request.post(`${fixtureUrl}/test/reset`);
   const devices = ['工作电脑', '家中电脑'].map((name, index) => ({ name, deviceId: `terminal-computer-${index}`,
     platform: 'Windows', online: true, capabilities: [], localProxyRunning: false,
@@ -70,16 +71,52 @@ test('switching computers clears the hidden terminal and opens a fresh session',
   await expect(drawer).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: '正在打开终端' })).toHaveCount(0);
   const opened = await operationCount(request, 'guiTerminalOpen');
+  const closed = await operationCount(request, 'guiTerminalClose');
   await drawer.getByRole('button', { name: '收起终端', exact: true }).tap();
   await expect(drawer).toBeHidden();
   await page.getByRole('button', { name: '选择电脑', exact: true }).tap();
   await page.getByRole('button', { name: '家中电脑 在线', exact: true }).tap();
   await expect(page.getByRole('button', { name: '选择电脑', exact: true })).toContainText('家中电脑');
-  await expect(page.locator('.chat-terminal-drawer')).toHaveCount(0);
+  await expect(drawer).toBeHidden();
+  expect(await operationCount(request, 'guiTerminalClose')).toBe(closed);
   await expect(toggle).toBeEnabled(); await toggle.tap();
   await expect(drawer).toBeVisible();
   await expect(drawer).toContainText('家中电脑');
-  await expect.poll(() => operationCount(request, 'guiTerminalOpen')).toBeGreaterThan(opened);
+  // Both device aliases in this fixture route to the same PC, so its retained shell is discovered again.
+  expect(await operationCount(request, 'guiTerminalOpen')).toBe(opened);
+});
+
+test('restores the same shell and output after disconnecting and reloading the phone page', async ({ page, request }) => {
+  await request.post(`${fixtureUrl}/test/reset`);
+  await login(page); await connect(page);
+  const toggle = () => page.locator('.chat-header').getByRole('button', { name: '打开远程终端' });
+  await expect(toggle()).toBeEnabled(); await toggle().click();
+  const drawer = page.getByRole('dialog', { name: '远程终端', exact: true });
+  await expect(drawer).toBeVisible();
+  await expect(page.locator('.xterm-rows')).toContainText('Remote shell ready');
+  const input = page.locator('.xterm-helper-textarea');
+  await input.fill('retained-marker'); await input.press('Enter');
+  await expect(page.locator('.xterm-rows')).toContainText('retained-marker');
+  const opened = await operationCount(request, 'guiTerminalOpen');
+  const id = (await state(request)).operations.find(operation => operation.operation === 'guiTerminalWrite')!.id;
+  await request.post(`${fixtureUrl}/test/disconnect`);
+  await expect.poll(async () => (await state(request)).mobileConnections).toBeGreaterThan(1);
+  await expect(page.locator('.xterm-rows')).toContainText('retained-marker');
+  await page.reload(); await connect(page);
+  await expect(toggle()).toBeEnabled(); await toggle().click();
+  await expect(page.locator('.xterm-rows')).toContainText('retained-marker');
+  expect(await operationCount(request, 'guiTerminalOpen')).toBe(opened);
+  expect(await operationCount(request, 'guiTerminalClose')).toBe(0);
+  await input.fill('continued-marker'); await input.press('Enter');
+  await expect.poll(async () => (await state(request)).operations.filter(operation =>
+    operation.operation === 'guiTerminalWrite').at(-1)?.id).toBe(id);
+  await expect(page.locator('.xterm-rows')).toContainText('continued-marker');
+  await drawer.getByRole('button', { name: '关闭终端 1', exact: true }).click();
+  await expect.poll(() => operationCount(request, 'guiTerminalClose')).toBe(1);
+  await page.reload(); await connect(page);
+  await expect(toggle()).toBeEnabled(); await toggle().click();
+  await expect.poll(() => operationCount(request, 'guiTerminalOpen')).toBe(opened + 1);
+  await expect(page.locator('.xterm-rows')).not.toContainText('retained-marker');
 });
 
 test('bundled Android terminal renders output as text and forwards typing, shortcuts and resizing', async ({ page }) => {
@@ -105,4 +142,25 @@ test('bundled Android terminal renders output as text and forwards typing, short
     .map(value => value.data).join('')).toContain('echo android\r\x03');
   await page.setViewportSize({ width: 390, height: 500 });
   await expect.poll(async () => (await messages()).filter(value => value.type === 'resize').length).toBeGreaterThan(0);
+});
+
+test('desktop browser restores retained terminals in a wide drawer', async ({ page, request }, info) => {
+  test.skip(info.project.name !== 'desktop', 'Wide terminal drawer');
+  await request.post(`${fixtureUrl}/test/reset`);
+  await login(page); await connect(page);
+  const toggle = page.locator('.chat-header').getByRole('button', { name: '打开远程终端' });
+  await expect(toggle).toBeEnabled(); await toggle.click();
+  const drawer = page.getByRole('dialog', { name: '远程终端', exact: true });
+  await expect(drawer).toBeVisible();
+  await expect(page.locator('.xterm-rows')).toContainText('Remote shell ready');
+  const bounds = (await drawer.boundingBox())!;
+  expect(Math.round(bounds.width)).toBe(896);
+  const opened = await operationCount(request, 'guiTerminalOpen');
+  await drawer.getByRole('button', { name: '收起终端', exact: true }).click();
+  await page.reload(); await connect(page);
+  await expect(toggle).toBeEnabled(); await toggle.click();
+  await expect(page.locator('.xterm-rows')).toContainText('Remote shell ready');
+  expect(await operationCount(request, 'guiTerminalOpen')).toBe(opened);
+  expect(await operationCount(request, 'guiTerminalClose')).toBe(0);
+  await screenshot(page, info, 'wide-retained-terminal');
 });

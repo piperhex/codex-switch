@@ -6,6 +6,7 @@ const INPUT_CHUNK_CHARACTERS = 4096;
 export interface ConnectionOptions {
   api: TerminalApi;
   cwd: string;
+  session?: TerminalInfo;
   size: TerminalSize;
   onEvent: (event: TerminalEvent) => void;
   onReady: (info: TerminalInfo) => void;
@@ -18,19 +19,26 @@ export function connectTerminal(options: ConnectionOptions) {
   let id: string | undefined;
   let disposed = false;
   let exited = false;
+  let connected = true;
+  let detach: (() => void) | undefined;
   let writing = false;
   let resizing = false;
   let pending = "";
   let size: TerminalSize | undefined;
   const report = (message: string) => { if (!disposed) options.onError(message); };
-  const opening = api.open(options.cwd, { cols: options.size.cols, rows: options.size.rows }, (event) => {
+  const receive = (event: TerminalEvent) => {
     if (disposed) return;
     if (event.type === "exit") { exited = true; pending = ""; }
+    if (event.type === 'connection') { connected = event.connected; if (!connected) pending = ''; }
     options.onEvent(event);
-  }).then(async (info) => {
+  };
+  const initialSize = { cols: options.size.cols, rows: options.size.rows };
+  const opening = (options.session && api.attach
+    ? api.attach(options.session, initialSize, receive) : api.open(options.cwd, initialSize, receive)).then(async (info) => {
     id = info.id;
-    if (disposed) { await api.close(id); return; }
-    if (!exited) options.onReady(info);
+    detach = info.detach;
+    if (disposed) { if (detach) detach(); else await api.close(id); return; }
+    if (!exited && connected) options.onReady(info);
     void flushInput(); void flushSize();
   }).catch(() => report("终端未能启动，请关闭此标签页后重试。"));
 
@@ -60,7 +68,7 @@ export function connectTerminal(options: ConnectionOptions) {
   }
   return {
     input(data: string) {
-      if (disposed || exited) return;
+      if (disposed || exited || !connected) return;
       if (pending.length + data.length > MAX_PENDING_INPUT) { report("输入内容较多，请分几次粘贴。"); return; }
       pending += data; void flushInput();
     },
@@ -68,7 +76,8 @@ export function connectTerminal(options: ConnectionOptions) {
     dispose() {
       disposed = true; pending = "";
       // A tab can close before its shell finishes starting; opening performs the late cleanup.
-      if (id) void api.close(id).catch(() => console.error("Terminal cleanup failed"));
+      if (detach) detach();
+      else if (id) void api.close(id).catch(() => console.error("Terminal cleanup failed"));
       else void opening;
     },
   };

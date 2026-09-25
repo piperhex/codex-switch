@@ -6,10 +6,10 @@ import { ChatHost } from './host';
 
 const state = vi.hoisted(() => ({ options: undefined as LinkOptions | undefined,
   receive: undefined as ((event: HostTransportEvent) => void) | undefined,
-  relay: vi.fn(), close: vi.fn(), reconnect: vi.fn(), stop: vi.fn() }));
+  relay: vi.fn(), close: vi.fn(), reconnect: vi.fn(), stop: vi.fn(), execute: vi.fn(async () => ({})) }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { subscribe: vi.fn(async () => vi.fn()) } }));
 vi.mock('../pages/codexGui/webEvents', () => ({ subscribeGuiEvent: vi.fn(async () => vi.fn()) }));
-vi.mock('./operations', () => ({ ChatOperations: class { release = vi.fn(); } }));
+vi.mock('./operations', () => ({ ChatOperations: class { release = vi.fn(); execute = state.execute; } }));
 vi.mock('./nativeTransport', () => ({ NativeChatTransport: class {
   ready = true; bufferedAmount = 0;
   constructor(receive: (event: HostTransportEvent) => void) { state.receive = receive; }
@@ -18,6 +18,7 @@ vi.mock('./nativeTransport', () => ({ NativeChatTransport: class {
 vi.mock('../../../../shared/remote-chat/link', () => ({ ChatLink: class {
   constructor(options: LinkOptions) { state.options = options; }
   setRelayAvailable = state.relay;
+  send = vi.fn(async () => {});
   close = state.close;
 } }));
 
@@ -25,6 +26,16 @@ const changed = vi.fn();
 let host: ChatHost;
 const message = (data: object, generation = 1) => state.receive!({
   type: 'message', generation, data: JSON.stringify(data),
+});
+
+it('forwards only the native identity as the persistent terminal owner', async () => {
+  message({ type: 'peer-open', sessionId: 'terminal-session', publicKey: 'ab'.repeat(32), iceServers: [],
+    terminalOwner: 'native-account-scope' });
+  const request = { kind: 'request' as const, method: 'request' as const, id: 'request',
+    body: { operation: 'guiTerminalList', terminalOwner: 'forged' } };
+  state.options!.message(request);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(state.execute).toHaveBeenCalledWith(request, undefined, 'terminal-session', 'native-account-scope');
 });
 beforeEach(async () => {
   vi.useFakeTimers(); vi.setSystemTime(100_000); vi.clearAllMocks();

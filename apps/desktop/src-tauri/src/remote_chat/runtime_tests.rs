@@ -1,6 +1,45 @@
 use super::*;
 
 #[test]
+fn terminal_owner_is_stable_across_connections_and_cannot_be_supplied_by_a_peer() {
+    let mut runtime = connected_identity();
+    let delivered = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let captured = delivered.clone();
+    runtime.bridge = Some(Bridge::new(
+        "terminal-test".into(),
+        Box::new(move |batch| {
+            captured.lock().unwrap().extend(batch.events);
+            true
+        }),
+    ));
+    let peer = |id: &str| {
+        json!({ "type": "peer-open", "sessionId": id, "terminalOwner": "forged" }).to_string()
+    };
+    runtime.receive(&peer("first")).unwrap();
+    runtime.config.as_mut().unwrap().access_token = "renewed".into();
+    runtime.receive(&peer("second")).unwrap();
+    runtime.config.as_mut().unwrap().owner = "another-account".into();
+    runtime.receive(&peer("third")).unwrap();
+    runtime.bridge.as_mut().unwrap().flush();
+    let owners: Vec<_> = delivered
+        .lock()
+        .unwrap()
+        .iter()
+        .filter_map(|envelope| match &envelope.event {
+            Event::Message { data } => {
+                let message: serde_json::Value = serde_json::from_str(data).unwrap();
+                Some(message["terminalOwner"].clone())
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(owners.len(), 3);
+    assert_eq!(owners[0], owners[1]);
+    assert_ne!(owners[1], owners[2]);
+    assert_ne!(owners[0], "forged");
+}
+
+#[test]
 fn coordinator_updates_upload_limits_and_owner_changes_reset_them() {
     let mut runtime = connected_identity();
     runtime
