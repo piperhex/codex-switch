@@ -5,7 +5,7 @@ import { MAX_REMOTE_TERMINALS, useRemoteTerminalPanel } from '../../../../shared
 import { TerminalSession } from './terminal/TerminalSession';
 import { terminalStyles as styles } from './terminal/styles';
 
-/** Views may disappear; shells stay on their PC until the user explicitly closes them. */
+/** Project views may disappear; shells stay on their PC until the user explicitly closes them. */
 export function ChatTerminal({ client, cwd, active, connected, deviceName }: {
   client: GuiToolsClient['terminal']; cwd: string; active: boolean; connected: boolean; deviceName?: string;
 }) {

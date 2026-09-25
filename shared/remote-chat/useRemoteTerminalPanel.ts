@@ -1,85 +1,99 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState, type SetStateAction } from 'react';
 import type { GuiToolsClient } from './guiTools';
 import type { TerminalInfo } from '../terminal/types';
+import { terminalBelongsToProject, terminalProjectKey } from './terminalProject';
 
 const INITIAL_SIZE = { cols: 80, rows: 24 };
 export const MAX_REMOTE_TERMINALS = 8;
 interface Tab { id: string; cwd: string; session: TerminalInfo }
+interface Panel { tabs: Tab[]; selected: string; open: boolean; busy: boolean; error: string }
+const EMPTY_PANEL: Panel = { tabs: [], selected: '', open: false, busy: false, error: '' };
 const asTab = (session: TerminalInfo): Tab => ({ id: session.id, cwd: session.cwd, session });
 
-/** Both phone clients discover the PC's shells instead of storing connection-specific handles. */
+/** Both phone clients discover this project's PC shells without owning their lifetime. */
 export function useRemoteTerminalPanel(options: {
   client: GuiToolsClient['terminal']; cwd: string; connected: boolean;
 }) {
   const { client, cwd, connected } = options;
-  const [tabs, setTabs] = useState<Tab[]>([]);
-  const [selected, setSelected] = useState('');
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const pending = useRef(false);
-  const generation = useRef(0);
-  useEffect(() => () => { generation.current += 1; }, [client]);
+  const project = terminalProjectKey(cwd);
+  const scope = useMemo(() => ({ pending: false, generation: 0 }), [client, project]);
+  const [state, setState] = useState({ ...EMPTY_PANEL, scope });
+  // Drop the old project's view during render, before any terminal can attach or accept input.
+  const panel = state.scope === scope ? state : EMPTY_PANEL;
+  const update = (change: Partial<Panel> | ((previous: Panel) => Partial<Panel>)) => {
+    setState(previous => {
+      const current = previous.scope === scope ? previous : EMPTY_PANEL;
+      return { ...current, ...(typeof change === 'function' ? change(current) : change), scope };
+    });
+  };
+  useEffect(() => () => { scope.generation += 1; }, [scope]);
 
   const run = async (action: (current: () => boolean) => Promise<void>) => {
-    if (pending.current) return;
-    if (!connected) { setError('请先连接电脑，再试一次。'); return; }
-    pending.current = true; setBusy(true); setError('');
-    const version = ++generation.current;
-    const current = () => version === generation.current;
+    if (scope.pending) return;
+    if (!connected) { update({ error: '请先连接电脑，再试一次。' }); return; }
+    scope.pending = true; update({ busy: true, error: '' });
+    const version = ++scope.generation;
+    const current = () => version === scope.generation;
     try { await action(current); }
-    catch { if (current()) setError('终端暂时无法连接，请确认电脑在线后重试。'); }
-    finally { pending.current = false; if (current()) setBusy(false); }
+    catch { if (current()) update({ error: '终端暂时无法连接，请确认电脑在线后重试。' }); }
+    finally { scope.pending = false; if (current()) update({ busy: false }); }
   };
-  const restore = (sessions: TerminalInfo[]) => {
-    setTabs(previous => sessions.map(session => previous.find(tab => tab.id === session.id) ?? asTab(session)));
-    setSelected(previous => sessions.some(session => session.id === previous) ? previous : sessions.at(-1)?.id ?? '');
-  };
+  // Filtering also supports PCs running the previous, unscoped list protocol.
+  const list = async () => (await client.list(cwd)).filter(session => terminalBelongsToProject(session, cwd));
+  const restore = (sessions: TerminalInfo[]) => update(previous => ({
+    tabs: sessions.map(session => previous.tabs.find(tab => tab.id === session.id) ?? asTab(session)),
+    selected: sessions.some(session => session.id === previous.selected)
+      ? previous.selected : sessions.at(-1)?.id ?? '',
+  }));
   useEffect(() => {
     if (!connected) return;
     let cancelled = false;
-    const version = generation.current;
-    void client.list().then(sessions => {
-      if (!cancelled && !pending.current && version === generation.current) { restore(sessions); setError(''); }
+    const version = scope.generation;
+    const current = () => !cancelled && !scope.pending && version === scope.generation;
+    void list().then(sessions => {
+      if (current()) { restore(sessions); update({ error: '' }); }
     }).catch(() => {
-      if (!cancelled) setError('无法读取电脑上的终端，请稍后重试。');
+      if (current()) update({ error: '无法读取电脑上的终端，请稍后重试。' });
     });
     return () => { cancelled = true; };
-  }, [client, connected]);
+  }, [scope, connected]);
 
-  const create = async () => {
-    const version = generation.current;
+  const create = async (current: () => boolean) => {
     const session = await client.open(cwd, INITIAL_SIZE);
-    // A late open still belongs to the PC even if this screen has gone away.
-    if (version !== generation.current) return;
-    setTabs(previous => [...previous.filter(tab => tab.id !== session.id), asTab(session)]);
-    setSelected(session.id); setOpen(true);
+    // A late open remains on its original project even after switching away.
+    if (!current()) return;
+    update(previous => ({ tabs: [...previous.tabs.filter(tab => tab.id !== session.id), asTab(session)],
+      selected: session.id, open: true }));
   };
   const add = () => { void run(async current => {
-    const sessions = await client.list();
+    const sessions = await list();
     if (!current()) return;
     restore(sessions);
-    if (sessions.length >= MAX_REMOTE_TERMINALS) { setError('终端较多，请先关闭一个再试。'); return; }
-    await create();
+    if (sessions.length >= MAX_REMOTE_TERMINALS) { update({ error: '终端较多，请先关闭一个再试。' }); return; }
+    await create(current);
   }); };
   const toggle = () => {
-    if (open) { setOpen(false); return; }
-    if (tabs.length) { setOpen(true); return; }
+    if (panel.open) { update({ open: false }); return; }
+    if (panel.tabs.length) { update({ open: true }); return; }
     void run(async current => {
-      const sessions = await client.list();
+      const sessions = await list();
       if (!current()) return;
       restore(sessions);
-      if (sessions.length) setOpen(true);
-      else await create();
+      if (sessions.length) update({ open: true });
+      else await create(current);
     });
   };
   const remove = (id: string) => { void run(async current => {
     await client.close(id);
     if (!current()) return;
-    const remaining = tabs.filter(tab => tab.id !== id);
-    setTabs(remaining);
-    setSelected(previous => previous === id ? remaining.at(-1)?.id ?? '' : previous);
-    if (!remaining.length) setOpen(false);
+    update(previous => {
+      const tabs = previous.tabs.filter(tab => tab.id !== id);
+      return { tabs, selected: previous.selected === id ? tabs.at(-1)?.id ?? '' : previous.selected,
+        open: tabs.length > 0 && previous.open };
+    });
   }); };
-  return { tabs, selected, open, busy, error, add, remove, toggle, select: setSelected, hide: () => setOpen(false) };
+  const select = (selected: SetStateAction<string>) => update(previous => ({
+    selected: typeof selected === 'function' ? selected(previous.selected) : selected,
+  }));
+  return { ...panel, add, remove, toggle, select, hide: () => update({ open: false }) };
 }

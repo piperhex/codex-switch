@@ -21,7 +21,7 @@ export function createGuiToolsClient(request: <T>(body: object) => Promise<T>) {
     install: (version: string) => request<RemoteCliStatus>({ operation: 'guiCliInstall', version }),
     reconnect: () => request<void>({ operation: 'guiReconnect' }),
     terminal: {
-      list: () => request<TerminalInfo[]>({ operation: 'guiTerminalList' }),
+      list: (cwd: string) => request<TerminalInfo[]>({ operation: 'guiTerminalList', cwd }),
       open: (cwd: string, size: TerminalSize) =>
         request<TerminalInfo>({ operation: 'guiTerminalOpen', cwd, size }),
       read: (id: string, cursor: number) => request<TerminalRead>({ operation: 'guiTerminalRead', id, cursor }),

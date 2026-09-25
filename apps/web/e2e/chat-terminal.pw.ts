@@ -164,3 +164,52 @@ test('desktop browser restores retained terminals in a wide drawer', async ({ pa
   expect(await operationCount(request, 'guiTerminalClose')).toBe(0);
   await screenshot(page, info, 'wide-retained-terminal');
 });
+
+test('desktop and mobile terminals are isolated by project and restored after reload', async ({ page, request }, info) => {
+  await request.post(`${fixtureUrl}/test/reset`);
+  await login(page); await connect(page);
+  const chooseRootProject = async () => {
+    await page.getByRole('button', { name: '选择项目', exact: true }).click();
+    await page.getByRole('button', { name: '此电脑', exact: true }).click();
+    await page.getByRole('button', { name: 'F:', exact: true }).click();
+    await page.getByRole('button', { name: 'projects', exact: true }).click();
+    await page.getByRole('button', { name: '选择此文件夹', exact: true }).click();
+  };
+  const toggle = page.locator('.chat-header').getByRole('button', { name: '打开远程终端' });
+  const drawer = page.getByRole('dialog', { name: '远程终端', exact: true });
+  const rows = page.locator('.xterm-rows');
+  const hide = () => drawer.getByRole('button', { name: '收起终端', exact: true }).click();
+  const type = async (text: string) => {
+    const input = page.locator('.xterm-helper-textarea');
+    await input.fill(text); await input.press('Enter');
+    await expect(rows).toContainText(text);
+  };
+  await chooseRootProject();
+  await toggle.click(); await type('parent-project-marker');
+  await hide();
+  await openChatList(page);
+  await page.getByRole('button', { name: '移动端聊天体验', exact: true }).click();
+  await toggle.click(); await expect(rows).toContainText('Remote shell ready');
+  await expect(rows).not.toContainText('parent-project-marker');
+  await type('demo-project-marker');
+  await hide();
+  await openChatList(page);
+  await page.getByRole('button', { name: /在 .* 中新建对话/ }).click();
+  await toggle.click(); await expect(rows).toContainText('demo-project-marker');
+  expect(await operationCount(request, 'guiTerminalOpen')).toBe(2);
+  await hide();
+  await chooseRootProject();
+  await toggle.click(); await expect(rows).toContainText('parent-project-marker');
+  await expect(rows).not.toContainText('demo-project-marker');
+  expect(await operationCount(request, 'guiTerminalClose')).toBe(0);
+  await drawer.getByRole('button', { name: '关闭终端 1', exact: true }).click();
+  await expect(drawer).toHaveCount(0);
+  await page.reload(); await connect(page);
+  await openChatList(page);
+  await page.getByRole('button', { name: '移动端聊天体验', exact: true }).click();
+  await toggle.click(); await expect(rows).toContainText('demo-project-marker');
+  await expect(rows).not.toContainText('parent-project-marker');
+  expect(await operationCount(request, 'guiTerminalOpen')).toBe(2);
+  expect(await operationCount(request, 'guiTerminalClose')).toBe(1);
+  await screenshot(page, info, 'project-terminal-restored');
+});

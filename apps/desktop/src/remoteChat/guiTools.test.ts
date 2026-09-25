@@ -42,7 +42,7 @@ it('retains shells across new connections and isolates authenticated owners and 
   const reconnected = new ChatOperations(terminals);
   const list = request('list', { operation: 'guiTerminalList' });
   expect((await reconnected.execute(list, 'relay', 'new', 'account')).data)
-    .toEqual([{ id: 'terminal', cwd: '/remote', shell: 'bash' }]);
+    .toEqual([{ id: 'terminal', cwd: '/remote', shell: 'bash', projectCwd: '/remote' }]);
   expect((await reconnected.execute(list, 'relay', 'other', 'other-account')).data).toEqual([]);
   expect((await reconnected.execute(write, 'relay', 'new', 'account')).error).toBeUndefined();
   expect(terminalApi.open).toHaveBeenCalledOnce();
@@ -91,7 +91,7 @@ it('retains a pending terminal if the phone disconnects before opening completes
   operations.release(); finish({ id: 'late', cwd: '/remote', shell: 'bash' }); await opening;
   expect(terminalApi.close).not.toHaveBeenCalled();
   expect((await operations.execute(request('list', { operation: 'guiTerminalList' }))).data)
-    .toEqual([{ id: 'late', cwd: '/remote', shell: 'bash' }]);
+    .toEqual([{ id: 'late', cwd: '/remote', shell: 'bash', projectCwd: '/remote' }]);
 });
 
 it('preserves legacy phone reads and retains completed shells until explicitly removed', async () => {

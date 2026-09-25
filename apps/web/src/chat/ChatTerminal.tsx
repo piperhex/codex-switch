@@ -10,7 +10,7 @@ import './terminal.css';
 
 const TerminalPanel = lazy(() => import('../../../desktop/src/pages/codexGui/terminal/TerminalPanel'));
 
-/** Switching computers detaches the view; each PC keeps its own terminal sessions. */
+/** Switching projects detaches the view; each PC retains the project's terminal sessions. */
 export function ChatTerminal({ client, cwd, active, connected, deviceName }: {
   client: GuiToolsClient['terminal']; cwd: string; active: boolean; connected: boolean; deviceName?: string;
 }) {

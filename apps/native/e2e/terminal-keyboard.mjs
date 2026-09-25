@@ -64,6 +64,28 @@ try {
   await checkKeyboard('reopened');
   await tap('收起终端', { last: true });
   await waitText('Opened 1, closed 0');
+  await tap('Switch project');
+  await waitText('Project /other');
+  await tap('打开远程终端');
+  // Xterm's rendered rows are hidden from the accessibility tree; verify the attached session's native header.
+  await waitText('Office · /other');
+  assert.ok(!(await nodes()).some(node => node.text === 'Office · /project'),
+    'Previous project session must be hidden');
+  await screenshot('other-project');
+  await tap('收起终端', { last: true });
+  await waitText('Opened 2, closed 0');
+  await tap('Switch project');
+  await tap('打开远程终端');
+  await waitText('Office · /project');
+  await screenshot('restored-project');
+  await tap('关闭终端');
+  await waitText('Opened 2, closed 1');
+  await tap('Switch project');
+  await tap('打开远程终端');
+  await waitText('Office · /other');
+  await tap('收起终端', { last: true });
+  await waitText('Opened 2, closed 1');
+  console.log('PASS project isolation and explicit close');
 } catch (error) {
   await screenshot('failure');
   throw error;

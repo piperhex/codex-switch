@@ -13,11 +13,11 @@ function fixture() {
     write: vi.fn(async () => {}), resize: vi.fn(async () => {}) };
   const root = createRoot(document.createElement('div'));
   let panel!: ReturnType<typeof useRemoteTerminalPanel>;
-  function Fixture({ connected }: { connected: boolean }) {
-    panel = useRemoteTerminalPanel({ client, cwd: '/new-project', connected }); return null;
+  function Fixture({ connected, cwd }: { connected: boolean; cwd: string }) {
+    panel = useRemoteTerminalPanel({ client, cwd, connected }); return null;
   }
   return { client, panel: () => panel, root,
-    render: (connected = true) => act(async () => root.render(<Fixture connected={connected} />)) };
+    render: (connected = true, cwd = info.cwd) => act(async () => root.render(<Fixture connected={connected} cwd={cwd} />)) };
 }
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
 afterEach(() => vi.restoreAllMocks());
@@ -67,5 +67,86 @@ it('does not let a stale initial list replace a newly opened terminal', async ()
     expect(test.panel().tabs[0].id).toBe('new');
     await act(async () => test.root.unmount());
     expect(test.client.close).not.toHaveBeenCalled();
+  } finally { await act(async () => test.root.unmount()); }
+});
+
+it('switches project views without closing shells and filters lists from older PCs', async () => {
+  const test = fixture();
+  const other = { ...info, id: 'other', cwd: '/other-project' };
+  test.client.list.mockResolvedValue([info, other]);
+  try {
+    await test.render();
+    await act(async () => test.panel().toggle());
+    expect(test.panel().tabs.map(tab => tab.id)).toEqual([info.id]);
+    await test.render(true, other.cwd);
+    expect(test.client.list).toHaveBeenLastCalledWith(other.cwd);
+    expect(test.panel().tabs.map(tab => tab.id)).toEqual([other.id]);
+    expect(test.panel().open).toBe(false);
+    await act(async () => test.panel().toggle());
+    await test.render(true, info.cwd);
+    expect(test.panel().tabs.map(tab => tab.id)).toEqual([info.id]);
+    expect(test.client.open).not.toHaveBeenCalled();
+    expect(test.client.close).not.toHaveBeenCalled();
+  } finally { await act(async () => test.root.unmount()); }
+});
+
+it('ignores late lists and failures from a project that is no longer selected', async () => {
+  const test = fixture();
+  let finish!: (sessions: TerminalInfo[]) => void;
+  let fail!: (error: Error) => void;
+  test.client.list.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  test.client.list.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = reject; }));
+  try {
+    await test.render();
+    await test.render(true, '/other');
+    await test.render(true, '/empty');
+    await act(async () => { finish([info]); fail(new Error('old failure')); });
+    expect(test.panel().tabs).toEqual([]);
+    expect(test.panel().error).toBe('');
+  } finally { await act(async () => test.root.unmount()); }
+});
+
+it('keeps a late open on its original project while allowing the next project to open immediately', async () => {
+  const test = fixture();
+  let finish!: (session: TerminalInfo) => void;
+  test.client.list.mockResolvedValue([]);
+  test.client.open.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const other = { ...info, id: 'other', cwd: '/other' };
+  test.client.open.mockResolvedValue(other);
+  try {
+    await test.render();
+    await act(async () => test.panel().toggle());
+    expect(test.panel().busy).toBe(true);
+    await test.render(true, '/other');
+    expect(test.panel().busy).toBe(false);
+    await act(async () => test.panel().toggle());
+    await act(async () => finish(info));
+    expect(test.panel().tabs.map(tab => tab.id)).toEqual([other.id]);
+    expect(test.panel().selected).toBe(other.id);
+    expect(test.client.close).not.toHaveBeenCalled();
+    test.client.list.mockResolvedValue([info, other]);
+    await test.render();
+    expect(test.panel().tabs.map(tab => tab.id)).toEqual([info.id]);
+    expect(test.client.open).toHaveBeenCalledTimes(2);
+  } finally { await act(async () => test.root.unmount()); }
+});
+
+it('keeps pending close results out of the next project and clears the old view even while offline', async () => {
+  const test = fixture();
+  let finish!: () => void;
+  test.client.close.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  try {
+    await test.render();
+    await act(async () => test.panel().remove(info.id));
+    await test.render(false, '/offline');
+    expect(test.panel().tabs).toEqual([]);
+    expect(test.panel().busy).toBe(false);
+    const other = { ...info, id: 'other', cwd: '/other' };
+    test.client.list.mockResolvedValue([other]);
+    await test.render(true, other.cwd);
+    await act(async () => { test.panel().toggle(); finish(); });
+    expect(test.panel().selected).toBe(other.id);
+    expect(test.panel().open).toBe(true);
+    expect(test.client.close).toHaveBeenCalledExactlyOnceWith(info.id);
   } finally { await act(async () => test.root.unmount()); }
 });

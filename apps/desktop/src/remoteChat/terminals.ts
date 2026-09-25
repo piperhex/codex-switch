@@ -1,5 +1,6 @@
 import { terminalApi, type TerminalInfo, type TerminalSize } from '../pages/codexGui/terminal/api';
 import { TerminalOutput } from './terminalOutput';
+import { terminalBelongsToProject } from '../../../../shared/remote-chat/terminalProject';
 
 const MAX_TERMINALS = 8;
 interface Session { info?: TerminalInfo; output: TerminalOutput; exited: boolean; legacyCursor: number }
@@ -10,7 +11,11 @@ export class RemoteTerminals {
 
   async request(body: Record<string, unknown>, owner: string) {
     if (body.operation === 'guiTerminalList') {
-      return [...(this.owners.get(owner) ?? [])].flatMap(session => session.info ? [session.info] : []);
+      const cwd = body.cwd;
+      if (cwd !== undefined && typeof cwd !== 'string') throw new Error('请选择有效的项目目录。');
+      const sessions = [...(this.owners.get(owner) ?? [])].flatMap(session => session.info ? [session.info] : []);
+      // Older clients may still request all shells; current clients always send their project directory.
+      return typeof cwd === 'string' ? sessions.filter(info => terminalBelongsToProject(info, cwd)) : sessions;
     }
     if (body.operation === 'guiTerminalOpen') return this.open(body, owner);
     const session = [...(this.owners.get(owner) ?? [])].find(entry => entry.info?.id === body.id);
@@ -44,10 +49,12 @@ export class RemoteTerminals {
     sessions.add(session);
     try {
       // The typed Rust command validates the directory, size and input limits off the UI thread.
-      session.info = await terminalApi.open(body.cwd, body.size as TerminalSize, event => {
+      const info = await terminalApi.open(body.cwd, body.size as TerminalSize, event => {
         session.output.push(event);
         if (event.type === 'exit') session.exited = true;
       });
+      // Rust resolves symlinks and the default home directory; retain the original project association separately.
+      session.info = { ...info, projectCwd: body.cwd };
       return session.info;
     } catch (error) { sessions.delete(session); throw error; }
   }

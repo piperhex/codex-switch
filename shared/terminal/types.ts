@@ -1,5 +1,5 @@
 export interface TerminalSize { cols: number; rows: number }
-export interface TerminalInfo { id: string; cwd: string; shell: string }
+export interface TerminalInfo { id: string; cwd: string; shell: string; projectCwd?: string }
 export interface TerminalAttachment extends TerminalInfo { detach?: () => void }
 export type TerminalEvent = { type: 'output'; data: number[] }
   | { type: 'exit'; code: number | null } | { type: 'error'; message: string }

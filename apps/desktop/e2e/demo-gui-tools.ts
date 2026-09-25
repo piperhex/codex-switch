@@ -1,5 +1,6 @@
 import type { TerminalInfo } from '../src/pages/codexGui/terminal/api';
 import { TerminalOutput } from '../src/remoteChat/terminalOutput';
+import { terminalBelongsToProject } from '../../../shared/remote-chat/terminalProject';
 
 let version = '0.155.0';
 let completedAt = 0;
@@ -15,10 +16,11 @@ export function demoGuiTools(input: Record<string, unknown>) {
       progress: installing ? { downloaded: 25_000_000, total: 50_000_000, phase: 'downloading' } : null };
   }
   if (input.operation === 'guiReconnect') return {};
-  if (input.operation === 'guiTerminalList') return [...terminals.values()].map(session => session.info);
+  if (input.operation === 'guiTerminalList') return [...terminals.values()].map(session => session.info)
+    .filter(info => typeof input.cwd !== 'string' || terminalBelongsToProject(info, input.cwd));
   if (input.operation === 'guiTerminalOpen') {
     const id = crypto.randomUUID();
-    const info = { id, cwd: String(input.cwd || '/remote'), shell: 'Remote bash' };
+    const info = { id, cwd: String(input.cwd || '/remote'), projectCwd: String(input.cwd ?? ''), shell: 'Remote bash' };
     const output = new TerminalOutput();
     output.push({ type: 'output', data: [...new TextEncoder().encode('Remote shell ready\r\n$ ')] });
     terminals.set(id, { info, output });
