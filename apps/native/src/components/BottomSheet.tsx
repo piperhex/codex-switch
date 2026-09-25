@@ -29,6 +29,7 @@ export interface BottomSheetAction {
 interface BottomSheetProps {
   visible: boolean;
   title: string;
+  truncateTitle?: boolean;
   subtitle?: string;
   onClose: () => void;
   onBack?: () => void;
@@ -44,6 +45,7 @@ interface BottomSheetProps {
 export function BottomSheet({
   visible,
   title,
+  truncateTitle = false,
   subtitle,
   onClose,
   onBack,
@@ -131,7 +133,8 @@ export function BottomSheet({
               <Text style={styles.closeText}>‹</Text>
             </Pressable>}
             <View style={styles.heading}>
-              <Text style={styles.title}>{title}</Text>
+              <Text style={styles.title} numberOfLines={truncateTitle ? 1 : undefined} ellipsizeMode="tail">
+                {title}</Text>
               {subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> : null}
             </View>
             {dismissible ? <Pressable

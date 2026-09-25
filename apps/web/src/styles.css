@@ -199,6 +199,7 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
 .modal-heading { display: flex; flex-direction: column; gap: 4px; }.modal-heading strong { color: var(--ink); font-size: 18px; }.modal-heading span { color: var(--muted); font-size: 11px; font-weight: 400; }
 .adaptive-sheet-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 0 2px; }
 .sheet-handle, .sheet-header { flex-shrink: 0; }
+.sheet-title-truncated { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .accounts-page .adm-button > span, .verification-actions .adm-button > span,
 .settings-logout > span { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .sheet-actions { display: grid; gap: 10px; margin-top: 20px; }.sheet-actions.two { grid-template-columns: 1fr 1fr; }.sheet-actions .adm-button { display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 11px; font-weight: 700; }

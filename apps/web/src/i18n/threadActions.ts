@@ -1,5 +1,6 @@
 export const threadActions = {
   '对话操作': 'Chat actions',
+  '操作 - {name}': 'Actions - {name}',
   '管理对话：{name}': 'Manage chat: {name}',
   '重命名对话': 'Rename chat',
   '删除对话': 'Delete chat',

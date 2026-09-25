@@ -9,9 +9,10 @@ export function ChatThreadActions({ actions }: { actions: ThreadActionsModel }) 
   if (!actions.target) return null;
   const { view, busy, error, name, reason } = actions;
   const archive: ThreadAction = actions.target.archived ? 'unarchive' : 'archive';
-  const title = view === 'menu' ? '对话操作' : view === 'rename' ? '重命名对话' : '删除这条对话？';
+  const titles = { menu: `操作 - ${actions.target.title}`, rename: '重命名对话', delete: '删除这条对话？' };
+  const title = titles[view];
   const hint = reason(view === 'menu' ? archive : view);
-  return <BottomSheet visible title={title} maxWidth={400} dismissible={!busy} dragFromHeaderOnly
+  return <BottomSheet visible title={title} truncateTitle maxWidth={400} dismissible={!busy} dragFromHeaderOnly
     onClose={actions.close} onBack={view !== 'menu' && !busy ? () => actions.changeView('menu') : undefined}
     actions={view === 'menu' ? [] : [
       { label: '取消', onPress: actions.close, disabled: busy },
@@ -42,7 +43,7 @@ function Action({ label, icon, disabled, danger, onPress }: {
   label: string; icon: 'edit-2' | 'archive' | 'trash-2'; disabled: boolean; danger?: boolean; onPress: () => void;
 }) {
   const color = danger ? palette.danger : palette.ink;
-  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress}
     style={[actionStyles.action, disabled && styles.disabled]}>
     <Feather name={icon} size={20} color={color} /><Text style={[actionStyles.label, { color }]}>{label}</Text>
   </Pressable>;
@@ -51,7 +52,9 @@ function Action({ label, icon, disabled, danger, onPress }: {
 const actionStyles = StyleSheet.create({
   content: { gap: 8, paddingBottom: 12 },
   action: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 10 },
-  label: { fontSize: 16 },
+  // Leave room for Android's Chinese fallback font instead of using its exact measured bounds.
+  label: { flex: 1, minWidth: 0, fontSize: 16, lineHeight: 24, paddingVertical: 2,
+    includeFontPadding: true, textAlignVertical: 'center' },
   copy: { color: palette.ink, fontSize: 15, lineHeight: 24 },
   input: { borderWidth: 1, borderColor: palette.border, borderRadius: 12, padding: 12, color: palette.ink, fontSize: 16 },
 });

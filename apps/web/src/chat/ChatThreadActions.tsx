@@ -9,9 +9,10 @@ export function ChatThreadActions({ actions }: { actions: ThreadActionsModel }) 
   if (!actions.target) return null;
   const { view, name, busy, error, reason } = actions;
   const archive = actions.target.archived ? 'unarchive' : 'archive';
-  const title = view === 'menu' ? '对话操作' : view === 'rename' ? '重命名对话' : '删除这条对话？';
+  const titles = { menu: t('操作 - {name}', { name: actions.target.title }),
+    rename: t('重命名对话'), delete: t('删除这条对话？') };
   const hint = reason(view === 'menu' ? archive : view);
-  return <AdaptiveSheet open title={t(title)} width={400} onClose={actions.close}
+  return <AdaptiveSheet open title={titles[view]} truncateTitle width={400} onClose={actions.close}
     onBack={view !== 'menu' && !busy ? () => actions.changeView('menu') : undefined}>
     <div className="chat-thread-actions" aria-busy={busy}>
       {view === 'menu' && <>

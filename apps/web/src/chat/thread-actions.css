@@ -6,7 +6,8 @@
 .chat-thread-actions { width: 100%; max-width: 400px; margin-inline: auto; overflow-wrap: anywhere; }
 .chat-thread-actions button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px;
   padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: #17211b;
-  font: inherit; text-align: left; cursor: pointer; }
+  font: inherit; line-height: 24px; text-align: left; cursor: pointer; }
+.chat-thread-actions button > svg { flex-shrink: 0; }
 .chat-thread-actions button:hover { background: #f4f4f4; }
 .chat-thread-actions button:disabled { opacity: .45; cursor: default; }
 .chat-thread-actions .chat-thread-danger { color: #c74e47; }

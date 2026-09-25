@@ -7,7 +7,7 @@ import { threadActionReason, type ThreadAction } from './threadActions';
 type View = 'menu' | 'rename' | 'delete';
 
 export function useThreadActions(state: ChatState, controller: Pick<ChatController, 'threadActions'>) {
-  const [target, setTarget] = useState<{ thread: Thread; archived: boolean } | null>(null);
+  const [target, setTarget] = useState<{ thread: Thread; title: string; archived: boolean } | null>(null);
   const [view, setView] = useState<View>('menu');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -15,8 +15,9 @@ export function useThreadActions(state: ChatState, controller: Pick<ChatControll
   const inFlight = useRef(false);
   const open = (thread: Thread) => {
     if (inFlight.current) return;
-    setTarget({ thread, archived: state.archived }); setView('menu'); setError('');
-    setName(threadPresentation(thread, state.sidebar).title);
+    const title = threadPresentation(thread, state.sidebar).title;
+    setTarget({ thread, title, archived: state.archived }); setView('menu'); setError('');
+    setName(title);
   };
   const close = () => { if (!inFlight.current) setTarget(null); };
   const changeView = (next: View) => { if (!inFlight.current) { setView(next); setError(''); } };

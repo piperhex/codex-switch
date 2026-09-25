@@ -32,13 +32,13 @@ async function longPress(page: Page, row: Locator, touch: boolean) {
   const x = box.x + box.width / 2; const y = box.y + box.height / 2;
   if (!touch) {
     await page.mouse.move(x, y); await page.mouse.down();
-    await expect(page.getByText('对话操作', { exact: true })).toBeVisible();
+    await expect(page.getByText('操作 - 原来的对话', { exact: true })).toBeVisible();
     await page.mouse.up(); return;
   }
   const session = await page.context().newCDPSession(page);
   try {
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-    await expect(page.getByText('对话操作', { exact: true })).toBeVisible();
+    await expect(page.getByText('操作 - 原来的对话', { exact: true })).toBeVisible();
     await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   } finally { await session.detach(); }
 }
@@ -54,26 +54,37 @@ test('long press renames without selecting; archive, restore and confirmed delet
     await page.getByRole('button', { name: '重命名对话', exact: true }).click();
     await page.getByRole('textbox', { name: '对话名称' }).fill('   ');
     await expect(page.getByRole('button', { name: '保存', exact: true })).toBeDisabled();
-    await page.getByRole('textbox', { name: '对话名称' }).fill('  新的名称  ');
+    const renamedTitle = '这是一个很长的对话标题，用来确认操作面板只显示一行并在末尾省略';
+    await page.getByRole('textbox', { name: '对话名称' }).fill(`  ${renamedTitle}  `);
     await page.getByRole('button', { name: '保存', exact: true }).click();
-    await expect(page.getByRole('button', { name: '新的名称', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '管理对话：新的名称', exact: true }).click();
+    await expect(page.getByRole('button', { name: renamedTitle, exact: true })).toBeVisible();
+    await page.getByRole('button', { name: `管理对话：${renamedTitle}`, exact: true }).click();
+    const heading = page.getByText(`操作 - ${renamedTitle}`, { exact: true });
+    await expect(heading).toBeVisible();
+    if (!isMobile) await expect(page.locator('.ant-modal')).toHaveCSS('transform', 'none');
+    await expect(heading).toHaveCSS('text-overflow', 'ellipsis');
+    await expect(heading).toHaveCSS('white-space', 'nowrap');
+    expect(await heading.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
+    const titleBox = (await heading.boundingBox())!;
+    const closeBox = (await page.getByRole('button', { name: '关闭', exact: true }).boundingBox())!;
+    expect(titleBox.x + titleBox.width).toBeLessThanOrEqual(closeBox.x);
+    await page.screenshot({ path: `../../.codex-tmp/thread-actions-long-${isMobile ? 'mobile' : 'desktop'}.png` });
     await page.getByRole('button', { name: '归档', exact: true }).click();
-    await expect(page.getByRole('button', { name: '新的名称', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: renamedTitle, exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '最近聊天 ▾', exact: true }).click();
-    await page.getByRole('button', { name: '管理对话：新的名称', exact: true }).click();
+    await page.getByRole('button', { name: `管理对话：${renamedTitle}`, exact: true }).click();
     await page.getByRole('button', { name: '恢复', exact: true }).click();
-    await expect(page.getByRole('button', { name: '新的名称', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: renamedTitle, exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: '已归档 ▾', exact: true }).click();
-    await page.getByRole('button', { name: '管理对话：新的名称', exact: true }).click();
+    await page.getByRole('button', { name: `管理对话：${renamedTitle}`, exact: true }).click();
     await page.getByRole('button', { name: '删除对话', exact: true }).click();
     await expect(page.getByText('删除这条对话？', { exact: true })).toBeVisible();
     expect(calls.filter(call => call.operation === 'delete')).toHaveLength(0);
     await page.getByRole('button', { name: '取消', exact: true }).click();
-    await page.getByRole('button', { name: '管理对话：新的名称', exact: true }).click();
+    await page.getByRole('button', { name: `管理对话：${renamedTitle}`, exact: true }).click();
     await page.getByRole('button', { name: '删除对话', exact: true }).click();
     await page.getByRole('button', { name: '删除对话', exact: true }).click();
-    await expect(page.getByRole('button', { name: '新的名称', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: renamedTitle, exact: true })).toHaveCount(0);
     expect(calls.filter(call => call.operation === 'delete')).toEqual([{ operation: 'delete', threadId: 'one' }]);
     await expect(page.getByRole('button', { name: '另一个对话', exact: true })).toBeVisible();
   });
@@ -102,6 +113,6 @@ test('moving the pointer cancels a long press without opening the menu', async (
   await row.dispatchEvent('pointermove', { pointerType: 'touch', isPrimary: true, clientX: 40, clientY: 250 });
   await page.waitForTimeout(600);
   await row.dispatchEvent('pointerup', { pointerType: 'touch', isPrimary: true });
-  await expect(page.getByText('对话操作', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('操作 - 原来的对话', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('selected')).toHaveText('none');
 });

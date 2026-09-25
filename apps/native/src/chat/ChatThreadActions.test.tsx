@@ -17,7 +17,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const thread: Thread = { id: 'chat', name: '对话名称', preview: '', cwd: '', updatedAt: 1 };
 function model(patch: Partial<ThreadActionsModel> = {}): ThreadActionsModel {
-  return { target: { thread, archived: false }, view: 'menu', name: '对话名称', busy: false, error: '',
+  return { target: { thread, title: '对话名称', archived: false }, view: 'menu', name: '对话名称', busy: false, error: '',
     reason: () => '', open: vi.fn(), close: vi.fn(), submit: vi.fn(), changeView: vi.fn(), setName: vi.fn(), ...patch };
 }
 interface NodeProps { children?: ReactNode; label?: string; onPress?: () => void; disabled?: boolean }
@@ -42,9 +42,11 @@ it('opens native long-press actions without selecting a conversation and exposes
 });
 
 it('keeps native actions compact, shows restore for archives and requires a second step before deletion', () => {
-  const actions = model({ target: { thread, archived: true } });
+  const actions = model({ target: { thread, title: '侧栏显示的对话标题', archived: true }, name: '尚未保存的新名称' });
   const sheet = ChatThreadActions({ actions })!;
   expect(sheet.props.maxWidth).toBe(400);
+  expect(sheet.props.title).toBe('操作 - 侧栏显示的对话标题');
+  expect(sheet.props.truncateTitle).toBe(true);
   const options = nodes(sheet);
   expect(options.find(node => node.props.label === '恢复')).toBeDefined();
   options.find(node => node.props.label === '删除')?.props.onPress?.();
