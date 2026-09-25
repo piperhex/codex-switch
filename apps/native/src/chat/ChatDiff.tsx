@@ -36,7 +36,7 @@ export function ChatDiff({ files, copy }: { files: DiffFile[]; copy?: CopyAction
         <Feather name="folder" size={15} color={palette.muted} />
         <View style={styles.fill}>
           <Text accessibilityRole="header" style={diffStyles.folderName}>{group.name}</Text>
-          {group.showPath && <Text style={diffStyles.folderPath}>{group.directory || '.'}</Text>}
+          <Text style={diffStyles.folderPath}>{group.directory || '.'}</Text>
         </View>
       </View>
       {group.entries.map(({ file, index }) => <Pressable key={`${file.path}:${index}`} accessibilityRole="button"

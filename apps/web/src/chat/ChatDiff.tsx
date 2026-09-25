@@ -31,7 +31,8 @@ export function ChatDiff({ files, status }: { files: DiffFile[]; status?: string
   const panel = useContext(DetailsContext);
   if (panel) return <ChatFilesSummary files={files} title="文件修改记录" status={status} />;
   return <div className="chat-diff">{groupDiffFiles(files).map(group =>
-    <section key={group.directory}><h3><Folder size={17} />{group.showPath ? group.directory : group.name}</h3>
+    <section key={group.directory}><h3><Folder size={17} />{group.name}</h3>
+      <p className="chat-diff-folder">{group.directory || '.'}</p>
       {group.entries.map(({ file, index }) => <details key={index} className="chat-diff-file">
         <summary><FileText size={16} /><span title={file.path}>{file.path.split(/[\\/]/).at(-1)}</span>
           <b className="chat-added">+{file.added}</b><b className="chat-removed">−{file.removed}</b>
