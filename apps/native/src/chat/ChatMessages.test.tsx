@@ -31,10 +31,12 @@ vi.mock('./useConversationEntries', () => ({ useConversationEntries: (turns: Tur
 }) }));
 vi.mock('./useChatScroll', () => ({ useChatScroll: (options: unknown) => {
   state.scroll(options);
-  return { list: { current: null }, initializing: false, onItemLayout: vi.fn() };
+  return { list: { current: null }, initializing: false, onItemLayout: vi.fn(), scrollEventThrottle: 16 };
 } }));
 
-interface ListProps { data: TimelineEntry[]; renderItem: (props: { item: TimelineEntry }) => ReactElement }
+interface ListProps {
+  data: TimelineEntry[]; renderItem: (props: { item: TimelineEntry }) => ReactElement; scrollEventThrottle: number;
+}
 interface DrawerProps { entry: { items: Item[] }; onOpen: (id: string) => void; onClose: () => void }
 interface DetailProps { item: Item; onBack: () => void }
 interface ActivityProps { item: Item; count: number; running: boolean; onOpen: () => void }
@@ -67,6 +69,11 @@ const command = (id: string, status = 'completed'): Item => ({ id, type: 'comman
   command: `echo ${id}`, aggregatedOutput: `output-${id}` });
 const render = (turn: Turn) => ChatMessages({ thread: { id: 'thread', cwd: '', preview: '', updatedAt: 0,
   turns: [turn] }, loading: false, loadingMore: false, hasMore: false });
+
+it('passes the initial positioning event frequency through to the native list', () => {
+  const tree = render({ id: 'turn', status: 'completed', items: [command('single')] });
+  expect(element<ListProps>(tree, 'FlatList').props.scrollEventThrottle).toBe(16);
+});
 
 function activityRow(tree: ReactNode): ActivityProps {
   const list = element<ListProps>(tree, 'FlatList').props;

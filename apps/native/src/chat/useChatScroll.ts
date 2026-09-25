@@ -6,6 +6,8 @@ import { useNativeChatScroll } from './useNativeChatScroll';
 
 const SCROLL_EDGE_DISTANCE = 100;
 const SCROLL_OFFSET_TOLERANCE = 1;
+const INITIAL_SCROLL_EVENT_THROTTLE_MS = 16;
+const SCROLL_EVENT_THROTTLE_MS = 100;
 // React Native rounds both the top and bottom of partially visible cells down to whole layout pixels.
 const VIEWABILITY_ROUNDING_TOLERANCE = 2;
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 0 };
@@ -157,6 +159,8 @@ export function useChatScroll<Entry extends { id: string } = Item>(
   const beginScroll = () => { scrolling.current = true; };
   return { list, more, preservePosition: nativeScroll.available || preservePosition, historyBottomSpace,
     initializing: Boolean(latestItemId) && !initialPositionReady,
+    // Native bottom following can move twice in one batch; throttling can drop the final offset forever.
+    scrollEventThrottle: initialPositionReady ? SCROLL_EVENT_THROTTLE_MS : INITIAL_SCROLL_EVENT_THROTTLE_MS,
     showScrollToBottom, scrollToBottom, onItemLayout, onFooterLayout, onLayout, onContentSizeChange, onScroll,
     onViewableItemsChanged, viewabilityConfig: VIEWABILITY_CONFIG,
     onScrollBeginDrag: beginScroll, onScrollEndDrag: finishScroll,

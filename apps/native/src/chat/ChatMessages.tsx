@@ -94,7 +94,7 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder,
       progressBackgroundColor={palette.background} />}
     // FlatList accounts for the list header itself, including in one-message conversations.
     maintainVisibleContentPosition={preservePosition ? { minIndexForVisible: firstMessageIndex } : undefined}
-    {...scrollHandlers} scrollEventThrottle={100}
+    {...scrollHandlers}
     ListHeaderComponent={<View style={hasMore && [styles.historyStatus, styles.messageHeader]}>
       {hasMore && (loadingMore ? <>
         <ActivityIndicator size="small" accessibilityLabel="正在加载聊天记录" />
