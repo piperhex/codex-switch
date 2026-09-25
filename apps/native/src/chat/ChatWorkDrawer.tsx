@@ -5,7 +5,7 @@ import { ChatMessage } from './ChatMessage';
 import type { WorkEntry } from './turnPresentation';
 
 export function ChatWorkDrawer({ entry, onOpen, onClose }: {
-  entry: WorkEntry; onOpen: (id: string) => void; onClose: () => void;
+  entry: Pick<WorkEntry, 'turn' | 'items'>; onOpen: (id: string) => void; onClose: () => void;
 }) {
   const running = entry.turn.status === 'inProgress';
   return <BottomSheet fullWidthContent visible tall title={running ? '正在处理' : '处理过程'}

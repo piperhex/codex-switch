@@ -74,13 +74,14 @@ function activitySummary(item: Item): { preview: string; icon: IconName } {
   return { icon, preview: [label, content, STATUS_LABELS[item.status ?? '']].filter(Boolean).join(' · ') };
 }
 
-export function ChatActivityRow({ item, onOpen, running = false }: {
-  item: Item; onOpen: (id: string) => void; running?: boolean;
+export function ChatActivityRow({ item, onOpen, running = false, count }: {
+  item: Item; onOpen: (id: string) => void; running?: boolean; count?: number;
 }) {
   const summary = activitySummary(item);
   if (item.type === 'reasoning' && !summary.preview.trim()) return null;
   const preview = summary.preview.slice(0, PREVIEW_LENGTH).replace(/\s+/g, ' ').trim();
-  return <Pressable accessibilityRole="button" accessibilityLabel={preview}
+  const label = count ? `${preview}，查看全部 ${count} 项活动` : preview;
+  return <Pressable accessibilityRole="button" accessibilityLabel={label}
     style={messageStyles.activity} onPress={() => onOpen(item.id)}>
     <ChatActivityLabel icon={summary.icon} text={preview} active={running && item.status === 'inProgress'} />
     <Ionicons name="chevron-forward" size={15} color={palette.muted} />

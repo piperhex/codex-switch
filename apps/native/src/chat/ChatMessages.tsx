@@ -3,29 +3,32 @@ import { ActivityIndicator, FlatList, Keyboard, Pressable, RefreshControl, Text,
 import { Ionicons } from '@expo/vector-icons';
 import { useChatScroll } from './useChatScroll';
 import { useHistoryRefresh } from './useHistoryRefresh';
-import { ChatMessage } from './ChatMessage';
+import { ChatActivityRow, ChatMessage } from './ChatMessage';
 import { ChatToolDetails } from './ChatToolDetails';
 import { ChatWorkDrawer } from './ChatWorkDrawer';
 import { ChatProcessSummary } from './ChatProcessSummary';
 import { ChatTurnDuration, ChatTurnSummary, type TurnPanel } from './ChatTurnSummary';
 import { ChatTurnDetails } from './ChatTurnDetails';
-import { findWorkEntry, type TurnEntry } from './turnPresentation';
+import { findWorkEntry } from './turnPresentation';
+import { activityTimeline, findActivityEntry, latestActivity, type TimelineEntry as Entry } from './activityTimeline';
 import { useConversationEntries } from './useConversationEntries';
 import type { ChatMessagesProps } from '../../../../shared/remote-chat/client/messageProps';
 import { palette, styles } from './styles';
 
-type Selection = { type: 'work'; id: string } | { type: 'item'; id: string; workId?: string }
+type ProcessSelection = { type: 'work' | 'activities'; id: string };
+type Selection = ProcessSelection | { type: 'item'; id: string; parent?: ProcessSelection }
   | { type: 'turn'; id: string; panel: TurnPanel };
 
 const PROCESS_SEPARATOR_STYLE = { height: 14 };
 
-function MessageSeparator({ leadingItem }: { leadingItem?: TurnEntry }) {
-  const process = leadingItem?.kind === 'process' || (leadingItem?.kind === 'work' && leadingItem.inline);
+function MessageSeparator({ leadingItem }: { leadingItem?: Entry }) {
+  const process = leadingItem?.kind === 'process' || leadingItem?.kind === 'activities'
+    || (leadingItem?.kind === 'work' && leadingItem.inline);
   return <View style={process ? PROCESS_SEPARATOR_STYLE : styles.messageSeparator} />;
 }
 
 const TimelineEntry = memo(function TimelineEntry({ entry, open, onInline }: {
-  entry: TurnEntry; open: (selection: Selection) => void; onInline: (turnId: string, inline: boolean) => void;
+  entry: Entry; open: (selection: Selection) => void; onInline: (turnId: string, inline: boolean) => void;
 }) {
   const openItem = useCallback((id: string) => {
     if (entry.kind === 'process') onInline(entry.turn.id, true);
@@ -36,6 +39,14 @@ const TimelineEntry = memo(function TimelineEntry({ entry, open, onInline }: {
     onOpen={(id, panel) => open({ type: 'turn', id, panel })} />;
   if (entry.kind === 'work') return <ChatProcessSummary entry={entry} onInline={onInline}
     onOpen={() => open({ type: 'work', id: entry.id })} />;
+  if (entry.kind === 'activities') {
+    const item = latestActivity(entry.items);
+    return item ? <ChatActivityRow item={item} count={entry.items.length}
+      running={entry.turn.status === 'inProgress'} onOpen={() => {
+        onInline(entry.turn.id, true);
+        open({ type: 'activities', id: entry.id });
+      }} /> : null;
+  }
   return <ChatMessage item={entry.item} process={entry.kind === 'process'}
     onOpen={openItem}
     running={entry.turn.status === 'inProgress' && entry.item.status !== 'completed'} />;
@@ -45,10 +56,11 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder,
   const turns = useMemo(() => (thread?.turns ?? []).map((turn) => offline && turn.status === 'inProgress'
     ? { ...turn, status: 'cached' } : turn), [thread?.turns, offline]);
   const { entries, hasObservedLiveTurn, setInline } = useConversationEntries(turns);
+  const timeline = useMemo(() => activityTimeline(entries), [entries]);
   const { list, more, preservePosition, historyBottomSpace, initializing, onItemLayout, onFooterLayout,
     showScrollToBottom, scrollToBottom, ...scrollHandlers }
-    = useChatScroll<TurnEntry>({ hasMore, loading, loadingMore, loadOlder,
-      latestItemId: entries.at(-1)?.id, bottomPadding: styles.messages.padding });
+    = useChatScroll<Entry>({ hasMore, loading, loadingMore, loadOlder,
+      latestItemId: timeline.at(-1)?.id, bottomPadding: styles.messages.padding });
   const refresh = useHistoryRefresh(more, loadingMore);
   // Expanded group headers can be replaced when an older page extends the group; anchor a message instead.
   const firstMessageIndex = entries[0]?.kind === 'work' && entries[0].inline ? 1 : 0;
@@ -57,13 +69,15 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder,
   const [selection, setSelection] = useState<Selection | null>(null);
   const open = useCallback((value: Selection) => { Keyboard.dismiss(); setSelection(value); }, []);
   // Resolve against live history so open process, plan, output and diff drawers keep receiving updates.
-  const selectedEntry = selection?.type === 'work' ? findWorkEntry(entries, selection.id) : undefined;
+  const processSelection = selection?.type === 'work' || selection?.type === 'activities' ? selection : undefined;
+  const findProcessEntry = processSelection?.type === 'work' ? findWorkEntry : findActivityEntry;
+  const selectedEntry = processSelection ? findProcessEntry(entries, processSelection.id) : undefined;
   const selectedTool = selection?.type === 'item'
     ? thread?.turns?.flatMap((turn) => turn.items).find((item) => item.id === selection.id) : undefined;
   const selectedTurn = selection?.type === 'turn' ? thread?.turns?.find((turn) => turn.id === selection.id) : undefined;
-  const workId = selection?.type === 'item' ? selection.workId : undefined;
+  const parent = selection?.type === 'item' ? selection.parent : undefined;
   const close = () => setSelection(null);
-  return <><View style={styles.fill}><FlatList ref={list} data={entries} keyExtractor={(entry) => entry.id}
+  return <><View style={styles.fill}><FlatList ref={list} data={timeline} keyExtractor={(entry) => entry.id}
     style={showInitialLoading && styles.messageListLoading}
     pointerEvents={showInitialLoading ? 'none' : 'auto'} accessibilityElementsHidden={showInitialLoading}
     importantForAccessibility={showInitialLoading ? 'no-hide-descendants' : 'auto'}
@@ -107,10 +121,10 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder,
       <Text style={[styles.subtitle, styles.messageLoadingText]}>正在加载聊天记录…</Text>
     </View>}
     </View>
-    {selectedEntry?.kind === 'work' && <ChatWorkDrawer entry={selectedEntry} onClose={close}
-      onOpen={(id) => open({ type: 'item', id, workId: selectedEntry.id })} />}
+    {selectedEntry && <ChatWorkDrawer entry={selectedEntry} onClose={close}
+      onOpen={(id) => open({ type: 'item', id, parent: processSelection })} />}
     {selectedTool && <ChatToolDetails key={selectedTool.id} item={selectedTool} onClose={close}
-      onBack={workId ? () => open({ type: 'work', id: workId }) : undefined} />}
+      onBack={parent ? () => open(parent) : undefined} />}
     {selectedTurn && selection?.type === 'turn' && <ChatTurnDetails turn={selectedTurn}
       panel={selection.panel} onClose={close} />}
   </>;
