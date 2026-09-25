@@ -19,13 +19,31 @@ interface AccountDetailsProps {
   privateMode: boolean;
   refreshing: boolean;
   syncing: boolean;
+  switchBusy: boolean;
+  switching: boolean;
   onClose: () => void;
+  onOpenSwitch: (account: AccountSummary) => void;
   onRefresh: (accountId: string) => Promise<void>;
   onRefreshServer: () => Promise<void>;
   onAccountUpdated: (account: AccountSummary) => void;
 }
 
 type DetailsPanel = 'overview' | 'edit' | 'credits' | 'note' | UsageHelp;
+
+function AccountSwitchButton({ account, privateMode, switchBusy, switching, onOpenSwitch }: Pick<AccountDetailsProps,
+  'account' | 'privateMode' | 'switchBusy' | 'switching' | 'onOpenSwitch'>) {
+  const email = privateMode ? maskEmail(account.email) : account.email;
+  return <Pressable accessibilityRole="button" accessibilityLabel={`将官方客户端切换到账号 ${email}`}
+    accessibilityHint="选择要切换账号的电脑"
+    accessibilityState={{ disabled: switchBusy, busy: switching }} disabled={switchBusy}
+    onPress={() => onOpenSwitch(account)}
+    style={({ pressed }) => [styles.switchButton, pressed && styles.pressed, switchBusy && styles.disabled]}>
+    {switching ? <ActivityIndicator color={colors.green} size="small" /> : <>
+      <Ionicons name="sync-outline" size={21} color={colors.green} />
+      <Text style={styles.switchText}>切换官方客户端账号</Text>
+    </>}
+  </Pressable>;
+}
 
 function AccountIdentity({ account, devices, privateMode, refreshing, onRefresh }: Pick<AccountDetailsProps,
   'account' | 'devices' | 'privateMode' | 'refreshing'> & { onRefresh: () => void }) {
@@ -78,6 +96,7 @@ function AccountDetailsContent(props: AccountDetailsProps) {
           onRefresh={refresh} onHelp={setPanel} />
         <AccountInfoCard account={account} credits={credits} active={overview} onEdit={edit}
           onNote={() => setPanel('note')} onCredits={() => setPanel('credits')} />
+        <AccountSwitchButton {...props} />
       </SheetScrollView>
     </BottomSheet>
     <AccountPrivateDetailsSheet account={panel === 'edit' ? account : null} session={props.session}

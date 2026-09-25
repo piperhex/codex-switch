@@ -44,8 +44,7 @@ export function ChatSettings({ models, selection, saving, ready, error, updateSe
   return <BottomSheet visible fullWidthContent title="聊天设置" onClose={onClose}>
     <SheetScrollView contentContainerStyle={[styles.settings, menuStyles.content]}
       accessibilityElementsHidden={nestedOpen} importantForAccessibility={nestedOpen ? 'no-hide-descendants' : 'auto'}>
-      <ChatProfileMenu {...connection} variant="settings" ready={ready} active={usageActive}
-        chooseDevice={() => { onClose(); connection.chooseDevice(); }} />
+      <ChatProfileMenu {...connection} variant="settings" ready={ready} active={usageActive} />
       {visibleSettingsFields(selection).map((entry) => <Pressable key={entry.field} accessibilityRole="button"
         accessibilityLabel={`设置${entry.label}`} onPress={() => setField(entry.field)} style={menuStyles.entry}>
         <Text style={styles.title}>{entry.label}</Text>

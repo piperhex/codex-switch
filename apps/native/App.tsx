@@ -311,17 +311,17 @@ function Dashboard({
       </View> : null}
       {!loading && accounts.map((account) => <AccountCard key={account.id} account={account}
         privateMode={privateMode}
-        switchBusy={Boolean(switchingAccountId)}
-        switching={switchingAccountId === account.id}
-        onOpenDetails={(selectedAccount) => setDetailAccountId(selectedAccount.id)}
-        onOpenSwitch={setSwitchAccount} />)}
+        onOpenDetails={(selectedAccount) => setDetailAccountId(selectedAccount.id)} />)}
     </ScrollView>
     <AccountDetailsDrawer
-      account={detailAccount}
+      account={switchAccount ? null : detailAccount}
       devices={devices}
       privateMode={privateMode}
       refreshing={refreshBusy}
+      switchBusy={Boolean(switchingAccountId)}
+      switching={switchingAccountId === detailAccount?.id}
       onClose={() => setDetailAccountId(null)}
+      onOpenSwitch={setSwitchAccount}
       onRefresh={onRefreshAccount}
       session={session}
       syncing={syncingServer}

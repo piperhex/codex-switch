@@ -63,6 +63,11 @@ export const detailStyles = StyleSheet.create({
   countdown: { color: detailColors.muted, fontSize: 10 },
   note: { color: detailColors.ink, fontSize: 14, lineHeight: 23, maxWidth: 400 },
   messageContent: { paddingBottom: 20, alignSelf: 'center', width: '100%', maxWidth: 440 },
+  switchButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    minHeight: 48, borderRadius: 12, backgroundColor: detailColors.mint, paddingHorizontal: 14,
+  },
+  switchText: { color: detailColors.green, fontSize: 15, fontWeight: '700' },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.45 },
 });

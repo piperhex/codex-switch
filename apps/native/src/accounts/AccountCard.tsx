@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import type { AccountSummary, UsageWindow } from '../types';
 import { maskEmail, resetLabel } from './formatters';
 import { accountColors as colors, styles } from './styles';
@@ -7,10 +7,7 @@ import { accountColors as colors, styles } from './styles';
 interface AccountCardProps {
   account: AccountSummary;
   privateMode: boolean;
-  switchBusy: boolean;
-  switching: boolean;
   onOpenDetails: (account: AccountSummary) => void;
-  onOpenSwitch: (account: AccountSummary) => void;
 }
 
 function planColors(plan: string) {
@@ -61,8 +58,7 @@ function AccountUsage({ usage, plan }: { usage?: UsageWindow | null; plan: strin
   </View>;
 }
 
-export function AccountCard({ account, privateMode, switchBusy, switching,
-  onOpenDetails, onOpenSwitch }: AccountCardProps) {
+export function AccountCard({ account, privateMode, onOpenDetails }: AccountCardProps) {
   const email = privateMode ? maskEmail(account.email) : account.email;
   const plan = account.plan || 'ChatGPT';
   const accent = planColors(plan);
@@ -78,13 +74,5 @@ export function AccountCard({ account, privateMode, switchBusy, switching,
       </View>
       <AccountUsage usage={account.usage.primary} plan={plan} />
     </View>
-    <Pressable accessibilityRole="button" accessibilityLabel={`切换到账号 ${email}`} disabled={switchBusy}
-      onPress={(event) => { event.stopPropagation(); onOpenSwitch(account); }}
-      style={({ pressed }) => [styles.switchButton, pressed && styles.pressed, switchBusy && styles.disabled]}>
-      {switching ? <ActivityIndicator color={colors.green} size="small" /> : <>
-        <Ionicons name="sync-outline" size={21} color={colors.green} />
-        <Text style={styles.switchText}>切换</Text>
-      </>}
-    </Pressable>
   </Pressable>;
 }

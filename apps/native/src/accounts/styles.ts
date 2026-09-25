@@ -71,11 +71,6 @@ export const styles = StyleSheet.create({
   remaining: { minWidth: 38, fontSize: 14, fontWeight: '600', textAlign: 'right' },
   reset: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
   resetText: { flex: 1, color: accountColors.muted, fontSize: 12, lineHeight: 18 },
-  switchButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    minWidth: 78, minHeight: 44, borderRadius: 9, backgroundColor: accountColors.mint, paddingHorizontal: 10,
-  },
-  switchText: { color: accountColors.green, fontSize: 15, fontWeight: '700' },
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.45 },
 });

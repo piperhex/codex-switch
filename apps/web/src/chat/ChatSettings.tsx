@@ -39,8 +39,7 @@ export function ChatSettings({ models, selection, saving, ready, error, updateSe
   };
   return <AdaptiveSheet open title={t("聊天设置")} width={400} onClose={onClose}>
     <div className="chat-settings" aria-hidden={field !== null || contextOpen}>
-      <ChatProfileMenu {...connection} variant="settings" ready={ready}
-        chooseDevice={() => { onClose(); connection.chooseDevice(); }} />
+      <ChatProfileMenu {...connection} variant="settings" ready={ready} />
       {visibleSettingsFields(selection).map((entry) => <button key={entry.field} type="button"
         className="chat-setting-entry"
         aria-label={t("设置{value1}", { value1: t(entry.label) })} onClick={() => setField(entry.field)} tabIndex={field ? -1 : 0}>
