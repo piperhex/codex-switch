@@ -16,7 +16,9 @@ vi.mock('./nativeTransport', () => ({ NativeChatTransport: class {
 } }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { subscribe: vi.fn(async () => vi.fn()) } }));
 vi.mock('../pages/codexGui/webEvents', () => ({ subscribeGuiEvent: vi.fn(async () => vi.fn()) }));
-vi.mock('./operations', () => ({ ChatOperations: class { release = native.release; } }));
+vi.mock('./operations', () => ({ ChatOperations: class {
+  release = native.release; desktop = { register: vi.fn() };
+} }));
 vi.mock('../../../../shared/remote-chat/link', () => ({ ChatLink: class {
   private closed = false;
   constructor(private options: { sessionId: string; mode: (mode: ConnectionMode) => void }) {
