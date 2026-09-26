@@ -111,9 +111,12 @@ export class DesktopHostSession {
     let encodedFps: number | undefined;
     let encodedWidth: number | undefined;
     let encodedHeight: number | undefined;
+    let connection: 'direct' | 'relay' | undefined;
     stats.forEach(report => {
       if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) {
         sample.bitrate = report.availableOutgoingBitrate; sample.rtt = report.currentRoundTripTime;
+        connection = [report.localCandidateId, report.remoteCandidateId]
+          .some(id => stats.get(id)?.candidateType === 'relay') ? 'relay' : 'direct';
       }
       if (report.type === 'remote-inbound-rtp' && report.kind === 'video') sample.loss = report.fractionLost;
       if (report.type === 'outbound-rtp' && report.kind === 'video') {
@@ -134,7 +137,7 @@ export class DesktopHostSession {
       this.channel.send(JSON.stringify({ kind: 'stats', width: encodedWidth ?? this.capture.canvas.width,
         height: encodedHeight ?? this.capture.canvas.height,
         fps: Math.round(encodedFps ?? this.frames * 1000 / (now - this.lastStats)),
-        bitrate: profile.bitrate }));
+        bitrate: profile.bitrate, connection }));
     }
     this.frames = 0; this.lastStats = now;
   }

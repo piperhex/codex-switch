@@ -121,6 +121,12 @@ export class ChatHost {
   private async receive(data: string) {
     const message = parseMessage(data);
     if (message.type === CHAT_POLICY_MESSAGE) { setChatPolicy(message.policy); return; }
+    if (message.type === 'desktop-ice' && Array.isArray(message.desktopIceServers)) {
+      for (const id of this.links.keys()) {
+        this.operations.desktop.register(id, message.desktopIceServers as IceServer[]);
+      }
+      return;
+    }
     if (this.quota.receive(message)) {
       connectionDetails.quota(this.quota.usage, this.quota.blocked);
       for (const link of this.links.values()) link.setRelayQuotaBlocked(this.quota.blocked);
@@ -134,6 +140,9 @@ export class ChatHost {
     if (!link) return;
     if (message.type === 'resumed') {
       this.lease(sessionId, message.expiresAt);
+      if (Array.isArray(message.desktopIceServers)) {
+        this.operations.desktop.register(sessionId, message.desktopIceServers as IceServer[]);
+      }
       link.setRelayAvailable(true);
     }
     if (message.type === 'peer-offline') link.setRelayAvailable(false);
@@ -146,7 +155,7 @@ export class ChatHost {
   private open(sessionId: string, message: Record<string, unknown>) {
     // The authenticated coordinator applies the configured limit before sending peer-open.
     if (this.links.has(sessionId)) return;
-    this.operations.desktop.register(sessionId, message.iceServers as IceServer[]);
+    this.operations.desktop.register(sessionId, (message.desktopIceServers ?? message.iceServers) as IceServer[]);
     if (message.transportVersion === 2 && typeof message.resumeToken === 'string') {
       this.lease(sessionId, message.expiresAt);
     }

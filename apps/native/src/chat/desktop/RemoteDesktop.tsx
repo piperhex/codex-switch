@@ -47,7 +47,8 @@ export function RemoteDesktop({ client, active, close }: {
             streamURL={(session.stream as unknown as NativeMediaStream).toURL()} />}
           <View style={s.fill} {...trackpad.panHandlers} accessibilityLabel="远程桌面触控区域" />
           {session.stats && <Text style={s.stats}>
-            {session.stats.width} × {session.stats.height} · {session.stats.fps} 帧/秒</Text>}
+            {session.stats.width} × {session.stats.height} · {session.stats.fps} 帧/秒
+            {session.stats.connection && ` · ${session.stats.connection === 'relay' ? '中继' : '直连'}`}</Text>}
           {mouse && !display && !keyboard && <MousePad pointer={session.pointer} {...size}
             wheel={delta => session.input({ kind: 'wheel', delta })} />}
           {!!(session.status || orientation.error) && <View style={s.message}>

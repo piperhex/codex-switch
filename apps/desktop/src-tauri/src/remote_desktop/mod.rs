@@ -3,6 +3,7 @@ use serde::Deserialize;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+pub(crate) mod stream;
 mod validation;
 #[cfg(windows)]
 mod windows;

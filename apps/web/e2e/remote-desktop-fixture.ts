@@ -1,10 +1,15 @@
 import type { DesktopInput, DesktopSettings } from '../../../shared/remote-desktop/protocol';
 import { RemoteDesktopHost } from '../../desktop/src/remoteDesktop/host';
 import { createGuiToolsClient } from '../../../shared/remote-chat/guiTools';
+import type { IceServer } from '../../../shared/remote-chat/protocol';
+
+declare global { interface Window { desktopRelayFixture?: { iceServers: IceServer[] } } }
 
 const canvas = document.createElement('canvas');
 let opened = 0;
 export const desktopTest = { inputs: [] as DesktopInput[], settings: [] as DesktopSettings[],
+  peers: [] as RTCPeerConnection[],
+  iceErrors: [] as string[],
   frames: 0, captures: 0, closed: 0, concurrent: 0, maxConcurrent: 0, errors: [] as string[] };
 
 async function frame(width: number) {
@@ -43,7 +48,19 @@ Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {
   },
 }, configurable: true });
 
-const host = new RemoteDesktopHost(); host.register('fixture', []);
+if (window.desktopRelayFixture) {
+  const Peer = window.RTCPeerConnection;
+  window.RTCPeerConnection = new Proxy(Peer, { construct(target, args: [RTCConfiguration?]) {
+    const peer = new target({ ...args[0], iceTransportPolicy: 'relay' });
+    peer.addEventListener('icecandidateerror', event => desktopTest.iceErrors.push(`${event.errorCode}: ${event.errorText}`));
+    peer.addEventListener('icecandidate', event => {
+      if (event.candidate) desktopTest.iceErrors.push(`candidate: ${event.candidate.type} ${event.candidate.protocol}`);
+    });
+    peer.addEventListener('connectionstatechange', () => desktopTest.iceErrors.push(`state: ${peer.connectionState}`));
+    desktopTest.peers.push(peer); return peer;
+  } });
+}
+const host = new RemoteDesktopHost(); host.register('fixture', window.desktopRelayFixture?.iceServers ?? []);
 export async function desktopRequest<T>(body: object): Promise<T> {
   const request = body as { action: string; settings?: DesktopSettings };
   if (request.settings) desktopTest.settings.push(request.settings);

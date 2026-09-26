@@ -7,7 +7,9 @@ export type DesktopQuality = 'auto' | 'smooth' | 'clear' | 'original';
 export interface DesktopSettings { fps: 'auto' | number; quality: DesktopQuality }
 export interface DesktopOffer { sdp: string; iceServers: IceServer[] }
 export interface DesktopSignal { answer?: string; candidates: RTCIceCandidateInit[] }
-export interface DesktopStats { fps: number; width: number; height: number; bitrate: number }
+export interface DesktopStats {
+  fps: number; width: number; height: number; bitrate: number; connection?: 'direct' | 'relay';
+}
 export type DesktopInput =
   | { kind: 'move'; x: number; y: number }
   | { kind: 'button'; button: 'left' | 'right'; down: boolean }

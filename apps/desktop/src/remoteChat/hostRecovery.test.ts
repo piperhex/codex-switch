@@ -6,11 +6,12 @@ import { ChatHost } from './host';
 
 const state = vi.hoisted(() => ({ options: undefined as LinkOptions | undefined,
   receive: undefined as ((event: HostTransportEvent) => void) | undefined,
-  relay: vi.fn(), close: vi.fn(), reconnect: vi.fn(), stop: vi.fn(), execute: vi.fn(async () => ({})) }));
+  relay: vi.fn(), close: vi.fn(), reconnect: vi.fn(), stop: vi.fn(), registerDesktop: vi.fn(),
+  execute: vi.fn(async () => ({})) }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { subscribe: vi.fn(async () => vi.fn()) } }));
 vi.mock('../pages/codexGui/webEvents', () => ({ subscribeGuiEvent: vi.fn(async () => vi.fn()) }));
 vi.mock('./operations', () => ({ ChatOperations: class {
-  release = vi.fn(); execute = state.execute; desktop = { register: vi.fn() };
+  release = vi.fn(); execute = state.execute; desktop = { register: state.registerDesktop };
 } }));
 vi.mock('./nativeTransport', () => ({ NativeChatTransport: class {
   ready = true; bufferedAmount = 0;
@@ -28,6 +29,13 @@ const changed = vi.fn();
 let host: ChatHost;
 const message = (data: object, generation = 1) => state.receive!({
   type: 'message', generation, data: JSON.stringify(data),
+});
+
+it('refreshes desktop relay credentials for existing chats without closing their media', () => {
+  const ice = [{ urls: 'turn:example.test:3479', username: 'renewed', credential: 'test-only' }];
+  message({ type: 'desktop-ice', desktopIceServers: ice });
+  expect(state.registerDesktop).toHaveBeenLastCalledWith('session', ice);
+  expect(state.close).not.toHaveBeenCalled();
 });
 
 it('forwards only the native identity as the persistent terminal owner', async () => {

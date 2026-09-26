@@ -1,11 +1,11 @@
 import { object, type IceServer } from '../../../../shared/remote-chat/protocol';
 import { validateSettings, type DesktopSignal } from '../../../../shared/remote-desktop/protocol';
-import { DesktopHostSession } from './session';
+import { HostSession } from './hostSession';
 
 /** Owner and ICE configuration come only from the authenticated coordinator. */
 export class RemoteDesktopHost {
   private peers = new Map<string, IceServer[]>();
-  private active?: { owner: string; id: string; session: DesktopHostSession };
+  private active?: { owner: string; id: string; session: HostSession };
   register(owner: string, iceServers: IceServer[]) { this.peers.set(owner, iceServers); }
   async request(value: unknown, owner: string) {
     const body = object(value);
@@ -22,7 +22,7 @@ export class RemoteDesktopHost {
     }
     switch (body.action) {
       case 'close': active.session.close(); this.active = undefined; return;
-      case 'settings': active.session.update(validateSettings(body.settings)); return;
+      case 'settings': await active.session.update(validateSettings(body.settings)); return;
       case 'signal': return active.session.signal(body as unknown as DesktopSignal);
       default: throw new Error('不支持的远程桌面操作。');
     }
@@ -32,7 +32,7 @@ export class RemoteDesktopHost {
     if (this.active && !this.active.session.closed) {
       throw new Error('已有远程桌面连接，请先关闭后再试。');
     }
-    const session = new DesktopHostSession(settings, input.iceServers);
+    const session = new HostSession(settings, input.iceServers);
     this.active = { owner: input.owner, id: input.id, session };
     try { return await session.open(); }
     catch (error) {

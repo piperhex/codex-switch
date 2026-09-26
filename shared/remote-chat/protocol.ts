@@ -9,7 +9,7 @@ export type Signal =
   | { kind: 'key'; key: string }
   | { kind: 'sdp'; type: 'offer' | 'answer'; sdp: string }
   | { kind: 'ice'; candidate: string; sdpMid: string | null; sdpMLineIndex: number | null };
-export interface IceServer { urls: string | string[] }
+export interface IceServer { urls: string | string[]; username?: string; credential?: string }
 export interface Channel {
   readonly readyState: string;
   readonly bufferedAmount: number;

@@ -3,16 +3,51 @@ import type { desktopTest } from './remote-desktop-fixture';
 
 declare global { interface Window { desktopTest: typeof desktopTest } }
 
+test.beforeEach(async ({ page }) => {
+  if (!process.env.DESKTOP_RELAY_TEST_ICE) return;
+  await page.addInitScript(configuration => { window.desktopRelayFixture = configuration; },
+    { iceServers: JSON.parse(process.env.DESKTOP_RELAY_TEST_ICE) });
+});
+
+test.afterEach(async ({ page }, info) => {
+  if (!process.env.DESKTOP_RELAY_TEST_ICE || info.status === info.expectedStatus) return;
+  console.log(await page.evaluate(async () => ({ errors: window.desktopTest.iceErrors,
+    peers: await Promise.all(window.desktopTest.peers.map(async peer => ({
+      state: peer.connectionState, gathering: peer.iceGatheringState,
+      candidates: [...(await peer.getStats()).values()].filter(report => report.type.includes('candidate')),
+    }))),
+  })));
+});
+
 test('streams video, controls mouse and keyboard, applies display settings and closes capture', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('e2e/remote-desktop-harness.html');
   await page.getByRole('button', { name: '打开工具' }).click();
   await page.getByRole('button', { name: '远程桌面', exact: true }).click();
   await expect(page.getByRole('dialog', { name: '远程桌面' })).toBeVisible();
-  await expect.poll(() => page.locator('video').evaluate(video => video.videoWidth)).toBeGreaterThan(0);
+  await expect.poll(() => page.locator('video').evaluate(video => video.videoWidth), { timeout: 20_000 })
+    .toBeGreaterThan(0);
   await expect.poll(() => page.locator('video').evaluate(video => video.getVideoPlaybackQuality().totalVideoFrames))
     .toBeGreaterThan(5);
   await expect(page.getByText('正在连接桌面…')).not.toBeVisible();
+  if (process.env.DESKTOP_RELAY_TEST_ICE) {
+    const routes = await page.evaluate(async () => Promise.all(window.desktopTest.peers.map(async peer => {
+      const reports = await peer.getStats();
+      const selected = [...reports.values()].find(report => report.type === 'candidate-pair'
+        && report.state === 'succeeded' && report.nominated);
+      return selected ? reports.get(selected.localCandidateId) : undefined;
+    })));
+    expect(routes).toHaveLength(2);
+    for (const route of routes) {
+      expect(route?.candidateType).toBe('relay');
+      expect(route?.relayProtocol).toBe(process.env.DESKTOP_RELAY_TEST_PROTOCOL);
+    }
+    const beforeRefresh = await page.locator('video').evaluate(video => video.getVideoPlaybackQuality().totalVideoFrames);
+    // The coturn fixture refreshes allocations every five seconds; credentials expire after twelve seconds.
+    await page.waitForTimeout(15_000);
+    await expect.poll(() => page.locator('video').evaluate(video => video.getVideoPlaybackQuality().totalVideoFrames))
+      .toBeGreaterThan(beforeRefresh + 20);
+  }
   await page.getByRole('button', { name: '鼠标左键', exact: true }).click();
   await page.getByRole('button', { name: '鼠标右键', exact: true }).click();
   await page.getByRole('button', { name: '向下滚动' }).click();

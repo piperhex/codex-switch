@@ -14,13 +14,14 @@ type desktopInfo struct {
 	version float64
 }
 type chatSessions struct {
-	mu       sync.Mutex
-	desktops map[string]*peer
-	info     map[*peer]desktopInfo
-	sessions map[string]*chatSession
-	hot      *hotSessions
-	onRelay  func(int)
-	deliver  func(relayDelivery, platform.JSON)
+	mu         sync.Mutex
+	desktops   map[string]*peer
+	info       map[*peer]desktopInfo
+	sessions   map[string]*chatSession
+	hot        *hotSessions
+	onRelay    func(int)
+	deliver    func(relayDelivery, platform.JSON)
+	desktopICE func(string, time.Time) []platform.JSON
 }
 
 func newChatSessions(relay func(int)) *chatSessions {
@@ -100,8 +101,11 @@ func (s *chatSessions) joinMobile(
 	}
 	id := uuid.NewString()
 	s.sessions[id] = &chatSession{id: id, owner: identity.owner, desktop: desktop, mobile: client, started: time.Now()}
-	desktop.send(withChatClientInfo(platform.JSON{"type": "peer-open", "sessionId": id,
-		"publicKey": key, "iceServers": ice}, message["clientInfo"]), nil)
+	frame := platform.JSON{"type": "peer-open", "sessionId": id, "publicKey": key, "iceServers": ice}
+	if s.desktopICE != nil {
+		frame["desktopIceServers"] = s.desktopICE(identity.owner, identity.expires)
+	}
+	desktop.send(withChatClientInfo(frame, message["clientInfo"]), nil)
 	client.send(
 		platform.JSON{
 			"type":            "paired",

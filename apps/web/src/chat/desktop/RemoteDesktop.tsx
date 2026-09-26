@@ -48,7 +48,8 @@ export function RemoteDesktop({ client, active, close }: {
         session.input({ kind: 'wheel', delta: event.deltaY > 0 ? -120 : 120 });
       }} aria-label={t('远程桌面触控区域')} />
       {session.stats && <span className="rd-stats">
-        {session.stats.width} × {session.stats.height} · {session.stats.fps} {t('帧/秒')}</span>}
+        {session.stats.width} × {session.stats.height} · {session.stats.fps} {t('帧/秒')}
+        {session.stats.connection && ` · ${t(session.stats.connection === 'relay' ? '中继' : '直连')}`}</span>}
       {mouse && !display && !keyboard && <MousePad pointer={session.pointer}
         wheel={delta => session.input({ kind: 'wheel', delta })} />}
       {session.status && <div className="rd-status" role="status"><span>{t(session.status)}</span>

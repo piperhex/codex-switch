@@ -266,6 +266,12 @@ pub fn run() {
             remote_desktop::remote_desktop_frame,
             remote_desktop::remote_desktop_input,
             remote_desktop::remote_desktop_close,
+            remote_desktop::stream::remote_desktop_stream_open,
+            remote_desktop::stream::remote_desktop_stream_available,
+            remote_desktop::stream::remote_desktop_stream_signal,
+            remote_desktop::stream::remote_desktop_stream_update,
+            remote_desktop::stream::remote_desktop_stream_status,
+            remote_desktop::stream::remote_desktop_stream_close,
             #[cfg(windows)]
             system_tray::quick_menu::quick_menu_snapshot,
             #[cfg(windows)]

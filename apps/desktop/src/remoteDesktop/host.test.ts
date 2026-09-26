@@ -1,9 +1,9 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { RemoteDesktopHost } from './host';
-import { DesktopHostSession } from './session';
+import { HostSession as DesktopHostSession } from './hostSession';
 import { DEFAULT_SETTINGS } from '../../../../shared/remote-desktop/protocol';
 
-vi.mock('./session', () => ({ DesktopHostSession: vi.fn(class {
+vi.mock('./hostSession', () => ({ HostSession: vi.fn(class {
   closed = false;
   open = vi.fn(async () => ({ sdp: 'offer', iceServers: [] }));
   signal = vi.fn(async () => ({ candidates: [] }));

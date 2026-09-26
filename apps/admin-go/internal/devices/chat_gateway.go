@@ -8,6 +8,7 @@ import (
 
 	"github.com/codex-switch/admin-go/internal/chattraffic"
 	"github.com/codex-switch/admin-go/internal/content"
+	"github.com/codex-switch/admin-go/internal/mediarelay"
 	"github.com/codex-switch/admin-go/internal/platform"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -32,6 +33,7 @@ type ChatGateway struct {
 	done        chan struct{}
 	stopped     chan struct{}
 	stun        *stunServer
+	media       *mediarelay.Proxy
 }
 
 func newChatGateway(service *Service) (*ChatGateway, error) {
@@ -54,6 +56,12 @@ func newChatGateway(service *Service) (*ChatGateway, error) {
 	gateway.sessions.deliver = gateway.deliverRelay
 	gateway.sessions.hot.deliver = gateway.deliverRelay
 	service.deps.ChatPolicyChanged = gateway.refreshPolicy
+	if err := gateway.startMediaRelay(); err != nil {
+		if stun != nil {
+			stun.close()
+		}
+		return nil, err
+	}
 	go gateway.maintain()
 	return gateway, nil
 }
@@ -212,10 +220,14 @@ func (g *ChatGateway) maintain() {
 	defer close(g.stopped)
 	timer := time.NewTicker(5 * time.Second)
 	defer timer.Stop()
+	credentials := time.NewTicker(desktopCredentialLifetime / 2)
+	defer credentials.Stop()
 	for {
 		select {
 		case <-g.done:
 			return
+		case <-credentials.C:
+			g.refreshDesktopICE()
 		case <-timer.C:
 			g.sessions.prune()
 			if err := g.meter.Flush(); err != nil {
@@ -267,6 +279,7 @@ func (runtime *Runtime) Close() error {
 	}
 	runtime.control.mu.Unlock()
 	g := runtime.chat
+	g.media.Close()
 	close(g.done)
 	<-g.stopped
 	g.mu.Lock()

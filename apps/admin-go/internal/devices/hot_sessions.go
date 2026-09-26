@@ -39,6 +39,7 @@ type hotSessions struct {
 	closedOrder []string
 	onRelay     func(int)
 	deliver     func(relayDelivery, platform.JSON)
+	desktopICE  func(string, time.Time) []platform.JSON
 }
 
 func newHotSessions(relay func(int)) *hotSessions {
@@ -169,6 +170,9 @@ func (s *hotSessions) join(input hotJoin) error {
 	s.sessions[session.id] = session
 	common := platform.JSON{"sessionId": session.id, "resumeToken": session.token, "transportVersion": 2,
 		"iceServers": input.ice, "expiresAt": expires.UnixMilli(), "type": "peer-open", "publicKey": key}
+	if s.desktopICE != nil {
+		common["desktopIceServers"] = s.desktopICE(session.owner, expires)
+	}
 	input.desktop.socket.send(withChatClientInfo(common, input.message["clientInfo"]), nil)
 	delete(common, "publicKey")
 	delete(common, "clientInfo")
@@ -211,6 +215,9 @@ func (s *hotSessions) ready(session *hotSession) {
 		return
 	}
 	message := platform.JSON{"type": "resumed", "sessionId": session.id, "expiresAt": session.expires.UnixMilli()}
+	if s.desktopICE != nil {
+		message["desktopIceServers"] = s.desktopICE(session.owner, session.expires)
+	}
 	session.desktop.socket.send(message, nil)
 	session.mobile.socket.send(message, nil)
 }

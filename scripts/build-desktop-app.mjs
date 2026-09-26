@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { prepareDesktopVideoRuntime } from "./prepare-remote-desktop-runtime.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "..");
@@ -10,6 +11,7 @@ const tauriRoot = join(desktopRoot, "src-tauri");
 const cargoManifest = join(tauriRoot, "Cargo.toml");
 const tauriCli = join(repositoryRoot, "node_modules", "@tauri-apps", "cli", "tauri.js");
 const tauriArgs = process.argv.slice(2);
+await prepareDesktopVideoRuntime();
 
 if (!existsSync(tauriCli)) {
   fail("Tauri CLI is unavailable. Run `npm ci` or `npm install` first.");

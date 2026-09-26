@@ -114,3 +114,6 @@ windows = { version = "0.61", features = [
   "Win32_System_WinRT",
   "Win32_UI_Shell",
 ] }
+webrtc = "0.17.1"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+webpki-roots = "1"

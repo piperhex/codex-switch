@@ -175,6 +175,9 @@ Go 为兼容旧接口保留了 `X-Powered-By: Express`，该响应头不能判�
 
 ## 验收与回滚
 
+启用远程桌面视频中继时，按 [DESKTOP-RELAY.md](DESKTOP-RELAY.md) 追加 Compose 文件并验证视频与控制。
+以后每次更新、回滚都要带上同一份中继 Compose 文件，保留私有环境变量、端口和网络。
+
 - 容器使用预期镜像且持续运行，无重启循环；同时读取 stdout/stderr，确认 `admin-go listening`。
 - 本机和公网 `/admin`、页面静态资源返回 200；未登录 `/auth/me` 返回 401。
 - 使用专用测试账号和模拟设备验证两个公网 WebSocket、设备指令确认、PC/手机配对、
