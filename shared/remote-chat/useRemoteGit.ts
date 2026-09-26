@@ -7,7 +7,12 @@ import { useGitFileList } from './useGitFileList';
 
 const errorText = (error: unknown) => typeof error === 'string' ? error
   : error instanceof Error ? error.message : '无法读取 Git 信息，请稍后重试。';
-export type GitDetail = { path: string; commit?: string; title: string };
+export type GitDetail = { kind: 'files'; commit: GitCommit }
+  | { kind: 'diff'; path: string; commit?: GitCommit; title: string };
+
+export function parentGitDetail(detail: GitDetail | null): GitDetail | null {
+  return detail?.kind === 'diff' && detail.commit ? { kind: 'files', commit: detail.commit } : null;
+}
 
 export function useRemoteGit({ client, cwd, active, connected }: {
   client: GitClient; cwd: string; active: boolean; connected: boolean;
@@ -88,7 +93,7 @@ export function useRemoteGit({ client, cwd, active, connected }: {
     setHasMore(page.hasMore);
   });
   return { busy, error, notice, changes, commits, hasMore, selected, message, setMessage, tab, setTab,
-    detail, setDetail, refresh, toggle, selectAll, selectFiles, commit, more,
+    detail, setDetail, backDetail: () => setDetail(parentGitDetail), refresh, toggle, selectAll, selectFiles, commit, more,
     repository, action, strategy, setStrategy, fileList,
     canCommit: connected && !busy && !!message.trim() && Object.keys(selected).length > 0
       && !changes?.files.some(file => file.conflict) };
@@ -102,7 +107,7 @@ export function useGitDiff(client: GitClient, cwd: string, detail: GitDetail | n
   useEffect(() => {
     let alive = true;
     setValue(null); setError('');
-    if (detail && enabled) void client.diff(cwd, detail.path, detail.commit).then(value => {
+    if (detail?.kind === 'diff' && enabled) void client.diff(cwd, detail.path, detail.commit?.hash).then(value => {
       if (alive) setValue(value);
     }).catch(error => { if (alive) setError(errorText(error)); });
     return () => { alive = false; };

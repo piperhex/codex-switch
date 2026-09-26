@@ -8,8 +8,7 @@ export function GitHistory({ panel, connected }: { panel: RemoteGit; connected: 
   return <div className="git-history">
     {!panel.busy && !panel.commits.length && <p className="git-notice">{t('还没有提交记录。')}</p>}
     {graph.rows.map(row => <button type="button" key={row.commit.hash} className="git-history-row"
-      disabled={!connected || panel.busy} onClick={() => panel.setDetail({ path: '', commit: row.commit.hash,
-        title: `${row.commit.hash.slice(0, 8)} · ${row.commit.subject}` })}>
+      disabled={!connected || panel.busy} onClick={() => panel.setDetail({ kind: 'files', commit: row.commit })}>
       <svg width={graph.width} height={GRAPH_ROW_HEIGHT} aria-hidden="true" style={{ flexShrink: 0 }}>
         {row.lines.map((line, index) => <line key={index} {...line} stroke={line.color} strokeWidth="2" />)}
         <circle cx={row.x} cy={GRAPH_ROW_HEIGHT / 2} r="4" fill={row.color} stroke="white" strokeWidth="1.5" />

@@ -1,4 +1,10 @@
 export const gitMessages: Record<string, string> = {
+  '返回提交记录': 'Back to history', '返回文件列表': 'Back to files', '变更文件 {count}': 'Changed files {count}',
+  '这次提交没有文件变更。': 'This commit has no file changes.',
+  '显示相对第一个父提交的变更': 'Changes compared with the first parent',
+  '无法读取变更文件，请重试。': 'Unable to load changed files. Please try again.',
+  '新增': 'Added', '修改': 'Modified', '删除': 'Deleted', '重命名': 'Renamed', '复制': 'Copied',
+  '类型变更': 'Type changed', '变更': 'Changed', '重试': 'Retry',
   '未暂存': 'Unstaged', '已暂存': 'Staged', '部分暂存': 'Partially staged', '新文件': 'Untracked',
   '文件显示方式': 'File view', '文件夹': 'Folders', '平铺': 'Flat', '查看 {path}': 'View {path}',
   '展开或收起 {path}': 'Expand or collapse {path}', '切换分支': 'Switch branch', '分离的 HEAD': 'Detached HEAD',

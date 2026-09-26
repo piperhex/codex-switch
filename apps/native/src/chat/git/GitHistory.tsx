@@ -28,8 +28,7 @@ export function GitHistory({ panel, connected }: { panel: RemoteGit; connected: 
     <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 16 }}>
       <View>{graph.rows.map(row => <Pressable key={row.commit.hash} accessibilityRole="button"
         accessibilityLabel={`${row.commit.hash.slice(0, 8)} ${row.commit.subject}`} style={styles.historyRow}
-        disabled={!connected || panel.busy} onPress={() => panel.setDetail({ path: '', commit: row.commit.hash,
-          title: `${row.commit.hash.slice(0, 8)} · ${row.commit.subject}` })}>
+        disabled={!connected || panel.busy} onPress={() => panel.setDetail({ kind: 'files', commit: row.commit })}>
         <Graph row={row} width={graph.width} />
         <View style={styles.historyText}><Text numberOfLines={1} style={styles.subject}>{row.commit.subject}</Text>
           {!!row.commit.refs.length && <View style={styles.refs}>{row.commit.refs.map(ref =>

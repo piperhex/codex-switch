@@ -10,6 +10,9 @@ mod actions;
 mod branches;
 mod changes;
 mod commit;
+mod commit_files;
+#[cfg(test)]
+mod commit_files_tests;
 mod history;
 #[cfg(test)]
 mod tests;
@@ -41,6 +44,10 @@ pub(crate) enum Request {
         cwd: String,
         skip: usize,
     },
+    CommitFiles {
+        cwd: String,
+        commit: String,
+    },
     Commit {
         cwd: String,
         head: Option<String>,
@@ -63,6 +70,7 @@ pub(crate) enum Response {
     Changes(changes::Changes),
     Diff(history::Diff),
     History(history::History),
+    CommitFiles(Vec<commit_files::CommitFile>),
     Commit { hash: String },
 }
 
@@ -73,6 +81,7 @@ fn execute(request: Request) -> Result<Response> {
         | Request::Action { cwd, .. }
         | Request::Diff { cwd, .. }
         | Request::History { cwd, .. }
+        | Request::CommitFiles { cwd, .. }
         | Request::Commit { cwd, .. } => cwd,
     };
     let root = repository(&directory(cwd)?)?;
@@ -84,6 +93,9 @@ fn execute(request: Request) -> Result<Response> {
             history::diff(&root, &path, commit.as_deref()).map(Response::Diff)
         }
         Request::History { skip, .. } => history::read(&root, skip).map(Response::History),
+        Request::CommitFiles { commit, .. } => {
+            commit_files::read(&root, &commit).map(Response::CommitFiles)
+        }
         Request::Commit {
             head,
             message,

@@ -65,7 +65,7 @@ function GitRow({ row, panel, connected, flat, onToggle }: {
         accessibilityState={{ expanded: folder ? !row.collapsed : undefined }}
         disabled={panel.busy || (!folder && !connected)}
         style={[styles.fileButton, { marginLeft: Math.min(row.depth, 4) * 14 }]}
-        onPress={() => folder ? onToggle() : panel.setDetail({ path: row.path, title: row.path })}>
+        onPress={() => folder ? onToggle() : panel.setDetail({ kind: 'diff', path: row.path, title: row.path })}>
         {!flat && <View style={styles.chevronSlot}>{folder && <Ionicons
           name={row.collapsed ? 'chevron-forward' : 'chevron-down'} size={12} color={palette.muted} />}</View>}
         <GitTreeIcon folder={folder} />

@@ -2,8 +2,10 @@ import { Drawer, Spin } from 'antd';
 import { ArrowLeft } from 'lucide-react';
 import type { GitClient } from '../../../../../shared/remote-chat/gitTypes';
 import { useGitDiff, useRemoteGit } from '../../../../../shared/remote-chat/useRemoteGit';
+import { useGitCommitFiles } from '../../../../../shared/remote-chat/useGitCommitFiles';
 import { GitHistory } from './GitHistory';
 import { GitChanges } from './GitChanges';
+import { GitCommitFiles } from './GitCommitFiles';
 import { GitToolbar } from './GitToolbar';
 import { useDesktopLayout } from '../../useDesktopLayout';
 import { t } from '../../i18n';
@@ -14,6 +16,8 @@ interface Props {
 
 export function ChatGit(props: Props) {
   const panel = useRemoteGit(props);
+  const detail = panel.detail;
+  const commitFiles = useGitCommitFiles(props.client, props.cwd, detail?.commit?.hash, props.active && props.connected);
   const desktop = useDesktopLayout();
   const diff = useGitDiff(props.client, props.cwd, panel.detail, props.active && props.connected);
   return <Drawer open={props.active} title="Git" placement={desktop ? 'right' : 'bottom'}
@@ -31,9 +35,14 @@ export function ChatGit(props: Props) {
       {panel.notice && <p role="status" className="git-notice">{panel.notice.startsWith('已提交 ')
         ? t('已提交 {hash}', { hash: panel.notice.slice(4) }) : t(panel.notice)}</p>}
       {panel.busy && <div className="git-loading"><Spin size="small" />{t('正在处理…')}</div>}
-      {panel.detail ? <>
-        <button type="button" className="git-detail-title" onClick={() => panel.setDetail(null)}>
-          <ArrowLeft size={18} /><span>{panel.detail.title}</span></button>
+      {detail?.kind === 'files' && <GitCommitFiles commit={detail.commit} state={commitFiles}
+        connected={props.connected} onBack={panel.backDetail}
+        onSelect={file => panel.setDetail({ kind: 'diff', path: file.path, commit: detail.commit,
+          title: `${file.path} · ${detail.commit.hash.slice(0, 8)}` })} />}
+      {detail?.kind === 'diff' && <>
+        <button type="button" className="git-detail-title" onClick={panel.backDetail}
+          aria-label={detail.commit ? t('返回文件列表') : undefined}>
+          <ArrowLeft size={18} /><span>{detail.title}</span></button>
         {diff.error && <p role="alert" className="git-error">{t(diff.error)}</p>}
         {!diff.value && !diff.error && props.connected && <Spin />}
         {diff.value && <div className="git-diff-scroll">
@@ -41,7 +50,8 @@ export function ChatGit(props: Props) {
           <pre className="git-diff">{diff.value.text ? diff.value.text.split('\n').map((line, index) =>
             <span key={index} data-kind={line[0]}>{line}{'\n'}</span>) : t('没有可显示的文本差异。')}</pre>
         </div>}
-      </> : <>
+      </>}
+      {!detail && <>
         <div className="git-tabs" role="tablist" aria-label={t('Git 视图')}>
           <button type="button" role="tab" aria-selected={panel.tab === 'changes'}
             onClick={() => panel.setTab('changes')}>

@@ -9,6 +9,7 @@ export function demoGitTools(input: Record<string, unknown>) {
     case 'guiGitAction': return git.action(input as unknown as GitActionRequest) ?? null;
     case 'guiGitChanges': return git.changes(cwd);
     case 'guiGitHistory': return git.history(cwd, Number(input.skip));
+    case 'guiGitCommitFiles': return git.commitFiles(cwd, String(input.commit));
     case 'guiGitDiff': return git.diff(cwd, String(input.path), input.commit as string | undefined);
     case 'guiGitCommit': return git.commit(input as unknown as GitCommitRequest);
   }

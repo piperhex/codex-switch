@@ -1,6 +1,7 @@
 import type { TerminalRead, TerminalInfo, TerminalSize } from '../terminal/types';
 import { desktopClient } from '../remote-desktop/protocol';
-import type { GitActionRequest, GitChanges, GitCommitRequest, GitDiff, GitHistory, GitRepository } from './gitTypes';
+import type { GitActionRequest, GitChanges, GitCommitFile, GitCommitRequest, GitDiff, GitHistory,
+  GitRepository } from './gitTypes';
 
 export interface CliRelease { version: string; size: number }
 export interface CliProgress { downloaded: number; total: number; phase: 'downloading' | 'installing' }
@@ -13,7 +14,7 @@ export interface RemoteCliStatus {
 export const GUI_TOOL_OPERATIONS = new Set([
   'guiCliStatus', 'guiCliRelease', 'guiCliInstall', 'guiReconnect',
   'guiTerminalList', 'guiTerminalOpen', 'guiTerminalRead', 'guiTerminalWrite', 'guiTerminalResize', 'guiTerminalClose',
-  'guiGitChanges', 'guiGitDiff', 'guiGitHistory', 'guiGitCommit',
+  'guiGitChanges', 'guiGitDiff', 'guiGitHistory', 'guiGitCommit', 'guiGitCommitFiles',
   'guiGitRepository', 'guiGitAction',
 ]);
 
@@ -32,6 +33,8 @@ export function createGuiToolsClient(request: <T>(body: object) => Promise<T>) {
       diff: (cwd: string, path: string, commit?: string) =>
         request<GitDiff>({ operation: 'guiGitDiff', cwd, path, commit }),
       history: (cwd: string, skip: number) => request<GitHistory>({ operation: 'guiGitHistory', cwd, skip }),
+      commitFiles: (cwd: string, commit: string) =>
+        request<GitCommitFile[]>({ operation: 'guiGitCommitFiles', cwd, commit }),
       commit: (input: GitCommitRequest) => request<{ hash: string }>({ ...input, operation: 'guiGitCommit' }),
     },
     terminal: {

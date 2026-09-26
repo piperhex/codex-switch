@@ -60,6 +60,18 @@ try {
   await tap('加载更多提交');
   await waitText('首次提交');
   await screenshot('git-history');
+  await tap('e950cd31 合并工具面板');
+  await waitText('变更文件 4');
+  assert.ok(!(await nodes()).some(node => node.text.includes('diff --git')));
+  await screenshot('git-commit-files');
+  await tap('查看 src/chat/tools.ts');
+  await waitFor(async () => (await nodes()).some(node => node.text.includes('b/src/chat/tools.ts')
+    && node.text.includes('committed change')), 'selected committed file diff');
+  await screenshot('git-commit-file-diff');
+  await tap('返回上一层');
+  await waitText('变更文件 4');
+  await tap('返回上一层');
+  await waitText('首次提交');
   await tap('切换分支');
   await waitText('切换到 feature/git');
   await screenshot('git-branches');
@@ -95,7 +107,7 @@ try {
   assert.ok((await nodes()).some(node => node.text === '推送完成'));
   await tap('关闭Git');
   await waitText('打开工具');
-  console.log('PASS native folders, flat view, branch switching, Git sync, commits, graph and keyboard layout');
+  console.log('PASS native files, commit file navigation, branches, sync, graph and keyboard layout');
 } catch (error) {
   await screenshot('failure');
   throw error;

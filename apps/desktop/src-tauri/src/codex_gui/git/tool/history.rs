@@ -1,5 +1,5 @@
 use super::super::command;
-use super::{changes, validate_path, GitError, Result};
+use super::{changes, commit_files, validate_path, GitError, Result};
 use serde::Serialize;
 use std::{io::Read, path::Path, process::Stdio};
 
@@ -28,7 +28,7 @@ pub(super) struct Commit {
     refs: Vec<String>,
 }
 
-fn bounded(root: &Path, args: &[&str], limit: u64) -> Result<(Vec<u8>, bool)> {
+pub(super) fn bounded(root: &Path, args: &[&str], limit: u64) -> Result<(Vec<u8>, bool)> {
     let mut child = command(root)
         .args(args)
         .env("GIT_LITERAL_PATHSPECS", "1")
@@ -65,43 +65,64 @@ pub(super) fn diff(root: &Path, path: &str, commit: Option<&str>) -> Result<Diff
     if !path.is_empty() {
         validate_path(path)?;
     }
-    let mut args = vec!["--no-pager"];
-    let current;
     if let Some(hash) = commit {
-        if !matches!(hash.len(), 40 | 64) || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return Err(GitError::File);
-        }
-        args.extend([
-            "show",
-            "--format=",
-            "--first-parent",
-            "--no-ext-diff",
-            "--no-textconv",
-            "--no-color",
-            hash,
-            "--",
-        ]);
-        if !path.is_empty() {
-            args.push(path);
-        }
+        return committed_diff(root, path, hash);
+    }
+    let current = changes::read(root)?;
+    let file = current
+        .files
+        .iter()
+        .find(|file| file.path == path)
+        .ok_or(GitError::Changed)?;
+    let mut args = vec![
+        "--no-pager",
+        "diff",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--no-color",
+    ];
+    if file.status == "??" || current.head.is_none() {
+        args.extend(["--no-index", "--", "/dev/null", path]);
     } else {
-        current = changes::read(root)?;
-        let file = current
-            .files
-            .iter()
-            .find(|file| file.path == path)
-            .ok_or(GitError::Changed)?;
-        args.extend(["diff", "--no-ext-diff", "--no-textconv", "--no-color"]);
-        if file.status == "??" || current.head.is_none() {
-            args.extend(["--no-index", "--", "/dev/null", path]);
-        } else {
-            args.extend(["HEAD", "--", path]);
-            if let Some(original) = &file.original_path {
-                args.push(original);
-            }
+        args.extend(["HEAD", "--", path]);
+        if let Some(original) = &file.original_path {
+            args.push(original);
         }
     }
-    let (bytes, truncated) = bounded(root, &args, DIFF_BYTES)?;
+    read_diff(root, &args)
+}
+
+fn committed_diff(root: &Path, path: &str, hash: &str) -> Result<Diff> {
+    commit_files::validate_commit(hash)?;
+    let mut args = vec![
+        "--no-pager",
+        "show",
+        "--format=",
+        "--first-parent",
+        "--find-renames",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--no-color",
+        hash,
+        "--",
+    ];
+    let committed;
+    if !path.is_empty() {
+        committed = commit_files::read(root, hash)?;
+        let file = committed
+            .iter()
+            .find(|file| file.path == path)
+            .ok_or(GitError::File)?;
+        args.push(path);
+        if let Some(original) = &file.original_path {
+            args.push(original);
+        }
+    }
+    read_diff(root, &args)
+}
+
+fn read_diff(root: &Path, args: &[&str]) -> Result<Diff> {
+    let (bytes, truncated) = bounded(root, args, DIFF_BYTES)?;
     Ok(Diff {
         text: String::from_utf8_lossy(&bytes).into_owned(),
         truncated,

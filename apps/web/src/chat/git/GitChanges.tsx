@@ -51,7 +51,7 @@ function GitRow({ row, panel, connected, onToggle, flat }: {
         : t('查看 {path}', { path: row.path })} aria-expanded={folder ? !row.collapsed : undefined}
         disabled={panel.busy || (!folder && !connected)} title={row.path}
         style={{ marginLeft: Math.min(row.depth, 4) * 14 }}
-        onClick={() => folder ? onToggle() : panel.setDetail({ path: row.path, title: row.path })}>
+        onClick={() => folder ? onToggle() : panel.setDetail({ kind: 'diff', path: row.path, title: row.path })}>
         {!flat && <span className="git-tree-chevron">{folder && (row.collapsed
           ? <ChevronRight size={12} /> : <ChevronDown size={12} />)}</span>}
         <img src={folder ? folderIcon : fileIcon} className="git-tree-icon" alt="" aria-hidden="true" />

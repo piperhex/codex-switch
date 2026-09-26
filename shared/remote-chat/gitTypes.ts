@@ -5,6 +5,7 @@ export interface GitChanges {
   root: string; branch: string | null; head: string | null; files: GitChange[];
 }
 export interface GitDiff { text: string; truncated: boolean }
+export interface GitCommitFile { path: string; originalPath: string | null; status: string }
 export interface GitCommit {
   hash: string; parents: string[]; author: string; date: string; subject: string; refs: string[];
 }
@@ -30,5 +31,6 @@ export interface GitClient {
   changes: (cwd: string) => Promise<GitChanges>;
   diff: (cwd: string, path: string, commit?: string) => Promise<GitDiff>;
   history: (cwd: string, skip: number) => Promise<GitHistory>;
+  commitFiles: (cwd: string, commit: string) => Promise<GitCommitFile[]>;
   commit: (request: GitCommitRequest) => Promise<{ hash: string }>;
 }

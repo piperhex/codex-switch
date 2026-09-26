@@ -1,9 +1,11 @@
 import { ActivityIndicator, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import type { GitClient } from '../../../../../shared/remote-chat/gitTypes';
 import { useGitDiff, useRemoteGit } from '../../../../../shared/remote-chat/useRemoteGit';
+import { useGitCommitFiles } from '../../../../../shared/remote-chat/useGitCommitFiles';
 import { BottomSheet } from '../../components/BottomSheet';
 import { GitHistory } from './GitHistory';
 import { GitChanges } from './GitChanges';
+import { GitCommitFiles } from './GitCommitFiles';
 import { GitToolbar } from './GitToolbar';
 import { gitStyles as styles } from './styles';
 import { palette } from '../styles';
@@ -14,10 +16,12 @@ interface Props {
 
 export function ChatGit(props: Props) {
   const panel = useRemoteGit(props);
+  const detail = panel.detail;
+  const commitFiles = useGitCommitFiles(props.client, props.cwd, detail?.commit?.hash, props.active && props.connected);
   const diff = useGitDiff(props.client, props.cwd, panel.detail, props.active && props.connected);
   const { height } = useWindowDimensions();
   return <BottomSheet visible={props.active} title="Git" subtitle={props.deviceName} onClose={props.onClose}
-    onBack={panel.detail ? () => panel.setDetail(null) : undefined} tall dragFromHeaderOnly fullWidthContent compactHeader>
+    onBack={detail ? panel.backDetail : undefined} tall dragFromHeaderOnly fullWidthContent compactHeader>
     <View style={{ height: height * .80, flexShrink: 1 }}>
       <GitToolbar panel={panel} connected={props.connected} />
       <Text numberOfLines={1} style={styles.project}>{panel.changes?.root ?? props.cwd}</Text>
@@ -28,8 +32,11 @@ export function ChatGit(props: Props) {
         请先在电脑上解决冲突或完成正在进行的合并。</Text>}
       {!!panel.notice && <Text accessibilityRole="alert" style={styles.notice}>{panel.notice}</Text>}
       {panel.busy && <ActivityIndicator style={styles.loading} color={palette.green} />}
-      {panel.detail ? <>
-        <Text numberOfLines={2} style={styles.detailTitle}>{panel.detail.title}</Text>
+      {detail?.kind === 'files' && <GitCommitFiles commit={detail.commit} state={commitFiles}
+        connected={props.connected} onSelect={file => panel.setDetail({ kind: 'diff', path: file.path,
+          commit: detail.commit, title: `${file.path} · ${detail.commit.hash.slice(0, 8)}` })} />}
+      {detail?.kind === 'diff' && <>
+        <Text numberOfLines={2} style={styles.detailTitle}>{detail.title}</Text>
         {!!diff.error && <Text accessibilityRole="alert" style={styles.error}>{diff.error}</Text>}
         {!diff.value && !diff.error && props.connected && <ActivityIndicator color={palette.green} />}
         {diff.value && <ScrollView style={styles.fill}>
@@ -39,7 +46,8 @@ export function ChatGit(props: Props) {
               style={line[0] === '+' ? styles.added : line[0] === '-' ? styles.removed : undefined}>
               {line}{'\n'}</Text>) : '没有可显示的文本差异。'}</Text></ScrollView>
         </ScrollView>}
-      </> : <>
+      </>}
+      {!detail && <>
         <View style={styles.tabs}>
           <Pressable accessibilityRole="tab" accessibilityState={{ selected: panel.tab === 'changes' }}
             style={[styles.tab, panel.tab === 'changes' && styles.selectedTab]} onPress={() => panel.setTab('changes')}>
