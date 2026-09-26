@@ -1,0 +1,55 @@
+.rd-root { position: fixed; inset: 0; z-index: 2200; display: flex; background: #080b12; color: #e7edf8;
+  font-family: system-ui, sans-serif; padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left); outline: none; }
+.rd-root * { box-sizing: border-box; }
+.rd-root button { color: inherit; font: inherit; cursor: pointer; border: 0; }
+.rd-root button:focus-visible { outline: 2px solid #88b5ff; outline-offset: -2px; }
+.rd-root button:disabled { opacity: .5; cursor: wait; }
+.rd-stage { position: relative; flex: 1; overflow: hidden; min-width: 0; min-height: 0; }
+.rd-video, .rd-touch { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.rd-touch, .rd-mouse { touch-action: none; user-select: none; }
+.rd-toolbar { width: 88px; display: flex; flex-direction: column; align-items: stretch; justify-content: space-around;
+  gap: 6px; background: #171c28; padding: 8px; }
+.rd-toolbar button { display: flex; flex-direction: column; align-items: center; gap: 7px; background: transparent;
+  border-radius: 10px; padding: 10px 2px; font-size: 12px; }
+.rd-toolbar button[aria-pressed=true], .rd-options button[aria-pressed=true] { background: #355987; }
+.rd-stats { position: absolute; left: 10px; top: 10px; font-size: 11px; border-radius: 5px; padding: 5px;
+  background: #111827bb; pointer-events: none; }
+.rd-status { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); padding: 14px; border-radius: 12px;
+  background: #222b3aee; width: max-content; max-width: min(400px, 90%); display: grid; gap: 10px; font-size: 14px; }
+.rd-status button, .rd-settings button, .rd-keyboard button { background: #333d50; padding: 10px 12px; border-radius: 9px; }
+.rd-mouse { position: absolute; right: 20px; bottom: 20px; width: 180px; height: 200px; border: 3px solid #94a4be;
+  border-radius: 62px; background: #dce9ffed; overflow: hidden; color: #526684; }
+.rd-mouse-top { display: flex; height: 98px; border-bottom: 2px solid #94a4be; }
+.rd-mouse-top button { flex: 1; background: transparent; font-size: 12px; padding-bottom: 15px; }
+.rd-mouse-top button + button { border-left: 2px solid #94a4be; }
+.rd-mouse button:active { background: #90baff; }
+.rd-pad { height: 98px; padding-bottom: 16px; display: flex; align-items: flex-end; justify-content: center; font-size: 12px; }
+.rd-wheel { position: absolute; top: 15px; left: 66px; border: 2px solid #8496b0; border-radius: 15px;
+  background: #e5eeff; overflow: hidden; width: 42px; }
+.rd-wheel button { background: transparent; display: flex; align-items: center; justify-content: center; width: 100%; height: 30px; }
+.rd-mouse .rd-grip { position: absolute; top: 82px; left: 65px; width: 44px; height: 36px; border-radius: 12px;
+  border: 2px solid #8496b0; background: #e5eeff; display: flex; align-items: center; justify-content: center; }
+.rd-settings { position: absolute; top: 8px; right: 8px; bottom: 8px; width: min(400px, calc(100% - 16px));
+  background: #202634f5; padding: 20px; border-radius: 16px; overflow-y: auto; }
+.rd-settings header { display: flex; align-items: center; justify-content: space-between; font-size: 18px; }
+.rd-options, .rd-custom { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.rd-settings p { margin: 20px 0 12px; }
+.rd-settings small { display: block; color: #aebad0; line-height: 1.7; }
+.rd-root input { background: #111827; border: 1px solid #5a6981; border-radius: 9px; padding: 10px; color: white; min-width: 0; }
+.rd-custom input { width: 80px; }
+.rd-keyboard { position: absolute; left: 8px; bottom: 8px; width: min(400px, calc(100% - 16px));
+  background: #202634f5; padding: 12px; border-radius: 12px; display: grid; gap: 10px; }
+.rd-keyboard > div { display: flex; gap: 8px; flex-wrap: wrap; }
+.rd-keyboard input { flex: 1; }
+@media (orientation: portrait) and (max-width: 700px) {
+  .rd-root { flex-direction: column; }
+  .rd-toolbar { width: auto; flex-direction: row; gap: 2px; padding: 8px 4px; }
+  .rd-toolbar button { flex: 1; font-size: 10px; }
+  .rd-toolbar svg { width: 21px; height: 21px; }
+}
+@media (max-height: 450px) and (orientation: landscape) {
+  .rd-toolbar { width: 70px; gap: 0; padding: 3px; }
+  .rd-toolbar button { padding: 4px 1px; gap: 2px; font-size: 10px; }
+  .rd-toolbar svg { width: 20px; height: 20px; }
+}

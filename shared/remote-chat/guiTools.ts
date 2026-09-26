@@ -1,4 +1,5 @@
 import type { TerminalRead, TerminalInfo, TerminalSize } from '../terminal/types';
+import { desktopClient } from '../remote-desktop/protocol';
 import type { GitActionRequest, GitChanges, GitCommitRequest, GitDiff, GitHistory, GitRepository } from './gitTypes';
 
 export interface CliRelease { version: string; size: number }
@@ -19,6 +20,7 @@ export const GUI_TOOL_OPERATIONS = new Set([
 /** Requests use the selected computer's authenticated chat connection. */
 export function createGuiToolsClient(request: <T>(body: object) => Promise<T>) {
   return {
+    desktop: desktopClient(request),
     status: () => request<RemoteCliStatus>({ operation: 'guiCliStatus' }),
     release: () => request<CliRelease>({ operation: 'guiCliRelease' }),
     install: (version: string) => request<RemoteCliStatus>({ operation: 'guiCliInstall', version }),

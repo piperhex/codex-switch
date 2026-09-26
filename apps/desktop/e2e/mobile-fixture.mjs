@@ -81,7 +81,7 @@ const httpServer = http.createServer((request, response) => {
   }
   if (request.url === '/test/state') {
     void page.evaluate(() => window.chatTest ? ({ ...window.chatTest.demoState(), modes: window.chatTest.modes,
-      errors: window.chatTest.errors }) : null).then((state) => {
+      errors: window.chatTest.errors, desktop: window.desktopTest }) : null).then((state) => {
       if (!state) { response.writeHead(503).end('{}'); return; }
       response.setHeader('Content-Type', 'application/json');
       response.end(JSON.stringify({ ...state, connectedMobiles: mobileClients.size, mobileConnections, relayFrames }));
@@ -175,12 +175,16 @@ const vite = await createServer({ optimizeDeps: { entries: ['e2e/chat-harness.ht
   cacheDir: process.env.CHAT_TEST_CACHE, server: { port: uiPort, host: '127.0.0.1' } });
 await vite.listen();
 const browser = await chromium.launch({ channel: process.env.CHAT_TEST_BROWSER
-  ?? (process.platform === 'win32' ? 'msedge' : 'chromium'), headless: true });
+  ?? (process.platform === 'win32' ? 'msedge' : 'chromium'), headless: true,
+  // The emulator cannot resolve the host browser's .local candidates on its virtual NAT.
+  args: process.env.CHAT_TEST_REMOTE_DESKTOP === '1' ? ['--disable-features=WebRtcHideLocalIpsWithMdns'] : [],
+});
 page = await browser.newPage();
 page.on('pageerror', (error) => console.error(error.message));
 page.on('console', (message) => { if (message.type() === 'error') console.error(message.text()); });
 page.on('requestfailed', (request) => console.error('Fixture request failed:', request.url(), request.failure()));
-await page.goto(`http://127.0.0.1:${uiPort}/e2e/chat-harness.html?role=desktop&demo&socket=ws://127.0.0.1:${apiPort}/device-chat`,
+const desktopQuery = process.env.CHAT_TEST_REMOTE_DESKTOP === '1' ? '&remote-desktop' : '';
+await page.goto(`http://127.0.0.1:${uiPort}/e2e/chat-harness.html?role=desktop&demo${desktopQuery}&socket=ws://127.0.0.1:${apiPort}/device-chat`,
   { timeout: 60_000 });
 await page.waitForFunction(() => Boolean(window.chatTest));
 console.log(`Mobile fixture ready on port ${apiPort} (local test data only).`);

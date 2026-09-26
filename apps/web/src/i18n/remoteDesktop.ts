@@ -1,0 +1,30 @@
+export const remoteDesktopMessages: Record<string, string> = {
+  '远程桌面': 'Remote desktop', '远程桌面操作': 'Remote desktop controls',
+  '远程桌面触控区域': 'Remote desktop touchpad', '显示设置': 'Display settings',
+  '显示': 'Display', '帧率': 'Frame rate', '帧': 'FPS', '帧/秒': 'FPS',
+  '自定义帧率': 'Custom frame rate', '应用帧率': 'Apply frame rate', '画质': 'Quality',
+  '流畅': 'Smooth', '高清': 'High', '超清': 'Ultra',
+  '支持 1–144 帧。实际帧率取决于网络和电脑性能。': 'Choose 1–144 FPS. Actual performance depends on your network and computer.',
+  '请输入 1–144 的整数。': 'Enter a whole number from 1 to 144.',
+  '默认根据网络情况调整画质和帧率，让操作保持流畅。':
+    'Quality and frame rate adapt to your connection by default to keep controls responsive.',
+  '鼠标操作': 'Mouse controls', '鼠标': 'Mouse', '键盘': 'Keyboard',
+  '鼠标左键': 'Left mouse button', '鼠标右键': 'Right mouse button', '左键': 'Left', '右键': 'Right',
+  '向上滚动': 'Scroll up', '向下滚动': 'Scroll down', '拖动鼠标面板': 'Move mouse panel',
+  '滑动移动': 'Swipe to move', '拖拽中': 'Dragging', '显示桌面': 'Show desktop', '所有窗口': 'All windows',
+  '发送到电脑的文字': 'Text to send to your computer', '输入文字': 'Enter text', '退格': 'Backspace', '回车': 'Enter',
+  '滑动画面或鼠标下半部移动指针，轻点单击。长按左键开始拖拽，再点左键结束。中央箭头用于滚动，横线把手可移动鼠标面板。':
+    'Swipe the screen or lower mouse pad to move; tap to click. Hold the left button to start dragging and tap it again '
+      + 'to release. Use the arrows to scroll and the center grip to reposition the panel.',
+  '正在连接桌面…': 'Connecting to the desktop…',
+  '桌面连接超时，请检查两端网络后重试。': 'Connection timed out. Check both devices’ networks and try again.',
+  '桌面连接已断开，请重新连接。': 'The desktop disconnected. Please reconnect.',
+  '网络中断，正在等待恢复…': 'Connection interrupted. Waiting to reconnect…',
+  '桌面连接异常，请重新连接。': 'The desktop connection failed. Please reconnect.',
+  '桌面连接未能建立，请检查网络后重试。': 'Unable to connect to the desktop. Check your network and try again.',
+  '暂时无法打开远程桌面，请重试。': 'Unable to open the remote desktop. Please try again.',
+  '显示设置未能保存，请重试。': 'Unable to save display settings. Please try again.',
+  '无法访问桌面，请确认电脑已解锁后重试。': 'Unable to access the desktop. Unlock your computer and try again.',
+  '这台电脑暂不支持远程桌面，请使用 Windows 电脑。': 'This computer does not support remote desktop yet. Use a Windows computer.',
+  '已有远程桌面连接，请先关闭后再试。': 'A remote desktop is already connected. Close it before trying again.',
+};

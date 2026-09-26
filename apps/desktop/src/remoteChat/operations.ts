@@ -31,6 +31,8 @@ import { GUI_TOOL_OPERATIONS } from '../../../../shared/remote-chat/guiTools';
 import { guiToolRequest } from './guiTools';
 import { remoteTerminals, type RemoteTerminals } from './terminals';
 import { deleteRemoteThread } from './threadActions';
+import { RemoteDesktopHost } from '../remoteDesktop/host';
+import { DESKTOP_OPERATION } from '../../../../shared/remote-desktop/protocol';
 
 const OPERATIONS = new Set([
   'downloadOpen', 'downloadBrowse',
@@ -75,6 +77,7 @@ function response(request: RpcRequest, data: unknown, mode: ConnectionMode): Rpc
 }
 
 export class ChatOperations {
+  readonly desktop = new RemoteDesktopHost();
   constructor(private readonly terminals: RemoteTerminals = remoteTerminals) {}
   private readonly cache = new Map<string, Cached>();
   private readonly images = new RemoteImages();
@@ -92,10 +95,13 @@ export class ChatOperations {
     }
     this.prune();
     if (this.cache.size >= 512) return Promise.reject(new Error('请求较多，请稍后重试。'));
-    const result = this.run(request, mode, terminalOwner).then((data) => response(request, data, mode))
-      .catch((error: unknown): RpcResponse => ({ kind: 'response', id: request.id, error: operationError(error) }));
     const operation = (request.body as { operation?: string } | undefined)?.operation;
-    const readOnly = request.method === 'request' && READ_OPERATIONS.has(operation ?? '');
+    const running = request.method === 'request' && operation === DESKTOP_OPERATION
+      ? this.desktop.request(request.body, owner) : this.run(request, mode, terminalOwner);
+    const result = running.then((data) => response(request, data, mode))
+      .catch((error: unknown): RpcResponse => ({ kind: 'response', id: request.id, error: operationError(error) }));
+    const readOnly = request.method === 'request' && (READ_OPERATIONS.has(operation ?? '')
+      || (operation === DESKTOP_OPERATION && object(request.body).action === 'signal'));
     const entry: Cached = { fingerprint, result, expires: Date.now() + CACHE_TTL_MS, completed: false, readOnly };
     this.cache.set(cacheKey, entry);
     void result.then(() => {
@@ -108,6 +114,7 @@ export class ChatOperations {
   }
 
   release(owner?: string) {
+    this.desktop.release(owner);
     for (const key of this.cache.keys()) {
       if (owner === undefined || (JSON.parse(key) as string[])[0] === owner) this.cache.delete(key);
     }

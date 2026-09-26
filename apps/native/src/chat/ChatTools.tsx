@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { GuiToolsClient } from '../../../../shared/remote-chat/guiTools';
 import { ChatTerminal } from './ChatTerminal';
 import { ChatGit } from './git/ChatGit';
+import { RemoteDesktop } from './desktop/RemoteDesktop';
 import { BottomSheet } from '../components/BottomSheet';
 import { palette, styles } from './styles';
 
@@ -16,12 +17,19 @@ function ProjectTools({ client, ...props }: Props) {
   const [menu, setMenu] = useState(false);
   const [launchId, setLaunchId] = useState(0);
   const [git, setGit] = useState(false);
+  const [desktop, setDesktop] = useState(false);
   return <>
     <Pressable accessibilityRole="button" accessibilityLabel="打开工具" accessibilityState={{ expanded: menu }}
       style={styles.back} onPress={() => { Keyboard.dismiss(); setMenu(true); }}>
       <Ionicons name="construct-outline" size={24} color={palette.ink} /></Pressable>
     <BottomSheet visible={menu && props.active} title="工具" onClose={() => setMenu(false)} maxWidth={400}>
       <View style={{ gap: 10, paddingBottom: 16 }}>
+        <Pressable accessibilityRole="button" disabled={!props.connected}
+          style={[styles.button, styles.row, !props.connected && styles.disabled]}
+          onPress={() => { setMenu(false); setDesktop(true); }}>
+          <Ionicons name="desktop-outline" size={22} color={palette.green} />
+          <Text style={styles.buttonText}>远程桌面</Text>
+        </Pressable>
         <Pressable accessibilityRole="button" disabled={!props.connected}
           style={[styles.button, styles.row, !props.connected && styles.disabled]}
           onPress={() => { setMenu(false); setLaunchId(value => value + 1); }}>
@@ -35,5 +43,7 @@ function ProjectTools({ client, ...props }: Props) {
     </BottomSheet>
     <ChatTerminal {...props} client={client.terminal} launchId={launchId} hideTrigger />
     {git && <ChatGit {...props} client={client.git} onClose={() => setGit(false)} />}
+    {desktop && <RemoteDesktop client={client.desktop} active={props.active && props.connected}
+      close={() => setDesktop(false)} />}
   </>;
 }

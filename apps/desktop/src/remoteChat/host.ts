@@ -146,6 +146,7 @@ export class ChatHost {
   private open(sessionId: string, message: Record<string, unknown>) {
     // The authenticated coordinator applies the configured limit before sending peer-open.
     if (this.links.has(sessionId)) return;
+    this.operations.desktop.register(sessionId, message.iceServers as IceServer[]);
     if (message.transportVersion === 2 && typeof message.resumeToken === 'string') {
       this.lease(sessionId, message.expiresAt);
     }

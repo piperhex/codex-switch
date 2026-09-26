@@ -9,7 +9,7 @@ module.exports = function withChatTransport(config) {
   });
   return withInfoPlist(config, (result) => {
     result.modResults.NSLocalNetworkUsageDescription = '允许 Codex Switch 直接连接你的电脑';
-    // Only data channels are used. The upstream WebRTC plugin also adds unused media permission descriptions.
+    // Chat uses data channels; remote desktop only receives video. Neither feature records a microphone.
     delete result.modResults.NSMicrophoneUsageDescription;
     return result;
   });

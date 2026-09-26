@@ -10,6 +10,8 @@ import { downloadFixture, fileDownloadResponse } from './file-download-fixture';
 import { setChatConnectionMode } from '../../../shared/remote-chat/policy';
 
 const query = new URLSearchParams(location.search);
+const desktopFixture = query.has('remote-desktop') ? import('../../web/e2e/remote-desktop-fixture') : undefined;
+const desktopRequests = new Map<string, Promise<RpcMessage>>();
 const desktop = query.get('role') === 'desktop';
 const blocked = query.get('blocked') === 'true';
 const keys = keyPair((size) => crypto.getRandomValues(new Uint8Array(size)));
@@ -55,6 +57,18 @@ async function receive({ data }: MessageEvent<string>) {
       error: (message) => errors.push(message), message: (message) => {
         if (!desktop) { rpc.receive(message); return; }
         if (message.kind !== 'request') return;
+        if (desktopFixture && (message.body as { operation?: string })?.operation === 'remoteDesktop') {
+          const target = link;
+          let task = desktopRequests.get(message.id);
+          if (!task) {
+            task = desktopFixture.then(fixture => fixture.desktopRequest(message.body as object))
+              .then(data => ({ kind: 'response' as const, id: message.id, data }))
+              .catch(error => ({ kind: 'response' as const, id: message.id, error: String(error) }));
+            desktopRequests.set(message.id, task);
+          }
+          void task.then(response => target.send(response)).catch(error => errors.push(String(error)));
+          return;
+        }
         let response = requests.get(message.id);
         if (!response) {
           executions += 1;

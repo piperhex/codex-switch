@@ -9,7 +9,9 @@ const state = vi.hoisted(() => ({ options: undefined as LinkOptions | undefined,
   relay: vi.fn(), close: vi.fn(), reconnect: vi.fn(), stop: vi.fn(), execute: vi.fn(async () => ({})) }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { subscribe: vi.fn(async () => vi.fn()) } }));
 vi.mock('../pages/codexGui/webEvents', () => ({ subscribeGuiEvent: vi.fn(async () => vi.fn()) }));
-vi.mock('./operations', () => ({ ChatOperations: class { release = vi.fn(); execute = state.execute; } }));
+vi.mock('./operations', () => ({ ChatOperations: class {
+  release = vi.fn(); execute = state.execute; desktop = { register: vi.fn() };
+} }));
 vi.mock('./nativeTransport', () => ({ NativeChatTransport: class {
   ready = true; bufferedAmount = 0;
   constructor(receive: (event: HostTransportEvent) => void) { state.receive = receive; }

@@ -57,6 +57,7 @@ mod provider_platform;
 mod providers;
 mod remote_chat;
 mod remote_control;
+mod remote_desktop;
 mod remote_websocket;
 mod skills_market;
 mod storage;
@@ -261,6 +262,10 @@ pub fn run() {
             system_tray::quick_menu::handle_window_event(window, event);
         })
         .invoke_handler(tauri::generate_handler![
+            remote_desktop::remote_desktop_open,
+            remote_desktop::remote_desktop_frame,
+            remote_desktop::remote_desktop_input,
+            remote_desktop::remote_desktop_close,
             #[cfg(windows)]
             system_tray::quick_menu::quick_menu_snapshot,
             #[cfg(windows)]
