@@ -166,6 +166,9 @@
 [data-quote-source] { user-select: text; }
 [data-quote-exclude] { user-select: none; }
 .markdown { overflow-wrap: anywhere; p { margin: 12px 0; } ul, ol { padding-left: 24px; }
+  :global(.katex-display) { max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+  :global(.katex) { white-space: normal; overflow-wrap: normal; }
+  :global(.katex-display > .katex) { white-space: nowrap; }
   h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.4; margin: 20px 0 8px; }
   h1 { font-size: 1.5em; } h2 { font-size: 1.25em; } h3, h4, h5, h6 { font-size: 1.1em; }
   pre { padding: 16px; border-radius: 10px; background: transparent; overflow: auto; line-height: 1.6; }

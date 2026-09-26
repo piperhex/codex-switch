@@ -1,6 +1,10 @@
 import { memo, useMemo, type ReactNode } from "react";
 import Markdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import { mathOptions, normalizeMathDelimiters } from "../../../../../shared/chat/mathMarkdown";
+import "katex/dist/katex.min.css";
 import { CodeBlock } from "./CodeBlock";
 import { MessageImage } from "./MessageImage";
 import { isInlineImage, localImageSource } from "./imageSources";
@@ -16,18 +20,19 @@ const COMPONENTS: Components = {
   pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
   table: ({ children }) => <MarkdownTable>{children}</MarkdownTable>,
 };
-const PLUGINS = [remarkGfm];
+const PLUGINS = [remarkGfm, remarkMath];
 
 export const RichText = memo(function RichText({ text, trailing }: { text: string; trailing?: ReactNode }) {
   const sections = useMemo(() => messageSections(text), [text]);
   return <div className={styles.markdown}>
     {sections.map((section, index) => section.type === "review"
       ? <CodeReviewComment key={index} comment={section.comment} />
-      : <Markdown key={index} remarkPlugins={PLUGINS} skipHtml components={COMPONENTS} urlTransform={(url, key) => {
+      : <Markdown key={index} remarkPlugins={PLUGINS} rehypePlugins={[[rehypeKatex, mathOptions]]}
+        skipHtml components={COMPONENTS} urlTransform={(url, key) => {
       if (key === "src" && (isInlineImage(url) || localImageSource(url))) return url;
       if (key === "href" && (isFileReference(url) || localImageSource(url))) return url;
       return defaultUrlTransform(url);
-    }}>{section.text}</Markdown>)}
+    }}>{normalizeMathDelimiters(section.text)}</Markdown>)}
     {trailing && <div className={styles.messageCopy} data-quote-exclude>{trailing}</div>}
   </div>;
 });
