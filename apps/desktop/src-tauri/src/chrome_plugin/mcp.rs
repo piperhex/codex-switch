@@ -5,7 +5,9 @@ use std::{
 
 use serde_json::{json, Value};
 
-use super::{config, native, protocol::*, transport::MAX_REQUEST_BYTES, BrowserError, Result};
+use super::{
+    config, discovery, native, protocol::*, transport::MAX_REQUEST_BYTES, BrowserError, Result,
+};
 
 const TOOL_DEFINITIONS: &str = include_str!("../../resources/chrome-extension/tools.json");
 
@@ -94,10 +96,7 @@ fn execute(root: &Path, client_id: &str, params: &Value) -> Result<BrowserReply>
         .remove("browserId")
         .and_then(|id| id.as_str().map(str::to_owned))
         .ok_or(BrowserError::InvalidRequest)?;
-    let endpoint = native::endpoints(root)
-        .into_iter()
-        .find(|endpoint| endpoint.id == browser_id)
-        .ok_or(BrowserError::Disconnected)?;
+    let endpoint = discovery::endpoint(root, &browser_id).ok_or(BrowserError::Disconnected)?;
     let request = BrowserRequest {
         operation,
         args: Value::Object(args),
@@ -123,14 +122,8 @@ fn browsers(root: &Path, client_id: &str, record: &config::ClientRecord) -> Resu
             args: json!({}),
         },
     };
-    for endpoint in native::endpoints(root) {
-        // A killed Chrome process can leave an endpoint behind. Never surface its files as a live browser.
-        let Ok(reply) = native::call(&endpoint, &request) else {
-            continue;
-        };
-        if let Some(status) = reply.result {
-            browsers.push(json!({"browserId":endpoint.id,"name":endpoint.name,"status":status}));
-        }
+    for (endpoint, status) in discovery::connected(root, &request) {
+        browsers.push(json!({"browserId":endpoint.id,"name":endpoint.name,"status":status}));
     }
     Ok(BrowserReply {
         result: Some(json!({"browsers":browsers})),

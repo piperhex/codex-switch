@@ -2,6 +2,7 @@
 mod automatic;
 pub(crate) mod commands;
 mod config;
+mod discovery;
 mod extension;
 mod identity;
 mod install;

@@ -218,34 +218,17 @@ fn await_reply(
     }
 }
 
-pub(super) fn endpoints(root: &std::path::Path) -> Vec<Endpoint> {
-    let Ok(entries) = fs::read_dir(root.join("endpoints")) else {
-        return Vec::new();
-    };
-    // Stale files left by a terminated browser are ignored; liveness is checked by the caller.
-    entries
-        .flatten()
-        .take(256)
-        .filter_map(|entry| {
-            let metadata = entry.metadata().ok()?;
-            if !metadata.is_file() || metadata.len() > 1024 {
-                return None;
-            }
-            let bytes = fs::read(entry.path()).ok()?;
-            let endpoint: Endpoint = serde_json::from_slice(&bytes).ok()?;
-            (Uuid::parse_str(&endpoint.id).is_ok()
-                && endpoint.port != 0
-                && entry.file_name().to_str() == Some(&format!("{}.json", endpoint.id)))
-            .then_some(endpoint)
-        })
-        .take(32)
-        .collect()
+pub(super) fn connect(endpoint: &Endpoint) -> io::Result<TcpStream> {
+    let address = std::net::SocketAddr::from(([127, 0, 0, 1], endpoint.port));
+    TcpStream::connect_timeout(&address, Duration::from_millis(400))
 }
 
 pub(super) fn call(endpoint: &Endpoint, request: &BridgeRequest) -> Result<BrowserReply> {
-    let address = std::net::SocketAddr::from(([127, 0, 0, 1], endpoint.port));
-    let mut stream = TcpStream::connect_timeout(&address, Duration::from_millis(400))
-        .map_err(|_| BrowserError::Disconnected)?;
+    let stream = connect(endpoint).map_err(|_| BrowserError::Disconnected)?;
+    exchange(stream, request)
+}
+
+pub(super) fn exchange(mut stream: TcpStream, request: &BridgeRequest) -> Result<BrowserReply> {
     let timeout = if matches!(request.request.operation, Operation::Status) {
         Duration::from_secs(2)
     } else {

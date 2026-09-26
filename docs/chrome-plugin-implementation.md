@@ -301,6 +301,14 @@ Its SHA-256 is `FD7E3A3A6F9D80E0A0DEE1382696A342884C43FA02A73D564844D1E941B9D34F
 This earlier release required a manual browser refresh. The automatic upgrade behavior described above
 replaces that refresh step once extension 1.2.1 or newer has been loaded.
 
+## Connection discovery
+
+Browser discovery checks all valid endpoint records in bounded parallel batches. Only successful
+status replies count toward the 32-browser result limit; stale files and rejected replies cannot
+hide later live connections. Selected browser IDs are looked up directly, independently of the list
+limit. A record is removed only when its loopback connection is explicitly refused and its contents
+are unchanged. Timeouts, protocol/authentication errors, and paused browsers preserve the record.
+
 ## Repeatable checks
 
 ```powershell

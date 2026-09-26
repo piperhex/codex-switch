@@ -42,7 +42,7 @@ function start(args, root) {
   return child;
 }
 
-function rpc(child) {
+function rpc(child, timeout = 5000) {
   const waiting = new Map();
   let id = 0;
   createInterface({input:child.stdout}).on('line', line => {
@@ -52,7 +52,7 @@ function rpc(child) {
   });
   return (method,params={}) => new Promise((resolve,reject) => {
     const requestId = ++id;
-    const timer = setTimeout(() => { waiting.delete(requestId); reject(new Error(`Timed out: ${method}`)); },5000);
+    const timer = setTimeout(() => { waiting.delete(requestId); reject(new Error(`Timed out: ${method}`)); },timeout);
     waiting.set(requestId,response => {clearTimeout(timer);resolve(response);});
     child.stdin.write(JSON.stringify({jsonrpc:'2.0',id:requestId,method,params})+'\n');
   });
@@ -73,6 +73,24 @@ async function endpoint(root) {
     if (!names.length) return null;
     return JSON.parse(await fs.readFile(path.join(root,'endpoints',names[0]),'utf8'));
   });
+}
+
+async function addStaleRecords(root) {
+  const reservation = net.createServer();
+  await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));
+  const port = reservation.address().port;
+  try {
+    const directory = path.join(root, 'endpoints');
+    for (let index = 1; index <= 69; index++) {
+      const id = '00000000-0000-0000-0000-' + index.toString(16).padStart(12, '0');
+      await fs.writeFile(path.join(directory, id + '.json'), JSON.stringify({id, port, name: 'Stale fixture'}));
+    }
+    for (let index = 0; index < 300; index++) {
+      await fs.writeFile(path.join(directory, 'invalid-' + index + '.json'), 'invalid');
+    }
+  } finally {
+    await new Promise(resolve => reservation.close(resolve));
+  }
 }
 
 async function client(root,name) {
@@ -135,8 +153,9 @@ test('compiled Native Messaging and MCP helpers authenticate, relay, revoke, and
     });
     host.stdin.write(frame({type:'ready',name:'Protocol fixture'}));
     const live = await endpoint(root);
+    await addStaleRecords(root);
     const mcp = start([`--chrome-mcp=${first.clientId}`],root);children.push(mcp);
-    const call = rpc(mcp);
+    const call = rpc(mcp, 15000);
     assert.equal((await call('initialize')).result.serverInfo.name,'codex-switch-chrome');
     const definitions = (await call('tools/list')).result.tools;
     assert.ok(definitions.some(tool=>tool.name==='browser_screenshot'));

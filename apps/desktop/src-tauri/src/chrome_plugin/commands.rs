@@ -4,7 +4,7 @@ use std::path::Path;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
 use super::{
-    config, extension, install, native, protocol::*, registration, BrowserError, Result,
+    config, discovery, extension, install, protocol::*, registration, BrowserError, Result,
     INSTALL_CHANGES,
 };
 
@@ -120,14 +120,10 @@ fn status(root: &Path, home: &Path) -> Result<ChromePluginStatus> {
                 args: json!({}),
             },
         };
-        for endpoint in native::endpoints(root) {
-            if let Ok(reply) = native::call(&endpoint, &request) {
-                if let Some(result) = reply.result {
-                    connected_browsers += 1;
-                    if result["paused"] != true {
-                        active_browsers += 1;
-                    }
-                }
+        for (_, result) in discovery::connected(root, &request) {
+            connected_browsers += 1;
+            if result["paused"] != true {
+                active_browsers += 1;
             }
         }
     }
