@@ -8,6 +8,7 @@ export const remoteDesktopMessages: Record<string, string> = {
   '请输入 1–144 的整数。': 'Enter a whole number from 1 to 144.',
   '默认根据网络情况调整画质和帧率，让操作保持流畅。':
     'Quality and frame rate adapt to your connection by default to keep controls responsive.',
+  '触屏': 'Touch', '展开鼠标面板': 'Expand mouse controls', '收起鼠标面板': 'Collapse mouse controls',
   '鼠标操作': 'Mouse controls', '鼠标': 'Mouse', '键盘': 'Keyboard',
   '鼠标左键': 'Left mouse button', '鼠标右键': 'Right mouse button', '左键': 'Left', '右键': 'Right',
   '向上滚动': 'Scroll up', '向下滚动': 'Scroll down', '拖动鼠标面板': 'Move mouse panel',

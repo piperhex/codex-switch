@@ -127,23 +127,7 @@ impl Capture {
             {
                 return Err(DesktopError::Platform);
             }
-            let mut cursor = CURSORINFO {
-                cbSize: size_of::<CURSORINFO>() as u32,
-                ..Default::default()
-            };
-            if GetCursorInfo(&mut cursor) != 0 && cursor.flags == CURSOR_SHOWING {
-                DrawIconEx(
-                    self.memory,
-                    cursor.ptScreenPos.x * self.width / width,
-                    cursor.ptScreenPos.y * self.height / height,
-                    cursor.hCursor,
-                    24 * self.width / width,
-                    24 * self.height / height,
-                    0,
-                    ptr::null_mut(),
-                    DI_NORMAL,
-                );
-            }
+            // The viewer draws its own pointer; do not burn the host cursor into the frame.
             GdiFlush();
         }
         Ok(())

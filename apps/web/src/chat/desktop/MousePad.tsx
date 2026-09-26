@@ -1,69 +1,60 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
-import { ChevronDown, ChevronUp, GripHorizontal } from 'lucide-react';
+import { useEffect, useSyncExternalStore } from 'react';
+import { ChevronDown, ChevronUp, GripHorizontal, Mouse, X } from 'lucide-react';
 import type { DesktopPointer } from '../../../../../shared/remote-desktop/input';
+import { cursorPosition, mousePanelPosition, MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE, type DesktopViewport }
+  from '../../../../../shared/remote-desktop/geometry';
+import type { MousePanelActivity } from '../../../../../shared/remote-desktop/useMousePanel';
+import cursorImage from '../../../../../shared/remote-desktop/cursor.svg';
 import { t } from '../../i18n';
 import { useMouseButtons } from './useMouseButtons';
+import { useTrackpad } from './useTrackpad';
 
-export function useTrackpad(pointer: DesktopPointer) {
-  const gesture = useRef<{ id: number; x: number; y: number; distance: number }>();
-  return {
-    onPointerDown: (event: PointerEvent<HTMLElement>) => {
-      if (gesture.current) return;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, distance: 0 };
-    },
-    onPointerMove: (event: PointerEvent<HTMLElement>) => {
-      const previous = gesture.current;
-      if (!previous || previous.id !== event.pointerId) return;
-      const dx = event.clientX - previous.x; const dy = event.clientY - previous.y;
-      const area = event.currentTarget.closest('.rd-stage')?.getBoundingClientRect();
-      pointer.move(dx, dy, area?.width ?? 800, area?.height ?? 600);
-      gesture.current = { id: previous.id, x: event.clientX, y: event.clientY,
-        distance: previous.distance + Math.abs(dx) + Math.abs(dy) };
-    },
-    onPointerUp: (event: PointerEvent<HTMLElement>) => {
-      if (gesture.current?.id !== event.pointerId) return;
-      if (gesture.current.distance < 5) pointer.click();
-      pointer.flush(); gesture.current = undefined;
-    },
-    onPointerCancel: () => {
-      gesture.current = undefined; pointer.button('left', false); pointer.button('right', false);
-    },
-  };
+interface Props {
+  pointer: DesktopPointer; viewport: DesktopViewport; panel: MousePanelActivity;
+  wheel: (delta: number) => void;
+}
+export function DesktopMouse({ visible, ...props }: Props & { visible: boolean }) {
+  const position = useSyncExternalStore(props.pointer.subscribe, props.pointer.getSnapshot);
+  const cursor = cursorPosition(position, props.viewport);
+  const panel = mousePanelPosition(cursor, props.viewport.stage,
+    props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE);
+  return <>
+    <img className="rd-cursor" src={cursorImage} alt="" aria-hidden="true" draggable={false}
+      style={{ left: cursor.x, top: cursor.y }} />
+    {visible && <div className="rd-mouse-layer" style={{ left: panel.x, top: panel.y }}>
+      {props.panel.expanded ? <MousePad {...props} />
+        : <button className="rd-mouse-icon" aria-label={t('展开鼠标面板')} onClick={props.panel.expand}><Mouse /></button>}
+    </div>}
+  </>;
 }
 
-export function MousePad({ pointer, wheel }: { pointer: DesktopPointer; wheel: (delta: number) => void }) {
-  const pad = useTrackpad(pointer);
+function MousePad({ pointer, viewport, panel, wheel }: Props) {
   const buttons = useMouseButtons(pointer);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const origin = useRef<{ x: number; y: number; dx: number; dy: number }>();
-  useEffect(() => {
-    const reset = () => setPosition({ x: 0, y: 0 });
-    window.addEventListener('resize', reset);
-    return () => window.removeEventListener('resize', reset);
-  }, []);
-  const drag = (event: PointerEvent<HTMLButtonElement>) => {
-    if (!origin.current) return;
-    const bounds = event.currentTarget.closest('.rd-stage')!.getBoundingClientRect();
-    setPosition({ x: Math.max(-Math.max(0, bounds.width - 210),
-      Math.min(0, origin.current.dx + event.clientX - origin.current.x)),
-    y: Math.max(-Math.max(0, bounds.height - 230),
-      Math.min(0, origin.current.dy + event.clientY - origin.current.y)) });
-  };
-  return <div className="rd-mouse" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
-    <div className="rd-mouse-top">{(['left', 'right'] as const).map(button =>
-      <button key={button} aria-label={t(button === 'left' ? '鼠标左键' : '鼠标右键')}
-        onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); buttons.down(button); }}
-        onPointerUp={() => buttons.up(button)} onLostPointerCapture={() => buttons.up(button)}
-        onPointerCancel={buttons.cancel}>
-        {t(button === 'left' ? (buttons.dragging ? '拖拽中' : '左键') : '右键')}</button>)}</div>
-    <div className="rd-pad" {...pad}>{t('滑动移动')}</div>
-    <div className="rd-wheel"><button aria-label={t('向上滚动')} onClick={() => wheel(120)}><ChevronUp size={20} /></button>
-      <button aria-label={t('向下滚动')} onClick={() => wheel(-120)}><ChevronDown size={20} /></button></div>
-    <button className="rd-grip" aria-label={t('拖动鼠标面板')}
-      onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId);
-        origin.current = { x: event.clientX, y: event.clientY, dx: position.x, dy: position.y }; }}
-      onPointerMove={drag} onPointerUp={() => { origin.current = undefined; }}
-      onPointerCancel={() => { origin.current = undefined; }}><GripHorizontal size={25} /></button>
-  </div>;
+  const pad = useTrackpad({ pointer, viewport, panel, id: 'pad', cancel: buttons.cancel });
+  const grip = useTrackpad({ pointer, viewport, panel, id: 'grip', click: false, cancel: buttons.cancel });
+  useEffect(() => { panel.hold('drag', buttons.dragging); return () => panel.hold('drag', false); },
+    [buttons.dragging, panel.hold]);
+  const up = (button: 'left' | 'right') => { buttons.up(button); panel.hold(button, false); };
+  return <>
+    <div className="rd-mouse">
+      <div className="rd-mouse-top">{(['left', 'right'] as const).map(button =>
+        <button key={button} aria-label={t(button === 'left' ? '鼠标左键' : '鼠标右键')}
+          aria-pressed={button === 'left' && buttons.dragging}
+          onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId);
+            panel.hold(button, true); buttons.down(button); }}
+          onPointerUp={() => up(button)} onLostPointerCapture={() => up(button)}
+          onPointerCancel={() => { buttons.cancel(); panel.hold(button, false); }}>
+          {t(button === 'left' ? (buttons.dragging ? '拖拽中' : '左键') : '右键')}</button>)}</div>
+      <div className="rd-pad" {...pad}>{t('滑动移动')}</div>
+      <div className="rd-wheel">{[120, -120].map(delta =>
+        <button key={delta} aria-label={t(delta > 0 ? '向上滚动' : '向下滚动')}
+          onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); panel.hold('wheel', true); }}
+          onPointerUp={() => panel.hold('wheel', false)} onLostPointerCapture={() => panel.hold('wheel', false)}
+          onPointerCancel={() => panel.hold('wheel', false)}
+          onClick={() => { panel.activity(); wheel(delta); }}>
+          {delta > 0 ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button>)}</div>
+      <button className="rd-grip" aria-label={t('拖动鼠标面板')} {...grip}><GripHorizontal size={22} /></button>
+    </div>
+    <button className="rd-mouse-close" aria-label={t('收起鼠标面板')} onClick={panel.collapse}><X size={20} /></button>
+  </>;
 }

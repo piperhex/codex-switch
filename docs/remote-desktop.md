@@ -37,8 +37,15 @@ The viewer works on Android/iOS through `react-native-webrtc` and on Web through
 
 ## Controls and lifecycle
 
-The floating mouse provides left/right buttons, scroll arrows, a relative touchpad and a relocation handle.
+The viewer draws its own pointer immediately; all Windows capture paths exclude the host cursor.
+The compact floating mouse follows that pointer and can extend into letterbox space around the video.
+Only the viewer's outer bounds constrain the controls. Motion and direct touches use the actual contain-fit video rectangle.
+The mouse provides left/right buttons, scroll arrows, a relative touchpad and a handle that moves the pointer and panel together.
 Long-press the left button to latch a drag and press it again to release. Tapping the touchpad clicks.
+After four idle seconds the panel collapses to a round mouse icon; tapping it reopens the controls.
+Held fingers, buttons and latched drags prevent automatic collapse. The close icon also collapses the panel.
+The toolbar switches between mouse and direct-touch modes. Direct touches click or drag at the touched video position;
+touches that start in the letterbox are ignored. Switching modes releases held buttons.
 The keyboard sends Unicode text and common keys; Windows shortcuts show the desktop and Task View.
 Native rotation and Web responsive layouts retain the same controls. Display panels stay within 400 px.
 

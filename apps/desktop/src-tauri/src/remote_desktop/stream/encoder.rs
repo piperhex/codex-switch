@@ -167,6 +167,8 @@ fn capture_arguments(profile: Profile, size: Display, backend: Backend) -> Vec<S
         return vec![
             "-f".into(),
             "gdigrab".into(),
+            "-draw_mouse".into(),
+            "0".into(),
             "-offset_x".into(),
             "0".into(),
             "-offset_y".into(),
@@ -205,7 +207,8 @@ fn capture_filter(profile: Profile, size: Display, backend: Backend) -> String {
     let mut filter = format!(
         "gfxcapture=hmonitor={monitor}:max_framerate={capture_fps}:width={width}:height={height}"
     );
-    filter.push_str(":resize_mode=scale_aspect");
+    // Viewers render an immediate local pointer, so frames must not contain a second cursor.
+    filter.push_str(":resize_mode=scale_aspect:capture_cursor=0");
     filter.push_str(&format!(
         ",select='isnan(prev_selected_t)+gt(floor(t*{fps}),floor(prev_selected_t*{fps}))'"
     ));
@@ -285,4 +288,31 @@ pub(super) fn runtime_path(resource_dir: PathBuf) -> Result<PathBuf> {
         }
     }
     Err(DesktopError::Platform)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_capture_backend_excludes_the_host_cursor() {
+        let profile = Profile {
+            width: 1920,
+            fps: 60,
+            bitrate: 6_000_000,
+        };
+        let size = Display {
+            width: 1920,
+            height: 1080,
+            source_width: 1920,
+            source_height: 1080,
+            monitor: 1,
+        };
+        for backend in [Backend::Nvenc, Backend::MediaFoundation, Backend::Software] {
+            let filter = capture_filter(profile, size, backend);
+            assert!(filter.contains(":capture_cursor=0"));
+        }
+        let args = capture_arguments(profile, size, Backend::GdiSoftware);
+        assert!(args.windows(2).any(|pair| pair == ["-draw_mouse", "0"]));
+    }
 }
