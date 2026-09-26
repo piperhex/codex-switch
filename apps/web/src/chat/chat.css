@@ -114,6 +114,7 @@ html:has(.app-shell.chat-active), body:has(.app-shell.chat-active) { overscroll-
   border-bottom: 0; background: transparent; flex-shrink: 0;
 }
 .chat-header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-header-tools { display: flex; align-items: center; flex-shrink: 0; margin-left: auto; }
 .chat-header .chat-muted { font-size: 11px; margin-top: 4px; }
 @media (min-width: 861px) {
   .chat-header { padding-block: var(--desktop-header-padding); }

@@ -34,8 +34,10 @@ function WebChat({ session, device, ...props }: Props & {
   useDownloadConnection({ session, deviceId: device?.deviceId ?? '', deviceName: device?.name ?? '',
     controller: chat.controller });
   return <ConnectedChat {...props} chat={chat} device={device} email={session.email}
-    headerActions={<ChatTools client={chat.controller.guiTools} active={props.active}
-      connected={chat.state.ready} deviceName={device?.name}
-      cwd={chat.state.selected?.cwd ?? chat.state.draftProject?.cwd ?? ''} />}
+    headerEnd={<div className="chat-header-tools">
+      <ChatTools client={chat.controller.guiTools} active={props.active}
+        connected={chat.state.ready} deviceName={device?.name}
+        cwd={chat.state.selected?.cwd ?? chat.state.draftProject?.cwd ?? ''} />
+    </div>}
     scope={JSON.stringify([session.baseUrl, session.email, device?.deviceId ?? ''])} />;
 }

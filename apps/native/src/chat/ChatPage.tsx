@@ -136,7 +136,7 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
     <View style={styles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="打开聊天列表" style={styles.back}
         onPress={openDrawer}><Text style={styles.backText}>☰</Text></Pressable>
-      <View style={styles.fill}>
+      <View style={styles.headerContent}>
         <Text numberOfLines={1} style={styles.headerTitle}>
           {state.selected ? threadPresentation(state.selected, state.sidebar).title : '新聊天'}</Text>
         <ChatConnectionInfo state={state} controller={controller} device={device} active={active && foreground} />
@@ -145,8 +145,10 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
         style={styles.compactButton} disabled={!ready || running}
         onPress={() => { void controller.archive().then(openDrawer); }}>
         <Text style={styles.buttonText}>恢复</Text></Pressable>}
-      <ChatTools client={controller.guiTools} active={active && foreground} connected={ready}
-        deviceName={device?.name} cwd={state.selected?.cwd ?? state.draftProject?.cwd ?? ''} />
+      <View style={styles.headerTools}>
+        <ChatTools client={controller.guiTools} active={active && foreground} connected={ready}
+          deviceName={device?.name} cwd={state.selected?.cwd ?? state.draftProject?.cwd ?? ''} />
+      </View>
     </View>
     {!!state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
     {!ready && !!device && <Text style={[styles.subtitle, { maxWidth: 400, paddingHorizontal: 16 }]}>

@@ -23,6 +23,8 @@ export const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
   header: { paddingHorizontal: 16, paddingVertical: 12, gap: 12, flexDirection: 'row',
     alignItems: 'center' },
+  headerContent: { flex: 1, minWidth: 0 },
+  headerTools: { flexShrink: 0, marginLeft: 'auto' },
   headerTitle: { color: palette.ink, fontSize: 16, lineHeight: 24, fontWeight: '700' },
   // Explicit leading leaves room for Android's Chinese fallback font, including single-line labels.
   headerMeta: { color: palette.muted, fontSize: 11, lineHeight: 18, marginTop: 4 },
