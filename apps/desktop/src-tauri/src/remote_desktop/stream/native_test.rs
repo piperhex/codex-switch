@@ -18,7 +18,9 @@ async fn native_capture_reaches_a_real_browser_decoder() {
         id: id.clone(),
         profile: Profile {
             width: 1920,
-            fps: 60,
+            fps: std::env::var("CSW_NATIVE_TEST_FPS")
+                .map(|value| value.parse().expect("test frame rate"))
+                .unwrap_or(60),
             bitrate: 6_000_000,
         },
         ice_servers: std::env::var("CSW_NATIVE_TEST_ICE")

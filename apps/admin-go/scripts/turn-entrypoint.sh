@@ -6,10 +6,15 @@ case "${DESKTOP_TURN_SECRET:-}" in ''|*[!a-zA-Z0-9_./+=-]*) exit 1 ;; esac
 test "${#DESKTOP_TURN_SECRET}" -ge 32
 case "${DESKTOP_TURN_REALM:-}" in ''|*[!a-zA-Z0-9.-]*) exit 1 ;; esac
 case "${DESKTOP_TURN_PUBLIC_IP:-}" in ''|*[!0-9.]*) exit 1 ;; esac
+# A concrete local address lets coturn route two allocations on this server internally.
+# Advertising only the public IP would require the cloud NAT to support hairpin traffic.
+relay_ip=$(hostname -i)
+case "$relay_ip" in ''|*[!0-9.]*) exit 1 ;; esac
 cat > /tmp/codex-turn.conf <<EOF
 listening-port=3478
 listening-ip=0.0.0.0
-external-ip=${DESKTOP_TURN_PUBLIC_IP}
+relay-ip=${relay_ip}
+external-ip=${DESKTOP_TURN_PUBLIC_IP}/${relay_ip}
 realm=${DESKTOP_TURN_REALM}
 use-auth-secret
 static-auth-secret=${DESKTOP_TURN_SECRET}
@@ -38,4 +43,4 @@ pidfile=/tmp/codex-turn.pid
 log-file=stdout
 simple-log
 EOF
-exec turnserver -c /tmp/codex-turn.conf
+exec turnserver -c /tmp/codex-turn.conf "$@"

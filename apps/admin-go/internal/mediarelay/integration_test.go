@@ -26,13 +26,18 @@ func TestCoturnBrowserVideoAndControls(t *testing.T) {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))
 	t.Cleanup(func() { slog.SetDefault(previous) })
 	name := "codex-desktop-relay-test"
+	entrypoint, err := filepath.Abs("../../scripts/turn-entrypoint.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
 	args := []string{"run", "--detach", "--name", name,
 		"-p", "127.0.0.1:3488:3478/udp", "-p", "127.0.0.1:3488:3478/tcp",
-		"-p", "127.0.0.1:50000-50019:50000-50019/udp", "coturn/coturn:4.18.0-r0",
-		"--realm=" + testConfig.Realm, "--use-auth-secret", "--static-auth-secret=" + testConfig.Secret,
-		"--listening-ip=0.0.0.0", "--external-ip=127.0.0.1", "--min-port=50000", "--max-port=50019",
-		"--no-tls", "--no-tcp-relay", "--allow-loopback-peers", "--log-file=stdout", "--verbose",
-		"--relay-ip=127.0.0.1", "--relay-threads=1", "--max-allocate-lifetime=10"}
+		"--read-only", "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
+		"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt=no-new-privileges:true",
+		"-e", "DESKTOP_TURN_REALM=" + testConfig.Realm, "-e", "DESKTOP_TURN_SECRET=" + testConfig.Secret,
+		"-e", "DESKTOP_TURN_PUBLIC_IP=192.0.2.1", "-v", entrypoint + ":/opt/codex/turn-entrypoint.sh:ro",
+		"--entrypoint", "/bin/sh", "coturn/coturn:4.18.0-r0",
+		"/opt/codex/turn-entrypoint.sh", "--relay-threads=1", "--max-allocate-lifetime=10"}
 	if output, err := exec.Command("docker", args...).CombinedOutput(); err != nil {
 		t.Fatalf("start test coturn: %v: %s", err, output)
 	}
@@ -105,6 +110,9 @@ func browserRelay(t *testing.T, protocol string) {
 		"test", "--config=playwright.remote-desktop.config.ts", "--project=desktop")
 	command.Dir = filepath.Join(root, "apps/web")
 	command.Env = append(os.Environ(), "DESKTOP_RELAY_TEST_ICE="+string(ice), "DESKTOP_RELAY_TEST_PROTOCOL="+protocol)
+	if testCA != "" {
+		command.Env = append(command.Env, "DESKTOP_RELAY_TEST_INSECURE_TLS=1")
+	}
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Logf("metered bytes before failure: %d", bytes.Load())
 		t.Fatalf("WebRTC relay failed: %v: %s", err, output)
