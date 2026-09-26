@@ -18,7 +18,12 @@ window.remoteTerminal = event => {
   if (event.type === 'connection') terminal.options.disableStdin = !event.connected;
   if (event.type === 'output') terminal.write(new Uint8Array(event.data));
   if (event.type === 'exit') terminal.options.disableStdin = true;
-  if (event.type === 'display') { wrap = event.wrap; fitTerminal(); }
+  if (event.type === 'display') {
+    wrap = event.wrap;
+    document.querySelector('nav').hidden = event.shortcuts === false;
+    fitTerminal();
+  }
+  if (event.type === 'key') { send({ type: 'input', data: event.data }); terminal.focus(); }
 };
 for (const button of document.querySelectorAll('[data-key]')) {
   button.addEventListener('pointerdown', event => event.preventDefault());

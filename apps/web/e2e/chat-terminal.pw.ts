@@ -58,6 +58,36 @@ test('opens a 90 percent terminal drawer, preserves its shell and draft, and sen
     await expect(drawer).toHaveCount(0);
   });
 
+test('keeps terminal controls and the current command visible when a phone rotates', async ({ page, request }, info) => {
+  await request.post(`${fixtureUrl}/test/reset`);
+  await login(page); await connect(page);
+  await page.locator('.chat-header').getByRole('button', { name: '打开工具' }).click();
+  await page.getByRole('button', { name: '终端', exact: true }).click();
+  const drawer = page.getByRole('dialog', { name: '远程终端', exact: true });
+  const command = page.locator('.xterm-rows > div').filter({ hasText: 'landscape_probe' }).last();
+  await page.locator('.xterm-helper-textarea').fill('landscape_probe');
+  await expect(command).toBeVisible();
+  const opened = await operationCount(request, 'guiTerminalOpen');
+  for (const viewport of [{ width: 844, height: 390 }, { width: 915, height: 412 },
+    { width: 915, height: 250 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    await expect(drawer.getByRole('button', { name: '收起终端', exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(drawer.getByRole('button', { name: '新建终端', exact: true })).toBeInViewport({ ratio: 1 });
+    const keys = drawer.getByRole('button', { name: 'Ctrl+C', exact: true });
+    await expect(keys).toBeInViewport({ ratio: 1 });
+    await expect(command).toBeInViewport({ ratio: 1 });
+    await expect.poll(async () => (await command.boundingBox())!.y + (await command.boundingBox())!.height)
+      .toBeLessThanOrEqual((await keys.boundingBox())!.y);
+    if (viewport.width > viewport.height) {
+      await expect.poll(async () => Math.round((await drawer.boundingBox())!.width)).toBe(viewport.width);
+      await expect.poll(async () => Math.round((await drawer.boundingBox())!.height)).toBe(viewport.height);
+    }
+    await screenshot(page, info, `terminal-${viewport.width}x${viewport.height}`);
+  }
+  expect(await operationCount(request, 'guiTerminalOpen')).toBe(opened);
+  expect(await operationCount(request, 'guiTerminalClose')).toBe(0);
+});
+
 test('switching computers detaches the hidden terminal without closing the PC shell', async ({ page, request }) => {
   await request.post(`${fixtureUrl}/test/reset`);
   const devices = ['工作电脑', '家中电脑'].map((name, index) => ({ name, deviceId: `terminal-computer-${index}`,

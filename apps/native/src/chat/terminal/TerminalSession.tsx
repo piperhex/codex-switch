@@ -9,6 +9,7 @@ import { remoteTerminalApi } from '../../../../../shared/remote-chat/terminalApi
 import { createTerminalBridge, parseTerminalMessage } from '../../../../../shared/terminal/webviewBridge';
 import { terminalDocument } from './terminalDocument';
 import { useTerminalOrientation } from './useTerminalOrientation';
+import { TerminalKeys } from './TerminalKeys';
 import { terminalStyles as styles } from './styles';
 
 export function TerminalSession({ client, session, visible, deviceName, hide, close, tabs, notice }: {
@@ -25,7 +26,11 @@ export function TerminalSession({ client, session, visible, deviceName, hide, cl
   const orientation = useTerminalOrientation(visible);
   const source = useMemo(() => ({ html }), [html]);
   const updateDisplay = () => {
-    webview.current?.injectJavaScript(`window.remoteTerminal?.({type:'display',wrap:${wrap}}); true;`);
+    const display = { type: 'display', wrap, shortcuts: !orientation.landscape };
+    webview.current?.injectJavaScript(`window.remoteTerminal?.(${JSON.stringify(display)}); true;`);
+  };
+  const inputKey = (data: string) => {
+    webview.current?.injectJavaScript(`window.remoteTerminal?.(${JSON.stringify({ type: 'key', data })}); true;`);
   };
   const bridge = useMemo(() => createTerminalBridge({ cwd, session, api: remoteTerminalApi(client), status: setStatus,
     emit: event => webview.current?.injectJavaScript(`window.remoteTerminal(${JSON.stringify(event)}); true;`),
@@ -41,7 +46,7 @@ export function TerminalSession({ client, session, visible, deviceName, hide, cl
       .catch(() => { if (!cancelled) setStatus('终端未能加载，请关闭后重新打开。'); });
     return () => { cancelled = true; };
   }, []);
-  useEffect(() => { if (visible) updateDisplay(); }, [wrap, visible]);
+  useEffect(() => { if (visible) updateDisplay(); }, [wrap, visible, orientation.landscape]);
   const message = notice || status || orientation.error;
   // A translucent navigation bar disables Android's modal resize when the keyboard opens.
   // Let Android resize the WebView; iOS needs explicit keyboard avoidance.
@@ -55,9 +60,11 @@ export function TerminalSession({ client, session, visible, deviceName, hide, cl
       {!orientation.landscape && <Pressable accessibilityRole="button" accessibilityLabel="收起终端"
         style={styles.backdrop} onPress={hide} />}
       <View style={[styles.drawer, orientation.landscape && styles.fullscreen]} accessibilityViewIsModal>
-        <View style={styles.header}>
-          <View style={styles.heading}><Text style={styles.title}>远程终端</Text>
-            <Text numberOfLines={1} style={styles.subtitle}>{deviceName}{cwd ? ` · ${cwd}` : ''}</Text></View>
+        <View style={[styles.header, orientation.landscape && styles.compactHeader]}>
+          {!orientation.landscape && <View style={styles.heading}><Text style={styles.title}>远程终端</Text>
+            <Text numberOfLines={1} style={styles.subtitle}>{deviceName}{cwd ? ` · ${cwd}` : ''}</Text></View>}
+          {orientation.landscape && <View style={styles.inlineTabs}>{tabs}</View>}
+          {orientation.landscape && <TerminalKeys input={inputKey} />}
           <Pressable accessibilityRole="switch" accessibilityLabel="自动换行" accessibilityState={{ checked: wrap }}
             style={[styles.wrapButton, wrap && styles.selected]} onPress={() => setWrap(value => !value)}>
             <Ionicons name="return-down-back-outline" size={20} color={wrap ? '#14806f' : '#718078'} />
@@ -72,7 +79,7 @@ export function TerminalSession({ client, session, visible, deviceName, hide, cl
           <Pressable accessibilityRole="button" accessibilityLabel="收起终端" style={styles.button} onPress={hide}>
             <Ionicons name="chevron-down" size={24} color="#17211b" /></Pressable>
         </View>
-        {tabs}
+        {!orientation.landscape && tabs}
         {html ? <WebView key={generation} ref={webview} source={source} style={styles.screen}
           originWhitelist={['about:blank']} javaScriptEnabled scrollEnabled={false} bounces={false}
           showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false}

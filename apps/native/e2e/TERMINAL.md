@@ -16,15 +16,23 @@ Pop-Location
 node apps/native/e2e/terminal-keyboard.mjs
 ```
 
-The script verifies that the WebView and shortcuts stay above the keyboard in
-portrait, with wrapping disabled, in landscape, and after hiding/reopening the
-terminal. It also checks that height is restored when the keyboard closes and
-that hiding keeps the session alive. Screenshots go to
+The script verifies that the header controls, session tab, WebView and shortcuts
+stay on screen in portrait, with wrapping disabled, in landscape, and after
+hiding/reopening the terminal. It checks the layout before, during and after
+keyboard use, that height is restored when the keyboard closes, and that hiding
+keeps the session alive. Screenshots go to
 `.codex-tmp/terminal-keyboard-regression/`. Inspect the current command and cursor
 in those screenshots. `--installed` tests the fixture already on the emulator.
 
 The original `navigationBarTranslucent` modal fails the first keyboard check:
 its WebView and shortcuts extend below the keyboard's top edge.
+
+The old landscape drawer combined a full percentage height with a flex layout
+aligned to the bottom. The keyboard check must also assert header visibility:
+shortcuts can remain above the keyboard while the header is pushed off screen.
+Landscape puts session tabs, controls and shortcuts in one toolbar to leave room
+for command rows above tall keyboards. The regression also requires
+enough output height for two complete rows, including padding and the scrollbar.
 
 The bundled terminal's command visibility, row fitting, wrapping and touch
 scrolling are also covered by `apps/web/e2e/chat-terminal-display.pw.ts`:

@@ -93,7 +93,7 @@ for (const enabled of [true, false]) {
     const history = Array.from({ length: 120 }, (_, index) => `History ${index}`).join('\r\n');
     await output(page, `${history}\r\n${command}`);
     const originalRows = await page.evaluate(() => terminal.rows);
-    for (const height of [300, 240, 844]) {
+    for (const height of [300, 240, 96, 844]) {
       const previousRows = await page.evaluate(() => terminal.rows);
       await page.setViewportSize({ width: 390, height });
       const rows = expect.poll(() => page.evaluate(() => terminal.rows));
@@ -129,4 +129,23 @@ test('keeps a long line intact for horizontal touch panning and switches back wi
   await expect(page.locator('.xterm-rows')).toContainText('LONG_END');
   await wrap(page, false);
   expect(await page.evaluate(() => terminal.buffer.active.getLine(0)?.translateToString(true))).toBe(longLine);
+});
+
+test('leaves command rows visible when native landscape shortcuts move into the header', async ({ page }) => {
+  const command = '$ echo landscape-visible';
+  await output(page, `${Array.from({ length: 120 }, (_, index) => `History ${index}`).join('\r\n')}\r\n${command}`);
+  await page.setViewportSize({ width: 844, height: 96 });
+  await page.evaluate(() => (window as unknown as TerminalHost)
+    .remoteTerminal({ type: 'display', wrap: true, shortcuts: false }));
+  await expect(page.locator('nav')).toBeHidden();
+  await expect(page.locator('.xterm-rows > div').filter({ hasText: command })).toBeInViewport({ ratio: 1 });
+  await page.evaluate(() => (window as unknown as TerminalHost).remoteTerminal({ type: 'key', data: '\x03' }));
+  await expect.poll(() => page.evaluate(() => (window as unknown as TerminalHost).messages
+    .map(raw => JSON.parse(raw) as { type: string; data?: string }).filter(message => message.type === 'input')))
+    .toContainEqual({ type: 'input', data: '\x03' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => (window as unknown as TerminalHost)
+    .remoteTerminal({ type: 'display', wrap: true, shortcuts: true }));
+  await expect(page.getByRole('button', { name: 'Ctrl+C', exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.xterm-rows')).toContainText(command);
 });

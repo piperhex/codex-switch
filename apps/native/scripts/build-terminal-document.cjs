@@ -26,6 +26,8 @@ body{display:flex;flex-direction:column}
 .xterm .xterm-viewport{background:#fff}
 nav{display:flex;gap:4px;padding:6px;flex-shrink:0;border-top:1px solid #dfe5df}
 button{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px;background:#eef4f1;color:#17211b}
+nav[hidden]{display:none}
+@media(max-height:200px){#viewport{padding:4px 8px}nav{padding:4px 6px}button{min-height:32px}}
 </style></head><body><main id="viewport" aria-label="终端"><div id="terminal"></div></main>
 <nav aria-label="终端快捷键">
 ${keys.map(([label, key]) => `<button data-key='${JSON.stringify(key)}'>${label}</button>`).join('')}
