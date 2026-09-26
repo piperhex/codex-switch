@@ -41,6 +41,8 @@ coturn 的 **3478 认证监听端口只允许私有 Docker 网络访问**，不�
 
 ```bash
 # 将下列文件参数附加到已核对的原项目、env、override 参数中。
+# coturn 以非 root 用户读取挂载的脚本；环境文件仍应保持私有权限。
+chmod 644 apps/admin-go/scripts/turn-entrypoint.sh
 docker compose ... -f apps/admin-go/compose.desktop-relay.yml config --quiet
 docker compose ... -f apps/admin-go/compose.desktop-relay.yml up -d --no-deps desktop-turn
 docker compose ... -f apps/admin-go/compose.desktop-relay.yml up -d --no-deps --no-build --pull never admin-go

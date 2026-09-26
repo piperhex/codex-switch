@@ -3,6 +3,9 @@
 Investigation date: 2026-09-26. This records observed limitations and proposed engineering work;
 it does not announce a performance fix or a deployed video relay.
 
+The subsequent implementation and real-device/public-relay results are recorded separately in
+[implementation validation](remote-desktop-validation-20260926.md).
+
 ## Physical-device results
 
 The viewer was a Xiaomi Civi 1S running Android 14 and the official mobile 1.6.2 release.
