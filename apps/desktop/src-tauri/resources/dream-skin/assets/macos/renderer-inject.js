@@ -4,10 +4,16 @@
     ':is(.composer-surface-chrome, :where([data-codex-composer-root] [data-composer-layout][data-composer-surface-variant]))';
   const HOME_UTILITY_SELECTOR =
     '[class*="_homeUtilityBar_"], [data-composer-home-utility-bar-position]';
+  // Since 26.924 the fade data attribute belongs to the entire content panel.
+  // Only the decorative element's class identifies the paint we can clear.
+  const TOP_FADE_SELECTOR = ':is(.app-shell-main-content-top-fade, [class*="_MainContentTopFade_"])';
+  // Preserve the modern layout's own announcement and composer spacing.
+  const LEGACY_HOME_START = '.dream-skin-home > div:first-child:not([class~="group/home-composer-layout"])';
   const compatibleCssText = cssText
+    .replaceAll(".dream-skin-home > div:first-child", LEGACY_HOME_START)
     .replaceAll("main.main-surface", SHELL_MAIN_SELECTOR)
     .replaceAll("header.app-header-tint", 'header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"])')
-    .replaceAll(".app-shell-main-content-top-fade", ':is(.app-shell-main-content-top-fade, [data-app-shell-main-content-top-fade], [class*="_MainContentTopFade_"])')
+    .replaceAll(".app-shell-main-content-top-fade", TOP_FADE_SELECTOR)
     .replaceAll("[data-message-author-role]", ':is([data-message-author-role], [data-local-conversation-user-anchor], [data-local-conversation-final-assistant])')
     .replaceAll(".composer-surface-chrome", COMPOSER_SURFACE_SELECTOR);
   const STATE_KEY = "__CODEX_DREAM_SKIN_STATE__";
@@ -595,9 +601,11 @@
     const shellMain = document.querySelector(SHELL_MAIN_SELECTOR) || document.querySelector("main");
     const homeIndicator = document.querySelector('[data-testid="home-icon"]');
     const home = homeIndicator?.closest('[role="main"]') ||
+      document.querySelector('[data-codex-composer-root][data-composer-placement="home"]')
+        ?.closest('[role="main"]') ||
       [...document.querySelectorAll('[role="main"]')].find((candidate) =>
         candidate.querySelector('[data-feature="game-source"]') &&
-        candidate.querySelector('.group\\\\/home-suggestions')) || null;
+        candidate.querySelector('[class~="group/home-suggestions"]')) || null;
     for (const candidate of document.querySelectorAll('[role="main"].dream-skin-home')) {
       if (candidate !== home) candidate.classList.remove("dream-skin-home");
     }

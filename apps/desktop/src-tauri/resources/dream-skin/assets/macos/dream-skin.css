@@ -207,10 +207,27 @@ html.codex-dream-skin[data-dream-shell="light"]:is([data-dream-art-safe="none"],
     rgb(var(--ds-bg-rgb) / .16));
 }
 
+/* Keep modern native text legible when the selected skin differs from the
+   app appearance, without changing palettes in portals outside the shell. */
+html.codex-dream-skin main.main-surface,
+html.codex-dream-skin [data-app-shell-main-titlebar],
+html.codex-dream-skin aside.app-shell-left-panel,
+html.codex-dream-skin aside.app-shell-left-panel [role="navigation"] {
+  --color-text: var(--ds-text);
+  --color-text-secondary: var(--ds-muted);
+  --color-text-secondary-solid: var(--ds-muted);
+  --color-text-tertiary: var(--ds-muted);
+  --color-surface: var(--ds-panel);
+  --color-surface-elevated: var(--ds-panel-2);
+}
+
+html.codex-dream-skin aside.app-shell-left-panel .sidebar-navigation {
+  background: transparent !important;
+}
+
 html.codex-dream-skin body {
   background: var(--ds-bg) !important;
   color: var(--ds-text) !important;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif !important;
 }
 
 html.codex-dream-skin body::before {
@@ -826,6 +843,26 @@ html.codex-dream-skin .composer-surface-chrome {
 
 html.codex-dream-skin .composer-surface-chrome::before { content: none !important; }
 
+/* New Codex composers paint an additional native surface inside the root.
+   Keep the root as the only background so both light and dark skins apply. */
+html.codex-dream-skin .composer-surface-chrome
+  > :is([data-composer-body], [class*="_ComposerLayoutBody_"]) {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: inherit !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Modern homes no longer provide the legacy hero card for portrait art. */
+html.codex-dream-skin:not([data-dream-art-wide="true"])
+  .dream-skin-home:has(> [class~="group/home-composer-layout"]) {
+  background-image: var(--ds-hero-scrim), var(--dream-skin-art) !important;
+  background-position: var(--ds-art-position) !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+}
+
 /* A wide image can carry the home screen too. The native hero remains live,
    but the artwork is painted once on the window instead of repeated in a card. */
 html.codex-dream-skin[data-dream-art-wide="true"]:has(main.main-surface.dream-skin-home-shell) body {
@@ -929,6 +966,12 @@ html.codex-dream-skin[data-dream-shell="light"]
   .composer-surface-chrome p.placeholder::after {
   color: rgb(var(--ds-muted-rgb) / .78) !important;
   opacity: 1 !important;
+}
+
+/* 26.924 action rails keep their native geometry and share the theme palette. */
+html.codex-dream-skin [data-codex-composer-root] .bg-background-composer-action-bar {
+  color: var(--ds-text) !important;
+  background: var(--ds-immersive-composer-solid) !important;
 }
 
 /* Current Codex builds render the home project picker as a separate opaque
@@ -1049,7 +1092,6 @@ html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
 
 html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
   .app-shell-main-content-top-fade {
-  display: none !important;
   background: transparent !important;
 }
 

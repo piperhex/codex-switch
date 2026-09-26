@@ -5,10 +5,17 @@
     ':is(.composer-surface-chrome, :where([data-codex-composer-root] [data-composer-layout][data-composer-surface-variant]))';
   const HOME_UTILITY_SELECTOR =
     '[class*="_homeUtilityBar_"], [data-composer-home-utility-bar-position]';
+  // Since 26.924 the fade data attribute belongs to the entire content panel.
+  // Only the decorative element's class identifies the paint we can clear.
+  const TOP_FADE_SELECTOR = ':is(.app-shell-main-content-top-fade, [class*="_MainContentTopFade_"])';
+  // The modern home layout owns its own spacing; legacy hero sizing would
+  // expand its empty announcement slot and push the composer off screen.
+  const LEGACY_HOME_START = '.dream-home > div:first-child:not([class~="group/home-composer-layout"])';
   const compatibleCssText = cssText
+    .replaceAll(".dream-home > div:first-child", LEGACY_HOME_START)
     .replaceAll("main.main-surface", SHELL_MAIN_SELECTOR)
     .replaceAll("header.app-header-tint", 'header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"])')
-    .replaceAll(".app-shell-main-content-top-fade", ':is(.app-shell-main-content-top-fade, [data-app-shell-main-content-top-fade], [class*="_MainContentTopFade_"])')
+    .replaceAll(".app-shell-main-content-top-fade", TOP_FADE_SELECTOR)
     .replaceAll("[data-message-author-role]", ':is([data-message-author-role], [data-local-conversation-user-anchor], [data-local-conversation-final-assistant])')
     .replaceAll(".composer-surface-chrome", COMPOSER_SURFACE_SELECTOR);
   const VERSION = __DREAM_SKIN_VERSION_JSON__;
@@ -373,7 +380,9 @@
     // shell/sidebar pair. The root theme and stylesheet are still valid there.
     if (!shellMain || !shellSidebar) return;
 
-    const home = document.querySelector('[role="main"]:has([data-testid="home-icon"])');
+    const home = document.querySelector('[role="main"]:has([data-testid="home-icon"])') ||
+      document.querySelector('[data-codex-composer-root][data-composer-placement="home"]')
+        ?.closest('[role="main"]');
     for (const candidate of document.querySelectorAll('[role="main"]')) {
       candidate.classList.toggle("dream-home", candidate === home);
       candidate.classList.toggle("dream-task", candidate !== home);

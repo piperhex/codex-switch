@@ -27,6 +27,9 @@ mod tests_renderer_bindings;
 mod tests_runtime_entry;
 
 #[cfg(test)]
+mod tests_injection_monitor;
+
+#[cfg(test)]
 mod tests {
     include!("tests_theme_and_models.rs");
     include!("tests_runtime.rs");

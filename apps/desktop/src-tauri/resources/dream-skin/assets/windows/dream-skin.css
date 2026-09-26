@@ -93,10 +93,27 @@ html.codex-dream-skin.dream-theme-dark aside.app-shell-left-panel {
   --color-token-text-tertiary: var(--dream-text-muted);
 }
 
+/* New clients use these foreground tokens even when the app appearance and
+   the selected skin differ. Limit the overrides to the themed shell. */
+html.codex-dream-skin main.main-surface,
+html.codex-dream-skin [data-app-shell-main-titlebar],
+html.codex-dream-skin aside.app-shell-left-panel,
+html.codex-dream-skin aside.app-shell-left-panel [role="navigation"] {
+  --color-text: var(--dream-text);
+  --color-text-secondary: var(--dream-text-muted);
+  --color-text-secondary-solid: var(--dream-text-muted);
+  --color-text-tertiary: var(--dream-text-muted);
+  --color-surface: var(--dream-surface);
+  --color-surface-elevated: var(--dream-surface-raised);
+}
+
+html.codex-dream-skin aside.app-shell-left-panel .sidebar-navigation {
+  background: transparent !important;
+}
+
 html.codex-dream-skin body {
   background: var(--dream-canvas) !important;
   color: var(--dream-text) !important;
-  font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif !important;
 }
 
 html.codex-dream-skin aside.app-shell-left-panel {
@@ -480,6 +497,27 @@ html.codex-dream-skin .composer-surface-chrome {
   backdrop-filter: blur(14px) saturate(1.06) !important;
 }
 
+/* Modern homes have no legacy hero card. Standard/portrait artwork still
+   needs a paint surface when the wide-window background is not active. */
+html.codex-dream-skin:not(.dream-art-wide)
+  .dream-home:has(> [class~="group/home-composer-layout"]) {
+  background-image: linear-gradient(var(--dream-hero-shade), var(--dream-hero-shade)), var(--dream-art) !important;
+  background-position: var(--dream-art-position) !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+}
+
+/* New Codex composers paint an additional native surface inside the root.
+   Keep the root as the only background so both light and dark skins apply. */
+html.codex-dream-skin .composer-surface-chrome
+  > :is([data-composer-body], [class*="_ComposerLayoutBody_"]) {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: inherit !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
 html.codex-dream-skin .ProseMirror {
   color: var(--dream-text) !important;
   caret-color: var(--dream-accent) !important;
@@ -669,6 +707,13 @@ html.codex-dream-skin.dream-art-wide .composer-surface-chrome::before {
   content: none !important;
 }
 
+/* 26.924 renders project controls in an attached action rail. Keep its
+   native geometry while matching the editor's theme instead of a white cap. */
+html.codex-dream-skin [data-codex-composer-root] .bg-background-composer-action-bar {
+  color: var(--dream-text) !important;
+  background: var(--dream-immersive-composer) !important;
+}
+
 /* Current Codex builds render the home project picker in a hashed utility bar.
    Merge it with the composer so the bottom control reads as one surface. */
 html.codex-dream-skin .dream-home-utility {
@@ -724,7 +769,6 @@ html.codex-dream-skin.dream-art-wide main.main-surface .app-shell-main-content-f
 }
 
 html.codex-dream-skin.dream-art-wide main.main-surface .app-shell-main-content-top-fade {
-  display: none !important;
   background: transparent !important;
 }
 

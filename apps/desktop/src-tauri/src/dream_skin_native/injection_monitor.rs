@@ -2,12 +2,28 @@ fn runtime_proxy_running() -> bool {
     crate::local_proxy::is_running()
 }
 
+fn is_skin_surface_url(value: &str) -> bool {
+    let Ok(url) = Url::parse(value) else {
+        return false;
+    };
+    let is_avatar_route =
+        |route: &str| route == "/avatar-overlay" || route.starts_with("/avatar-overlay/");
+    url.scheme() == "app"
+        && !url
+            .path()
+            .ends_with("/avatar-overlay-composition-surface.html")
+        && !is_avatar_route(url.path())
+        && !url
+            .query_pairs()
+            .any(|(key, route)| key == "initialRoute" && is_avatar_route(&route))
+}
+
 fn inject_target(
     target: &CdpTarget,
     port: u16,
     payload: &LoadedPayload,
     previous_script: Option<&str>,
-) -> Result<InjectedTarget, String> {
+) -> Result<Option<InjectedTarget>, String> {
     let mut session = CdpSession::connect(target, port)?;
     session.enable()?;
     if let Some(identifier) = previous_script {
@@ -15,50 +31,20 @@ fn inject_target(
     }
     let early = early_payload(payload);
     let early_script_id = session.register_early(&early)?;
-    let result = (|| -> Result<bool, String> {
-        session.evaluate(&early)?;
-        if !wait_for_codex_probe(&mut session, Duration::from_millis(1800))? {
-            return Ok(false);
-        }
-
-        let revision_json =
-            serde_json::to_string(&payload.revision).map_err(|error| error.to_string())?;
-        let early_applied = session.evaluate(&format!(
-            "window.__CODEX_DREAM_SKIN_EARLY_APPLIED__ === {revision_json}"
-        ))?;
-        if early_applied.as_bool() != Some(true) {
-            let fallback_generation =
-                serde_json::to_string(&format!("fallback:{}", payload.revision))
-                    .map_err(|error| error.to_string())?;
-            session.evaluate(&format!(
-                "window.__CODEX_DREAM_SKIN_EARLY_GENERATION__ = {fallback_generation}"
-            ))?;
-            session.evaluate(&payload.source)?;
-        }
-
-        let verification = session.evaluate(VERIFY_PAYLOAD)?;
-        if verification.get("pass").and_then(Value::as_bool) != Some(true) {
-            return Err(format!(
-                "Dream Skin target verification failed: {}",
-                serde_json::to_string(&verification).unwrap_or_default()
-            ));
-        }
-        Ok(true)
-    })();
+    let result = apply_skin_in_session(&mut session, payload, &early);
 
     match result {
-        Ok(true) => Ok(InjectedTarget {
+        Ok(true) => Ok(Some(InjectedTarget {
             revision: payload.revision.clone(),
             early_script_id,
-        }),
+        })),
         Ok(false) => {
             if let Some(identifier) = early_script_id.as_deref() {
                 session.remove_early(identifier);
             }
-            Ok(InjectedTarget {
-                revision: payload.revision.clone(),
-                early_script_id: None,
-            })
+            // A published CDP page can precede the React shell by several seconds.
+            // Leave it pending so the monitor retries when the shell is ready.
+            Ok(None)
         }
         Err(error) => {
             if let Some(identifier) = early_script_id.as_deref() {
@@ -67,6 +53,60 @@ fn inject_target(
             Err(error)
         }
     }
+}
+
+fn apply_skin_in_session(
+    session: &mut CdpSession,
+    payload: &LoadedPayload,
+    early: &str,
+) -> Result<bool, String> {
+    const SHELL_PROBE_TIMEOUT: Duration = Duration::from_millis(1800);
+    session.evaluate(early)?;
+    if !wait_for_codex_probe(session, SHELL_PROBE_TIMEOUT)? {
+        return Ok(false);
+    }
+    let revision_json =
+        serde_json::to_string(&payload.revision).map_err(|error| error.to_string())?;
+    let early_applied = session.evaluate(&format!(
+        "window.__CODEX_DREAM_SKIN_EARLY_APPLIED__ === {revision_json}"
+    ))?;
+    if early_applied.as_bool() != Some(true) {
+        let fallback_generation = serde_json::to_string(&format!("fallback:{}", payload.revision))
+            .map_err(|error| error.to_string())?;
+        session.evaluate(&format!(
+            "window.__CODEX_DREAM_SKIN_EARLY_GENERATION__ = {fallback_generation}"
+        ))?;
+        session.evaluate(&payload.source)?;
+    }
+    let verification = session.evaluate(VERIFY_PAYLOAD)?;
+    if verification.get("pass").and_then(Value::as_bool) != Some(true) {
+        return Err(format!(
+            "Dream Skin target verification failed: {verification}"
+        ));
+    }
+    Ok(true)
+}
+
+fn refresh_skin_target(
+    target: &CdpTarget,
+    port: u16,
+    payload: &LoadedPayload,
+    injected: &mut HashMap<String, InjectedTarget>,
+) -> Result<(), String> {
+    if !is_skin_surface_url(&target.url) {
+        return Ok(());
+    }
+    let current = injected.get(&target.id);
+    if current.is_some_and(|entry| entry.revision == payload.revision) {
+        return Ok(());
+    }
+    let previous_script = current.and_then(|entry| entry.early_script_id.as_deref());
+    if let Some(next) = inject_target(target, port, payload, previous_script)? {
+        injected.insert(target.id.clone(), next);
+    } else {
+        injected.remove(&target.id);
+    }
+    Ok(())
 }
 
 fn remove_target(
@@ -145,25 +185,8 @@ fn monitor_iteration(
                 );
             }
         } else if let Some(payload) = &payload {
-            let needs_injection = current
-                .as_ref()
-                .is_none_or(|entry| entry.revision != payload.revision);
-            if needs_injection {
-                match inject_target(
-                    &target,
-                    port,
-                    payload,
-                    current
-                        .as_ref()
-                        .and_then(|entry| entry.early_script_id.as_deref()),
-                ) {
-                    Ok(next) => {
-                        injected.insert(target.id, next);
-                    }
-                    Err(error) => {
-                        eprintln!("Dream Skin target {}: {error}", target.id);
-                    }
-                }
+            if let Err(error) = refresh_skin_target(&target, port, payload, injected) {
+                eprintln!("Dream Skin target {}: {error}", target.id);
             }
         }
     }
@@ -269,7 +292,10 @@ fn wait_for_verified(port: u16, timeout: Duration) -> Result<Vec<Value>, String>
             Ok(targets) => {
                 last_results.clear();
                 last_error.clear();
-                for target in targets {
+                for target in targets
+                    .into_iter()
+                    .filter(|target| is_skin_surface_url(&target.url))
+                {
                     match CdpSession::connect(&target, port).and_then(|mut session| {
                         session.enable()?;
                         let probe = session.evaluate(CODEX_PROBE_PAYLOAD)?;

@@ -126,48 +126,17 @@ fn render_payload(
 }
 
 fn early_payload(payload: &LoadedPayload) -> String {
-    let generation = serde_json::to_string(&payload.revision).unwrap();
-    format!(
-        concat!(
-            r#"(() => {{
-          const generationKey = "__CODEX_DREAM_SKIN_EARLY_GENERATION__";
-          const appliedKey = "__CODEX_DREAM_SKIN_EARLY_APPLIED__";
-          const generation = {generation};
-          const shellSelector = 'main:is(.main-surface, [data-app-shell-main-surface], "#,
-            r#"[class*="_MainContentSurface_"])';
-          const settingsSelector = '[data-settings-panel-slug="general-settings"], "#,
-            r#"input[name="appearance-theme"], [data-testid="theme-preview"]';
-          window[generationKey] = generation;
-          let observer = null;
-          let timeout = null;
-          const stop = () => {{ observer?.disconnect(); observer = null; "#,
-            r#"if (timeout) clearTimeout(timeout); timeout = null; }};
-          const install = () => {{
-            if (window[generationKey] !== generation) {{ stop(); return true; }}
-            if (!document.documentElement || !document.body || location.protocol !== 'app:') return false;
-            const primarySurface = document.querySelector(shellSelector) &&
-              document.querySelector('aside.app-shell-left-panel');
-            if (!primarySurface && !document.querySelector(settingsSelector)) return false;
-            stop();
-            {};
-            window[appliedKey] = generation;
-            return true;
-          }};
-          if (install()) return;
-          if (typeof MutationObserver === "function" && document.documentElement) {{
-            observer = new MutationObserver(install);
-            observer.observe(document.documentElement, {{ childList: true, subtree: true }});
-          }}
-          timeout = setTimeout(stop, 60000);
-        }})()"#
-        ),
-        payload.source,
-        generation = generation
-    )
+    include_str!("early_injection.js")
+        .replace(
+            "__DREAM_SKIN_GENERATION_JSON__",
+            &json!(payload.revision).to_string(),
+        )
+        .replace("__DREAM_SKIN_SOURCE__", &payload.source)
 }
 
 const REMOVE_PAYLOAD: &str = r#"(() => {
   window.__CODEX_DREAM_SKIN_DISABLED__ = true;
+  if (typeof window.__CODEX_DREAM_SKIN_EARLY_STOP__ === 'function') window.__CODEX_DREAM_SKIN_EARLY_STOP__();
   const state = window.__CODEX_DREAM_SKIN_STATE__;
   if (state?.cleanup) return state.cleanup();
   document.documentElement?.classList.remove(
@@ -197,7 +166,7 @@ const VERIFY_PAYLOAD: &str = r#"(() => {
   const result = {
     installed: document.documentElement.classList.contains('codex-dream-skin'),
     version: window.__CODEX_DREAM_SKIN_STATE__?.version ?? null,
-    expectedVersion: '1.2.2',
+    expectedVersion: '1.2.3',
     stylePresent: Boolean(document.getElementById('codex-dream-skin-style')),
     chromePresent: Boolean(document.getElementById('codex-dream-skin-chrome')),
     shellPresent: Boolean(document.querySelector(

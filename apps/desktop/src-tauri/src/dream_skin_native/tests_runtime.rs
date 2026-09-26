@@ -81,7 +81,8 @@
         for renderer in [windows, macos] {
             assert!(renderer.contains("[data-app-shell-main-surface]"));
             assert!(renderer.contains("[data-app-shell-header-edge-scroll]"));
-            assert!(renderer.contains("[data-app-shell-main-content-top-fade]"));
+            // 26.924 puts the fade state on the content panel; target only the decoration.
+            assert!(renderer.contains("_MainContentTopFade_"));
             assert!(renderer.contains("[data-local-conversation-user-anchor]"));
             assert!(renderer.contains("[data-local-conversation-final-assistant]"));
         }
