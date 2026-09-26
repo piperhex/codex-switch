@@ -20,7 +20,7 @@ export function ChatConnectionInfo({ state, controller, device, active, chooseDe
   if (!state.ready && state.error) status = t("连接未完成");
   useEffect(() => { if (!canChoose) setPicking(false); }, [canChoose]);
   return <>
-    <div className="chat-connection-info">
+    <div className={`chat-connection-info${canReconnect ? ' is-reconnecting' : ''}`}>
       <button className="chat-connection chat-muted chat-ellipsis" type="button" aria-label={t("选择电脑")}
         onClick={chooseDevice}>
         {device ? <>{device.name} · <span role="status">

@@ -16,7 +16,7 @@ export function ChatReconnectButton({ retryAt, onPress }: { retryAt: number | nu
   const seconds = retryAt === null ? null : Math.max(0, Math.ceil((retryAt - tick.now) / MILLISECONDS_PER_SECOND));
   return <Pressable accessibilityRole="button" accessibilityLabel="立即连接" onPress={onPress}
     style={reconnectStyles.button} hitSlop={6}>
-    <Text numberOfLines={1} style={[styles.headerMeta, reconnectStyles.text]}>
+    <Text style={[styles.headerMeta, reconnectStyles.text, reconnectStyles.label]}>
       立即连接{seconds === null ? '' : `（${seconds}秒）`}</Text>
     <Text numberOfLines={1} style={[styles.headerMeta, reconnectStyles.text, reconnectStyles.dots]}>
       {DOTS[tick.dots]}</Text>
@@ -24,7 +24,9 @@ export function ChatReconnectButton({ retryAt, onPress }: { retryAt: number | nu
 }
 
 const reconnectStyles = StyleSheet.create({
-  button: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+  // Use the available row width; Android's fallback font can exceed the intrinsic text measurement.
+  button: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start' },
   text: { color: palette.green },
-  dots: { width: 16 },
+  label: { flexShrink: 1 },
+  dots: { minWidth: 16, flexShrink: 0 },
 });

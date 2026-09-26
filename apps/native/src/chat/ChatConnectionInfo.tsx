@@ -21,7 +21,8 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
   useEffect(() => { if (!canChoose) setPicking(false); }, [canChoose]);
   return <>
     <View style={connectionStyles.row}>
-      <Text numberOfLines={1} style={[styles.headerMeta, connectionStyles.status]}>
+      <Text numberOfLines={1} style={[styles.headerMeta, connectionStyles.status,
+        canReconnect && connectionStyles.reconnectingStatus]}>
         {device ? `${device.name} · ${canReconnect ? '' : status}` : '选择电脑，开始聊天'}</Text>
       {canReconnect && <ChatReconnectButton retryAt={state.retryAt} onPress={controller.connectNow} />}
       {!state.selected && !canReconnect && <>
@@ -42,5 +43,6 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
 const connectionStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', minWidth: 0 },
   status: { flexShrink: 1 },
+  reconnectingStatus: { maxWidth: '40%' },
   project: { flexShrink: 1, minWidth: 0, maxWidth: '60%' },
 });
