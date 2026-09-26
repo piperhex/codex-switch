@@ -66,6 +66,7 @@ use protocol::{ApprovalReply, GuiEvent, GuiRequest, GuiResponse};
 
 #[derive(Default)]
 pub(crate) struct GuiState {
+    pub(crate) proxy: crate::local_proxy::gui_runtime::GuiProxyRuntime,
     pub(crate) upload_policy: Arc<upload_policy::UploadPolicyStore>,
     client: Mutex<Option<Arc<Client>>>,
     videos: Arc<file_stream::FileStreams>,
@@ -247,6 +248,14 @@ pub(crate) fn shutdown(app: &AppHandle) {
     tauri::async_runtime::spawn(async move {
         if let Some(client) = app.state::<GuiState>().client.lock().await.take() {
             client.stop().await;
+        }
+        if tauri::async_runtime::spawn_blocking(move || {
+            crate::local_proxy::gui_runtime::shutdown(&app)
+        })
+        .await
+        .is_err()
+        {
+            eprintln!("Codex GUI connection cleanup failed");
         }
     });
 }

@@ -11,7 +11,7 @@ beforeEach(() => vi.resetAllMocks());
 it('reads the independent GUI account and sends only picker fields from this computer', async () => {
   vi.mocked(invoke).mockImplementation(async (command) => {
     if (command === 'codex_gui_account_selection') return { kind: 'account', id: 'gui' };
-    if (command === 'get_local_proxy_status') return { running: true };
+    if (command === 'get_local_proxy_status') return { running: false };
     if (command === 'list_accounts') return [
       { id: 'global', email: 'global@example.test', active: true, localProxyCompatible: true,
         privateDetails: { password: 'private' }, codexAccessToken: 'secret' },
@@ -24,6 +24,8 @@ it('reads the independent GUI account and sends only picker fields from this com
     throw new Error('Unexpected command');
   });
   const snapshot = await readGuiAccounts();
+  expect(snapshot.running).toBe(true);
+  expect(invoke).not.toHaveBeenCalledWith('get_local_proxy_status');
   expect(snapshot.selection).toEqual({ kind: 'account', id: 'gui' });
   expect(snapshot.choices).toEqual([
     { kind: 'account', id: 'global', name: 'global@example.test',

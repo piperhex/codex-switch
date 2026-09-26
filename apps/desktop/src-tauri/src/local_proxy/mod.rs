@@ -20,6 +20,7 @@ mod gui_auto_switch;
 pub(crate) mod gui_context;
 mod gui_forwarding;
 mod gui_routing;
+pub(crate) mod gui_runtime;
 pub(crate) mod lan_keys;
 mod lan_usage_capture;
 mod official_input;
@@ -120,6 +121,7 @@ mod tests {
     include!("tests/http_streaming.rs");
     include!("tests/lan_http.rs");
     include!("tests/gui_routing.rs");
+    include!("tests/gui_runtime.rs");
     include!("tests/gui_transport_error.rs");
     include!("tests/error_logging.rs");
 }

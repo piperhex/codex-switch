@@ -12,7 +12,7 @@ const RemoteGuiWorkspace = lazy(() => import('./remote/RemoteGuiWorkspace'));
 
 export function GuiWorkspace(props: {
   active: boolean; accounts: Account[]; providers: Provider[]; privacyMode: boolean;
-  proxyRunning: boolean; loading: boolean; windowControls?: ReactNode;
+  loading: boolean; windowControls?: ReactNode;
   plugins: Omit<SkillsMarketPageProps, "active">;
 }) {
   const computers = useGuiComputers({ active: props.active, login: props.plugins.onLogin,
@@ -27,7 +27,7 @@ export function GuiWorkspace(props: {
     windowControls={props.windowControls} plugins={props.plugins} accountPicker={
       <ProxyAccountPicker active={localActive} computers={isDesktopApp ? computers : undefined}
         accounts={selection.accounts} providers={selection.providers}
-        aggregateApis={[]} privacyMode={props.privacyMode} proxyRunning={props.proxyRunning}
+        aggregateApis={[]} privacyMode={props.privacyMode}
         busy={false} loading={props.loading || selection.loading} selectionError={selection.error}
         onSwitchAccount={selection.switchAccount} onSwitchProvider={selection.switchProvider} />
     } /></div>

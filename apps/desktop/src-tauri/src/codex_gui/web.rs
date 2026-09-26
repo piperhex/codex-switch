@@ -99,7 +99,7 @@ impl EventLog {
 #[derive(Default)]
 pub(crate) struct WebEventState(Mutex<EventLog>);
 
-pub(super) fn publish<R: tauri::Runtime>(
+pub(crate) fn publish<R: tauri::Runtime>(
     app: &AppHandle<R>,
     name: &str,
     payload: impl Serialize + Clone,

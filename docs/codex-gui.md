@@ -9,14 +9,16 @@ history, search, renaming, pinning, and archiving/restoring conversations.
 The GUI account picker includes official accounts, custom Providers, and upstream Codex Switch Providers.
 Codex GUI remembers its own account independently of the account manager and other applications. The first
 visit starts with the current supported account; later switches and restarts preserve the GUI's choice.
-With the local proxy running, a GUI switch applies to subsequent requests without interrupting an existing
-reply. Shared automatic fallback and concurrent account routing do not change the GUI's selected account.
+GUI connections start automatically, even when the external proxy is off. A GUI account switch applies
+to subsequent requests without interrupting an existing reply. Shared automatic fallback and concurrent
+account routing do not change the GUI's selected account.
 The GUI's remaining quota and Provider model choices follow its own selection. All connected GUI browsers
 share this selection, and upstream Codex Switch Providers continue to use the live Codex model catalog.
 
 The **今日** cost is a daily estimate across recorded requests. For official Codex accounts, each request
 uses the speed selected when it was sent; Fast mode applies the configured multiplier (2.5 by default).
-Changing speed affects subsequent requests. A generic `default` tier in an official Codex response does
+GUI Fast mode is independent of the external proxy and affects subsequent GUI requests only. Both
+connections use the same Token usage database and accounting. A generic `default` tier in an official Codex response does
 not remove that request's Fast-mode estimate. API Providers use the reported response tier when available,
 including a downgrade to normal speed. These estimates are not a statement of actual subscription charges.
 
@@ -24,7 +26,7 @@ In the desktop app, the account bar also shows the selected computer. Open it an
 to select **本机** or another online computer signed in to the same Codex Switch cloud account.
 The conversation list, messages, project selection, model settings and account choices then belong to
 that computer. Use **切换账户** in the same menu to open its account list and select an official account
-or Provider. The target computer must have its local proxy running to switch its GUI account.
+or Provider. GUI account selection does not require enabling the target computer's external proxy.
 Its account selection is shared with other clients connected to that computer.
 
 Switching computers leaves existing tasks running on their original computer. Returning to **本机**

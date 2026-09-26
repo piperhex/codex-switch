@@ -92,6 +92,30 @@ fn entrypoint() -> &'static str {
     }
 }
 
+/// Recognize GUI-managed CLI versions so external client restarts leave them running.
+#[cfg(any(unix, test))]
+pub(crate) fn is_gui_executable(path: &std::path::Path) -> bool {
+    let Some(bin) = path
+        .parent()
+        .filter(|parent| parent.file_name().is_some_and(|name| name == "bin"))
+    else {
+        return false;
+    };
+    let Some(version) = bin.parent() else {
+        return false;
+    };
+    path.file_name()
+        .is_some_and(|name| name == "codex" || name == "codex.exe")
+        && version
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(valid_version)
+        && version
+            .parent()
+            .and_then(|parent| parent.file_name())
+            .is_some_and(|name| name == "codex-cli")
+}
+
 fn asset_name() -> Result<String> {
     let arch = match std::env::consts::ARCH {
         "x86_64" => "x86_64",

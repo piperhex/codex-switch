@@ -242,7 +242,17 @@ fn stop_server() {
     aggregate_scheduler::clear();
 }
 
-fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
+#[derive(Clone, Copy)]
+enum RequestOrigin {
+    External,
+    Gui,
+}
+
+fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, request: Request) {
+    serve_request(app, request, RequestOrigin::External);
+}
+
+fn serve_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request, origin: RequestOrigin) {
     let _diagnostic_scope = match diagnostic_log_path(&app) {
         Ok(path) => Some(DiagnosticScope::enter(path)),
         Err(_) => {
@@ -272,6 +282,10 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         .remote_addr()
         .map(|address| address.ip().is_loopback())
         .unwrap_or(false);
+    if !request_origin_allowed(origin, &url, &headers, is_loopback) {
+        respond_error(request, 403, "This endpoint is not available on this connection.".into());
+        return;
+    }
     let quota_query = method == Method::Get && lan_keys::is_quota_endpoint(request_path(&url));
     let lan_key = match lan_keys::authorize_request(&app, &headers, is_loopback, quota_query) {
         Ok(key) => key,
@@ -345,12 +359,16 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
             return;
         }
     }
-    // Use the same explicit choice as the UI, including normal mode before the first toggle.
+    // Snapshot only this caller's speed; later toggles cannot change in-flight requests or retries.
+    let tier = match origin {
+        RequestOrigin::External => proxy_service_tier(),
+        RequestOrigin::Gui => gui_runtime::service_tier(&app),
+    };
     let body = snapshot_request_service_tier(
         &method,
         request_path(&url),
         body,
-        Some(proxy_service_tier()),
+        Some(tier),
     );
     let session = begin_tracked_proxy_session(ProxySessionRequest {
         method: &method,
@@ -387,6 +405,17 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
             session.as_ref(),
         ),
     );
+}
+
+fn request_origin_allowed(
+    origin: RequestOrigin, url: &str, headers: &[(String, String)], is_loopback: bool,
+) -> bool {
+    let gui_path = gui_routing::upstream_path(url).is_some();
+    match origin {
+        RequestOrigin::External => !gui_path,
+        RequestOrigin::Gui => gui_path && is_loopback
+            && request_has_valid_api_key(headers, crate::codex_config::LOCAL_PROXY_TOKEN),
+    }
 }
 
 fn upstream_error_message(error: &str) -> &str {

@@ -20,11 +20,13 @@ pub(super) fn prepare(app: &AppHandle) -> Result<PathBuf> {
     let source = crate::storage::resolve_paths(app).map_err(|_| GuiError::Startup)?;
     let target = crate::codex_home::gui_home(app).map_err(|_| GuiError::Startup)?;
     super::account_selection::read(app).map_err(|_| GuiError::Startup)?;
-    prepare_from(&source.codex_home, &target)?;
+    let base_url =
+        crate::local_proxy::gui_runtime::ensure_started(app).map_err(|_| GuiError::Startup)?;
+    prepare_from(&source.codex_home, &target, &base_url)?;
     Ok(target)
 }
 
-pub(super) fn prepare_from(source: &Path, target: &Path) -> Result<()> {
+pub(super) fn prepare_from(source: &Path, target: &Path, base_url: &str) -> Result<()> {
     fs::create_dir_all(target).map_err(|_| GuiError::Startup)?;
     if !source.is_absolute() {
         return Err(GuiError::Startup);
@@ -35,17 +37,17 @@ pub(super) fn prepare_from(source: &Path, target: &Path) -> Result<()> {
         source.to_path_buf()
     };
     let target = target.canonicalize().map_err(|_| GuiError::Startup)?;
-    prepare_config(&source, &target)?;
+    prepare_config(&source, &target, base_url)?;
     Ok(())
 }
 
-fn prepare_config(source: &Path, target: &Path) -> Result<()> {
+fn prepare_config(source: &Path, target: &Path, base_url: &str) -> Result<()> {
     // Import once; subsequent connections preserve edits made to the GUI's own configuration.
     let config = match read_optional(&target.join("config.toml"))? {
         Some(config) => config,
         None => read_optional(&source.join("config.toml"))?.unwrap_or_default(),
     };
-    let config = isolated_config(&config, target)?;
+    let config = isolated_config(&config, target, base_url)?;
     crate::storage::write_text_if_changed(&target.join("config.toml"), &config)
         .map_err(|_| GuiError::Startup)?;
     Ok(())
@@ -59,22 +61,22 @@ fn read_optional(path: &Path) -> Result<Option<String>> {
     }
 }
 
-fn isolated_config(config: &str, target: &Path) -> Result<String> {
+fn isolated_config(config: &str, target: &Path, base_url: &str) -> Result<String> {
     let mut document = config
         .parse::<DocumentMut>()
         .map_err(|_| GuiError::Startup)?;
     document["sqlite_home"] = value(target.to_string_lossy().as_ref());
     document["log_dir"] = value(target.join("log").to_string_lossy().as_ref());
     document["cli_auth_credentials_store"] = value("file");
-    configure_gui_proxy(&mut document)?;
+    configure_gui_proxy(&mut document, base_url)?;
     Ok(document.to_string())
 }
 
 /// Naming uses only the GUI model route, without user MCP servers, plugins or project instructions.
-pub(super) fn prepare_title_home(gui_home: &Path) -> Result<PathBuf> {
+pub(super) fn prepare_title_home(gui_home: &Path, base_url: &str) -> Result<PathBuf> {
     let target = gui_home.join("title-generator");
     fs::create_dir_all(&target).map_err(|_| GuiError::Startup)?;
-    let mut config = isolated_config("", &target)?
+    let mut config = isolated_config("", &target, base_url)?
         .parse::<DocumentMut>()
         .map_err(|_| GuiError::Startup)?;
     config["model_providers"][GUI_PROVIDER_ID]["http_headers"]
@@ -85,18 +87,14 @@ pub(super) fn prepare_title_home(gui_home: &Path) -> Result<PathBuf> {
     Ok(target)
 }
 
-fn configure_gui_proxy(document: &mut DocumentMut) -> Result<()> {
+fn configure_gui_proxy(document: &mut DocumentMut, base_url: &str) -> Result<()> {
     use toml_edit::{Item, Table};
     document["model_provider"] = value(GUI_PROVIDER_ID);
     // A shared catalog may describe a different account or fixed Provider model.
     document.remove("model_catalog_json");
     let mut provider = Table::new();
     provider["name"] = value("Codex GUI");
-    provider["base_url"] = value(format!(
-        "http://{}:{}/codex-gui/v1",
-        crate::codex_config::LOCAL_PROXY_HOST,
-        crate::codex_config::LOCAL_PROXY_PORT,
-    ));
+    provider["base_url"] = value(base_url);
     provider["wire_api"] = value("responses");
     provider["requires_openai_auth"] = value(false);
     provider["experimental_bearer_token"] = value(crate::codex_config::LOCAL_PROXY_TOKEN);
@@ -130,7 +128,8 @@ base_url = "http://127.0.0.1:15722/codex-gui/v1"
 requires_openai_auth = false
 "#;
         let root = std::env::temp_dir();
-        let repaired = isolated_config(previous, &root).unwrap();
+        let base_url = "http://127.0.0.1:54321/codex-gui/v1";
+        let repaired = isolated_config(previous, &root, base_url).unwrap();
         let document: DocumentMut = repaired.parse().unwrap();
         let provider = &document["model_providers"]["codex-switch-gui"];
         assert_eq!(document["model"].as_str(), Some("saved-model"));
@@ -143,10 +142,10 @@ requires_openai_auth = false
             Some(LOCAL_PROXY_TOKEN)
         );
         assert_eq!(provider["requires_openai_auth"].as_bool(), Some(false));
+        assert_eq!(provider["base_url"].as_str(), Some(base_url));
         assert_eq!(
-            provider["base_url"].as_str(),
-            Some("http://127.0.0.1:15722/codex-gui/v1")
+            isolated_config(&repaired, &root, base_url).unwrap(),
+            repaired
         );
-        assert_eq!(isolated_config(&repaired, &root).unwrap(), repaired);
     }
 }

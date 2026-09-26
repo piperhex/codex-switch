@@ -309,6 +309,8 @@ pub fn run() {
             codex_gui::undo::codex_gui_undo,
             codex_gui::deletion::codex_gui_delete_thread,
             codex_gui::usage::codex_gui_usage_summary,
+            local_proxy::gui_runtime::codex_gui_request_settings,
+            local_proxy::gui_runtime::codex_gui_set_fast_mode,
             commands::get_app_info,
             ccs_import::take_ccswitch_import_request,
             ccs_import::cancel_ccswitch_provider_import,

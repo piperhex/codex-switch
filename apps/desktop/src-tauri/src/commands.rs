@@ -20,6 +20,10 @@ use tauri::{Emitter, Runtime};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_opener::OpenerExt;
 
+#[cfg(any(unix, test))]
+#[path = "commands/client_unix.rs"]
+mod client_unix;
+
 use crate::{
     agent_identity,
     auth::{

@@ -1,5 +1,5 @@
 import { invoke } from '../api/backend';
-import type { Account, LocalProxyStatus, Provider } from '../types';
+import type { Account, Provider } from '../types';
 import { object } from '../../../../shared/remote-chat/protocol';
 import type { GuiAccountSelection, GuiAccountsSnapshot } from '../../../../shared/remote-chat/guiAccounts';
 import { guiAccountBalances } from './guiAccountBalances';
@@ -21,15 +21,14 @@ function accountDetail(account: Account) {
 }
 
 export async function readGuiAccounts(): Promise<GuiAccountsSnapshot> {
-  const [selection, accounts, providers, proxy] = await Promise.all([
+  const [selection, accounts, providers] = await Promise.all([
     invoke<GuiAccountSelection>('codex_gui_account_selection'),
     invoke<Account[]>('list_accounts'),
     invoke<Provider[]>('list_providers'),
-    invoke<LocalProxyStatus>('get_local_proxy_status'),
   ]);
   // Only send picker display fields; account credentials and private details stay on the computer.
   return {
-    selection, running: proxy.running,
+    selection, running: true,
     choices: [
       ...accounts.map((account) => ({
         kind: 'account' as const, id: account.id, name: account.email,

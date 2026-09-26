@@ -223,17 +223,12 @@ async fn name_first_turn(
 }
 
 fn naming_home(root: &std::path::Path) -> PathBuf {
-    let home = crate::codex_gui::home::prepare_title_home(root).unwrap();
     let original: toml_edit::DocumentMut = std::fs::read_to_string(root.join("config.toml"))
         .unwrap()
         .parse()
         .unwrap();
-    let mut config: toml_edit::DocumentMut = std::fs::read_to_string(home.join("config.toml"))
-        .unwrap()
-        .parse()
+    let base_url = original["model_providers"]["codex-switch-gui"]["base_url"]
+        .as_str()
         .unwrap();
-    config["model_providers"]["codex-switch-gui"]["base_url"] =
-        original["model_providers"]["codex-switch-gui"]["base_url"].clone();
-    std::fs::write(home.join("config.toml"), config.to_string()).unwrap();
-    home
+    crate::codex_gui::home::prepare_title_home(root, base_url).unwrap()
 }

@@ -71,15 +71,8 @@ pub(crate) fn chatgpt_or_codex_is_running() -> Result<bool, String> {
 
 #[cfg(unix)]
 pub(crate) fn chatgpt_or_codex_is_running() -> Result<bool, String> {
-    for name in [CHATGPT_COMMAND, LEGACY_CODEX_COMMAND] {
-        match Command::new("pgrep").args(["-x", name]).status() {
-            Ok(status) if status.success() => return Ok(true),
-            Ok(_) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-            Err(error) => return Err(format!("检查 ChatGPT/Codex 进程失败：{error}")),
-        }
-    }
-    Ok(false)
+    Ok([CHATGPT_COMMAND, LEGACY_CODEX_COMMAND, "ChatGPT", "Codex"]
+        .into_iter().any(client_unix::is_running))
 }
 
 #[cfg(target_os = "windows")]

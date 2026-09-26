@@ -1,14 +1,6 @@
 #[cfg(unix)]
 fn stop_unix_process(name: &str) -> Result<(), String> {
-    let status = Command::new("pkill")
-        .args(["-x", name])
-        .status()
-        .map_err(|error| format!("停止 ChatGPT 失败：{error}"))?;
-    if status.success() || status.code() == Some(1) {
-        Ok(())
-    } else {
-        Err(status_error("停止 ChatGPT 失败", status))
-    }
+    client_unix::stop(name)
 }
 
 #[cfg(target_os = "windows")]

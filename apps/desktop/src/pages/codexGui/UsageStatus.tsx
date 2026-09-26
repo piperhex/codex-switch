@@ -45,8 +45,8 @@ export function UsageStatus({ active, threadId, tokenUsage }: {
       return current === key ? null : current;
     });
   };
-  const speedHint = canChangeFastMode === false ? "请在主机上切换快速模式" : !proxy?.running ? "开启本地代理后可使用快速模式"
-    : proxy.fastModeAvailable ? "切换后对新请求生效" : "当前模型暂不支持快速模式";
+  const speedHint = canChangeFastMode === false ? "请在主机上切换快速模式" : !proxy ? "正在读取速度设置…"
+    : proxy.fastModeAvailable ? "仅影响 Codex GUI 的新请求" : "当前模型暂不支持快速模式";
   return <div className={styles.status} onKeyDown={(event) => {
     if (event.key === "Escape" && hint) { event.stopPropagation(); setHint(null); }
   }}>
@@ -72,7 +72,7 @@ export function UsageStatus({ active, threadId, tokenUsage }: {
       mouseLeaveDelay={0} open={active && hint === "speed"} onOpenChange={(open) => changeHint("speed", open)}>
       <label className={styles.speed}><span>快速模式</span>
         <Switch size="small" aria-label="快速模式" checked={proxy?.fastModeEnabled ?? false} loading={saving}
-          disabled={canChangeFastMode === false || !proxy?.running || (!proxy.fastModeEnabled && !proxy.fastModeAvailable)}
+          disabled={canChangeFastMode === false || !proxy || (!proxy.fastModeEnabled && !proxy.fastModeAvailable)}
           onChange={(enabled) => void setFastMode(enabled)} />
       </label>
     </Tooltip>

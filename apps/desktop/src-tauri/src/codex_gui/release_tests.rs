@@ -49,3 +49,22 @@ fn official_release_download_and_extract() {
         package.join(entrypoint()).display()
     );
 }
+#[test]
+fn gui_cli_processes_are_excluded_from_external_client_restarts() {
+    use std::path::Path;
+    for path in [
+        "/app/codex-cli/0.116.0/bin/codex",
+        "/app/codex-cli/0.117.0-alpha.1/bin/codex",
+        "/app/codex-cli/0.116.0/bin/codex.exe",
+    ] {
+        assert!(super::is_gui_executable(Path::new(path)));
+    }
+    for path in [
+        "/usr/local/bin/codex",
+        "/Applications/Codex.app/Contents/MacOS/Codex",
+        "/app/codex-cli/not-a-version/bin/codex",
+        "/app/other-cli/0.116.0/bin/codex",
+    ] {
+        assert!(!super::is_gui_executable(Path::new(path)));
+    }
+}

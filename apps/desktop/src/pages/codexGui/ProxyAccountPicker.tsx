@@ -17,7 +17,6 @@ export interface ProxyAccountPickerProps {
   accounts: Account[];
   providers: Provider[];
   aggregateApis: AggregateApi[];
-  proxyRunning: boolean;
   busy: boolean;
   loading: boolean;
   selectionError?: string;
@@ -38,7 +37,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const thirdParty = Boolean(provider || aggregate);
   const email = account?.email && (props.privacyMode ? maskAccountEmail(account.email) : account.email);
   const name = aggregate?.name || provider?.name || email || "选择 GUI 账户";
-  const disabled = props.busy || props.loading || saving || !props.proxyRunning;
+  const disabled = props.busy || props.loading || saving;
   // `official` describes account-pool provenance, not whether the account can use the official API.
   const accounts = props.accounts.map((entry) => ({
     kind: "account" as const, id: entry.id, name: entry.email,
@@ -70,7 +69,6 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     devicePicker={devicePicker} disabled={disabled} loading={saving || props.loading}
     onSelectAccount={(id) => void select(id, props.onSwitchAccount)}
     onSelectProvider={(id) => void select(id, props.onSwitchProvider)} footer={<>
-      {!props.proxyRunning && <p className={styles.hint}>开启本地代理后，即可在这里切换。</p>}
       {error && <p className={styles.error} role="alert">{error}</p>}
       {props.selectionError && <p className={styles.error} role="alert">{props.selectionError}</p>}
       <button type="button" className={styles.settings} aria-label="Codex GUI 设置" aria-haspopup="dialog"
@@ -81,7 +79,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     computers={props.computers} busy={saving} accounts={panel}
     icon={saving ? <Spin size="small" /> : thirdParty ? <Server size={17} /> : <UserRound size={17} />}
     summary={<ProxyAccountSummary name={name} account={account} provider={aggregate ? undefined : provider}
-      thirdParty={thirdParty} running={props.proxyRunning} active={props.active} />}
+      thirdParty={thirdParty} active={props.active} />}
     onOpenChange={(next) => { setOpen(next); if (next) setError(""); }} />
     {settingsOpen && props.active && <GuiAutoSwitchSettingsDialog accounts={props.accounts} providers={props.providers}
       privacyMode={props.privacyMode} onClose={() => { setSettingsOpen(false); trigger.current?.focus(); }} />}

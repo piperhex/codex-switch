@@ -1507,7 +1507,6 @@ export function DashboardApp() {
               accounts={manager.accounts}
                 privacyMode={privacyMode.enabled}
                 providers={providerManager.providers}
-                proxyRunning={Boolean(providerManager.localProxy?.running)}
                 loading={manager.loading || providerManager.loading} />
           </section>
           <section className="page-panel" hidden={page !== "systemPrompts"}>

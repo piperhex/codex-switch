@@ -19,9 +19,9 @@ it('uses the same host switch as the PC and reads the confirmed mode', async () 
   expect(await bridge.read()).toBe('normal');
   vi.mocked(invoke).mockResolvedValueOnce(fast);
   expect(await bridge.set('fast')).toBe('fast');
-  expect(invoke).toHaveBeenLastCalledWith('set_local_proxy_fast_mode', { enabled: true });
+  expect(invoke).toHaveBeenLastCalledWith('codex_gui_set_fast_mode', { enabled: true });
   expect(await bridge.set('normal')).toBe('normal');
-  expect(invoke).toHaveBeenLastCalledWith('set_local_proxy_fast_mode', { enabled: false });
+  expect(invoke).toHaveBeenLastCalledWith('codex_gui_set_fast_mode', { enabled: false });
 });
 
 it('coalesces a slow poll and serializes a subsequent mode change after it', async () => {
@@ -72,7 +72,7 @@ it('keeps backend details out of failures and permits a later retry', async () =
   expect(await bridge.set('fast')).toBe('fast');
 });
 
-it('does not advertise fast mode when the proxy has stopped', async () => {
+it('keeps GUI fast mode when the external proxy is stopped', async () => {
   vi.mocked(invoke).mockResolvedValue({ ...fast, running: false });
-  expect(await new RequestSpeedBridge().read()).toBe('normal');
+  expect(await new RequestSpeedBridge().read()).toBe('fast');
 });

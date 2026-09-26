@@ -29,7 +29,7 @@ vi.mock('../CodexGuiPage', () => ({ CodexGuiPage: function LocalConversation({ a
 let root: Root;
 let host: HTMLDivElement;
 const render = () => act(async () => root.render(<GuiWorkspace active accounts={[]} providers={[]}
-  privacyMode={false} proxyRunning loading={false} plugins={{ authenticated: true, baseUrl: 'https://fixture.test',
+  privacyMode={false} loading={false} plugins={{ authenticated: true, baseUrl: 'https://fixture.test',
     currentUserId: 'owner', onLogin() {}, notify() {}, t: text => text }} />));
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke, isHostedWebApp, canManageCodexConnection } from "../../api/backend";
-import type { LocalProxyStatus } from "../../types";
+import type { GuiRequestSettings } from "./requestSpeedBridge";
 import { USAGE_REFRESH_INTERVAL_MS, type UsageSummary } from "../../../../../shared/remote-chat/usage";
 export type { UsageSummary } from "../../../../../shared/remote-chat/usage";
 
@@ -8,7 +8,7 @@ const CAN_CHANGE_FAST_MODE = !isHostedWebApp || canManageCodexConnection;
 
 export function useUsageStatus(active: boolean) {
   const [usage, setUsage] = useState<UsageSummary | null>(null);
-  const [proxy, setProxy] = useState<LocalProxyStatus | null>(null);
+  const [proxy, setProxy] = useState<GuiRequestSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const loading = useRef(false);
@@ -30,7 +30,7 @@ export function useUsageStatus(active: boolean) {
       try {
         const [nextUsage, nextProxy] = await Promise.allSettled([
           invoke<UsageSummary>("codex_gui_usage_summary"),
-          invoke<LocalProxyStatus>("get_local_proxy_status"),
+          invoke<GuiRequestSettings>("codex_gui_request_settings"),
         ]);
         if (cancelled) return;
         setUsage(nextUsage.status === "fulfilled" ? nextUsage.value : null);
@@ -48,12 +48,12 @@ export function useUsageStatus(active: boolean) {
   }, [active]);
 
   const setFastMode = async (enabled: boolean) => {
-    if (!CAN_CHANGE_FAST_MODE || changing.current || !proxy?.running || (enabled && !proxy.fastModeAvailable)) return;
+    if (!CAN_CHANGE_FAST_MODE || changing.current || !proxy || (enabled && !proxy.fastModeAvailable)) return;
     changing.current = true;
     revision.current += 1;
     setSaving(true);
     try {
-      const result = await invoke<LocalProxyStatus>("set_local_proxy_fast_mode", { enabled });
+      const result = await invoke<GuiRequestSettings>("codex_gui_set_fast_mode", { enabled });
       if (mounted.current) { setProxy(result); setError(""); }
     } catch {
       if (mounted.current) setError("快速模式未能切换，请稍后重试。");

@@ -50,9 +50,11 @@ impl Client {
         let app = self.app.clone();
         let home = self.home.clone();
         let (binary, home) = tauri::async_runtime::spawn_blocking(move || {
+            let base_url = crate::local_proxy::gui_runtime::ensure_started(&app)
+                .map_err(|_| GuiError::Startup)?;
             Ok((
                 crate::codex_gui::releases::executable(&app)?,
-                crate::codex_gui::home::prepare_title_home(&home)?,
+                crate::codex_gui::home::prepare_title_home(&home, &base_url)?,
             ))
         })
         .await

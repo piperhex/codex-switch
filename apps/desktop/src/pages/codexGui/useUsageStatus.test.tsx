@@ -8,7 +8,7 @@ import { useUsageStatus } from "./useUsageStatus";
 vi.mock("../../api/backend", () => ({ invoke: vi.fn(), isHostedWebApp: false, canManageCodexConnection: true }));
 const usage = { totalTokens: 50290000, estimatedCostUsd: 74.32, primaryRemainingPercent: 95,
   primaryRemainingAggregated: false, providerEstimatedCost: null };
-const proxy = { running: true, fastModeEnabled: false, fastModeAvailable: true };
+const proxy = { fastModeEnabled: false, fastModeAvailable: true };
 let root: Root;
 let result: ReturnType<typeof useUsageStatus>;
 function Probe({ active = true }: { active?: boolean }) { result = useUsageStatus(active); return null; }
@@ -54,12 +54,14 @@ describe("GUI usage refresh", () => {
     await act(async () => root.render(<Probe />));
     const pendingProxy = deferred<typeof proxy>();
     vi.mocked(invoke).mockImplementation(async (command) => {
-      if (command === "get_local_proxy_status") return pendingProxy.promise;
-      if (command === "set_local_proxy_fast_mode") return { ...proxy, fastModeEnabled: true };
+      if (command === "codex_gui_request_settings") return pendingProxy.promise;
+      if (command === "codex_gui_set_fast_mode") return { ...proxy, fastModeEnabled: true };
       return usage;
     });
     await act(async () => vi.advanceTimersByTimeAsync(5000));
     await act(async () => result.setFastMode(true));
+    expect(invoke).toHaveBeenCalledWith("codex_gui_set_fast_mode", { enabled: true });
+    expect(invoke).not.toHaveBeenCalledWith("set_local_proxy_fast_mode", { enabled: true });
     expect(result.proxy?.fastModeEnabled).toBe(true);
     await act(async () => { pendingProxy.resolve(proxy); });
     expect(result.proxy?.fastModeEnabled).toBe(true);

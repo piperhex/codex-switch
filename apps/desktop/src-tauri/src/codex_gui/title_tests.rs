@@ -123,12 +123,17 @@ fn naming_home_does_not_import_personal_tools_or_project_config() {
         "[mcp_servers.private]\ncommand = 'private-tool'\n",
     )
     .unwrap();
-    let home = crate::codex_gui::home::prepare_title_home(&root).unwrap();
+    let base_url = "http://127.0.0.1:54321/codex-gui/v1";
+    let home = crate::codex_gui::home::prepare_title_home(&root, base_url).unwrap();
     let config = std::fs::read_to_string(home.join("config.toml")).unwrap();
     assert!(config.contains("codex-switch-gui"));
     assert!(!config.contains("private-tool"));
     assert!(!config.contains("mcp_servers"));
     let config: toml_edit::DocumentMut = config.parse().unwrap();
+    assert_eq!(
+        config["model_providers"]["codex-switch-gui"]["base_url"].as_str(),
+        Some(base_url)
+    );
     assert_eq!(
         config["model_providers"]["codex-switch-gui"]["http_headers"]
             [crate::codex_config::LOCAL_PROXY_REQUEST_PURPOSE_HEADER]

@@ -417,6 +417,7 @@ fn effective_request_speed_uses_override_then_request_then_standard_default() {
 
 #[test]
 fn proxy_speed_stays_explicit_through_toggles_restarts_and_openai_login() {
+    let _guard = GUI_SPEED_TEST_LOCK.lock().unwrap();
     set_proxy_service_tier(ProxyServiceTier::default());
     assert_proxy_speed_matches_forwarded_requests("default");
     assert!(!update_proxy_service_tier_for_openai_auth(Some(

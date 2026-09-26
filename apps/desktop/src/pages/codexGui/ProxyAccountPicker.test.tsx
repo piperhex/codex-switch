@@ -52,7 +52,7 @@ beforeEach(() => {
   document.body.append(container);
   root = createRoot(container);
   props = { active: true, privacyMode: false, accounts: [account], providers: [provider],
-    aggregateApis: [], proxyRunning: true,
+    aggregateApis: [],
     busy: false, loading: false, onSwitchAccount: vi.fn().mockResolvedValue(true),
     onSwitchProvider: vi.fn().mockResolvedValue(true) };
 });
@@ -209,13 +209,11 @@ it("preserves selection on failure and allows retry without exposing internal er
   expect(trigger().getAttribute("aria-expanded")).toBe("false");
 });
 
-it("disables switching when the proxy is stopped or another operation is pending", async () => {
-  props.proxyRunning = false;
+it("allows GUI selection without starting the external proxy and blocks pending operations", async () => {
   await render();
   await click(trigger());
-  expect(document.body.textContent).toContain("开启本地代理后，即可在这里切换。");
-  expect(option(provider.name).disabled).toBe(true);
-  props.proxyRunning = true;
+  expect(document.body.textContent).not.toContain("开启本地代理");
+  expect(option(provider.name).disabled).toBe(false);
   props.busy = true;
   await render();
   await click(option(provider.name));

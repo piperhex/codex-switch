@@ -336,7 +336,8 @@ fn gui_home_preserves_history_and_preferences_without_importing_shared_auth() {
     std::fs::write(source.join("sessions/official.jsonl"), "official").unwrap();
     std::fs::write(source.join("state_5.sqlite"), "official database").unwrap();
     std::fs::write(target.join("sessions/gui.jsonl"), "gui").unwrap();
-    super::home::prepare_from(&source, &target).unwrap();
+    let base_url = "http://127.0.0.1:54321/codex-gui/v1";
+    super::home::prepare_from(&source, &target, base_url).unwrap();
     assert!(!target.join("auth.json").exists());
     assert!(!target.join("sessions/official.jsonl").exists());
     assert!(!target.join("state_5.sqlite").exists());
@@ -352,7 +353,7 @@ fn gui_home_preserves_history_and_preferences_without_importing_shared_auth() {
     );
     assert_eq!(
         document["model_providers"]["codex-switch-gui"]["base_url"].as_str(),
-        Some("http://127.0.0.1:15722/codex-gui/v1")
+        Some(base_url)
     );
     assert_eq!(
         document["model_providers"]["codex-switch-gui"]["requires_openai_auth"].as_bool(),
@@ -367,9 +368,9 @@ fn gui_home_preserves_history_and_preferences_without_importing_shared_auth() {
         "official"
     );
     std::fs::write(target.join("config.toml"), "model = 'edited-gui-model'\n").unwrap();
-    super::home::prepare_from(&target, &target).unwrap();
+    super::home::prepare_from(&target, &target, base_url).unwrap();
     std::fs::remove_file(source.join("auth.json")).unwrap();
-    super::home::prepare_from(&source, &target).unwrap();
+    super::home::prepare_from(&source, &target, base_url).unwrap();
     assert!(!target.join("auth.json").exists());
     let updated = std::fs::read_to_string(target.join("config.toml")).unwrap();
     assert!(updated.contains("edited-gui-model"));
