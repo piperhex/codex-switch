@@ -23,7 +23,9 @@ export const markdownStyles = StyleSheet.create({
   process: { color: palette.muted, fontSize: 13, lineHeight: 22 },
   list: { marginVertical: 10 },
   listRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  marker: { minWidth: 16, textAlign: 'right' },
+  // Keep the intrinsic text size when a list is measured inside an auto-width message bubble.
+  listContent: { flexShrink: 1, minWidth: 0 },
+  marker: { minWidth: 16, flexShrink: 0, textAlign: 'right' },
   checkbox: { width: 13, height: 13, borderWidth: 1, borderColor: palette.muted,
     borderRadius: 2, marginTop: 6, marginLeft: 3, alignItems: 'center', justifyContent: 'center' },
   checked: { backgroundColor: palette.green, borderColor: palette.green },

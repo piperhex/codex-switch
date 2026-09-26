@@ -5,7 +5,7 @@ import { parseFileReference } from '../../../../shared/chat/fileReference';
 import { mathOptions, normalizeMathDelimiters } from '../../../../shared/chat/mathMarkdown';
 
 function createParser(html: boolean) {
-  const result = new MarkdownIt({ html, linkify: true, typographer: false, maxNesting: 20 });
+  const result = new MarkdownIt({ html, breaks: true, linkify: true, typographer: false, maxNesting: 20 });
   result.use(texmath, { engine: katex, delimiters: ['dollars'], katexOptions: { ...mathOptions } });
   result.renderer.rules.html_inline = () => '';
   result.renderer.rules.html_block = () => '';

@@ -1,12 +1,38 @@
 import { expect, test } from '@playwright/test';
 import { createRequire } from 'node:module';
 import fixture from '../../../shared/chat/markdownFixture.json' with { type: 'json' };
+import lineBreaks from '../../../shared/chat/lineBreakFixture.json' with { type: 'json' };
 import { screenshot } from './chat-helpers';
 const { markdownAnswer, markdownQuestion } = fixture;
 const require = createRequire(import.meta.url);
 const { parseMarkdown, renderMathParagraph }: typeof import('../../native/src/chat/markdownTree') =
   require('../../native/src/chat/markdownTree');
 const { mathDocument }: typeof import('../../native/src/chat/mathDocument') = require('../../native/src/chat/mathDocument');
+
+test('keeps all numbered answer lines and long user messages within their bounds', async ({ page }, info) => {
+  await page.route('**/display-fixture.json', route => route.fulfill({ json: {
+    id: 'line-breaks', cwd: '', preview: '', updatedAt: 1, turns: [{ id: 'turn', status: 'completed', items: [
+      { id: 'question', type: 'userMessage', text: lineBreaks.prompt },
+      { id: 'answer', type: 'agentMessage', phase: 'final_answer', text: lineBreaks.answer },
+    ] }],
+  } }));
+  await page.goto('e2e/chat-display-harness.html');
+  const reply = page.locator('.chat-assistant-message .chat-markdown');
+  await expect.poll(() => reply.innerText()).toBe(lineBreaks.answer);
+  const question = page.locator('.chat-user-message');
+  const lines = await question.innerText();
+  for (const line of lineBreaks.prompt.split('\n').filter(line => /^(Q\d|——)/.test(line))) {
+    expect(lines.split('\n')).toContain(line);
+  }
+  const questionBox = await question.boundingBox();
+  const replyBox = await reply.boundingBox();
+  expect(questionBox!.y + questionBox!.height).toBeLessThan(replyBox!.y);
+  expect(await question.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+  expect(await reply.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await screenshot(page, info, 'numbered-answer-lines');
+  await page.reload();
+  await expect.poll(() => reply.innerText()).toBe(lineBreaks.answer);
+});
 
 test('renders the reported question and boxed answer without exposing Markdown source', async ({ page }, info) => {
   await page.route('**/display-fixture.json', route => route.fulfill({ json: {

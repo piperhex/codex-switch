@@ -3,7 +3,7 @@ import { css } from '../../assets/math-css.json';
 export const MIN_MATH_HEIGHT = 32;
 const MAX_MATH_HEIGHT = 10000;
 
-export interface MathTextOptions { muted?: boolean; fontSize?: number; preserveLineBreaks?: boolean }
+export interface MathTextOptions { muted?: boolean; fontSize?: number }
 
 export function mathDocument(markup: string, options: MathTextOptions = {}): string {
   const fontSize = options.fontSize ?? 14;
@@ -15,7 +15,6 @@ style-src 'unsafe-inline'; script-src 'unsafe-inline'">
 html,body{margin:0;padding:0;background:transparent;color:${options.muted ? '#718078' : '#17211b'};}
 body{font:${fontSize}px/1.8 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
 #content{padding:4px 0;overflow-x:auto;overflow-y:hidden;overflow-wrap:anywhere;}
-#content{white-space:${options.preserveLineBreaks ? 'pre-wrap' : 'normal'};}
 .katex{white-space:normal;overflow-wrap:normal;}.katex-display{margin:0;}
 a{color:#0b8065;}code{background:#f4f6f5;}
 </style></head><body><div id="content">${markup}</div><script>

@@ -1,9 +1,22 @@
 import { expect, it } from 'vitest';
-import { parseMarkdown, type MarkdownNode } from './markdownTree';
+import { parseMarkdown, renderMathParagraph, type MarkdownNode } from './markdownTree';
+import { answer } from '../../../../shared/chat/lineBreakFixture.json';
 
 function descendants(nodes: MarkdownNode[]): MarkdownNode[] {
   return nodes.flatMap((node) => [node, ...descendants(node.children)]);
 }
+
+it('keeps each answer line when native paragraphs use the HTML renderer', () => {
+  const nodes = parseMarkdown(answer);
+  expect(renderMathParagraph(nodes[0].children[0].children).split('<br>\n')).toEqual(answer.split('\n'));
+});
+
+it('renders soft and hard breaks once in paragraphs containing formulas', () => {
+  const nodes = parseMarkdown('第一行 $x$\n第二行  \n第三行\\\n第四行');
+  const markup = renderMathParagraph(nodes[0].children[0].children);
+  expect(markup.match(/<br>/g)).toHaveLength(3);
+  expect(markup).toContain('katex');
+});
 
 it('keeps nested task states without showing their Markdown markers', () => {
   const nodes = descendants(parseMarkdown('- [x] **完成**\n  - [ ] 待办\n- 普通条目\n- [X] done\n- [x]without-space'));

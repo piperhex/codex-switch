@@ -7,13 +7,13 @@ import { MIN_MATH_HEIGHT, mathDocument, mathHeight, type MathTextOptions } from 
 import { SelectableChatText } from './SelectableChatText';
 import type { CopyAction } from './CopyTextButton';
 
-export function ChatMath({ markup, muted, fontSize, preserveLineBreaks, copy, compact = false }: MathTextOptions & {
+export function ChatMath({ markup, muted, fontSize, copy, compact = false }: MathTextOptions & {
   markup: string; copy?: CopyAction; compact?: boolean;
 }) {
   const openFile = useContext(ChatFileContext);
   const [height, setHeight] = useState(MIN_MATH_HEIGHT);
-  const source = useMemo(() => ({ html: mathDocument(markup, { muted, fontSize, preserveLineBreaks }),
-    baseUrl: 'about:blank' }), [markup, muted, fontSize, preserveLineBreaks]);
+  const source = useMemo(() => ({ html: mathDocument(markup, { muted, fontSize }),
+    baseUrl: 'about:blank' }), [markup, muted, fontSize]);
   return <View style={[styles.container, compact && styles.compact]}>
     <WebView source={source} style={styles.content} containerStyle={{ flex: 0, height }} scrollEnabled={false}
       originWhitelist={['*']} onShouldStartLoadWithRequest={({ url }) => {

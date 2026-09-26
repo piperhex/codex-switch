@@ -14,7 +14,6 @@ export interface MarkdownContext {
   muted?: boolean; compact?: boolean; header?: boolean; textAlign?: TextStyle['textAlign'];
   tone?: 'default' | 'process';
   copy?: CopyAction;
-  preserveLineBreaks?: boolean;
 }
 const INLINE_STYLES = { strong_open: markdownStyles.bold, em_open: markdownStyles.italic,
   s_open: markdownStyles.strike, code_inline: [styles.code, markdownStyles.inlineCode] };
@@ -23,13 +22,12 @@ function openLink(url: string) {
   if (/^https?:\/\//i.test(url)) void Linking.openURL(url).catch(() => undefined);
 }
 
-function Inline({ nodes, muted = false, preserveLineBreaks = false }: {
-  nodes: MarkdownNode[]; muted?: boolean; preserveLineBreaks?: boolean;
+function Inline({ nodes, muted = false }: {
+  nodes: MarkdownNode[]; muted?: boolean;
 }) {
   const openFile = useContext(ChatFileContext);
   return <>{nodes.map(({ token, children }, index) => {
-    if (token.type === 'softbreak') return preserveLineBreaks ? '\n' : ' ';
-    if (token.type === 'hardbreak') return '\n';
+    if (token.type === 'softbreak' || token.type === 'hardbreak') return '\n';
     const style = INLINE_STYLES[token.type as keyof typeof INLINE_STYLES];
     if (token.type === 'link_open') return <Text key={index} accessibilityRole="link" style={markdownStyles.link}
       onPress={() => {
@@ -37,9 +35,9 @@ function Inline({ nodes, muted = false, preserveLineBreaks = false }: {
         const file = parseFileReference(url);
         if (file && openFile) openFile(file);
         else openLink(url);
-      }}><Inline nodes={children} muted={muted} preserveLineBreaks={preserveLineBreaks} /></Text>;
+      }}><Inline nodes={children} muted={muted} /></Text>;
     return <Text key={index} style={[style, token.type === 'code_inline' && muted && markdownStyles.muted]}>
-      {children.length ? <Inline nodes={children} muted={muted} preserveLineBreaks={preserveLineBreaks} />
+      {children.length ? <Inline nodes={children} muted={muted} />
         : token.content}</Text>;
   })}</>;
 }
@@ -67,15 +65,14 @@ export function MarkdownParagraph({ nodes, heading, context = {} }: {
     if (hasMarkdownImage(first)) return <MarkdownParagraph key={index}
       nodes={first.children} heading={heading} context={{ ...context, copy }} />;
     if (part.some(hasMarkdownMath)) return <ChatMath key={index} markup={renderMathParagraph(part)}
-      muted={context.muted || context.tone === 'process'} preserveLineBreaks={context.preserveLineBreaks}
+      muted={context.muted || context.tone === 'process'}
       fontSize={heading ? headingStyles[heading]?.fontSize : undefined} copy={copy} compact={context.compact} />;
     return <SelectableChatText key={index} copy={copy} accessibilityRole={heading ? 'header' : undefined}
       style={[styles.messageText, markdownStyles.paragraph, context.compact && markdownStyles.compact,
         context.tone === 'process' && markdownStyles.process,
         context.muted && markdownStyles.muted, (heading || context.header) && markdownStyles.bold,
         heading ? headingStyles[heading] : undefined, { textAlign: context.textAlign }]}>
-      <Inline nodes={part} muted={context.muted || context.tone === 'process'}
-        preserveLineBreaks={context.preserveLineBreaks} />
+      <Inline nodes={part} muted={context.muted || context.tone === 'process'} />
     </SelectableChatText>;
   })}</View>;
 }

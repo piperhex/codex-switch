@@ -2,6 +2,7 @@ import { t, useLanguage } from '../i18n';
 import { Children, isValidElement, type ReactNode } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { mathOptions, normalizeMathDelimiters } from '../../../../shared/chat/mathMarkdown';
@@ -43,7 +44,7 @@ export function ChatMarkdown({ text, process = false, desktop = false }: {
 }) {
   useLanguage();
   return <div className={`chat-markdown${process ? ' chat-process-prose' : ''}`}>
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeKatex, mathOptions]]}
+    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]} rehypePlugins={[[rehypeKatex, mathOptions]]}
       components={desktop ? desktopComponents : components}
       urlTransform={(url, key) => {
         if (/^https?:\/\//i.test(url)) return url;

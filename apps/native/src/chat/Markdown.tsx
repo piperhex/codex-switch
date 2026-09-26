@@ -49,7 +49,9 @@ function List({ node, context }: { node: MarkdownNode; context: MarkdownContext 
           style={[markdownStyles.checkbox, child.task && markdownStyles.checked]}>
           {child.task && <Text style={markdownStyles.checkmark}>✓</Text>}
         </View>}
-      <View style={styles.fill}><Block node={child} context={childContext(context, index, node.children.length)} /></View>
+      <View style={markdownStyles.listContent}>
+        <Block node={child} context={childContext(context, index, node.children.length)} />
+      </View>
     </View>} />
   </View>;
 }
@@ -106,5 +108,5 @@ export const ChatMarkdown = memo(function ChatMarkdown({ text, tone = 'default',
   return <View><MarkdownPage nodes={content} render={(entry, index) => entry.type === 'review'
     ? <ChatCodeReview key={index} comment={entry.comment} copy={index === content.length - 1 ? copy : undefined} />
     : <Block key={index} node={entry.node}
-      context={childContext({ tone, copy, preserveLineBreaks: user }, index, content.length)} />} /></View>;
+      context={childContext({ tone, copy }, index, content.length)} />} /></View>;
 });

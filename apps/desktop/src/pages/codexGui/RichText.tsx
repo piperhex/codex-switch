@@ -1,6 +1,7 @@
 import { memo, useMemo, type ReactNode } from "react";
 import Markdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { mathOptions, normalizeMathDelimiters } from "../../../../../shared/chat/mathMarkdown";
@@ -20,7 +21,7 @@ const COMPONENTS: Components = {
   pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
   table: ({ children }) => <MarkdownTable>{children}</MarkdownTable>,
 };
-const PLUGINS = [remarkGfm, remarkMath];
+const PLUGINS = [remarkGfm, remarkMath, remarkBreaks];
 
 export const RichText = memo(function RichText({ text, trailing }: { text: string; trailing?: ReactNode }) {
   const sections = useMemo(() => messageSections(text), [text]);
