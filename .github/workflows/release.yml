@@ -171,6 +171,10 @@ jobs:
       - name: Run checks
         run: npm run check
 
+      - name: Prepare Windows desktop video runtime
+        if: startsWith(matrix.name, 'windows')
+        run: node scripts/prepare-remote-desktop-runtime.mjs
+
       - name: Build and upload release assets
         uses: tauri-apps/tauri-action@v1
         env:
