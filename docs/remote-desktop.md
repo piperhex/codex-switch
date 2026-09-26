@@ -39,6 +39,9 @@ additional monitors or change the host's display resolution.
 
 ## Verification
 
+The [1.6.2 physical-device investigation](remote-desktop-investigation-20260926.md) records measured
+capture/playback limits, the missing media-relay path and references to mature open-source implementations.
+
 ```powershell
 npx vitest run src/remoteDesktop src/remoteChat/guiTools.test.ts src/remoteChat/hostRecovery.test.ts
 # Run the command above from apps/desktop.
