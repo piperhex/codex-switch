@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tauri::State;
 
+#[cfg(test)]
+mod action_tests;
+mod actions;
+mod branches;
 mod changes;
 mod commit;
 mod history;
@@ -17,6 +21,14 @@ mod tests;
     rename_all_fields = "camelCase"
 )]
 pub(crate) enum Request {
+    Repository {
+        cwd: String,
+    },
+    Action {
+        cwd: String,
+        #[serde(flatten)]
+        request: actions::ActionRequest,
+    },
     Changes {
         cwd: String,
     },
@@ -46,6 +58,8 @@ pub(crate) struct SelectedFile {
 #[derive(Serialize)]
 #[serde(untagged)]
 pub(crate) enum Response {
+    Repository(branches::Repository),
+    Done(()),
     Changes(changes::Changes),
     Diff(history::Diff),
     History(history::History),
@@ -55,12 +69,16 @@ pub(crate) enum Response {
 fn execute(request: Request) -> Result<Response> {
     let cwd = match &request {
         Request::Changes { cwd }
+        | Request::Repository { cwd }
+        | Request::Action { cwd, .. }
         | Request::Diff { cwd, .. }
         | Request::History { cwd, .. }
         | Request::Commit { cwd, .. } => cwd,
     };
     let root = repository(&directory(cwd)?)?;
     match request {
+        Request::Repository { .. } => branches::read(&root).map(Response::Repository),
+        Request::Action { request, .. } => actions::execute(&root, &request).map(Response::Done),
         Request::Changes { .. } => changes::read(&root).map(Response::Changes),
         Request::Diff { path, commit, .. } => {
             history::diff(&root, &path, commit.as_deref()).map(Response::Diff)

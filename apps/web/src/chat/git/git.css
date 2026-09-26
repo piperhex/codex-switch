@@ -2,12 +2,40 @@
 .chat-tools-menu button { display: flex; align-items: center; gap: 12px; border: 0; padding: 12px;
   border-radius: 8px; background: transparent; color: #17211b; cursor: pointer; }
 .chat-tools-menu button:hover { background: #eef4f1; }
-.chat-git { display: flex; flex-direction: column; min-height: 0; width: 100%; color: #17211b; background: #fff; }
+.chat-git { position: relative; display: flex; flex-direction: column; min-height: 0;
+  width: 100%; color: #17211b; background: #fff; }
 .chat-git button { font: inherit; cursor: pointer; }
 .chat-git button:disabled { cursor: default; opacity: .45; }
 .git-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 0; gap: 12px; }
 .git-branch { font-weight: 600; overflow-wrap: anywhere; }
 .git-toolbar button { border: 0; background: transparent; padding: 10px; }
+.git-toolbar .git-branch { display: flex; align-items: center; gap: 8px; margin-right: auto; min-width: 0; }
+.git-branch span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.git-branch svg, .git-file svg { flex-shrink: 0; }
+.git-tracking { padding: 0 16px 6px; color: #718078; font-size: 11px; }
+.git-tracking span { margin-left: 12px; }
+.git-menu { position: absolute; top: 48px; left: 0; z-index: 20;
+  box-sizing: border-box; width: calc(100% - 32px); max-width: 400px;
+  max-height: min(440px, 60vh); overflow: auto; margin: 0 16px 8px; padding: 12px; border: 1px solid #dfe5df;
+  border-radius: 10px; background: #fafcfb; font-size: 12px; box-shadow: 0 4px 20px #17211b22; }
+.git-menu p { max-width: 400px; line-height: 1.6; color: #718078; overflow-wrap: anywhere; }
+.git-menu-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.git-menu-heading button { background: transparent; border: 0; padding: 8px; }
+.git-menu input, .git-menu select { border: 1px solid #dfe5df; border-radius: 6px; padding: 8px;
+  box-sizing: border-box; max-width: 100%; background: white; }
+.git-menu input { width: 100%; }
+.git-branch-list { max-height: 200px; overflow: auto; }
+.git-branch-list button { display: flex; flex-direction: column; text-align: left; gap: 4px;
+  border: 0; border-bottom: 1px solid #edf1ef; padding: 10px 4px; background: transparent; width: 100%;
+  overflow-wrap: anywhere; }.git-branch-list small { color: #718078; }
+.git-action-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.git-action-options button { border: 1px solid #dfe5df; border-radius: 6px; background: white; padding: 10px; }
+.git-action-options button[aria-pressed="true"], .git-view-toggle button[aria-pressed="true"] {
+  background: #dcefe6; color: #14785b; }
+.git-strategy { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.git-menu .git-submit { width: 100%; }
+.git-view-toggle { display: flex; border-radius: 6px; background: #f2f5f3; }
+.git-view-toggle button { border: 0; background: transparent; border-radius: 6px; padding: 8px; font-size: 11px; }
 .git-project { padding: 0 16px 12px; font-size: 11px; color: #718078; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .git-tabs { display: flex; border-bottom: 1px solid #dfe5df; flex-shrink: 0; }
@@ -26,6 +54,13 @@
 .git-file button { display: flex; align-items: center; flex: 1; min-width: 0; text-align: left; gap: 12px;
   padding: 14px 0; border: 0; background: transparent; font-size: 12px; overflow-wrap: anywhere; }
 .git-file small { display: block; color: #718078; padding-top: 4px; }
+.git-file button { color: inherit; gap: 8px; }
+.git-file-name { flex: 1; min-width: 0; }
+.git-file-area { min-height: 38px; font-size: 12px; }
+.git-file-area strong small { display: inline; color: inherit; margin-left: 5px; font-weight: normal; }
+.git-file-folder button { padding: 10px 0; }
+.git-file .git-status { color: inherit; text-align: right; }
+.git-file .ant-checkbox { color: inherit; }
 .git-status { font: 11px monospace; color: #0b8065; min-width: 22px; white-space: pre; }
 .git-status[data-conflict="true"] { color: #c74e47; }
 .git-commit-form { padding: 12px 16px; border-top: 1px solid #dfe5df; display: grid; gap: 8px; }

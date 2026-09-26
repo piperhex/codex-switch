@@ -1,4 +1,31 @@
 export const gitMessages: Record<string, string> = {
+  '未暂存': 'Unstaged', '已暂存': 'Staged', '部分暂存': 'Partially staged', '新文件': 'Untracked',
+  '文件显示方式': 'File view', '文件夹': 'Folders', '平铺': 'Flat', '查看 {path}': 'View {path}',
+  '展开或收起 {path}': 'Expand or collapse {path}', '切换分支': 'Switch branch', '分离的 HEAD': 'Detached HEAD',
+  '同步': 'Sync', '同步项目': 'Sync project', '关闭菜单': 'Close menu', '搜索分支': 'Search branches',
+  '其他工作树使用中': 'Used by another worktree', '远程': 'Remote', '本地': 'Local',
+  '选择远程分支会创建同名本地分支。': 'Selecting a remote branch creates a local branch with the same name.',
+  '获取 Fetch': 'Fetch', '拉取 Pull': 'Pull', '更新项目': 'Update project', '推送 Push': 'Push',
+  '获取所有远程分支的最新记录，不修改本地文件。': 'Fetch all remotes without changing local files.',
+  '拉取当前跟踪分支，并整合到当前分支。': 'Fetch the tracked branch and integrate it into the current branch.',
+  '获取当前项目的所有远程分支，再整合当前跟踪分支。':
+    'Fetch all remotes for this project, then integrate the current tracked branch.',
+  '将当前分支的提交推送到跟踪分支。': 'Push commits from the current branch to its tracked branch.',
+  '当前分支': 'Current branch', '跟踪分支': 'Tracked branch', '未设置': 'Not set', '整合方式': 'Update method',
+  '合并 Merge': 'Merge', '变基 Rebase': 'Rebase', '执行 {action}': 'Run {action}',
+  '已切换分支': 'Branch switched', '已获取远程记录': 'Remote history fetched',
+  '拉取完成': 'Pull completed', '项目已更新': 'Project updated', '推送完成': 'Push completed',
+  '请先提交本地改动，再拉取或更新项目。': 'Commit local changes before pulling or updating the project.',
+  '当前分支没有可用的跟踪分支，请先在电脑上设置。': 'Set a tracked branch on your computer first.',
+  '项目还没有远程仓库，请先在电脑上添加。': 'Add a remote repository on your computer first.',
+  '远程操作未完成，请检查电脑的网络和 Git 登录状态。':
+    'The remote operation failed. Check the computer’s connection and Git credentials.',
+  '更新未完成，请在电脑上检查冲突或正在进行的合并、变基。':
+    'Update incomplete. Check for conflicts or an unfinished merge or rebase on your computer.',
+  '推送未完成，请先拉取远程改动，或检查推送权限与提交检查。':
+    'Push failed. Pull remote changes or check push permissions and commit checks.',
+  '无法切换分支。请检查未提交的修改，或确认分支未被其他工作树使用。':
+    'Cannot switch branches. Check local changes and whether another worktree uses the branch.',
   '打开工具': 'Open tools', '终端': 'Terminal', '关闭 Git': 'Close Git', '刷新 Git': 'Refresh Git',
   'Git 仓库': 'Git repository', 'Git 视图': 'Git view', '改动': 'Changes', '提交记录': 'History',
   '请先选择一个项目。': 'Choose a project first.',

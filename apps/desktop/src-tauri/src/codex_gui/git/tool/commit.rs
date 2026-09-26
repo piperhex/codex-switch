@@ -95,7 +95,7 @@ fn selected_paths(current: &changes::Changes, selected: &[SelectedFile]) -> Resu
     Ok(paths)
 }
 
-fn require_idle(root: &Path) -> Result<()> {
+pub(super) fn require_idle(root: &Path) -> Result<()> {
     for name in [
         "MERGE_HEAD",
         "CHERRY_PICK_HEAD",

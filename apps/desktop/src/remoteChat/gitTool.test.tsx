@@ -12,6 +12,7 @@ function fixture() {
   const client = createAsyncGitFixture();
   client.changes = vi.fn(client.changes);
   client.commit = vi.fn(client.commit);
+  client.action = vi.fn(client.action);
   const root = createRoot(document.createElement('div'));
   let panel!: ReturnType<typeof useRemoteGit>;
   function Fixture({ cwd, connected }: { cwd: string; connected: boolean }) {
@@ -83,4 +84,24 @@ it('draws both merge parents and keeps graph positions stable as older commits l
   expect(outgoing).toHaveLength(2);
   expect(new Set(outgoing.map(line => line.x2)).size).toBe(2);
   expect(full.rows.every(row => row.lines.every(line => line.x2 >= 0))).toBe(true);
+});
+
+it('defaults to merge, switches branches and refreshes conflicts after a failed update', async () => {
+  const test = fixture();
+  try {
+    await test.render();
+    await act(async () => test.panel().action('switch', 'refs/heads/feature/git'));
+    expect(test.panel().changes?.branch).toBe('feature/git');
+    expect(test.panel().strategy).toBe('merge');
+    const next = structuredClone(test.panel().changes!);
+    next.files[0].conflict = true;
+    vi.mocked(test.client.changes).mockResolvedValue(next);
+    vi.mocked(test.client.action).mockRejectedValueOnce(new Error('update conflict'));
+    await act(async () => test.panel().action('update'));
+    expect(test.panel().error).toBe('update conflict');
+    expect(test.panel().changes?.files[0].conflict).toBe(true);
+    expect(test.panel().notice).toBe('');
+    expect(test.client.action).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: 'update', strategy: 'merge' }));
+  } finally { await test.dispose(); }
 });

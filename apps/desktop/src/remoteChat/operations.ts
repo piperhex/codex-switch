@@ -47,7 +47,7 @@ interface Cached {
 const READ_OPERATIONS = new Set([
   'downloadOpen', 'downloadBrowse',
   'guiCliStatus', 'guiCliRelease', 'guiTerminalRead', 'guiTerminalList',
-  'guiGitChanges', 'guiGitDiff', 'guiGitHistory',
+  'guiGitChanges', 'guiGitDiff', 'guiGitHistory', 'guiGitRepository',
   'fileOpen', 'fileRead', 'fileClose',
   CONTEXT_READ_OPERATION,
   TOKEN_SUMMARY_OPERATION,

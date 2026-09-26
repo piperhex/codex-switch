@@ -11,15 +11,31 @@ type SyncGitClient = { [Key in keyof GitClient]:
   (...args: Parameters<GitClient[Key]>) => Awaited<ReturnType<GitClient[Key]>> };
 
 export function createGitFixture(): SyncGitClient {
+  let branch = 'main';
   let files: GitChanges['files'] = [
     { path: 'src/app.ts', originalPath: null, status: ' M', conflict: false, version: 'app-v1' },
     { path: 'README.md', originalPath: null, status: 'M ', conflict: false, version: 'readme-v1' },
     { path: '新文件 [1].txt', originalPath: null, status: '??', conflict: false, version: 'new-v1' },
+    { path: 'src/chat/tools.ts', originalPath: null, status: ' M', conflict: false, version: 'tools-v1' },
+    { path: 'src/chat/menu.ts', originalPath: null, status: ' M', conflict: false, version: 'menu-v1' },
+    { path: 'src/theme.css', originalPath: null, status: 'MM', conflict: false, version: 'theme-v1' },
   ];
   let commits = [commit(5, [3, 4], '合并工具面板', ['HEAD -> main']), commit(4, [2], '增加 Git 工具', ['feature/git']),
     commit(3, [2], '调整聊天界面'), commit(2, [1], '准备项目'), commit(1, [], '首次提交', ['tag: v1.0'])];
   return {
-    changes: cwd => ({ root: cwd, branch: 'main', head: commits[0].hash, files: [...files] }),
+    repository: () => ({ upstream: `origin/${branch}`, ahead: 2, behind: 1, remotes: ['origin'], branches: [
+      { name: 'main', ref: 'refs/heads/main', remote: false, occupied: false },
+      { name: 'feature/git', ref: 'refs/heads/feature/git', remote: false, occupied: false },
+      { name: 'release', ref: 'refs/heads/release', remote: false, occupied: true },
+      { name: 'origin/develop', ref: 'refs/remotes/origin/develop', remote: true, occupied: false },
+    ] }),
+    action: input => {
+      if (input.action === 'switch') branch = input.target!.replace(/^refs\/(heads|remotes\/origin)\//, '');
+      if ((input.action === 'pull' || input.action === 'update') && files.length) {
+        throw new Error('请先提交本地改动，再拉取或更新项目。');
+      }
+    },
+    changes: cwd => ({ root: cwd, branch, head: commits[0].hash, files: [...files] }),
     history: (_cwd, skip) => ({ commits: commits.slice(skip, skip + 3), hasMore: skip + 3 < commits.length }),
     diff: (_cwd, path, commit) => ({ text: `diff --git a/${path || 'src/app.ts'} b/${path || 'src/app.ts'}\n`
       + '@@ -1 +1 @@\n-old code\n+new code\n' + (commit ? '+committed change\n' : ''), truncated: false }),
@@ -36,6 +52,7 @@ export function createGitFixture(): SyncGitClient {
 
 export function createAsyncGitFixture(): GitClient {
   const git = createGitFixture();
-  return { changes: async cwd => git.changes(cwd), history: async (cwd, skip) => git.history(cwd, skip),
+  return { repository: async cwd => git.repository(cwd), action: async input => git.action(input),
+    changes: async cwd => git.changes(cwd), history: async (cwd, skip) => git.history(cwd, skip),
     diff: async (cwd, path, commit) => git.diff(cwd, path, commit), commit: async input => git.commit(input) };
 }

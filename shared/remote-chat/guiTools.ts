@@ -1,5 +1,5 @@
 import type { TerminalRead, TerminalInfo, TerminalSize } from '../terminal/types';
-import type { GitChanges, GitCommitRequest, GitDiff, GitHistory } from './gitTypes';
+import type { GitActionRequest, GitChanges, GitCommitRequest, GitDiff, GitHistory, GitRepository } from './gitTypes';
 
 export interface CliRelease { version: string; size: number }
 export interface CliProgress { downloaded: number; total: number; phase: 'downloading' | 'installing' }
@@ -13,6 +13,7 @@ export const GUI_TOOL_OPERATIONS = new Set([
   'guiCliStatus', 'guiCliRelease', 'guiCliInstall', 'guiReconnect',
   'guiTerminalList', 'guiTerminalOpen', 'guiTerminalRead', 'guiTerminalWrite', 'guiTerminalResize', 'guiTerminalClose',
   'guiGitChanges', 'guiGitDiff', 'guiGitHistory', 'guiGitCommit',
+  'guiGitRepository', 'guiGitAction',
 ]);
 
 /** Requests use the selected computer's authenticated chat connection. */
@@ -23,6 +24,8 @@ export function createGuiToolsClient(request: <T>(body: object) => Promise<T>) {
     install: (version: string) => request<RemoteCliStatus>({ operation: 'guiCliInstall', version }),
     reconnect: () => request<void>({ operation: 'guiReconnect' }),
     git: {
+      repository: (cwd: string) => request<GitRepository>({ operation: 'guiGitRepository', cwd }),
+      action: (input: GitActionRequest) => request<void>({ ...input, operation: 'guiGitAction' }),
       changes: (cwd: string) => request<GitChanges>({ operation: 'guiGitChanges', cwd }),
       diff: (cwd: string, path: string, commit?: string) =>
         request<GitDiff>({ operation: 'guiGitDiff', cwd, path, commit }),

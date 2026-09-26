@@ -1,8 +1,10 @@
 import { Drawer, Spin } from 'antd';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import type { GitClient } from '../../../../../shared/remote-chat/gitTypes';
-import { useGitDiff, useRemoteGit, type RemoteGit } from '../../../../../shared/remote-chat/useRemoteGit';
+import { useGitDiff, useRemoteGit } from '../../../../../shared/remote-chat/useRemoteGit';
 import { GitHistory } from './GitHistory';
+import { GitChanges } from './GitChanges';
+import { GitToolbar } from './GitToolbar';
 import { useDesktopLayout } from '../../useDesktopLayout';
 import { t } from '../../i18n';
 
@@ -19,16 +21,16 @@ export function ChatGit(props: Props) {
     rootClassName="chat-terminal-drawer chat-git-drawer" closable={{ 'aria-label': t('关闭 Git'), placement: 'end' }}
     extra={<span className="chat-terminal-device">{props.deviceName}</span>}>
     <div className="chat-git">
-      <div className="git-toolbar"><span className="git-branch">{panel.changes?.branch ?? t('Git 仓库')}</span>
-        <button type="button" aria-label={t('刷新 Git')} disabled={panel.busy || !props.connected || !props.cwd}
-          onClick={() => { panel.setDetail(null); void panel.refresh(); }}><RefreshCw size={18} /></button></div>
+      <GitToolbar panel={panel} connected={props.connected} />
       <div className="git-project" title={panel.changes?.root ?? props.cwd}>{panel.changes?.root ?? props.cwd}</div>
       {!props.cwd && <p className="git-notice">{t('请先选择一个项目。')}</p>}
       {!props.connected && <p className="git-notice">{t('电脑连接后即可使用 Git。')}</p>}
       {panel.error && <p role="alert" className="git-error">{t(panel.error)}</p>}
       {panel.changes?.files.some(file => file.conflict) && <p className="git-error">
         {t('请先在电脑上解决冲突或完成正在进行的合并。')}</p>}
-      {panel.notice && <p role="status" className="git-notice">{t('已提交 {hash}', { hash: panel.notice })}</p>}
+      {panel.notice && <p role="status" className="git-notice">{panel.notice.startsWith('已提交 ')
+        ? t('已提交 {hash}', { hash: panel.notice.slice(4) }) : t(panel.notice)}</p>}
+      {panel.busy && <div className="git-loading"><Spin size="small" />{t('正在处理…')}</div>}
       {panel.detail ? <>
         <button type="button" className="git-detail-title" onClick={() => panel.setDetail(null)}>
           <ArrowLeft size={18} /><span>{panel.detail.title}</span></button>
@@ -47,39 +49,9 @@ export function ChatGit(props: Props) {
           <button type="button" role="tab" aria-selected={panel.tab === 'history'}
             onClick={() => panel.setTab('history')}>
             {t('提交记录')}</button></div>
-        {panel.busy && <div className="git-loading"><Spin size="small" />{t('正在处理…')}</div>}
         {panel.tab === 'changes' ? <GitChanges panel={panel} connected={props.connected} />
           : <GitHistory panel={panel} connected={props.connected} />}
       </>}
     </div>
   </Drawer>;
-}
-
-function GitChanges({ panel, connected }: { panel: RemoteGit; connected: boolean }) {
-  const files = panel.changes?.files ?? [];
-  const count = Object.keys(panel.selected).length;
-  const selectable = files.filter(file => !file.conflict);
-  return <>
-    <div className="git-selection"><label><input type="checkbox" disabled={panel.busy || !selectable.length}
-      checked={!!selectable.length && count === selectable.length} onChange={panel.selectAll} />{t('全选')}</label>
-      <span>{t('已选 {count} 个文件', { count })}</span></div>
-    <div className="git-files">
-      {panel.changes && !files.length && <p className="git-notice">{t('工作区没有未提交的改动。')}</p>}
-      {files.map(file => <div key={file.path} className="git-file">
-        <input type="checkbox" aria-label={t('选择 {path}', { path: file.path })} checked={!!panel.selected[file.path]}
-          disabled={file.conflict || panel.busy} onChange={() => panel.toggle(file)} />
-        <button type="button" disabled={!connected || panel.busy}
-          onClick={() => panel.setDetail({ path: file.path, title: file.path })}>
-          <span className="git-status" data-conflict={file.conflict}>
-            {file.conflict ? t('冲突') : file.status.trim()}</span>
-          <span>{file.path}{file.originalPath && <small>{file.originalPath} → {file.path}</small>}</span>
-        </button></div>)}
-    </div>
-    <div className="git-commit-form"><textarea aria-label={t('提交说明')} placeholder={t('填写提交说明')}
-      maxLength={4000} value={panel.message} disabled={panel.busy}
-      onChange={event => panel.setMessage(event.target.value)} />
-      <p>{t('提交所选文件的全部改动，包含已暂存和未暂存的内容。')}</p>
-      <button type="button" className="git-submit" disabled={!panel.canCommit} onClick={() => void panel.commit()}>
-        {t('提交 {count} 个文件', { count })}</button></div>
-  </>;
 }

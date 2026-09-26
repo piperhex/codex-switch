@@ -13,11 +13,19 @@ node ../e2e/git-tools.mjs
 ```
 
 The script requires `emulator-5580` (or set `ANDROID_SERIAL` to another emulator).
-It checks the tools menu, selecting files, diff navigation, committing, and merge
-history. Screenshots, including the open keyboard, are saved in
+It checks the tools menu, folder selection, flat/tree views, diff navigation, committing,
+merge history, branch switching, Fetch/Pull/Push and Update Project with merge/rebase.
+Screenshots, including the open keyboard, are saved in
 `.codex-tmp/git-tools-android/`. Inspect them for clipping and readable graph edges.
 
 The shared hook tests cover stale project requests, conflict/offline states,
 failed commits and graph continuity. Rust tests use temporary repositories to
 verify selected commits, unrelated staging, hooks, renames, deletions and history.
+Remote-action Rust tests use local repositories to check dirty-worktree protection,
+merge/rebase, conflict retention, branch tracking, and refusal to force-push.
 Web coverage is `apps/web/e2e/chat-git.pw.ts` at phone and desktop widths.
+
+Update Project fetches all remotes in the current repository and integrates its tracked
+branch; Pull fetches only the tracked remote. Both require a clean worktree and default to
+merge. No automatic stash, submodule update or multi-root project update is performed.
+Resolve integration conflicts on the computer or through the terminal before retrying.

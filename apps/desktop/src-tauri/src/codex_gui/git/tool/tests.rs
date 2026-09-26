@@ -2,9 +2,9 @@ use super::super::{output, run};
 use super::*;
 use std::{fs, path::PathBuf};
 
-struct Repo(PathBuf);
+pub(super) struct Repo(pub(super) PathBuf);
 impl Repo {
-    fn new(initial: bool) -> Self {
+    pub(super) fn new(initial: bool) -> Self {
         let root = std::env::temp_dir().join(format!("csw-git-tool-{}", uuid::Uuid::new_v4()));
         fs::create_dir(&root).unwrap();
         let repo = Self(root.canonicalize().unwrap());
@@ -21,10 +21,15 @@ impl Repo {
         }
         repo
     }
-    fn git(&self, args: &[&str]) {
-        assert!(run(&self.0, args).unwrap().status.success(), "{args:?}");
+    pub(super) fn git(&self, args: &[&str]) {
+        let result = run(&self.0, args).unwrap();
+        assert!(
+            result.status.success(),
+            "{args:?}: {}",
+            String::from_utf8_lossy(&result.stderr)
+        );
     }
-    fn write(&self, path: &str, text: &str) {
+    pub(super) fn write(&self, path: &str, text: &str) {
         fs::write(self.0.join(path), text).unwrap();
     }
     fn commit(&self, paths: &[&str]) -> Result<String> {

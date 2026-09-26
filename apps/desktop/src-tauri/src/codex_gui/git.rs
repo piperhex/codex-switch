@@ -43,6 +43,18 @@ pub(super) enum GitError {
     Commit,
     #[error("请选择文件并填写提交说明。")]
     Selection,
+    #[error("请先提交本地改动，再拉取或更新项目。")]
+    Dirty,
+    #[error("当前分支没有可用的跟踪分支，请先在电脑上设置。")]
+    Upstream,
+    #[error("项目还没有远程仓库，请先在电脑上添加。")]
+    Remote,
+    #[error("远程操作未完成，请检查电脑的网络和 Git 登录状态。")]
+    Network,
+    #[error("更新未完成，请在电脑上检查冲突或正在进行的合并、变基。")]
+    Integrate,
+    #[error("推送未完成，请先拉取远程改动，或检查推送权限与提交检查。")]
+    Push,
 }
 pub(super) type Result<T> = std::result::Result<T, GitError>;
 

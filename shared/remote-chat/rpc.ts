@@ -6,8 +6,10 @@ import type { TransferProgress } from './uploadProgress';
 const TRANSFER_CHARS_PER_SECOND = 128 * 1024;
 const SMALL_REQUEST_CHARS = 1024 * 1024;
 const MAX_TIMER_MS = 2_147_483_647;
+const GIT_ACTION_TIMEOUT_MS = 5 * 60_000;
 function requestTimeout(body: unknown) {
   const operation = (body as { operation?: unknown } | null)?.operation;
+  if (operation === 'guiGitAction') return GIT_ACTION_TIMEOUT_MS;
   // The direct size allowance is not a transfer estimate and must not turn a timeout into a multi-day wait.
   const chars = operation === 'queueEdit' ? chatMessageCharLimit('relay') : (JSON.stringify(body)?.length ?? 0);
   const transferMs = Math.ceil(Math.max(0, chars - SMALL_REQUEST_CHARS) / TRANSFER_CHARS_PER_SECOND) * 1000;
