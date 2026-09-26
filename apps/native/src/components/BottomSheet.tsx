@@ -40,6 +40,7 @@ interface BottomSheetProps {
   dragFromHeaderOnly?: boolean;
   fullWidthContent?: boolean;
   maxWidth?: number;
+  compactHeader?: boolean;
 }
 
 export function BottomSheet({
@@ -56,6 +57,7 @@ export function BottomSheet({
   dragFromHeaderOnly = false,
   fullWidthContent = false,
   maxWidth,
+  compactHeader = false,
 }: BottomSheetProps) {
   const translateY = useRef(new Animated.Value(0)).current;
 
@@ -126,16 +128,18 @@ export function BottomSheet({
         {...(!dragFromHeaderOnly ? dragResponder.panHandlers : {})}
       >
         <View style={styles.inset} {...(dragFromHeaderOnly ? dragResponder.panHandlers : {})}>
-          <View style={styles.handle} />
-          <View style={styles.header}>
+          <View style={[styles.handle, compactHeader && styles.compactHandle]} />
+          <View style={[styles.header, compactHeader && styles.compactHeader]}>
             {onBack && <Pressable accessibilityRole="button" accessibilityLabel="返回上一层"
               hitSlop={8} onPress={onBack} style={styles.closeButton}>
               <Text style={styles.closeText}>‹</Text>
             </Pressable>}
-            <View style={styles.heading}>
-              <Text style={styles.title} numberOfLines={truncateTitle ? 1 : undefined} ellipsizeMode="tail">
+            <View style={[styles.heading, compactHeader && styles.compactHeading]}>
+              <Text style={[styles.title, compactHeader && styles.compactTitle]}
+                numberOfLines={truncateTitle ? 1 : undefined} ellipsizeMode="tail">
                 {title}</Text>
-              {subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> : null}
+              {subtitle ? <Text style={[styles.subtitle, compactHeader && styles.compactSubtitle]}
+                numberOfLines={compactHeader ? 1 : 2}>{subtitle}</Text> : null}
             </View>
             {dismissible ? <Pressable
               accessibilityRole="button"
@@ -148,7 +152,8 @@ export function BottomSheet({
             </Pressable> : null}
           </View>
         </View>
-        {children ? <View style={[styles.content, !fullWidthContent && styles.inset]}>{children}</View> : null}
+        {children ? <View style={[styles.content, compactHeader && styles.compactContent,
+          !fullWidthContent && styles.inset]}>{children}</View> : null}
         {actions.length ? <View style={[styles.actions, styles.inset]}>
           {actions.map((action) => {
             const tone = action.tone ?? 'neutral';
@@ -205,6 +210,12 @@ const styles = StyleSheet.create({
   closeButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#eef3f0', alignItems: 'center', justifyContent: 'center' },
   closeText: { color: '#52645b', fontSize: 25, lineHeight: 28, fontWeight: '400', marginTop: -2 },
   content: { marginTop: 19, flexShrink: 1 },
+  compactHandle: { marginBottom: 8 },
+  compactHeader: { alignItems: 'center' },
+  compactHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  compactTitle: { fontSize: 18, lineHeight: 24, fontWeight: '700' },
+  compactSubtitle: { flexShrink: 1, marginTop: 0, fontSize: 11 },
+  compactContent: { marginTop: 8 },
   actions: { flexDirection: 'row', gap: 10, paddingTop: 16, paddingBottom: 10 },
   action: { flex: 1, minHeight: 48, borderRadius: 14, backgroundColor: '#eef3f0', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
   actionPrimary: { backgroundColor: '#0b8065' },

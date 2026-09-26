@@ -1,5 +1,7 @@
 import { Checkbox } from 'antd';
-import { ChevronDown, ChevronRight, File, Folder } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import fileIcon from '../../../../../shared/remote-chat/assets/git-icons/file-v2.png';
+import folderIcon from '../../../../../shared/remote-chat/assets/git-icons/folder-v2.png';
 import { selectionState } from '../../../../../shared/remote-chat/gitFiles';
 import type { GitFileRow } from '../../../../../shared/remote-chat/useGitFileList';
 import type { RemoteGit } from '../../../../../shared/remote-chat/useRemoteGit';
@@ -38,23 +40,26 @@ function GitRow({ row, panel, connected, onToggle, flat }: {
   const checked = selectionState(row.files, panel.selected);
   const folder = row.kind === 'folder';
   const area = row.kind === 'area';
-  const icon = folder ? <Folder size={15} /> : <File size={15} />;
   return <div className={`git-file git-file-${row.kind}`} data-area={row.area.id}
-    style={{ color: row.area.color, background: area ? row.area.background : undefined,
-      paddingLeft: 16 + Math.min(row.depth, 4) * 18 }}>
+    style={{ color: row.area.color, background: !area && checked === true ? row.area.background : undefined }}>
     <Checkbox aria-label={t('选择 {path}', { path: row.path })} checked={checked === true}
       indeterminate={checked === 'mixed'} disabled={panel.busy || !row.files.some(file => !file.conflict)}
       onChange={() => panel.selectFiles(row.files)} />
-    {area ? <strong>{t(row.name)} <small>{row.files.length}</small></strong>
+    {area ? <strong><i className="git-area-dot" style={{ background: row.area.color }} />
+      {t(row.name)} <small style={{ background: row.area.background }}>{row.files.length}</small></strong>
       : <button type="button" aria-label={folder ? t('展开或收起 {path}', { path: row.path })
         : t('查看 {path}', { path: row.path })} aria-expanded={folder ? !row.collapsed : undefined}
         disabled={panel.busy || (!folder && !connected)} title={row.path}
+        style={{ marginLeft: Math.min(row.depth, 4) * 14 }}
         onClick={() => folder ? onToggle() : panel.setDetail({ path: row.path, title: row.path })}>
-        {folder && (row.collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />)}{icon}
+        {!flat && <span className="git-tree-chevron">{folder && (row.collapsed
+          ? <ChevronRight size={12} /> : <ChevronDown size={12} />)}</span>}
+        <img src={folder ? folderIcon : fileIcon} className="git-tree-icon" alt="" aria-hidden="true" />
         <span className="git-file-name">{row.name}
           {flat && row.path !== row.name && <small>{row.path}</small>}
           {row.file?.originalPath && <small>{row.file.originalPath} → {row.path}</small>}</span>
-        <span className="git-status">{folder ? row.files.length : row.file?.status.trim()}</span>
+        <span className="git-status" style={{ background: folder ? undefined : row.area.background }}>
+          {folder ? row.files.length : row.file?.status.trim()}</span>
       </button>}
   </div>;
 }

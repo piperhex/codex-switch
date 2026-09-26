@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { RemoteGit } from '../../../../../shared/remote-chat/useRemoteGit';
 import type { GitAction } from '../../../../../shared/remote-chat/gitTypes';
 import { GIT_ACTIONS } from '../../../../../shared/remote-chat/gitActions';
@@ -18,12 +19,16 @@ export function GitToolbar({ panel, connected }: { panel: RemoteGit; connected: 
       <Pressable accessibilityRole="button" accessibilityLabel="切换分支" disabled={disabled}
         style={[styles.branchButton, disabled && styles.disabled]}
         onPress={() => setMenu(menu === 'branches' ? null : 'branches')}>
-        <Text numberOfLines={1} style={styles.branch}>{panel.changes?.branch ?? '分离的 HEAD'} ▾</Text></Pressable>
-      <Pressable accessibilityRole="button" disabled={disabled} style={styles.button}
-        onPress={() => setMenu(menu === 'actions' ? null : 'actions')}><Text style={styles.buttonText}>同步</Text>
+        <Ionicons name="git-branch-outline" size={16} color="#587267" />
+        <Text numberOfLines={1} style={styles.branch}>{panel.changes?.branch ?? '分离的 HEAD'}</Text>
+        <Ionicons name="chevron-down" size={12} color="#718078" /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="同步" disabled={disabled} style={styles.syncButton}
+        onPress={() => setMenu(menu === 'actions' ? null : 'actions')}>
+        <Ionicons name="swap-vertical-outline" size={16} color="#587267" /><Text style={styles.buttonText}>同步</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="刷新 Git" disabled={disabled} style={styles.button}
-        onPress={() => { panel.setDetail(null); void panel.refresh(); }}><Text style={styles.buttonText}>刷新</Text>
+        onPress={() => { panel.setDetail(null); void panel.refresh(); }}>
+        <Ionicons name="refresh-outline" size={18} color="#587267" />
       </Pressable>
     </View>
     {!!repository?.upstream && <Text style={styles.tracking}>

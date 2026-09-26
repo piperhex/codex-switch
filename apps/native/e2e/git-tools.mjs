@@ -7,7 +7,8 @@ process.env.ANDROID_CHAT_OUTPUT ??= 'git-tools-android';
 const driver = await import('../../desktop/e2e/android-chat-driver.mjs');
 const { adb, nodes, output, screenshot, tap, waitText, waitFor } = driver;
 const packageName = 'com.codexswitch.mobile.gittest';
-const apk = fileURLToPath(new URL('../android/app/build/outputs/apk/release/git-fixture.apk', import.meta.url));
+const apk = process.env.ANDROID_GIT_APK
+  ?? fileURLToPath(new URL('../android/app/build/outputs/apk/release/git-fixture.apk', import.meta.url));
 
 try {
   await mkdir(output, { recursive: true });

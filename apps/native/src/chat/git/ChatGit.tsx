@@ -17,8 +17,8 @@ export function ChatGit(props: Props) {
   const diff = useGitDiff(props.client, props.cwd, panel.detail, props.active && props.connected);
   const { height } = useWindowDimensions();
   return <BottomSheet visible={props.active} title="Git" subtitle={props.deviceName} onClose={props.onClose}
-    onBack={panel.detail ? () => panel.setDetail(null) : undefined} tall dragFromHeaderOnly fullWidthContent>
-    <View style={{ height: height * .72, flexShrink: 1 }}>
+    onBack={panel.detail ? () => panel.setDetail(null) : undefined} tall dragFromHeaderOnly fullWidthContent compactHeader>
+    <View style={{ height: height * .80, flexShrink: 1 }}>
       <GitToolbar panel={panel} connected={props.connected} />
       <Text numberOfLines={1} style={styles.project}>{panel.changes?.root ?? props.cwd}</Text>
       {!props.cwd && <Text style={styles.notice}>请先选择一个项目。</Text>}
@@ -43,10 +43,11 @@ export function ChatGit(props: Props) {
         <View style={styles.tabs}>
           <Pressable accessibilityRole="tab" accessibilityState={{ selected: panel.tab === 'changes' }}
             style={[styles.tab, panel.tab === 'changes' && styles.selectedTab]} onPress={() => panel.setTab('changes')}>
-            <Text style={styles.buttonText}>改动 {panel.changes?.files.length ?? 0}</Text></Pressable>
+            <Text style={[styles.tabText, panel.tab === 'changes' && styles.selectedTabText]}>
+              改动 {panel.changes?.files.length ?? 0}</Text></Pressable>
           <Pressable accessibilityRole="tab" accessibilityState={{ selected: panel.tab === 'history' }}
             style={[styles.tab, panel.tab === 'history' && styles.selectedTab]} onPress={() => panel.setTab('history')}>
-            <Text style={styles.buttonText}>提交记录</Text></Pressable>
+            <Text style={[styles.tabText, panel.tab === 'history' && styles.selectedTabText]}>提交记录</Text></Pressable>
         </View>
         {panel.tab === 'changes' ? <GitChanges panel={panel} connected={props.connected} />
           : <GitHistory panel={panel} connected={props.connected} />}

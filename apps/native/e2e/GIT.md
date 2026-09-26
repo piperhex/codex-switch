@@ -13,6 +13,7 @@ node ../e2e/git-tools.mjs
 ```
 
 The script requires `emulator-5580` (or set `ANDROID_SERIAL` to another emulator).
+Set `ANDROID_GIT_APK` to a saved fixture APK when another build shares the Android output directory.
 It checks the tools menu, folder selection, flat/tree views, diff navigation, committing,
 merge history, branch switching, Fetch/Pull/Push and Update Project with merge/rebase.
 Screenshots, including the open keyboard, are saved in
