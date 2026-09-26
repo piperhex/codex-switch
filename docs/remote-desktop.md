@@ -39,7 +39,11 @@ The viewer works on Android/iOS through `react-native-webrtc` and on Web through
 
 The viewer draws its own pointer immediately; all Windows capture paths exclude the host cursor.
 The compact floating mouse follows that pointer and can extend into letterbox space around the video.
-Only the viewer's outer bounds constrain the controls. Motion and direct touches use the actual contain-fit video rectangle.
+The 18 × 24 pointer stays at the upper-left of the 120 × 136 mouse panel. Controls keep a fixed offset
+while the whole desktop pans only as needed to keep them inside the viewer, revealing black canvas at the edges.
+The translation stays unchanged while the controls fit, including when they collapse, and resets on rotation
+or a switch to direct touch. Cursor placement and video rendering share the translated rectangle. The native cursor image
+has explicit layout dimensions so its 3x bitmap cannot enlarge it. Motion and direct touches use the actual contain-fit video rectangle.
 The mouse provides left/right buttons, scroll arrows, a relative touchpad and a handle that moves the pointer and panel together.
 Long-press the left button to latch a drag and press it again to release. Tapping the touchpad clicks.
 After four idle seconds the panel collapses to a round mouse icon; tapping it reopens the controls.

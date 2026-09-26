@@ -1,7 +1,15 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import type { desktopTest } from './remote-desktop-fixture';
 
 declare global { interface Window { desktopTest: typeof desktopTest } }
+
+async function expectAnchoredMouse(page: Page) {
+  const cursor = (await page.locator('.rd-cursor').boundingBox())!;
+  const panel = (await page.locator('.rd-mouse-layer').boundingBox())!;
+  expect(cursor.width).toBe(18); expect(cursor.height).toBe(24);
+  expect(panel.x - cursor.x).toBeCloseTo(24); expect(panel.y).toBeCloseTo(cursor.y);
+}
+
 
 test.beforeEach(async ({ page }) => {
   if (!process.env.DESKTOP_RELAY_TEST_ICE) return;
@@ -106,24 +114,42 @@ test('follows the local pointer, collapses when idle and maps direct touches thr
   await expect(page.getByText('正在连接桌面…')).not.toBeVisible();
   const stage = (await page.locator('.rd-stage').boundingBox())!;
   const cursor = (await page.locator('.rd-cursor').boundingBox())!;
+  const beforeVideo = (await page.locator('video').boundingBox())!;
   const beforePanel = (await page.locator('.rd-mouse').boundingBox())!;
-  expect(beforePanel.width).toBe(144); expect(beforePanel.height).toBe(160);
+  expect(beforePanel.width).toBe(120); expect(beforePanel.height).toBe(136);
+  await expectAnchoredMouse(page);
   await page.mouse.move(stage.x + 15, stage.y + 20); await page.mouse.down();
   await page.mouse.move(stage.x + 45, stage.y + 45); await page.mouse.up();
   const moved = (await page.locator('.rd-cursor').boundingBox())!;
-  expect(moved.x - cursor.x).toBeCloseTo(30, 0); expect(moved.y - cursor.y).toBeCloseTo(25, 0);
+  const movedVideo = (await page.locator('video').boundingBox())!;
+  expect(moved.x - cursor.x).toBeCloseTo(30 + movedVideo.x - beforeVideo.x, 0);
+  expect(moved.y - cursor.y).toBeCloseTo(25 + movedVideo.y - beforeVideo.y, 0);
   const movedPanel = (await page.locator('.rd-mouse').boundingBox())!;
   expect(movedPanel.x !== beforePanel.x || movedPanel.y !== beforePanel.y).toBe(true);
+  await expectAnchoredMouse(page);
+  const grip = (await page.getByRole('button', { name: '拖动鼠标面板' }).boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2); await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 15, grip.y + grip.height / 2 + 10, { steps: 5 });
+  await page.mouse.up();
+  await expectAnchoredMouse(page);
+  const dragged = (await page.locator('.rd-cursor').boundingBox())!;
+  const draggedVideo = (await page.locator('video').boundingBox())!;
+  expect(dragged.x - moved.x).toBeCloseTo(15 + draggedVideo.x - movedVideo.x, 0);
+  expect(dragged.y - moved.y).toBeCloseTo(10 + draggedVideo.y - movedVideo.y, 0);
   await page.mouse.move(stage.x + 15, stage.y + 20); await page.mouse.down();
   await page.mouse.move(stage.x + 15, stage.y + stage.height - 10); await page.mouse.up();
   const edgePanel = (await page.locator('.rd-mouse').boundingBox())!;
-  expect(edgePanel.y + edgePanel.height).toBeLessThanOrEqual(stage.y + stage.height);
+  await expectAnchoredMouse(page);
   const videoHeight = Math.min(stage.height, stage.width * 9 / 16);
-  const videoBottom = stage.y + (stage.height + videoHeight) / 2;
-  if (stage.height - videoHeight > 20) expect(edgePanel.y + edgePanel.height).toBeGreaterThan(videoBottom);
+  expect(edgePanel.y + edgePanel.height).toBeLessThanOrEqual(stage.y + stage.height - 7);
+  const edgeVideo = (await page.locator('video').boundingBox())!;
+  expect(edgePanel.y + edgePanel.height).toBeGreaterThan(edgeVideo.y + edgeVideo.height);
+  if (stage.height - videoHeight < 20) expect(edgeVideo.y).toBeLessThan(beforeVideo.y);
   await page.screenshot({ path: info.outputPath('mouse-follows-at-edge.png') });
   const icon = page.getByRole('button', { name: '展开鼠标面板' });
   await expect(icon).toBeVisible({ timeout: 6500 });
+  await expectAnchoredMouse(page);
+  expect((await page.locator('video').boundingBox())!).toEqual(edgeVideo);
   await expect(page.locator('.rd-mouse')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('mouse-idle-icon.png') });
   await icon.click(); await expect(page.locator('.rd-mouse')).toBeVisible();

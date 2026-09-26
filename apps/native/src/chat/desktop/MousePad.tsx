@@ -15,13 +15,14 @@ interface Props {
 export function DesktopMouse({ visible, ...props }: Props & { visible: boolean }) {
   const position = useSyncExternalStore(props.pointer.subscribe, props.pointer.getSnapshot);
   const cursor = cursorPosition(position, props.viewport);
-  const panel = mousePanelPosition(cursor, props.viewport.stage,
-    props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE);
+  const panel = mousePanelPosition(cursor);
+  const panelSize = props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE;
   return <>
     <View pointerEvents="none" accessible={false} style={[s.cursor, { left: cursor.x, top: cursor.y }]}>
-      <Image accessible={false} source={require('../../../../../shared/remote-desktop/cursor.png')} style={s.fill} />
+      <Image accessible={false} source={require('../../../../../shared/remote-desktop/cursor.png')}
+        resizeMode="contain" style={s.cursorImage} />
     </View>
-    {visible && <View pointerEvents="box-none" style={[s.mouseLayer, { left: panel.x, top: panel.y }]}>
+    {visible && <View pointerEvents="box-none" style={[s.mouseLayer, panelSize, { left: panel.x, top: panel.y }]}>
       {props.panel.expanded ? <MousePad {...props} /> : <Pressable accessibilityRole="button"
         accessibilityLabel="展开鼠标面板" onPress={props.panel.expand} style={s.mouseIcon}>
         <MaterialCommunityIcons name="mouse" size={23} color="#fff" /></Pressable>}

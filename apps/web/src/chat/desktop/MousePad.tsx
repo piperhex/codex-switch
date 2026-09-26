@@ -1,7 +1,8 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { ChevronDown, ChevronUp, GripHorizontal, Mouse, X } from 'lucide-react';
 import type { DesktopPointer } from '../../../../../shared/remote-desktop/input';
-import { cursorPosition, mousePanelPosition, MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE, type DesktopViewport }
+import { cursorPosition, mousePanelPosition, MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE, MOUSE_SIZE, CURSOR_SIZE,
+  type DesktopViewport }
   from '../../../../../shared/remote-desktop/geometry';
 import type { MousePanelActivity } from '../../../../../shared/remote-desktop/useMousePanel';
 import cursorImage from '../../../../../shared/remote-desktop/cursor.svg';
@@ -16,12 +17,12 @@ interface Props {
 export function DesktopMouse({ visible, ...props }: Props & { visible: boolean }) {
   const position = useSyncExternalStore(props.pointer.subscribe, props.pointer.getSnapshot);
   const cursor = cursorPosition(position, props.viewport);
-  const panel = mousePanelPosition(cursor, props.viewport.stage,
-    props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE);
+  const panel = mousePanelPosition(cursor);
+  const panelSize = props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE;
   return <>
     <img className="rd-cursor" src={cursorImage} alt="" aria-hidden="true" draggable={false}
-      style={{ left: cursor.x, top: cursor.y }} />
-    {visible && <div className="rd-mouse-layer" style={{ left: panel.x, top: panel.y }}>
+      style={{ ...CURSOR_SIZE, left: cursor.x, top: cursor.y }} />
+    {visible && <div className="rd-mouse-layer" style={{ ...panelSize, left: panel.x, top: panel.y }}>
       {props.panel.expanded ? <MousePad {...props} />
         : <button className="rd-mouse-icon" aria-label={t('展开鼠标面板')} onClick={props.panel.expand}><Mouse /></button>}
     </div>}
@@ -36,7 +37,7 @@ function MousePad({ pointer, viewport, panel, wheel }: Props) {
     [buttons.dragging, panel.hold]);
   const up = (button: 'left' | 'right') => { buttons.up(button); panel.hold(button, false); };
   return <>
-    <div className="rd-mouse">
+    <div className="rd-mouse" style={MOUSE_SIZE}>
       <div className="rd-mouse-top">{(['left', 'right'] as const).map(button =>
         <button key={button} aria-label={t(button === 'left' ? '鼠标左键' : '鼠标右键')}
           aria-pressed={button === 'left' && buttons.dragging}

@@ -8,6 +8,8 @@ import { DesktopMouse } from './MousePad';
 import { useTrackpad } from './useTrackpad';
 import { useVideoViewport } from './useVideoViewport';
 import { useMousePanel } from '../../../../../shared/remote-desktop/useMousePanel';
+import { useMouseViewport } from '../../../../../shared/remote-desktop/useMouseViewport';
+import { MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE } from '../../../../../shared/remote-desktop/geometry';
 import { t } from '../../i18n';
 import { usePageVisibility } from './usePageVisibility';
 import './desktop.css';
@@ -28,7 +30,9 @@ export function RemoteDesktop({ client, active, close }: {
   const video = useRef<HTMLVideoElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const viewport = useVideoViewport(stage, video, active);
+  const fitted = useVideoViewport(stage, video, active);
+  const viewport = useMouseViewport(session.pointer, fitted,
+    panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined);
   const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage' });
   const wheel = (delta: number) => { session.pointer.synchronize(); session.input({ kind: 'wheel', delta }); };
   const switchMode = (next: boolean) => { session.pointer.release(); setDirect(next); if (!next) panel.expand(); };
@@ -52,7 +56,9 @@ export function RemoteDesktop({ client, active, close }: {
   return createPortal(<div ref={root} tabIndex={-1} className="rd-root" role="dialog" aria-modal="true"
     aria-label={t('远程桌面')} onContextMenu={event => event.preventDefault()}>
     <div ref={stage} className="rd-stage">
-      <video ref={video} autoPlay playsInline muted className="rd-video" />
+      <video ref={video} autoPlay playsInline muted className="rd-video" style={{
+        left: viewport.content.x, top: viewport.content.y,
+        width: viewport.content.width, height: viewport.content.height }} />
       <div key={direct ? 'direct' : 'trackpad'} className="rd-touch" {...trackpad}
         onWheel={event => wheel(event.deltaY > 0 ? -120 : 120)} aria-label={t('远程桌面触控区域')} />
       {session.stats && <span className="rd-stats">

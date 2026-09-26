@@ -9,8 +9,9 @@ import { useDesktopSession } from '../../../../../shared/remote-desktop/useDeskt
 import { useTerminalOrientation } from '../terminal/useTerminalOrientation';
 import { DesktopMouse } from './MousePad';
 import { useTrackpad } from './useTrackpad';
-import { desktopViewport } from '../../../../../shared/remote-desktop/geometry';
+import { desktopViewport, MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE } from '../../../../../shared/remote-desktop/geometry';
 import { useMousePanel } from '../../../../../shared/remote-desktop/useMousePanel';
+import { useMouseViewport } from '../../../../../shared/remote-desktop/useMouseViewport';
 import { DisplaySettings } from './DisplaySettings';
 import { DesktopKeyboard } from './DesktopKeyboard';
 import { desktopStyles as s } from './styles';
@@ -32,7 +33,9 @@ export function RemoteDesktop({ client, active, close }: {
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const [source, setSource] = useState({ width: 16, height: 9 });
   const [size, setSize] = useState({ width: 400, height: 600 });
-  const viewport = desktopViewport(size, source);
+  const fitted = desktopViewport(size, source);
+  const viewport = useMouseViewport(session.pointer, fitted,
+    panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined);
   const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage' });
   const wheel = (delta: number) => { session.pointer.synchronize(); session.input({ kind: 'wheel', delta }); };
   const switchMode = (next: boolean) => { session.pointer.release(); setDirect(next); if (!next) panel.expand(); };
@@ -53,7 +56,8 @@ export function RemoteDesktop({ client, active, close }: {
       <KeyboardAvoidingView style={[s.workspace, orientation.landscape && s.landscape]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={s.stage} onLayout={({ nativeEvent }) => setSize(nativeEvent.layout)}>
-          {session.stream && <RTCView style={s.fill} objectFit="contain" zOrder={0}
+          {session.stream && <RTCView style={{ position: 'absolute', left: viewport.content.x, top: viewport.content.y,
+            width: viewport.content.width, height: viewport.content.height }} objectFit="contain" zOrder={0}
             streamURL={(session.stream as unknown as NativeMediaStream).toURL()}
             onDimensionsChange={({ nativeEvent }) => {
               if (nativeEvent.width > 0 && nativeEvent.height > 0) setSource(nativeEvent);

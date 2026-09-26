@@ -1,11 +1,11 @@
 export interface Point { x: number; y: number }
 export interface Size { width: number; height: number }
 export interface DesktopViewport { stage: Size; content: Size & Point }
-export const MOUSE_SIZE = { width: 144, height: 160 };
-export const MOUSE_PANEL_SIZE = { width: 176, height: 160 };
+export const MOUSE_SIZE = { width: 120, height: 136 };
+export const MOUSE_PANEL_SIZE = { width: MOUSE_SIZE.width + 32, height: MOUSE_SIZE.height };
 export const MOUSE_ICON_SIZE = { width: 40, height: 40 };
-export const CURSOR_SIZE = { width: 24, height: 32 };
-const PANEL_GAP = 28;
+export const CURSOR_SIZE = { width: 18, height: 24 };
+const PANEL_GAP = CURSOR_SIZE.width + 6;
 const EDGE_GAP = 8;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -26,17 +26,19 @@ export function desktopPoint(point: Point, { content }: DesktopViewport, clampOu
     y: clamp(y / Math.max(1, content.height - 1), 0, 1) };
 }
 
-/** Constrain controls only to the viewer, never to the remote image's rectangle. */
-export function mousePanelPosition(cursor: Point, stage: Size, panel: Size): Point {
-  let x = cursor.x + PANEL_GAP;
-  if (x + panel.width + EDGE_GAP > stage.width && cursor.x - PANEL_GAP - panel.width >= EDGE_GAP) {
-    x = cursor.x - PANEL_GAP - panel.width;
-  }
-  x = clamp(x, EDGE_GAP, stage.width - panel.width - EDGE_GAP);
-  let y = clamp(cursor.y, EDGE_GAP, stage.height - panel.height - EDGE_GAP);
-  if (cursor.x + CURSOR_SIZE.width > x && cursor.x < x + panel.width) {
-    const below = cursor.y + CURSOR_SIZE.height + EDGE_GAP;
-    y = below + panel.height + EDGE_GAP <= stage.height ? below : cursor.y - panel.height - EDGE_GAP;
-  }
-  return { x, y: clamp(y, EDGE_GAP, stage.height - panel.height - EDGE_GAP) };
+/** The panel stays to the right of the pointer; the viewport pans instead of reflowing controls. */
+export function mousePanelPosition(cursor: Point): Point {
+  return { x: cursor.x + PANEL_GAP, y: cursor.y };
+}
+
+/** Reveal the black canvas only when the pointer/controls would leave the viewer.
+ * Retaining the previous offset avoids recentering jumps on movement or idle collapse. */
+export function panDesktopViewport(viewport: DesktopViewport, point: Point, panel: Size, previous: Point) {
+  const cursor = cursorPosition(point, viewport);
+  const x = clamp(previous.x, EDGE_GAP - cursor.x,
+    viewport.stage.width - EDGE_GAP - cursor.x - PANEL_GAP - panel.width);
+  const y = clamp(previous.y, EDGE_GAP - cursor.y,
+    viewport.stage.height - EDGE_GAP - cursor.y - Math.max(CURSOR_SIZE.height, panel.height));
+  return { offset: { x, y }, viewport: { ...viewport,
+    content: { ...viewport.content, x: viewport.content.x + x, y: viewport.content.y + y } } };
 }

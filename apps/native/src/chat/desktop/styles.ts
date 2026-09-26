@@ -1,12 +1,12 @@
 import { StyleSheet } from 'react-native';
-import { CURSOR_SIZE, MOUSE_SIZE, MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE }
+import { CURSOR_SIZE, MOUSE_SIZE, MOUSE_ICON_SIZE }
   from '../../../../../shared/remote-desktop/geometry';
 
 export const desktopStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#080b12' },
   workspace: { flex: 1 },
   landscape: { flexDirection: 'row' },
-  stage: { flex: 1, overflow: 'hidden', minHeight: 100 },
+  stage: { flex: 1, backgroundColor: '#000', overflow: 'hidden', minHeight: 100 },
   fill: { ...StyleSheet.absoluteFillObject },
   toolbar: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
     backgroundColor: '#171c28', padding: 8, gap: 4 },
@@ -22,24 +22,26 @@ export const desktopStyles = StyleSheet.create({
   stats: { position: 'absolute', left: 10, top: 10, color: '#d9e4f4', fontSize: 11,
     backgroundColor: '#111827bb', padding: 5, borderRadius: 5 },
   cursor: { position: 'absolute', ...CURSOR_SIZE, zIndex: 2 },
-  mouseLayer: { position: 'absolute', ...MOUSE_PANEL_SIZE },
+  // Explicit image dimensions override Metro's 3x bitmap dimensions on both native platforms.
+  cursorImage: { ...CURSOR_SIZE },
+  mouseLayer: { position: 'absolute' },
   mouseIcon: { ...MOUSE_ICON_SIZE, borderRadius: 20, backgroundColor: '#30343be6',
     alignItems: 'center', justifyContent: 'center' },
-  mouseClose: { position: 'absolute', top: 0, left: 148, width: 28, height: 28, borderRadius: 14,
+  mouseClose: { position: 'absolute', top: 0, left: MOUSE_SIZE.width + 4, width: 28, height: 28, borderRadius: 14,
     backgroundColor: '#30343be6', alignItems: 'center', justifyContent: 'center' },
   mouse: { position: 'absolute', left: 0, top: 0, ...MOUSE_SIZE,
-    borderRadius: 49, borderWidth: 3, borderColor: '#94a4be', backgroundColor: '#dce9ffed', overflow: 'hidden' },
-  mouseTop: { flexDirection: 'row', height: 77 },
+    borderRadius: 40, borderWidth: 2, borderColor: '#94a4be', backgroundColor: '#dce9ffed', overflow: 'hidden' },
+  mouseTop: { flexDirection: 'row', height: 64 },
   mouseButton: { flex: 1, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2,
     borderColor: '#94a4be' },
   mouseRight: { borderLeftWidth: 2 },
   mouseText: { color: '#526684', fontSize: 11 },
   pressed: { backgroundColor: '#90baff' },
   pad: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 12 },
-  wheel: { position: 'absolute', top: 11, left: 52, width: 34, borderRadius: 15,
+  wheel: { position: 'absolute', top: 8, left: 44, width: 28, borderRadius: 15,
     borderWidth: 2, borderColor: '#8496b0', backgroundColor: '#e5eeff' },
-  wheelButton: { height: 23, alignItems: 'center', justifyContent: 'center' },
-  grip: { position: 'absolute', left: 51, top: 63, width: 36, height: 30, alignItems: 'center',
+  wheelButton: { height: 21, alignItems: 'center', justifyContent: 'center' },
+  grip: { position: 'absolute', left: 42, top: 52, width: 32, height: 28, alignItems: 'center',
     justifyContent: 'center', borderRadius: 12, borderWidth: 2, borderColor: '#8496b0', backgroundColor: '#e5eeff' },
   panel: { position: 'absolute', right: 8, top: 8, bottom: 8, width: '94%', maxWidth: 400,
     backgroundColor: '#202634f5', borderRadius: 16, padding: 16 },
