@@ -1,7 +1,10 @@
-.chat-tools-menu { display: grid; gap: 4px; min-width: 150px; max-width: min(400px, 90vw); }
+.chat-tools-menu { display: grid; gap: 4px; width: 160px; max-width: min(400px, calc(100vw - 48px)); }
 .chat-tools-menu button { display: flex; align-items: center; gap: 12px; border: 0; padding: 12px;
-  border-radius: 8px; background: transparent; color: #17211b; cursor: pointer; }
-.chat-tools-menu button:hover { background: #eef4f1; }
+  min-height: 44px; border-radius: 8px; background: transparent; color: #17211b; cursor: pointer;
+  text-align: left; overflow-wrap: anywhere; }
+.chat-tools-menu button svg { flex-shrink: 0; }
+.chat-tools-menu button:hover:not(:disabled) { background: #eef4f1; }
+.chat-tools-menu button:disabled { cursor: default; opacity: .4; }
 .chat-git { position: relative; display: flex; flex-direction: column; min-height: 0;
   width: 100%; color: #17211b; background: #fff; }
 .chat-git button { font: inherit; cursor: pointer; }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Popover } from 'antd';
 import { GitBranch, Monitor, SquareTerminal, Wrench } from 'lucide-react';
 import type { GuiToolsClient } from '../../../../shared/remote-chat/guiTools';
@@ -18,8 +18,9 @@ function ProjectTools({ client, ...props }: Props) {
   const [launchId, setLaunchId] = useState(0);
   const [git, setGit] = useState(false);
   const [desktop, setDesktop] = useState(false);
+  useEffect(() => { if (!props.active) setMenu(false); }, [props.active]);
   return <>
-    <Popover trigger="click" placement="bottomRight" open={menu && props.active} onOpenChange={setMenu}
+    <Popover trigger="click" placement="bottomRight" arrow={false} open={menu && props.active} onOpenChange={setMenu}
       content={<div className="chat-tools-menu">
         <button type="button" disabled={!props.connected}
           onClick={() => { setMenu(false); setDesktop(true); }}>
@@ -30,7 +31,8 @@ function ProjectTools({ client, ...props }: Props) {
         <button type="button" onClick={() => { setMenu(false); setGit(true); }}>
           <GitBranch size={20} />{t('Git')}</button>
       </div>}>
-      <button type="button" className="chat-terminal-toggle" aria-label={t('打开工具')} aria-expanded={menu}>
+      <button type="button" className="chat-terminal-toggle" aria-label={t('打开工具')}
+        aria-expanded={menu && props.active}>
         <Wrench size={22} /></button>
     </Popover>
     <ChatTerminal {...props} client={client.terminal} launchId={launchId} hideTrigger />
