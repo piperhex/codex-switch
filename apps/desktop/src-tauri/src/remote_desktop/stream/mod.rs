@@ -11,9 +11,13 @@ mod native;
 #[cfg(all(test, windows))]
 mod native_test;
 #[cfg(windows)]
+mod packets;
+#[cfg(windows)]
 mod peer;
 #[cfg(windows)]
 mod pump;
+#[cfg(windows)]
+mod sample;
 #[cfg(windows)]
 mod turn_transport;
 use super::{safe_error, DesktopError};

@@ -36,7 +36,7 @@ try {
       const response = await window.nativeRequest('/signal', { answer: answerSdp, candidates: pending.splice(0) });
       answerSdp = undefined;
       for (const candidate of response.candidates) await peer.addIceCandidate(candidate);
-      if (video.videoWidth > 0 && video.getVideoPlaybackQuality().totalVideoFrames >= 20) break;
+      if (video.videoWidth > 0 && video.getVideoPlaybackQuality().totalVideoFrames >= 1) break;
       await new Promise(resolve => setTimeout(resolve, 150));
     }
     const first = video.getVideoPlaybackQuality().totalVideoFrames;
@@ -52,6 +52,7 @@ try {
     clearInterval(timer); peer.close(); return sample;
   }, iceServers);
   console.log(JSON.stringify(result));
-  if (result.connected !== 'connected' || result.width === 0 || result.frames < 20) throw new Error('Native video failed');
+  // Idle desktops only send periodic recovery frames; a high frame count requires a moving source.
+  if (result.connected !== 'connected' || result.width === 0 || result.frames < 1) throw new Error('Native video failed');
   if (iceServers.length && result.candidateType !== 'relay') throw new Error('Native relay bypassed');
 } finally { await browser.close(); }

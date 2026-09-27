@@ -6,7 +6,6 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::mpsc;
-use webrtc::media::Sample;
 
 struct Progress {
     started: Instant,
@@ -136,20 +135,13 @@ async fn send_frame(stream: &Stream, data: Vec<u8>) -> Result<()> {
         *previous = now;
         elapsed
     };
-    let sample = Sample {
-        data: data.into(),
-        // Preserve capture timing on slower displays instead of synthesizing repeated frames.
-        duration,
-        ..Default::default()
-    };
     // A slow sender must not build an unbounded queue of stale desktop frames.
     tokio::time::timeout(
         Duration::from_millis(250),
-        stream.peer.video.write_sample(&sample),
+        super::sample::write_frame(&stream.peer.video, data, duration),
     )
     .await
     .map_err(|_| DesktopError::Platform)?
-    .map_err(|_| DesktopError::Platform)
 }
 
 async fn report(stream: &Stream, encoder: &Encoder, frames: u32, started: Instant) -> Result<()> {

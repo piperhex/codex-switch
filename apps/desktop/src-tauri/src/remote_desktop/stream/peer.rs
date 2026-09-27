@@ -66,7 +66,7 @@ pub(super) async fn create(mut servers: Vec<IceServer>) -> Result<Peer> {
     let video = Arc::new(TrackLocalStaticSample::new(
         RTCRtpCodecCapability {
             mime_type: MIME_TYPE_H264.into(),
-            clock_rate: 90_000,
+            clock_rate: super::sample::VIDEO_CLOCK_RATE,
             sdp_fmtp_line: "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
                 .into(),
             ..Default::default()

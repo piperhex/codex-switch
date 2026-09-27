@@ -1,5 +1,5 @@
 use super::super::{DesktopError, Result};
-use super::{annex_b::AccessUnits, model::Profile};
+use super::{annex_b::AccessUnits, model::Profile, packets::Packets};
 use std::{
     path::{Path, PathBuf},
     process::Stdio,
@@ -15,6 +15,8 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Clone, Copy)]
 enum Backend {
+    DirtyGpu,
+    DirtyGdi,
     Nvenc,
     MediaFoundation,
     Software,
@@ -34,6 +36,7 @@ pub(super) struct Encoder {
     child: Child,
     output: BufReader<ChildStdout>,
     units: AccessUnits,
+    packets: Option<Packets>,
     pub width: u32,
     pub height: u32,
     pub bitrate: u32,
@@ -43,12 +46,23 @@ impl Encoder {
     pub async fn open(path: &Path, profile: Profile) -> Result<(Self, Vec<u8>)> {
         let dimensions = dimensions(profile.width)?;
         for backend in [
+            Backend::DirtyGpu,
             Backend::Nvenc,
             Backend::MediaFoundation,
+            Backend::DirtyGdi,
             Backend::Software,
             Backend::GdiSoftware,
         ] {
-            let mut encoder = Self::spawn(path, profile, dimensions, backend)?;
+            // Opt-in device tests must prove the new path rather than silently passing via compatibility capture.
+            #[cfg(test)]
+            if std::env::var_os("CSW_NATIVE_TEST_REQUIRE_DAMAGE").is_some()
+                && !matches!(backend, Backend::DirtyGpu | Backend::DirtyGdi)
+            {
+                continue;
+            }
+            let Ok(mut encoder) = Self::spawn(path, profile, dimensions, backend) else {
+                continue;
+            };
             if let Ok(Ok(frame)) = tokio::time::timeout(START_TIMEOUT, encoder.next()).await {
                 return Ok((encoder, frame));
             }
@@ -58,7 +72,9 @@ impl Encoder {
     }
 
     fn spawn(path: &Path, profile: Profile, size: Display, backend: Backend) -> Result<Self> {
-        let mut command = Command::new(path);
+        let dirty = matches!(backend, Backend::DirtyGpu | Backend::DirtyGdi);
+        let helper = path.with_file_name("desktop-video.exe");
+        let mut command = Command::new(if dirty { &helper } else { path });
         command
             .args(arguments(profile, size, backend))
             .stdin(Stdio::null())
@@ -72,6 +88,7 @@ impl Encoder {
             child,
             output: BufReader::new(output),
             units: AccessUnits::default(),
+            packets: dirty.then(Packets::default),
             width: size.width,
             height: size.height,
             bitrate: profile.bitrate,
@@ -80,7 +97,11 @@ impl Encoder {
 
     pub async fn next(&mut self) -> Result<Vec<u8>> {
         loop {
-            if let Some(frame) = self.units.next() {
+            let next = match &mut self.packets {
+                Some(packets) => packets.next()?,
+                None => self.units.next(),
+            };
+            if let Some(frame) = next {
                 return Ok(frame);
             }
             let mut buffer = [0; 32 * 1024];
@@ -92,7 +113,10 @@ impl Encoder {
             if length == 0 {
                 return Err(DesktopError::Platform);
             }
-            self.units.push(&buffer[..length])?;
+            match &mut self.packets {
+                Some(packets) => packets.push(&buffer[..length])?,
+                None => self.units.push(&buffer[..length])?,
+            }
         }
     }
 
@@ -137,6 +161,21 @@ fn dimensions(limit: u32) -> Result<Display> {
 }
 
 fn arguments(profile: Profile, size: Display, backend: Backend) -> Vec<String> {
+    if matches!(backend, Backend::DirtyGpu | Backend::DirtyGdi) {
+        return vec![
+            size.width.to_string(),
+            size.height.to_string(),
+            profile.fps.to_string(),
+            profile.bitrate.to_string(),
+            size.monitor.to_string(),
+            if matches!(backend, Backend::DirtyGdi) {
+                "gdi"
+            } else {
+                "gpu"
+            }
+            .into(),
+        ];
+    }
     let (codec, options) = encoder_options(backend);
     let mut args: Vec<String> = ["-hide_banner", "-loglevel", "error", "-nostdin"]
         .into_iter()
@@ -246,7 +285,7 @@ fn encoder_options(backend: Backend) -> (&'static str, &'static [&'static str]) 
                 "baseline",
             ],
         ),
-        Backend::Software | Backend::GdiSoftware => (
+        Backend::DirtyGpu | Backend::DirtyGdi | Backend::Software | Backend::GdiSoftware => (
             "libopenh264",
             &[
                 "-rc_mode",

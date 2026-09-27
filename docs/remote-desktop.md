@@ -17,10 +17,25 @@ The viewer works on Android/iOS through `react-native-webrtc` and on Web through
   run on native WebRTC threads; `RTCView` renders through `SurfaceViewRenderer`. JavaScript receives only stream
   handles, low-frequency statistics and small control messages. It never receives video frames/base64 data.
   The sender prefers H.264 for Android's native hardware decoder and retains negotiated native software fallback.
-- Windows first uses Graphics Capture and native H.264/WebRTC, preferring NVENC then Media Foundation hardware
-  encoding. OpenH264 software encoding and native GDI capture cover machines without a usable GPU, including
-  Hyper-V enhanced sessions. Frames stay outside WebView IPC. A checksum-pinned LGPL shared FFmpeg runtime is
-  bundled by the desktop build script; licenses and source references accompany it.
+- Windows first uses the native `desktop-video` helper: Graphics Capture dirty rectangles gate GPU conversion
+  and H.264 encoding, preferring NVENC then Media Foundation. Complete `ReportOnly` surfaces preserve updates
+  when capture frames are coalesced. D3D11 scales/converts on the GPU without reading pixels through the CPU.
+  Hardware encoders use variable bitrate; unchanged frames do not enter conversion, encoding or transmission.
+- Native GDI/OpenH264 fallback uses exact BGRA row comparisons before color conversion/encoding. It still has
+  to capture/compare the desktop, but skips unchanged video frames without a perceptual threshold that could
+  miss tiny text edits. Machines without the new WGC API retain the existing FFmpeg hardware path before the
+  GDI fallback. Unsupported/missing helper runtimes retain the original compatibility backends.
+- A recovery frame is sent at most two seconds after the previous update, with periodic intra frames, so an
+  idle desktop can recover from packet loss. Damage stays pending across FPS throttling. The helper outputs
+  length-delimited access units with encoder buffering disabled; the final update does not wait for another
+  captured frame. Rust buffers incomplete pipe reads across polling cancellation. RTP timestamps advance
+  before a resumed frame, so idle time does not become playback delay on the following update.
+- This is capture-side damage gating plus standard H.264 inter-frame compression, not a rectangle-patch wire
+  protocol. Partial changes still produce a complete decodable video frame. Android/iOS native WebRTC and Web
+  viewers keep their existing receivers and hardware-decoder compatibility. FPS can fall close to zero when
+  idle without indicating a stalled connection. Frames remain outside WebView/JavaScript IPC.
+- A checksum-pinned LGPL shared FFmpeg runtime is bundled by the desktop build script; the helper dynamically
+  links its DLLs. Licenses, source references and helper rebuild instructions accompany it.
 - Native video uses bounded queues, NACK/RTCP feedback and periodic keyframes. It reduces bitrate after loss
   or insufficient reported capacity and probes upward after three healthy samples. Capture stops while ICE
   connects, then restarts to discard startup backlog. Frame selection preserves source timing instead of
@@ -64,6 +79,9 @@ additional monitors or change the host's display resolution.
 
 ## Verification
 
+The [damage-aware capture validation](remote-desktop-damage-validation-20260927.md) records controlled
+payload comparisons and the limits of this optimization.
+
 The [1.6.2 physical-device investigation](remote-desktop-investigation-20260926.md) records measured
 capture/playback limits, the missing media-relay path and references to mature open-source implementations.
 
@@ -75,8 +93,12 @@ npm run check -w @codex-switch/native
 npm run export:android -w @codex-switch/native
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch_lib_tests
 cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --tests -- -D warnings
+# Build the native helper and compare controlled idle/local/full-motion scenes through a real H.264 decoder:
+node scripts/test-desktop-damage.mjs
 # Interactive Windows capture -> native H.264/WebRTC -> real Edge decoder (opt-in):
+$env:CSW_NATIVE_TEST_REQUIRE_DAMAGE = '1'
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch_lib_tests native_capture_reaches_a_real_browser_decoder -- --ignored --nocapture
+Remove-Item Env:CSW_NATIVE_TEST_REQUIRE_DAMAGE
 ```
 
 The browser fixture substitutes only Tauri capture/input IPC; it exercises the production sender, receiver,
