@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { guiApi } from "./api";
 import { GuiController } from "./controller";
+import { threadGroups } from "./threadGroups";
 import type { GuiEvent, Thread } from "./types";
 
 vi.mock("./api", () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), subscribe: vi.fn() } }));
@@ -61,6 +62,20 @@ it("shows a new live thread before the list endpoint has indexed it", async () =
   expect(controller.getSnapshot().threads).toEqual([expect.objectContaining({
     id: thread.id, preview: "检查项目",
   })]);
+});
+
+it("keeps the list order through refresh so running chats return to their original position on completion", async () => {
+  const newer = { ...thread, id: "newer", updatedAt: 2 };
+  vi.mocked(guiApi.request).mockResolvedValueOnce({ data: [newer, thread], nextCursor: null });
+  await controller.refresh();
+  receiveFirstMessage();
+  vi.mocked(guiApi.request).mockResolvedValueOnce({ data: [newer, thread], nextCursor: null });
+  await controller.refresh();
+  expect(controller.getSnapshot().threads.map((entry) => entry.id)).toEqual(["newer", "one"]);
+  expect(threadGroups(controller.getSnapshot())[0].threads.map((entry) => entry.id)).toEqual(["one", "newer"]);
+  receive({ method: "turn/completed", params: { threadId: thread.id,
+    turn: { id: "turn", status: "completed", items: [] } } });
+  expect(threadGroups(controller.getSnapshot())[0].threads.map((entry) => entry.id)).toEqual(["newer", "one"]);
 });
 
 it.each([{ archived: true, search: "" }, { archived: false, search: "unrelated" }])(

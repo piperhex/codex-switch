@@ -1,4 +1,5 @@
 import type { Thread } from './client/types';
+import { prioritizeRunningThreads } from '../chat/threadOrder';
 
 export const SIDEBAR_EVENT = 'chat/sidebar/updated';
 export interface ThreadReadReceipt { turnId: string; unread: boolean }
@@ -35,5 +36,7 @@ export function projectThreadGroups(threads: Thread[], sidebar: SidebarSnapshot)
     group.data.push(thread);
     groups.set(cwd, group);
   }
-  return [...groups.values()];
+  return [...groups.values()].map(group => ({ ...group,
+    data: prioritizeRunningThreads(group.data, thread => threadPresentation(thread, sidebar).running),
+  }));
 }

@@ -7,6 +7,7 @@ import { GuiController } from "./controller";
 import { guiApi } from "./api";
 import { ThreadSidebar } from "./ThreadSidebar";
 import { initialState } from "./preferences";
+import { conversation } from "./events";
 import type { GuiState } from "./types";
 import styles from "./styles.module.less";
 
@@ -240,6 +241,34 @@ it("opens feature pages during a reply without creating or changing a conversati
   expect(onNavigate).toHaveBeenLastCalledWith("conversation-migration");
   expect(start).not.toHaveBeenCalled();
   expect(select).not.toHaveBeenCalled();
+});
+
+it.each(["D:/project", ""])("temporarily promotes running chats within %j before folding older rows", async (cwd) => {
+  state = { ...state, threads: Array.from({ length: 7 }, (_, index) => ({
+    id: `chat-${index}`, cwd, name: `聊天 ${index}`, preview: "", updatedAt: 7 - index,
+  })) };
+  const titles = () => [...container.querySelectorAll(`.${styles.threadTitle}`)].map((entry) => entry.textContent);
+  await render();
+  expect(titles()).toEqual(["聊天 0", "聊天 1", "聊天 2", "聊天 3", "聊天 4"]);
+  state = { ...state, pendingRequest: { threadId: "chat-6", startedAtMs: 1 } };
+  await render();
+  expect(titles()).toEqual(["聊天 6", "聊天 0", "聊天 1", "聊天 2", "聊天 3"]);
+  state = { ...state, pendingRequest: undefined, conversations: {
+    "chat-6": { ...conversation(state.threads[6]), activeTurn: "turn" },
+  } };
+  await render();
+  expect(titles()[0]).toBe("聊天 6");
+  state = { ...state, threads: state.threads.map((thread) => thread.id === "chat-5"
+    ? { ...thread, status: { type: "active" } } : thread) };
+  await render();
+  expect(titles()).toEqual(["聊天 5", "聊天 6", "聊天 0", "聊天 1", "聊天 2"]);
+  await act(async () => button("展开显示").click());
+  state = { ...state, conversations: {}, threads: state.threads.map((thread) => ({
+    ...thread, status: { type: "idle" },
+  })) };
+  await render();
+  expect(titles()).toEqual(Array.from({ length: 7 }, (_, index) => `聊天 ${index}`));
+  expect(state.threads.map((thread) => thread.id)).toEqual(Array.from({ length: 7 }, (_, index) => `chat-${index}`));
 });
 
 it("returns to the conversation when selecting the already selected thread from a feature page", async () => {

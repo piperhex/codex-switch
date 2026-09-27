@@ -7,6 +7,7 @@ import { ThreadGroup } from "./ThreadGroup";
 import { ThreadSearch } from "./ThreadSearch";
 import { useThreadGroupViews } from "./useThreadGroupViews";
 import { threadGroups } from "./threadGroups";
+import { isThreadRunning } from "./threadRunning";
 import { ProjectGroupMenu } from "./ProjectGroupMenu";
 import { ThreadStatus } from "./ThreadStatus";
 import { ThreadPagination } from "./ThreadPagination";
@@ -36,10 +37,9 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
     if (state.search) controller.filter("", state.archived);
   };
   const groups = useMemo(() => threadGroups(state),
-    [state.threads, state.pins, state.projects, state.pinnedProjects]);
+    [state.threads, state.pins, state.projects, state.pinnedProjects, state.conversations, state.pendingRequest]);
   const renderThread = (thread: Thread) => {
-    const running = Boolean(state.conversations[thread.id]?.activeTurn) || thread.status?.type === "active"
-      || state.pendingRequest?.threadId === thread.id;
+    const running = isThreadRunning(state, thread);
     const busy = state.sending || Boolean(state.deleting);
     const needsInput = state.approvals.some((event) => event.params.threadId === thread.id);
     const items = [
