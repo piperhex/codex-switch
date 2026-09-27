@@ -218,6 +218,24 @@ if the imported configuration specifies other locations. Reconnect after editing
 Recent folders, pins, and per-conversation project choices are UI preferences stored in the Switch WebView;
 message content stays in `.codex`. Scratch folders are excluded from project labels and recent folder choices.
 
+Third-party Provider model catalogs default to `use_responses_lite = false`, including OpenAI-type
+Providers that relay an upstream catalog. The compatibility default is reapplied on every model-list
+refresh. Official account catalogs keep their advertised capabilities. An explicit `model_catalog_json`
+in the GUI's own `config.toml` is preserved on reconnect; the initial import excludes the shared catalog
+because it can describe a different account. GUI startup overrides for SQLite, logs and features do not
+override this catalog. Users who have verified their Provider's Lite support can opt in through that
+explicit catalog. Existing customized generated catalogs also retain their Lite setting on refresh.
+
+Every outgoing Lite Responses request is checked for `reasoning.context = "all_turns"`, including resumed
+conversations and compaction. Missing or conflicting context is repaired without replacing the other
+reasoning options; malformed requests are rejected before transport or protocol fallback. The Lite
+header is retained because Lite also changes the input and tool structure. Diagnostics record the Lite
+flag, reasoning context and repair events without logging conversation text. If a gateway subsequently
+drops the context field, its request forwarding must also be corrected.
+
+Run `node scripts/codex-gui-responses-lite-smoke.mjs <installed-package>/bin/codex.exe` to check new turns,
+automatic compaction, restart/resume and extra app-server `-c` settings against a local fixture.
+
 ## Architecture
 
 The Rust `codex_gui` module runs the downloaded `codex app-server` using asynchronous stdio JSON-RPC.

@@ -73,8 +73,11 @@ fn send_official_request(
     body: &[u8],
     authentication: &OfficialRequestAuthentication,
 ) -> Result<UpstreamPayload, String> {
+    let body = responses_lite::prepare(method, upstream_url, headers, body.to_vec())
+        .map_err(|error| error.to_string())?;
     diagnostic_event(json!({
-        "event": "official_request_prepared", "request": diagnostic_request_options(body)
+        "event": "official_request_prepared", "request": diagnostic_request_options(&body),
+        "responsesLite": responses_lite::enabled(headers)
     }));
     let request_method = reqwest_method(method)?;
     let response = send_with_timeout_retries(
@@ -110,7 +113,7 @@ fn send_official_request(
         "Official Codex proxy request failed",
     )?;
     let mut payload = quota_sse::inspect_initial_official_sse(stream_response(response)?)?;
-    payload.token_usage_service_tier = forwarded_request_service_tier(body, headers);
+    payload.token_usage_service_tier = forwarded_request_service_tier(&body, headers);
     Ok(payload)
 }
 
@@ -180,6 +183,10 @@ fn forward_provider(
     let upstream_url = build_upstream_url(&provider.base_url, &upstream_endpoint);
     let body = enforce_provider_service_tier(body, headers, provider);
     let body = provider_body_for_upstream(method, &upstream_endpoint, body, provider);
+    diagnostic_event(json!({
+        "event": "provider_request_prepared", "request": diagnostic_request_options(&body),
+        "responsesLite": responses_lite::enabled(headers)
+    }));
     let request_method = reqwest_method(method)?;
     let response = send_with_timeout_retries(
         || {
@@ -195,6 +202,9 @@ fn forward_provider(
     )?;
     let mut payload = stream_response(response)?;
     payload.token_usage_service_tier = forwarded_request_service_tier(&body, headers);
+    if *method == Method::Get && matches!(request_path(&upstream_endpoint), "/models" | "/v1/models") {
+        return responses_lite::provider_catalog(payload);
+    }
     Ok(payload)
 }
 
@@ -205,6 +215,9 @@ fn forward_provider_request(
     body: Vec<u8>,
     provider: &ProviderProfile,
 ) -> Result<UpstreamPayload, String> {
+    // Validate before automatic API fallback so malformed Lite requests are never replayed as Chat.
+    let body = responses_lite::prepare(method, url, headers, body)
+        .map_err(|error| error.to_string())?;
     if provider.kind == ProviderKind::Custom
         && *method == Method::Post
         && is_response_create_endpoint(request_path(url))

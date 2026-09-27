@@ -629,6 +629,11 @@ fn openai_provider_models_request_is_forwarded_with_api_key() {
     }
     handle.join().unwrap();
 
+    let actual: Value = serde_json::from_slice(&actual).unwrap();
+    let mut expected: Value = serde_json::from_slice(&expected).unwrap();
+    for model in expected["models"].as_array_mut().unwrap() {
+        model["use_responses_lite"] = json!(false);
+    }
     assert_eq!(actual, expected);
 }
 

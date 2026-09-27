@@ -26,12 +26,13 @@ fn gui_provider_request_keeps_its_account_while_shared_switches_and_polling_cont
     };
     write_state(&paths, &shared).unwrap();
     let session_id = format!("gui-routing-{}", uuid::Uuid::new_v4());
-    let headers = vec![("thread-id".into(), session_id.clone())];
+    let mut headers = lite_test_headers();
+    headers.push(("thread-id".into(), session_id.clone()));
     let guard = begin_proxy_session_request(&headers, None, br#"{"input":"hello"}"#, None);
     let (received, incoming) = mpsc::channel();
     let (release, released) = mpsc::channel();
     let upstream = thread::spawn(move || {
-        let request = server
+        let mut request = server
             .recv_timeout(Duration::from_secs(5))
             .unwrap()
             .unwrap();
@@ -41,6 +42,8 @@ fn gui_provider_request_keeps_its_account_while_shared_switches_and_polling_cont
             .find(|header| header.field.equiv("Authorization"))
             .unwrap();
         assert_eq!(auth.value.as_str(), "Bearer gui-credential");
+        let body: Value = serde_json::from_reader(request.as_reader()).unwrap();
+        assert_eq!(body["reasoning"]["context"], "all_turns");
         received.send(()).unwrap();
         released.recv_timeout(Duration::from_secs(5)).unwrap();
         request

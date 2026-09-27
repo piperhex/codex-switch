@@ -8,6 +8,10 @@ use toml_edit::{value, DocumentMut};
 
 const GUI_PROVIDER_ID: &str = "codex-switch-gui";
 
+#[cfg(test)]
+#[path = "home_catalog_tests.rs"]
+mod catalog_tests;
+
 /// Older conversations can contain the shared provider; always resume them on the GUI route.
 pub(super) fn scope_thread_request(method: &str, params: &mut serde_json::Value) {
     if matches!(method, "thread/start" | "thread/resume" | "thread/fork") {
@@ -45,12 +49,22 @@ fn prepare_config(source: &Path, target: &Path, base_url: &str) -> Result<()> {
     // Import once; subsequent connections preserve edits made to the GUI's own configuration.
     let config = match read_optional(&target.join("config.toml"))? {
         Some(config) => config,
-        None => read_optional(&source.join("config.toml"))?.unwrap_or_default(),
+        None => imported_config(source)?,
     };
     let config = isolated_config(&config, target, base_url)?;
     crate::storage::write_text_if_changed(&target.join("config.toml"), &config)
         .map_err(|_| GuiError::Startup)?;
     Ok(())
+}
+
+fn imported_config(source: &Path) -> Result<String> {
+    let config = read_optional(&source.join("config.toml"))?.unwrap_or_default();
+    let mut document = config
+        .parse::<DocumentMut>()
+        .map_err(|_| GuiError::Startup)?;
+    // Only the initial import excludes another account's catalog. Explicit GUI edits persist.
+    document.remove("model_catalog_json");
+    Ok(document.to_string())
 }
 
 fn read_optional(path: &Path) -> Result<Option<String>> {
@@ -90,8 +104,6 @@ pub(super) fn prepare_title_home(gui_home: &Path, base_url: &str) -> Result<Path
 fn configure_gui_proxy(document: &mut DocumentMut, base_url: &str) -> Result<()> {
     use toml_edit::{Item, Table};
     document["model_provider"] = value(GUI_PROVIDER_ID);
-    // A shared catalog may describe a different account or fixed Provider model.
-    document.remove("model_catalog_json");
     let mut provider = Table::new();
     provider["name"] = value("Codex GUI");
     provider["base_url"] = value(base_url);

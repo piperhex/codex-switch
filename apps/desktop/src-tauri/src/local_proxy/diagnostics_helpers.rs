@@ -1,5 +1,6 @@
 fn diagnostic_header_summary(headers: &[(String, String)]) -> Value {
     json!({
+        "responsesLite": responses_lite::enabled(headers),
         "xClientRequestId": diagnostic_header_value(headers, "x-client-request-id"),
         "xCodexWindowId": diagnostic_header_value(headers, "x-codex-window-id"),
         "threadId": diagnostic_header_value(headers, "thread-id"),

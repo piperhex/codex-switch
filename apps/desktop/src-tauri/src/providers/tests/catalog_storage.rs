@@ -8,6 +8,7 @@ fn customized_catalog(provider: &ProviderProfile) -> Value {
     model["experimental_supported_tools"] = json!(["custom_tool"]);
     model["custom_capability"] = json!({ "enabled": true, "limit": null });
     model["supports_parallel_tool_calls"] = json!(true);
+    model["use_responses_lite"] = json!(true);
     catalog
 }
 
@@ -24,6 +25,7 @@ fn assert_custom_catalog_fields(model: &Value) {
         json!({ "enabled": true, "limit": null })
     );
     assert_eq!(model["supports_parallel_tool_calls"], true);
+    assert_eq!(model["use_responses_lite"], true);
 }
 
 #[test]

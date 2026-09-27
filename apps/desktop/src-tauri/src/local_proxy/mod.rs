@@ -26,6 +26,7 @@ mod lan_usage_capture;
 mod official_input;
 mod quota_detection;
 mod quota_sse;
+mod responses_lite;
 mod session_titles;
 pub(crate) mod sse_idle_timeout;
 mod sse_transport;
@@ -109,6 +110,7 @@ mod tests {
     include!("tests/service_tier_db.rs");
     include!("tests/service_tier_capture.rs");
     include!("tests/provider_service_tier.rs");
+    include!("tests/responses_lite.rs");
     include!("tests/token_usage_breakdown.rs");
     include!("tests/token_usage_responsiveness.rs");
     include!("tests/token_usage_capture.rs");

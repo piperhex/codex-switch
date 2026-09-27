@@ -164,6 +164,7 @@ fn diagnostic_request_options(body: &[u8]) -> Value {
         ("model", "/model"),
         ("serviceTier", "/service_tier"),
         ("reasoningEffort", "/reasoning/effort"),
+        ("reasoningContext", "/reasoning/context"),
     ] {
         if let Some(value) = value.pointer(pointer).and_then(Value::as_str) {
             result.insert(
