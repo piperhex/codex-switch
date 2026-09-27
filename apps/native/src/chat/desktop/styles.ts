@@ -27,8 +27,6 @@ export const desktopStyles = StyleSheet.create({
   mouseLayer: { position: 'absolute' },
   mouseIcon: { ...MOUSE_ICON_SIZE, borderRadius: 20, backgroundColor: '#30343be6',
     alignItems: 'center', justifyContent: 'center' },
-  mouseClose: { position: 'absolute', top: 0, left: MOUSE_SIZE.width + 4, width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#30343be6', alignItems: 'center', justifyContent: 'center' },
   mouse: { position: 'absolute', left: 0, top: 0, ...MOUSE_SIZE,
     borderRadius: 40, borderWidth: 2, borderColor: '#94a4be', backgroundColor: '#dce9ffed', overflow: 'hidden' },
   mouseTop: { flexDirection: 'row', height: 64 },

@@ -12,10 +12,9 @@
 .rd-cursor { position: absolute; object-fit: contain; pointer-events: none; z-index: 2; }
 .rd-mouse-layer { position: absolute; pointer-events: none; }
 .rd-mouse-layer > * { pointer-events: auto; }
-.rd-mouse-icon, .rd-mouse-close { display: flex; align-items: center; justify-content: center;
+.rd-mouse-icon { display: flex; align-items: center; justify-content: center;
   background: #30343be6; color: white; border-radius: 50%; }
 .rd-mouse-icon { width: 40px; height: 40px; }
-.rd-mouse-close { position: absolute; top: 0; left: 124px; width: 28px; height: 28px; }
 .rd-toolbar { width: 88px; display: flex; flex-direction: column; align-items: stretch; justify-content: space-around;
   gap: 6px; background: #171c28; padding: 8px; }
 .rd-toolbar button { display: flex; flex-direction: column; align-items: center; gap: 7px; background: transparent;

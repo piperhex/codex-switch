@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const MOUSE_IDLE_DELAY = 4000;
 export interface MousePanelActivity {
-  expanded: boolean; expand: () => void; collapse: () => void;
+  expanded: boolean; expand: () => void;
   activity: () => void; hold: (key: string, down: boolean) => void;
 }
 
@@ -21,11 +21,10 @@ export function useMousePanel(enabled: boolean): MousePanelActivity {
     activity();
   }, [activity]);
   const expand = useCallback(() => { setExpanded(true); activity(); }, [activity]);
-  const collapse = useCallback(() => { if (!busy.current.size) setExpanded(false); }, []);
   useEffect(() => {
     active.current = enabled; busy.current.clear();
     setExpanded(true); activity();
     return () => { active.current = false; clearTimeout(timer.current); busy.current.clear(); };
   }, [enabled, activity]);
-  return { expanded, expand, collapse, activity, hold };
+  return { expanded, expand, activity, hold };
 }

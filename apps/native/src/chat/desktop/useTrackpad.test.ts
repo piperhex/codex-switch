@@ -11,7 +11,7 @@ const event = (x: number, y: number) => ({ nativeEvent: { locationX: x, location
 const gesture = (dx = 0, dy = 0) => ({ dx, dy } as PanResponderGestureState);
 function setup(direct = false) {
   const send = vi.fn(); const pointer = new DesktopPointer(send);
-  const panel = { expanded: true, expand: vi.fn(), collapse: vi.fn(), activity: vi.fn(), hold: vi.fn() };
+  const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
   const viewport = desktopViewport({ width: 400, height: 800 }, { width: 1600, height: 900 });
   useTrackpad({ pointer, viewport, panel, direct, id: 'stage' });
   return { send, pointer, panel, handlers: vi.mocked(PanResponder.create).mock.calls.at(-1)![0] };

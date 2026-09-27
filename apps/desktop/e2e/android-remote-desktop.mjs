@@ -93,7 +93,7 @@ try {
     }, 'pointer reaches bottom-right');
     if (await hasText('展开鼠标面板')) await tap('展开鼠标面板');
     const controls = await nodes();
-    for (const label of ['鼠标左键', '鼠标右键', '收起鼠标面板', '滑动移动鼠标，轻点单击']) {
+    for (const label of ['鼠标左键', '鼠标右键', '向下滚动', '滑动移动鼠标，轻点单击']) {
       const control = controls.find(node => node['content-desc'] === label);
       assert(control, label);
       assert(control.rect[0] >= left && control.rect[1] >= top, label);

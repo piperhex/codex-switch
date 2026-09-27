@@ -34,7 +34,7 @@ afterEach(() => {
 it('renders the native local pointer and small controls over black letterboxing, then a tappable idle icon', () => {
   const pointer = new DesktopPointer(vi.fn()); pointer.absolute(0.4, 1);
   const viewport = desktopViewport({ width: 400, height: 800 }, { width: 1600, height: 900 });
-  const panel = { expanded: true, expand: vi.fn(), collapse: vi.fn(), activity: vi.fn(), hold: vi.fn() };
+  const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
   const render = () => nodes(DesktopMouse({ pointer, viewport, panel, visible: true, wheel: vi.fn() }));
   const elements = render();
   const cursor = elements.find(node => node.props.pointerEvents === 'none')!;
@@ -42,7 +42,7 @@ it('renders the native local pointer and small controls over black letterboxing,
   expect(cursor.props.style?.[1].top).toBe(511.5);
   const controls = elements.find(node => node.props.pointerEvents === 'box-none')!;
   const style = Object.assign({}, ...controls.props.style!);
-  expect(style.width).toBe(152); expect(style.height).toBe(136);
+  expect(style.width).toBe(120); expect(style.height).toBe(136);
   expect(style.left).toBeCloseTo(159.6 + 24); expect(style.top).toBe(511.5);
   const image = elements.find(node => node.type === Image)!;
   // RN prepends the asset's 72 × 96 dimensions; the Image itself must override them.
@@ -62,7 +62,7 @@ it('renders the native local pointer and small controls over black letterboxing,
 
 it('keeps the native cursor and panel offset together at the screen edges', () => {
   const pointer = new DesktopPointer(vi.fn());
-  const panel = { expanded: true, expand: vi.fn(), collapse: vi.fn(), activity: vi.fn(), hold: vi.fn() };
+  const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
   for (const stage of [{ width: 390, height: 750 }, { width: 774, height: 390 }]) {
     const viewport = desktopViewport(stage, { width: 1600, height: 900 });
     for (const point of [{ x: 0, y: 0 }, { x: 0.7, y: 0.8 }, { x: 1, y: 1 }]) {

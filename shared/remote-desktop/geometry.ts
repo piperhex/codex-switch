@@ -2,7 +2,7 @@ export interface Point { x: number; y: number }
 export interface Size { width: number; height: number }
 export interface DesktopViewport { stage: Size; content: Size & Point }
 export const MOUSE_SIZE = { width: 120, height: 136 };
-export const MOUSE_PANEL_SIZE = { width: MOUSE_SIZE.width + 32, height: MOUSE_SIZE.height };
+export const MOUSE_PANEL_SIZE = MOUSE_SIZE;
 export const MOUSE_ICON_SIZE = { width: 40, height: 40 };
 export const CURSOR_SIZE = { width: 18, height: 24 };
 const PANEL_GAP = CURSOR_SIZE.width + 6;

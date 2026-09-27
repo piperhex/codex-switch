@@ -26,7 +26,7 @@ it('collapses after idle, reopens on demand and restarts the timer after activit
 it('keeps a long press and multi-finger drag visible until every hold is released', () => {
   act(() => { panel.hold('left', true); panel.hold('pad', true); panel.hold('drag', true); });
   advance(12_000); expect(panel.expanded).toBe(true);
-  act(() => { panel.hold('left', false); panel.hold('pad', false); panel.collapse(); });
+  act(() => { panel.hold('left', false); panel.hold('pad', false); });
   advance(); expect(panel.expanded).toBe(true);
   act(() => panel.hold('drag', false)); advance(); expect(panel.expanded).toBe(false);
 });
