@@ -7,6 +7,9 @@ import { initialState } from './preferences';
 import type { Thread } from './types';
 
 vi.mock('./api', () => ({ guiApi: { request: vi.fn() } }));
+vi.mock('../../api/cloudTitleSettings', () => ({ fetchCloudTitleSettings: async () => {
+  throw new Error('offline');
+} }));
 const thread: Thread = { id: 'one', cwd: '', preview: '原始消息', updatedAt: 1, turns: [] };
 const receive = vi.fn();
 const host = { active: () => true, currentName: () => undefined, receive };

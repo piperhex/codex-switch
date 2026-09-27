@@ -18,6 +18,9 @@ function mergeItems(previous: Item[], incoming: Item[]) {
 
 export function updateThread(thread: Thread, event: GuiEvent): Thread {
   const { params, method } = event;
+  if (method === 'thread/name/updated' && params.threadName !== undefined) {
+    return { ...thread, name: params.threadName };
+  }
   if (method === 'thread/tokenUsage/updated' && params.tokenUsage) {
     return { ...thread, tokenUsage: params.tokenUsage };
   }
@@ -72,6 +75,9 @@ function reduceChatEvent(state: ChatState, event: GuiEvent): ChatState {
     return { ...state, goals: { ...state.goals, [threadId]: params.goal ?? null } };
   }
   let threads = state.threads;
+  if (method === 'thread/name/updated' && threadId) {
+    threads = threads.map((thread) => thread.id === threadId ? updateThread(thread, event) : thread);
+  }
   if (method === 'thread/started' && params.thread) {
     threads = [params.thread, ...threads.filter((thread) => thread.id !== params.thread!.id)];
   }

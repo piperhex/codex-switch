@@ -1,7 +1,7 @@
 import { fetchCloudTitleSettings } from '../../api/cloudTitleSettings';
 import { DEFAULT_TITLE_SETTINGS, type TitleSettings } from '../../../../../shared/chat/titleSettings';
 
-/** One fetch per tab activation; generation waits for this fetch, never the conversation itself. */
+/** Fetch on activation or remote connection, and lazily for sends before either UI has opened. */
 export class GuiTitleSettings {
   private settings = { ...DEFAULT_TITLE_SETTINGS };
   private generation = 0;
@@ -19,6 +19,7 @@ export class GuiTitleSettings {
   };
 
   async snapshot(): Promise<TitleSettings> {
+    if (this.generation === 0) void this.refresh();
     while (this.pending) await this.pending;
     return { ...this.settings };
   }

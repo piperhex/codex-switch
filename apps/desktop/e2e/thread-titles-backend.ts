@@ -13,11 +13,14 @@ export function titleBackend(settingsStatus = 200) {
   const notify = (payload: GuiEvent) => events.push({ name: 'codex-gui-event', payload });
   async function request(input: Record<string, unknown>) {
     const id = String(input.threadId);
-    if (input.operation === 'models') return { data: [], nextCursor: null };
+    if (input.operation === 'models') return { data: [{ id: 'chat-model', model: 'chat-model',
+      displayName: 'Chat Model', isDefault: true, defaultReasoningEffort: 'low',
+      supportedReasoningEfforts: [{ reasoningEffort: 'low', description: 'Low' }] }], nextCursor: null };
     if (input.operation === 'list') return { data: [...threads.values()], nextCursor: null };
     if (input.operation === 'start') {
       const thread: Thread = { id: `thread-${++sequence}`, cwd: '', preview: '', updatedAt: sequence, turns: [] };
       threads.set(thread.id, thread);
+      notify({ method: 'thread/started', params: { thread } });
       return { thread };
     }
     const thread = threads.get(id)!;
@@ -25,6 +28,7 @@ export function titleBackend(settingsStatus = 200) {
     if (input.operation === 'send') {
       thread.preview = String(input.text);
       const turn = { id: `turn-${id}`, status: 'inProgress', items: [] };
+      thread.turns = [turn];
       notify({ method: 'turn/started', params: { threadId: id, turn } });
       notify({ method: 'item/completed', params: { threadId: id, turnId: turn.id,
         item: { id: `question-${id}`, type: 'userMessage', content: [{ type: 'text', text: thread.preview }] } } });
@@ -50,9 +54,17 @@ export function titleBackend(settingsStatus = 200) {
     await context.route('**/__codex_switch__/api/invoke', async (route) => {
       const { command, args = {} } = route.request().postDataJSON();
       let result: unknown = {};
+      if (command === 'fetch_cloud_title_settings') {
+        settingsReads += 1;
+        if (settingsStatus !== 200) return route.fulfill({ json: { ok: false, error: 'Title settings unavailable' } });
+        result = settings;
+      }
       if (command === 'get_cloud_auth_state') result = { baseUrl: 'https://title-config.test' };
       if (command === 'codex_gui_connect') result = [];
       if (command === 'codex_gui_model_settings') result = { threadId: args.threadId ?? null, selection: null, revision: 0 };
+      if (command === 'codex_gui_set_model_settings') result = {
+        threadId: args.threadId ?? null, selection: args.selection, revision: 1,
+      };
       if (command === 'codex_gui_request') result = { data: await request(args.request) };
       if (command === 'codex_gui_events') result = { cursor: { streamId: 'test', sequence: events.length },
         reset: false, events: args.cursor ? events.slice(args.cursor.sequence) : [] };

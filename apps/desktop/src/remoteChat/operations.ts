@@ -33,6 +33,7 @@ import { remoteTerminals, type RemoteTerminals } from './terminals';
 import { deleteRemoteThread } from './threadActions';
 import { RemoteDesktopHost } from '../remoteDesktop/host';
 import { DESKTOP_OPERATION } from '../../../../shared/remote-desktop/protocol';
+import { RemoteThreadTitles } from './threadTitles';
 
 const OPERATIONS = new Set([
   'downloadOpen', 'downloadBrowse',
@@ -82,6 +83,7 @@ export class ChatOperations {
   private readonly cache = new Map<string, Cached>();
   private readonly images = new RemoteImages();
   private readonly liveHistory = new LiveHistory();
+  private readonly titles = new RemoteThreadTitles();
 
   execute(request: RpcRequest, mode: ConnectionMode = 'relay', owner = 'default', terminalOwner = owner)
     : Promise<RpcResponse> {
@@ -115,6 +117,7 @@ export class ChatOperations {
 
   release(owner?: string) {
     this.desktop.release(owner);
+    if (owner === undefined) this.titles.clear();
     for (const key of this.cache.keys()) {
       if (owner === undefined || (JSON.parse(key) as string[])[0] === owner) this.cache.delete(key);
     }
@@ -186,6 +189,7 @@ export class ChatOperations {
       body.maxBytes = videoByteLimit(mode);
     }
     const result = await guiApi.request(body as unknown as Request);
+    this.titles.completed(body, result);
     if (body.operation === 'skills') return composerCatalog(result as SkillsResponse, body);
     if (body.operation === 'list') {
       const list = result as ListResponse<Thread>;
@@ -200,6 +204,7 @@ export class ChatOperations {
     validateChatHandshake(body);
     try {
       const approvals = await guiApi.connect({ reuseExisting: true });
+      this.titles.refreshSettings();
       return body === undefined ? approvals : { ...chatHandshake, approvals };
     } catch (error) { throw new Error(guiConnectionError(error)); }
   }

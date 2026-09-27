@@ -10,6 +10,7 @@ interface QueueHost {
   patch: (patch: Partial<GuiState>) => void;
   report: (error: unknown) => void;
   acceptTurn: (threadId: string, turn: Turn) => void;
+  generateTitle?: (thread: Thread, prompt: string) => Promise<void>;
 }
 
 export class MessageQueue {
@@ -99,6 +100,7 @@ export class MessageQueue {
     let sent = false;
     try {
       if (!await this.resume(threadId, messages[0])) return;
+      const thread = this.host.getSnapshot().conversations[threadId]?.thread;
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "sendBatch", threadId,
         messages: messages.map(({ text, images, skills, attachments, transferMode }) => ({ text, images, skills,
           ...(transferMode ? { transferMode } : {}),
@@ -106,6 +108,7 @@ export class MessageQueue {
         model: messages[0].model || undefined, effort: messages[0].effort || undefined, access: messages[0].access });
       this.host.acceptTurn(threadId, turn);
       this.completeSend(threadId, turn.id, messages, 0);
+      if (thread) void this.host.generateTitle?.(thread, messages.map((message) => message.text).join('\n'));
       sent = true;
     } catch (error) { this.fail(threadId, ids, error); }
     finally { this.pending.delete(threadId); this.markBusy(threadId, ids, false); }

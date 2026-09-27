@@ -62,6 +62,15 @@ it('keeps a newer running notification ahead of a stale list response', () => {
   expect(bridge.observe([{ ...thread, status: { type: 'idle' } }], version).threads.one.running).toBe(true);
 });
 
+it('publishes background title notifications and keeps them ahead of a stale list response', () => {
+  const bridge = new SidebarBridge();
+  bridge.observe([thread]);
+  const version = bridge.version();
+  bridge.receive({ method: 'thread/name/updated', params: { threadId: thread.id, threadName: '手机新标题' } });
+  expect(bridge.snapshot().threads.one.title).toBe('手机新标题');
+  expect(bridge.observe([thread], version).threads.one.title).toBe('手机新标题');
+});
+
 it('groups by full project path, including overrides, and leaves projectless chats together', () => {
   const state = initialState();
   state.projectOverrides.one = '';

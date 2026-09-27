@@ -67,6 +67,7 @@ export class GuiController {
   readonly readState = new GuiReadState({ getSnapshot: this.getSnapshot, patch: this.patch });
   readonly queue = new MessageQueue({ getSnapshot: this.getSnapshot, patch: this.patch,
     active: () => !this.disposed, report: this.report,
+    generateTitle: (thread, prompt) => this.titles.generate(thread, prompt),
     acceptTurn: (threadId, turn) => this.acceptTurn(threadId, turn) });
   readonly modelSettings = new ThreadModelSettings({ getSnapshot: this.getSnapshot, patch: this.patch,
     updateQueue: (threadId, selection) => this.queue.updateSettings(threadId, selection), report: this.report });

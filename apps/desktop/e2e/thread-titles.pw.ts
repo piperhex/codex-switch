@@ -1,6 +1,29 @@
 import { test, expect } from '@playwright/test';
 import { titleBackend } from './thread-titles-backend';
 
+for (const width of [390, 1280]) {
+  test(`remote chat generates configured titles with the PC chat closed at ${width}px`, async ({ page }) => {
+    const backend = titleBackend();
+    await backend.attach(page.context());
+    await page.setViewportSize({ width, height: 844 });
+    try {
+      await page.goto('/e2e/remote-titles-harness.html');
+      await page.getByRole('textbox', { name: '聊天消息' }).fill('检查手机发出的聊天为什么没有生成标题');
+      await page.getByRole('button', { name: '发送', exact: true }).click();
+      await expect.poll(() => backend.titleRequests.length).toBe(1);
+      expect(backend.titleRequests[0].settings).toEqual({ model: 'admin-title-model', effort: 'medium' });
+      await expect(page.getByRole('status', { name: '回复状态' })).toHaveText('正在回复');
+      const beats = Number(await page.getByLabel('刷新次数').textContent());
+      await page.getByRole('textbox', { name: '聊天消息' }).fill('等待标题期间仍能输入');
+      await expect.poll(async () => Number(await page.getByLabel('刷新次数').textContent())).toBeGreaterThan(beats);
+      backend.finish('手机聊天标题修复');
+      await expect(page.getByRole('button', { name: '手机聊天标题修复' })).toBeVisible();
+      await expect(page.getByRole('alert')).toHaveCount(0);
+      expect(backend.reads()).toBe(1);
+    } finally { backend.release(); }
+  });
+}
+
 test('an older admin server still generates titles with Luna while chat and polling stay responsive', async ({ page }) => {
   const backend = titleBackend(404);
   await backend.attach(page.context());

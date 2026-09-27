@@ -10,6 +10,9 @@ import { updateThread } from '../../../../shared/remote-chat/client/events';
 vi.mock('../pages/codexGui/api', () => ({ guiApi: {
   connect: vi.fn(), request: vi.fn(), subscribe: vi.fn(),
 } }));
+vi.mock('../api/cloudTitleSettings', () => ({ fetchCloudTitleSettings: async () => ({
+  model: 'queue-title-model', effort: 'low',
+}) }));
 let controller: GuiController;
 let queue: RemoteQueue;
 let receive: (event: GuiEvent) => void;
@@ -32,6 +35,14 @@ beforeEach(async () => {
   await controller.connect();
 });
 afterEach(() => controller.dispose());
+
+it('generates a title when the first successful phone message goes through the queue', async () => {
+  thread.turns = [];
+  await queue.request(input);
+  await vi.waitFor(() => expect(guiApi.request).toHaveBeenCalledWith({ operation: 'generateTitle',
+    threadId: thread.id, prompt: input.text, settings: { model: 'queue-title-model', effort: 'low' } }));
+  expect(queue.read().threads.phone).toBeUndefined();
+});
 
 it('keeps P2P upload provenance through queuing and rejects a forged Relay exemption', async () => {
   const attachment = { kind: 'file', name: 'large.txt', path: '', data: 'YWFh'.repeat(1024 * 1024) };

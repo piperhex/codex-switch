@@ -78,6 +78,10 @@ export class SidebarBridge {
     const { threadId, thread, turn } = event.params;
     if (event.method === 'thread/started' && thread) this.known.set(thread.id, thread);
     else if (event.method === 'thread/deleted' && threadId) this.known.delete(threadId);
+    else if (event.method === 'thread/name/updated' && threadId && event.params.threadName !== undefined) {
+      const known = this.known.get(threadId);
+      if (known) this.known.set(threadId, { ...known, name: event.params.threadName });
+    }
     else if (threadId && turn && ['turn/started', 'turn/completed'].includes(event.method)) {
       const known = this.known.get(threadId);
       if (known) this.known.set(threadId, { ...known,
