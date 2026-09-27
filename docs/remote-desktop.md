@@ -4,6 +4,26 @@ The phone and Web chat toolbox opens the selected computer's remote desktop. The
 supports the primary Windows display. macOS/Linux hosts return an explicit unsupported-platform message.
 The viewer works on Android/iOS through `react-native-webrtc` and on Web through the browser's WebRTC engine.
 
+## iPhone and iPad
+
+Open the connected computer's chat toolbox and choose remote desktop in an installed native iOS build.
+The native receiver uses libwebrtc and `RTCMTLVideoView`; it does not request camera or microphone access.
+The local-network permission description covers chat and desktop connections. The transport Expo plugin must
+be registered before WebRTC's permission plugin because Info.plist mods execute in reverse order; otherwise
+the WebRTC plugin restores the unused microphone permission. The generated configuration is regression tested.
+See Apple's [local network privacy guidance](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
+
+The full-screen native viewer supports portrait and both landscape orientations, preserving the home-indicator
+safe area on iPhone and iPad. Web also preserves the bottom safe area in landscape, fits text and display
+settings to the visual keyboard viewport, and only offers browser fullscreen when the browser supports it.
+Remote video continues to play inline, so its mouse and keyboard controls remain accessible.
+
+`npm run export:ios -w @codex-switch/native` checks the iOS production JavaScript bundle on any development host.
+The release workflow builds the native iOS app on macOS. The Web desktop Playwright suite includes iPhone and
+iPad WebKit layout tests; Windows WebKit does not provide WebRTC, so those tests deliberately hold signaling
+pending. Chromium tests separately exercise real video/control transport. These checks do not replace an
+iOS device check of H.264 playback, local-network permission, rotation, keyboard and background/resume behavior.
+
 ## Media and threading
 
 - The existing authenticated, end-to-end encrypted chat connection carries offer/answer, ICE and display settings.

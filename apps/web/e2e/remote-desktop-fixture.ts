@@ -63,6 +63,10 @@ if (window.desktopRelayFixture) {
 const host = new RemoteDesktopHost(); host.register('fixture', window.desktopRelayFixture?.iceServers ?? []);
 export async function desktopRequest<T>(body: object): Promise<T> {
   const request = body as { action: string; settings?: DesktopSettings };
+  // Windows WebKit has no WebRTC. Its layout tests hold signaling while Chromium tests real media separately.
+  if (request.action === 'open' && new URLSearchParams(location.search).has('layout-only')) {
+    return new Promise<T>(() => {});
+  }
   if (request.settings) desktopTest.settings.push(request.settings);
   try { return await host.request(body, 'fixture') as T; }
   catch (error) { desktopTest.errors.push(String(error)); throw error; }

@@ -26,7 +26,7 @@ export function RemoteDesktop({ client, active, close }: {
   const session = useDesktopSession({ client, active: active && visible, createPeer });
   const [display, setDisplay] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
-  const keyboardViewport = useKeyboardViewport(keyboard);
+  const keyboardViewport = useKeyboardViewport(keyboard || display);
   const [direct, setDirect] = useState(false);
   const [statsVisible, setStatsVisible] = useState(true);
   const panelVisible = !direct && !display && !keyboard;
@@ -96,7 +96,7 @@ export function RemoteDesktop({ client, active, close }: {
       <button onClick={() => session.input({ kind: 'key', key: 'windows' })}><Grid2X2 /><span>{t('所有窗口')}</span></button>
       <button aria-pressed={display} onClick={() => { setDisplay(!display); setKeyboard(false); }}>
         <Settings2 /><span>{t('显示')}</span></button>
-      <button onClick={fullscreen}><Maximize /><span>{t('全屏')}</span></button>
+      {document.fullscreenEnabled && <button onClick={fullscreen}><Maximize /><span>{t('全屏')}</span></button>}
       <button onClick={close}><X /><span>{t('关闭')}</span></button>
     </nav>
   </div>, document.body);

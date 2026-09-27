@@ -3,7 +3,7 @@
     env(safe-area-inset-bottom) env(safe-area-inset-left); outline: none; }
 .rd-root * { box-sizing: border-box; }
 @media (orientation: landscape) {
-  .rd-root { padding-top: 0; padding-bottom: 0; }
+  .rd-root { padding-top: 0; }
 }
 .rd-root button { color: inherit; font: inherit; cursor: pointer; border: 0; }
 .rd-root button:focus-visible { outline: 2px solid #88b5ff; outline-offset: -2px; }
@@ -55,7 +55,8 @@
 .rd-options, .rd-custom { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .rd-settings p { margin: 20px 0 12px; }
 .rd-settings small { display: block; color: #aebad0; line-height: 1.7; }
-.rd-root input { background: #111827; border: 1px solid #5a6981; border-radius: 9px; padding: 10px; color: white; min-width: 0; }
+.rd-root input { background: #111827; border: 1px solid #5a6981; border-radius: 9px; padding: 10px; color: white;
+  min-width: 0; font-size: 16px; }
 .rd-custom input { width: 80px; }
 .rd-keyboard { position: absolute; left: 8px; bottom: 8px; width: min(400px, calc(100% - 16px));
   background: #202634; padding: 12px; border-radius: 12px; display: grid; gap: 10px;
@@ -67,7 +68,7 @@
 @media (orientation: landscape) and (max-height: 450px) {
   .rd-keyboard { padding: 6px; gap: 4px; bottom: 4px; }
   .rd-keyboard button { padding: 6px 10px; font-size: 14px; }
-  .rd-keyboard input { padding: 4px 10px; height: 36px; font-size: 14px; }
+  .rd-keyboard input { padding: 4px 10px; height: 36px; }
 }
 @media (orientation: portrait) and (max-width: 700px) {
   .rd-root { flex-direction: column; }

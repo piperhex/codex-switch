@@ -50,6 +50,7 @@
     },
     "plugins": [
       "expo-secure-store",
+      "./plugins/withChatTransport.cjs",
       [
         "@config-plugins/react-native-webrtc",
         {
@@ -77,7 +78,6 @@
       "./plugins/withChatTextSelection.cjs",
       "./plugins/withChatScroll.cjs",
       "./plugins/withDesktopWindow.cjs",
-      "./plugins/withChatTransport.cjs",
       "./plugins/withChatPacketCipher.cjs",
       "./plugins/withChatHistoryWorker.cjs",
       "./plugins/withAppUpdate.cjs",

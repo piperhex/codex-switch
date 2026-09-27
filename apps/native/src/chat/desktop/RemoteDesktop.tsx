@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { RTCPeerConnection, RTCView, type MediaStream as NativeMediaStream } from 'react-native-webrtc';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -19,7 +19,7 @@ import { DesktopStats } from './DesktopStats';
 import { useDesktopWindow } from './useDesktopWindow';
 import { desktopStyles as s } from './styles';
 
-// Native WebRTC owns SRTP decryption, jitter buffering, video decoding and SurfaceView rendering.
+// Native WebRTC owns decryption and decoding; Android uses SurfaceView and iOS uses Metal rendering.
 // No video frames, image strings or media ciphertext cross the React Native JavaScript bridge.
 const createPeer = (configuration: RTCConfiguration) =>
   new RTCPeerConnection({ iceServers: configuration.iceServers }) as unknown as globalThis.RTCPeerConnection;
@@ -45,6 +45,10 @@ export function RemoteDesktop({ client, active, close }: {
   const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage', zoom: zoom.gestures });
   const wheel = (delta: number) => { session.pointer.synchronize(); session.input({ kind: 'wheel', delta }); };
   const switchMode = (next: boolean) => { session.pointer.release(); setDirect(next); if (!next) panel.expand(); };
+  const safeEdges: Edge[] = ['left', 'right'];
+  if (!orientation.landscape) safeEdges.push('top');
+  // Android hides its navigation bar; iOS keeps the home indicator visible in landscape.
+  if (!orientation.landscape || Platform.OS === 'ios') safeEdges.push('bottom');
   const tools: { label: string; action?: string; icon: keyof typeof Ionicons.glyphMap | 'mouse';
     run: () => void; selected?: boolean }[] = [
     { label: direct ? '触屏' : '鼠标', action: direct ? '切换为鼠标模式' : '切换为触屏模式',
@@ -63,9 +67,8 @@ export function RemoteDesktop({ client, active, close }: {
         : <Ionicons name={tool.icon} size={22} color="#e7edf8" />}<Text style={s.label}>{tool.label}</Text>
     </Pressable>);
   return <Modal visible={active} onRequestClose={close} hardwareAccelerated statusBarTranslucent navigationBarTranslucent
-    supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
-    <SafeAreaProvider><SafeAreaView style={s.root}
-      edges={orientation.landscape ? ['left', 'right'] : ['top', 'right', 'bottom', 'left']}>
+    presentationStyle="fullScreen" supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
+    <SafeAreaProvider><SafeAreaView style={s.root} edges={safeEdges}>
       <StatusBar style="light" hidden={orientation.landscape} />
       <KeyboardAvoidingView style={[s.workspace, orientation.landscape && s.landscape]} behavior="padding"
         enabled={keyboard || display}>
