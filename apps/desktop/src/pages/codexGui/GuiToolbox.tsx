@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Button, Popover, Tooltip } from 'antd';
+import { Button, Popover } from 'antd';
 import { GitBranch, Monitor, Wrench } from 'lucide-react';
 import type { GitClient } from '../../../../../shared/remote-chat/gitTypes';
 import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
@@ -31,9 +31,8 @@ export function GuiToolbox(props: Props) {
         <button type="button" disabled={!props.connected} onClick={() => { setMenu(false); setPanel('git'); }}>
           <GitBranch size={18} /><span>Git</span></button>
       </div>}>
-      <Tooltip title={menu ? null : '工具箱'} styles={{ root: { maxWidth: 400 } }}>
-        <Button type="text" icon={<Wrench size={16} />} aria-label="打开工具箱" aria-expanded={menu && props.active} />
-      </Tooltip>
+      <Button type="text" icon={<Wrench size={16} />} title={menu || panel ? undefined : '工具箱'}
+        aria-label="打开工具箱" aria-expanded={menu && props.active} />
     </Popover>
     <Suspense fallback={null}>
       {panel === 'git' && <ChatGit key={props.cwd} client={props.git} cwd={props.cwd}
