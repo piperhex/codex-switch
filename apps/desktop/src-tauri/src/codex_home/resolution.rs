@@ -36,16 +36,17 @@ fn resolve_from_sources(
 ) -> Result<PathBuf, String> {
     // A Switch launched by the built-in agent inherits its private CODEX_HOME.
     // Treating that as the external default lets GUI deduplication erase the default entry.
-    let environment = environment
-        .filter(|path| !built_in_home.is_some_and(|built_in| paths_match(path, built_in)));
+    let is_external =
+        |path: &PathBuf| !built_in_home.is_some_and(|built_in| paths_match(path, built_in));
     configured
-        .or(environment)
+        .filter(is_external)
+        .or_else(|| environment.filter(is_external))
         .or_else(|| home.map(|path| path.join(DEFAULT_CODEX_HOME_DIRECTORY)))
         .ok_or_else(|| "无法定位用户 Home 目录".to_string())
 }
 
 pub(crate) fn resolve() -> Result<PathBuf, String> {
-    let configured = current_overrides();
+    let configured = external_overrides();
     resolve_for_override(configured.first().map(|entry| entry.path.as_path()))
 }
 
@@ -54,7 +55,7 @@ pub(crate) fn resolve_default() -> Result<PathBuf, String> {
 }
 
 pub(crate) fn resolve_all() -> Result<Vec<ConfiguredCodexHome>, String> {
-    let configured = current_overrides();
+    let configured = external_overrides();
     if !configured.is_empty() {
         return Ok(configured);
     }
@@ -62,6 +63,18 @@ pub(crate) fn resolve_all() -> Result<Vec<ConfiguredCodexHome>, String> {
         id: None,
         path: resolve_default()?,
     }])
+}
+
+fn external_overrides() -> Vec<ConfiguredCodexHome> {
+    // Legacy settings and directory aliases can bypass the GUI entry's disabled flag.
+    current_overrides()
+        .into_iter()
+        .filter(|home| {
+            GUI_HOME
+                .get()
+                .is_none_or(|gui| !paths_match(&home.path, gui))
+        })
+        .collect()
 }
 
 pub(super) fn resolve_for_override(value: Option<&Path>) -> Result<PathBuf, String> {

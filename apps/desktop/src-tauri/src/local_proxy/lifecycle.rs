@@ -246,18 +246,9 @@ fn stop_local_proxy_blocking<R: Runtime>(
     }
 
     emit_stop_progress(&app, "restoringConfiguration", 90, None, None);
-    let commit_result = (|| -> Result<(), String> {
-        if write_codex {
-            if let Some(account_id) = selected_account_id.as_deref() {
-                crate::commands::write_managed_auth_to_current(&paths, account_id)?;
-            }
-            for target in crate::storage::resolve_enabled_paths(&app)? {
-                providers::restore_default_official_config(&target)?;
-            }
-        }
-        let state = stopped_proxy_state(read_state(&paths));
-        write_state(&paths, &state)
-    })();
+    let commit_result = commit_stopped_proxy_configuration(
+        &app, &paths, write_codex, selected_account_id.as_deref(),
+    );
     if let Err(commit_error) = commit_result {
         let recovery_errors = recover_proxy_after_failed_stop(&app, &paths, ProxyRecoveryOptions {
             original_state: &original_state,
@@ -301,6 +292,25 @@ fn stop_local_proxy_blocking<R: Runtime>(
             }
         }
     }
+}
+
+fn commit_stopped_proxy_configuration<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    paths: &Paths,
+    write_codex: bool,
+    selected_account_id: Option<&str>,
+) -> Result<(), String> {
+    if write_codex {
+        // Validate the complete target list before restoring any credentials or configuration.
+        let targets = crate::storage::resolve_enabled_paths(app)?;
+        if let Some(account_id) = selected_account_id {
+            crate::commands::write_managed_auth_to_current(paths, account_id)?;
+        }
+        for target in targets {
+            providers::restore_default_official_config(&target)?;
+        }
+    }
+    write_state(paths, &stopped_proxy_state(read_state(paths)))
 }
 
 struct ProxyRecoveryOptions<'a> {

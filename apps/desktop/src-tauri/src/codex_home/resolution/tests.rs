@@ -68,6 +68,34 @@ fn inherited_gui_alias_is_also_ignored() {
     fs::remove_dir_all(root).unwrap();
 }
 
+#[test]
+fn stale_configured_gui_home_falls_back_to_an_external_home() {
+    let home = PathBuf::from("user-home");
+    let gui = home.join("app-data/.codex");
+    let external = home.join("custom");
+    assert_eq!(
+        resolve_from_sources(
+            Some(gui.clone()),
+            Some(external.clone()),
+            Some(home.clone()),
+            Some(&gui),
+        )
+        .unwrap(),
+        external,
+    );
+    assert_eq!(
+        resolve_from_sources(
+            Some(gui.clone()),
+            Some(gui.clone()),
+            Some(home.clone()),
+            Some(&gui),
+        )
+        .unwrap(),
+        home.join(".codex"),
+    );
+    assert!(resolve_from_sources(Some(gui.clone()), None, None, Some(&gui)).is_err());
+}
+
 fn entry(id: &str, path: &Path, enabled: bool) -> CodexHomeEntry {
     CodexHomeEntry {
         id: id.into(),

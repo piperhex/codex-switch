@@ -13,6 +13,14 @@ pub(crate) fn gui_home<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf,
         .map_err(|_| "无法定位内置 Codex GUI 目录".to_string())
 }
 
+/// Enforce the write boundary even before the process-wide home cache is initialized.
+pub(crate) fn ensure_external_home(path: &Path, gui: &Path) -> Result<(), String> {
+    if super::paths_match(path, gui) {
+        return Err("请为外部 Codex 选择单独的 Home 目录，再重试。".to_string());
+    }
+    Ok(())
+}
+
 pub(crate) fn ensure_gui_entry(entries: &mut Vec<CodexHomeEntry>, path: &Path) -> bool {
     let original = entries.clone();
     entries.retain(|entry| {

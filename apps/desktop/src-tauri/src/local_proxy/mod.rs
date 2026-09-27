@@ -124,6 +124,7 @@ mod tests {
     include!("tests/lan_http.rs");
     include!("tests/gui_routing.rs");
     include!("tests/gui_runtime.rs");
+    include!("tests/gui_home_isolation.rs");
     include!("tests/gui_transport_error.rs");
     include!("tests/error_logging.rs");
 }

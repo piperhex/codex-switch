@@ -74,7 +74,12 @@ pub(crate) fn resolve_enabled_paths<R: Runtime>(
     let accounts = app_data.join("accounts");
     let providers = app_data.join("providers");
     let legacy_backup = app_data.join("config-before-provider.toml");
-    crate::codex_home::resolve_all()?
+    let homes = crate::codex_home::resolve_all()?;
+    let gui = crate::codex_home::gui_home(app)?;
+    for home in &homes {
+        crate::codex_home::ensure_external_home(&home.path, &gui)?;
+    }
+    homes
         .into_iter()
         .map(|home| {
             let config_backup = match home.id {

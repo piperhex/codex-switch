@@ -305,6 +305,27 @@ history, rename, process restart/resume, archive/restore, compaction and context
 interruption, and independent on-disk storage.
 
 
+## External proxy configuration isolation
+
+The GUI home is excluded from external Codex configuration targets by directory, including
+legacy saved entries and directory aliases. An inherited GUI `CODEX_HOME` cannot become the
+external default. Storage also checks the complete target list against the application's GUI
+home before returning writable paths, even if startup has not initialized the home cache.
+
+Stopping the external proxy validates those targets before restoring account credentials and
+official configuration. Both stop options share this restoration path. The private GUI listener,
+account selection, authentication file and configuration remain separate.
+
+The `proxy_config_restore_preserves_gui_files_and_active_reply` regression uses an isolated child
+process with inherited and stale GUI paths. It applies external proxy configuration, holds a GUI
+response open while polling sessions, stops the external listener and restores external credentials.
+It checks GUI file bytes and modification times, completion of the active request and a subsequent
+GUI request after the proxy is off. It uses a local mock upstream and never restarts real clients.
+
+Verified on Windows on 2026-09-28: 1,379 Rust tests passed (9 opt-in tests ignored), 57 related
+Home/proxy/GUI UI tests passed, Rust formatting and strict Clippy passed, and the desktop
+TypeScript/Vite production build passed.
+
 ## Change models during a task
 
 Changing the model or reasoning effort during generation updates the running task through

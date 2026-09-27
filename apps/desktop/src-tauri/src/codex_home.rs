@@ -2,7 +2,9 @@ mod resolution;
 mod selection;
 use resolution::resolve_for_override;
 pub(crate) use resolution::{initialize_paths, resolve, resolve_all, resolve_default};
-pub(crate) use selection::{ensure_gui_entry, gui_home, resolve_selected, GUI_CODEX_HOME_ID};
+pub(crate) use selection::{
+    ensure_external_home, ensure_gui_entry, gui_home, resolve_selected, GUI_CODEX_HOME_ID,
+};
 
 use std::{
     collections::HashSet,

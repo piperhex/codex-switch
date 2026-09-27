@@ -9,7 +9,10 @@ struct GuiRuntimeFixture {
 
 impl GuiRuntimeFixture {
     fn new(upstream: &Server) -> Self {
-        let app = breakdown_responsiveness_test_app();
+        Self::with_app(upstream, breakdown_responsiveness_test_app())
+    }
+
+    fn with_app(upstream: &Server, app: tauri::App<tauri::test::MockRuntime>) -> Self {
         app.manage(crate::codex_gui::GuiState::default());
         app.manage(crate::codex_gui::web::WebEventState::default());
         let paths = resolve_paths(app.handle()).unwrap();
