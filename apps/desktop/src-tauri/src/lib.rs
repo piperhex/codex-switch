@@ -146,6 +146,7 @@ pub fn run() {
             app.manage(system_tray::quick_menu::QuickMenuState::default());
             #[cfg(windows)]
             installer_lifecycle::setup(app.handle())?;
+            codex_home::initialize_paths(app.handle())?;
             storage::migrate_app_settings_for_version(app.handle())?;
             let settings = storage::read_app_settings(app.handle())?;
             if let Err(error) = error_logs::setup(app.handle()) {

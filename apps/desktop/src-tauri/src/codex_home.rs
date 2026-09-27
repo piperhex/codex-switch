@@ -1,4 +1,7 @@
+mod resolution;
 mod selection;
+use resolution::resolve_for_override;
+pub(crate) use resolution::{initialize_paths, resolve, resolve_all, resolve_default};
 pub(crate) use selection::{ensure_gui_entry, gui_home, resolve_selected, GUI_CODEX_HOME_ID};
 
 use std::{
@@ -20,8 +23,6 @@ use crate::{
 
 static CODEX_HOME_OVERRIDES: OnceLock<RwLock<Vec<ConfiguredCodexHome>>> = OnceLock::new();
 
-const CODEX_HOME_ENV: &str = "CODEX_HOME";
-const DEFAULT_CODEX_HOME_DIRECTORY: &str = ".codex";
 pub(crate) const DEFAULT_CODEX_HOME_ID: &str = "default";
 const HOME_CHANGE_EVENTS: [&str; 2] = ["accounts-changed", "providers-changed"];
 
@@ -82,46 +83,6 @@ pub(crate) fn initialize(settings: &AppSettings) {
     replace_overrides(entries);
 }
 
-fn environment_codex_home() -> Option<PathBuf> {
-    std::env::var_os(CODEX_HOME_ENV)
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-}
-
-fn resolve_from_sources(
-    configured: Option<PathBuf>,
-    environment: Option<PathBuf>,
-    home: Option<PathBuf>,
-) -> Result<PathBuf, String> {
-    configured
-        .or(environment)
-        .or_else(|| home.map(|path| path.join(DEFAULT_CODEX_HOME_DIRECTORY)))
-        .ok_or_else(|| "无法定位用户 Home 目录".to_string())
-}
-
-pub(crate) fn resolve() -> Result<PathBuf, String> {
-    resolve_from_sources(
-        current_overrides().first().map(|entry| entry.path.clone()),
-        environment_codex_home(),
-        dirs::home_dir(),
-    )
-}
-
-pub(crate) fn resolve_default() -> Result<PathBuf, String> {
-    resolve_from_sources(None, environment_codex_home(), dirs::home_dir())
-}
-
-pub(crate) fn resolve_all() -> Result<Vec<ConfiguredCodexHome>, String> {
-    let configured = current_overrides();
-    if !configured.is_empty() {
-        return Ok(configured);
-    }
-    Ok(vec![ConfiguredCodexHome {
-        id: None,
-        path: resolve_from_sources(None, environment_codex_home(), dirs::home_dir())?,
-    }])
-}
-
 pub(crate) fn replicated_paths(path: &Path) -> Vec<PathBuf> {
     let Ok(primary) = resolve() else {
         return vec![path.to_path_buf()];
@@ -137,14 +98,6 @@ pub(crate) fn replicated_paths(path: &Path) -> Vec<PathBuf> {
                 .collect()
         })
         .unwrap_or_else(|_| vec![path.to_path_buf()])
-}
-
-fn resolve_for_override(value: Option<&Path>) -> Result<PathBuf, String> {
-    resolve_from_sources(
-        value.map(Path::to_path_buf),
-        environment_codex_home(),
-        dirs::home_dir(),
-    )
 }
 
 fn validate_custom_home(value: &str) -> Result<PathBuf, String> {

@@ -1,6 +1,6 @@
 use super::{
-    ensure_default_entry, expand_home_alias, normalize_entries, resolve_from_sources,
-    validate_custom_home, DEFAULT_CODEX_HOME_ID,
+    ensure_default_entry, expand_home_alias, normalize_entries, validate_custom_home,
+    DEFAULT_CODEX_HOME_ID,
 };
 use crate::models::CodexHomeEntry;
 use std::{fs, path::PathBuf};
@@ -27,40 +27,6 @@ fn gui_home_never_receives_shared_switches_even_if_legacy_settings_enable_it() {
     let configured = super::configured_entries(&entries);
     assert_eq!(configured.len(), 1);
     assert_eq!(configured[0].id.as_deref(), Some("default"));
-}
-
-#[test]
-fn configured_home_precedes_environment_and_default() {
-    let configured = PathBuf::from("configured-home");
-    let resolved = resolve_from_sources(
-        Some(configured.clone()),
-        Some(PathBuf::from("environment-home")),
-        Some(PathBuf::from("user-home")),
-    )
-    .unwrap();
-
-    assert_eq!(resolved, configured);
-}
-
-#[test]
-fn environment_home_precedes_default() {
-    let environment = PathBuf::from("environment-home");
-    let resolved = resolve_from_sources(
-        None,
-        Some(environment.clone()),
-        Some(PathBuf::from("user-home")),
-    )
-    .unwrap();
-
-    assert_eq!(resolved, environment);
-}
-
-#[test]
-fn default_home_uses_dot_codex() {
-    let home = PathBuf::from("user-home");
-    let resolved = resolve_from_sources(None, None, Some(home.clone())).unwrap();
-
-    assert_eq!(resolved, home.join(".codex"));
 }
 
 #[test]
