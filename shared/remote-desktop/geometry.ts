@@ -7,6 +7,7 @@ export const MOUSE_ICON_SIZE = { width: 40, height: 40 };
 export const CURSOR_SIZE = { width: 18, height: 24 };
 const PANEL_GAP = CURSOR_SIZE.width + 6;
 const EDGE_GAP = 8;
+const BOTTOM_EDGE_PAN_GAIN = 2;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 /** Match contain-fit video; the surrounding letterbox belongs to the control overlay. */
@@ -31,14 +32,19 @@ export function mousePanelPosition(cursor: Point): Point {
   return { x: cursor.x + PANEL_GAP, y: cursor.y };
 }
 
-/** Reveal the black canvas only when the pointer/controls would leave the viewer.
+/** Reveal the black canvas once the pointer/controls reach a viewer edge.
  * Retaining the previous offset avoids recentering jumps on movement or idle collapse. */
 export function panDesktopViewport(viewport: DesktopViewport, point: Point, panel: Size, previous: Point) {
   const cursor = cursorPosition(point, viewport);
   const x = clamp(previous.x, EDGE_GAP - cursor.x,
     viewport.stage.width - EDGE_GAP - cursor.x - PANEL_GAP - panel.width);
-  const y = clamp(previous.y, EDGE_GAP - cursor.y,
-    viewport.stage.height - EDGE_GAP - cursor.y - Math.max(CURSOR_SIZE.height, panel.height));
+  const bottom = viewport.stage.height - EDGE_GAP - Math.max(CURSOR_SIZE.height, panel.height);
+  const bottomLimit = bottom - cursor.y;
+  const endLimit = bottom - cursorPosition({ x: point.x, y: 1 }, viewport).y;
+  // The pad leaves little room to swipe downward at the bottom. Reveal its black margin faster,
+  // capped at the space needed when the pointer reaches the desktop's last row.
+  const assistedLimit = bottomLimit < 0 ? Math.max(bottomLimit * BOTTOM_EDGE_PAN_GAIN, endLimit) : bottomLimit;
+  const y = clamp(previous.y, EDGE_GAP - cursor.y, assistedLimit);
   return { offset: { x, y }, viewport: { ...viewport,
     content: { ...viewport.content, x: viewport.content.x + x, y: viewport.content.y + y } } };
 }

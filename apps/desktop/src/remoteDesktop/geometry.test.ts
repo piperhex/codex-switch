@@ -63,3 +63,38 @@ it('does not recenter on idle collapse or pointer motion within the available sp
   const collapsed = panDesktopViewport(fitted, { x: 0.8, y: 0.8 }, MOUSE_ICON_SIZE, inside.offset);
   expect(collapsed.offset).toEqual(inside.offset);
 });
+
+it('reveals the bottom margin twice as fast while keeping the right edge at swipe speed', () => {
+  const fitted = desktopViewport({ width: 800, height: 450 }, { width: 1600, height: 900 });
+  const zero = { x: 0, y: 0 };
+  const bottom = 450 - 8 - MOUSE_PANEL_SIZE.height;
+  const edge = { x: 0.5, y: bottom / 449 };
+  expect(panDesktopViewport(fitted, edge, MOUSE_PANEL_SIZE, zero).offset).toEqual(zero);
+  const point = { ...edge, y: (bottom + 20) / 449 };
+  const down = panDesktopViewport(fitted, point, MOUSE_PANEL_SIZE, zero);
+  expect(down.offset).toEqual({ x: 0, y: -40 });
+  const cursor = cursorPosition(point, down.viewport);
+  expect(desktopPoint(cursor, down.viewport)!.y).toBeCloseTo(point.y);
+  expect(mousePanelPosition(cursor)).toEqual({ x: cursor.x + 24, y: cursor.y });
+  const right = panDesktopViewport(fitted, { x: (800 - 8 - 24 - MOUSE_PANEL_SIZE.width + 20) / 799, y: 0.5 },
+    MOUSE_PANEL_SIZE, zero);
+  expect(right.offset).toEqual({ x: -20, y: 0 });
+  const full = panDesktopViewport(fitted, { ...edge, y: 1 }, MOUSE_PANEL_SIZE, down.offset);
+  expect(full.offset.y).toBe(bottom - 449);
+  expect(cursorPosition({ ...edge, y: 1 }, full.viewport).y + MOUSE_PANEL_SIZE.height).toBe(450 - 8);
+});
+
+it('uses existing bottom letterboxing before opening more canvas, and preserves the assisted offset', () => {
+  const fitted = desktopViewport({ width: 800, height: 500 }, { width: 1600, height: 900 });
+  const zero = { x: 0, y: 0 };
+  const edge = { x: 0.5, y: (500 - 8 - MOUSE_PANEL_SIZE.height - fitted.content.y) / 449 };
+  expect(panDesktopViewport(fitted, edge, MOUSE_PANEL_SIZE, zero).offset).toEqual(zero);
+  const point = { ...edge, y: edge.y + 15 / 449 };
+  const assisted = panDesktopViewport(fitted, point, MOUSE_PANEL_SIZE, zero);
+  expect(assisted.offset.y).toBeCloseTo(-30);
+  expect(panDesktopViewport(fitted, point, MOUSE_PANEL_SIZE, assisted.offset).offset).toEqual(assisted.offset);
+  expect(panDesktopViewport(fitted, edge, MOUSE_PANEL_SIZE, assisted.offset).offset).toEqual(assisted.offset);
+  expect(panDesktopViewport(fitted, point, MOUSE_ICON_SIZE, assisted.offset).offset).toEqual(assisted.offset);
+  const portrait = desktopViewport({ width: 390, height: 750 }, { width: 1600, height: 900 });
+  expect(panDesktopViewport(portrait, { x: 0.5, y: 1 }, MOUSE_PANEL_SIZE, zero).offset.y).toBe(0);
+});
