@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export const MOUSE_IDLE_DELAY = 4000;
+export const MOUSE_IDLE_DELAY = 10_000;
 export interface MousePanelActivity {
   expanded: boolean; expand: () => void;
   activity: () => void; hold: (key: string, down: boolean) => void;

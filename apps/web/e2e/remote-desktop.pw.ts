@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { desktopTest } from './remote-desktop-fixture';
+const MOUSE_IDLE_DELAY = 10_000;
 
 declare global { interface Window { desktopTest: typeof desktopTest } }
 
@@ -147,7 +148,7 @@ test('follows the local pointer, collapses when idle and maps direct touches thr
   if (stage.height - videoHeight < 20) expect(edgeVideo.y).toBeLessThan(beforeVideo.y);
   await page.screenshot({ path: info.outputPath('mouse-follows-at-edge.png') });
   const icon = page.getByRole('button', { name: '展开鼠标面板' });
-  await expect(icon).toBeVisible({ timeout: 6500 });
+  await expect(icon).toBeVisible({ timeout: MOUSE_IDLE_DELAY + 2500 });
   await expectAnchoredMouse(page);
   expect((await page.locator('video').boundingBox())!).toEqual(edgeVideo);
   await expect(page.locator('.rd-mouse')).toHaveCount(0);
@@ -156,7 +157,7 @@ test('follows the local pointer, collapses when idle and maps direct touches thr
   const left = (await page.getByRole('button', { name: '鼠标左键', exact: true }).boundingBox())!;
   await page.mouse.move(left.x + left.width / 2, left.y + left.height / 2); await page.mouse.down();
   await expect(page.getByText('拖拽中', { exact: true })).toBeVisible(); await page.mouse.up();
-  await page.waitForTimeout(4200); await expect(page.locator('.rd-mouse')).toBeVisible();
+  await page.waitForTimeout(MOUSE_IDLE_DELAY + 200); await expect(page.locator('.rd-mouse')).toBeVisible();
   await page.getByRole('button', { name: '触屏', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.desktopTest.inputs.at(-1)))
     .toEqual({ kind: 'button', button: 'left', down: false });

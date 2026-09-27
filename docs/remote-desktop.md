@@ -46,7 +46,7 @@ or a switch to direct touch. Cursor placement and video rendering share the tran
 has explicit layout dimensions so its 3x bitmap cannot enlarge it. Motion and direct touches use the actual contain-fit video rectangle.
 The mouse provides left/right buttons, scroll arrows, a relative touchpad and a handle that moves the pointer and panel together.
 Long-press the left button to latch a drag and press it again to release. Tapping the touchpad clicks.
-After four idle seconds the panel collapses to a round mouse icon; tapping it reopens the controls.
+After ten idle seconds the panel collapses to a round mouse icon; tapping it reopens the controls.
 Held fingers, buttons and latched drags prevent automatic collapse.
 The toolbar switches between mouse and direct-touch modes. Direct touches click or drag at the touched video position;
 touches that start in the letterbox are ignored. Switching modes releases held buttons.
