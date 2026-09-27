@@ -113,13 +113,14 @@ jobs:
             args: ""
             rustTargets: ""
           - name: windows-x86_64
-            platform: windows-latest
+            # The desktop video helper requires the Visual Studio 2022 generator.
+            platform: windows-2022
             releasePlatform: windows
             args: ""
             rustTargets: ""
             msvcArch: "amd64"
           - name: windows-aarch64
-            platform: windows-latest
+            platform: windows-2022
             releasePlatform: windows
             args: "--target aarch64-pc-windows-msvc"
             rustTargets: "aarch64-pc-windows-msvc"
