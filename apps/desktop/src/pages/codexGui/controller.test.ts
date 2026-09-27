@@ -102,6 +102,23 @@ describe("Codex GUI controller", () => {
     restored.newConversation(); restored.dispose();
     expect(new GuiController().getSnapshot().selected).toBeNull();
   });
+
+  it("creates and sends a new conversation with the last permission after reopening", async () => {
+    const previous = new GuiController();
+    await previous.connect(); await previous.select(thread.id);
+    previous.settings({ access: "danger-full-access" }); previous.dispose();
+    const controller = new GuiController();
+    await controller.connect(); controller.newConversation();
+    expect(controller.getSnapshot().settings.access).toBe("danger-full-access");
+    const original = vi.mocked(guiApi.request).getMockImplementation()!;
+    vi.mocked(guiApi.request).mockImplementation(async (request) => request.operation === "send"
+      ? { turn: { id: "reply", status: "completed", items: [] } } : original(request));
+    expect(await controller.send("hello", [])).toBe(true);
+    for (const operation of ["start", "send"]) {
+      expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({ operation, access: "danger-full-access" }));
+    }
+    controller.dispose();
+  });
   it("reloads a live conversation after a browser connection gap", async () => {
     const controller = new GuiController();
     await controller.connect();

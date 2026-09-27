@@ -9,6 +9,7 @@ import { projectPickerJourney } from './chat-project-picker';
 import { clipboardJourney } from './chat-clipboard';
 import { backgroundJourney } from './chat-background';
 import { modelPickerJourney } from './chat-model-picker';
+import { chooseSetting, closeChatSettings, isDesktop } from './chat-settings';
 
 test.beforeEach(async ({ page, request }, info) => {
   // Login can open chat immediately; install the network fault before any peer is created.
@@ -103,6 +104,43 @@ test('syncs request speed with the PC and shows a lightning indicator only in fa
 
 test('syncs PC chats over direct transport, supports actions and reconnects without duplicate sends',
   async ({ page, request }, info) => chatJourney({ page, request, info }));
+
+for (const [access, label] of [['danger-full-access', '完全访问'], ['read-only', '请求批准']] as const) {
+  test(`inherits the last access choice ${access} in new chats and after reconnecting`,
+    async ({ page, request }, info) => {
+      await connect(page);
+      await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 16_000 });
+      await openChatList(page);
+      await page.getByRole('button', { name: '移动端聊天体验', exact: true }).click();
+      await openChatSettings(page);
+      await chooseSetting(page, '访问权限', label);
+      await expect.poll(async () => (await state(request)).composer.settings.access).toBe(access);
+      await closeChatSettings(page);
+      await openChatList(page);
+      await page.getByRole('button', { name: '新聊天', exact: true }).click();
+      await expect(page.getByRole('heading', { name: '新聊天', exact: true })).toBeVisible();
+      await page.reload();
+      await connect(page);
+      await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 16_000 });
+      await openChatSettings(page);
+      if (isDesktop(page)) {
+        await page.getByRole('button', { name: /^访问权限：/ }).click();
+        await expect(page.getByRole('menuitemradio', { name: new RegExp(label) })).toBeChecked();
+      } else {
+        await page.getByRole('button', { name: '设置访问权限', exact: true }).click();
+        await expect(page.getByRole('radio', { name: label, exact: true })).toBeChecked();
+      }
+      await screenshot(page, info, `inherited-access-${access}`);
+      if (!isDesktop(page)) await page.getByRole('radio', { name: label, exact: true }).click();
+      await closeChatSettings(page);
+      await send(page, 'Use my previous permission choice');
+      await expect.poll(async () => (await state(request)).operations
+        .filter((entry) => entry.operation === 'start').at(-1)?.access).toBe(access);
+      await expect.poll(async () => (await state(request)).operations
+        .filter((entry) => entry.operation === 'send').at(-1)?.access).toBe(access);
+      await settled(page);
+    });
+}
 
 for (const relay of [false, true]) {
   test(`keeps chat connected across browser tabs and app pages over ${relay ? 'relay' : 'direct'}`,

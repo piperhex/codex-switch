@@ -489,7 +489,8 @@ export class ChatController {
   back(project: ChatProject | null = null) {
     if (this.state.sending) return;
     const inherit = this.state.selected && this.state.ready && !this.state.settingsBusy
-      ? { model: this.state.settings.model, effort: this.state.settings.effort } : undefined;
+      ? { model: this.state.settings.model, effort: this.state.settings.effort, access: this.state.settings.access }
+      : undefined;
     this.rememberHistory();
     this.olderQueued = false;
     this.readGeneration += 1;

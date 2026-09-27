@@ -70,15 +70,20 @@ it('blocks sending during a delayed read and keeps newer events ahead of the sta
 
 it('uses the current choice for a new draft and saves a phone-created conversation separately', async () => {
   await composer.load(); await select('a');
+  composer.set({ access: 'danger-full-access' });
+  await vi.waitFor(() => expect(state.settingsBusy).toBe(false));
   const selection = { ...state.settings };
   state.selected = null;
   await composer.select(selection);
   await vi.waitFor(() => expect(state.settingsBusy).toBe(false));
   expect(state.settings.effort).toBe('high');
+  expect(state.settings.access).toBe('danger-full-access');
   state.selected = thread('created');
   await composer.created('created', selection);
   expect(saved.get('created')?.settings.effort).toBe('high');
   expect(saved.get(null)?.settings.effort).toBe('high');
+  expect(saved.get('created')?.settings.access).toBe('danger-full-access');
+  expect(saved.get(null)?.settings.access).toBe('danger-full-access');
 });
 
 it('retries offline edits in their original scope and ignores responses from before reconnecting', async () => {

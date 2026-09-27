@@ -87,6 +87,18 @@ it('rejects a failed remote save while retaining the choice for a later retry', 
   await expect(bridge.update({ effort: 'xhigh' }, 'another')).resolves.toMatchObject({ threadId: 'another' });
 });
 
+async function connectPhone(request: <T>(method: string, body?: unknown) => Promise<T>) {
+  let phoneEvents!: ConnectionEvents;
+  const phone = new ChatController(events => {
+    phoneEvents = events;
+    return { request, start: () => { events.mode('relay'); events.ready(); }, stop: () => {} };
+  });
+  cleanup.push(() => phone.stop());
+  cleanup.push(bridge.subscribe(snapshot => phoneEvents.event({ method: COMPOSER_EVENT, params: snapshot })));
+  phone.start(); await vi.waitFor(() => expect(phone.snapshot().ready).toBe(true));
+  return phone;
+}
+
 it('persists the phone-created selection before sending and keeps it after PC navigation', async () => {
   const created = { id: 'phone-created', cwd: '', preview: '', updatedAt: 1, turns: [] };
   const request = vi.fn(async (method: string, body?: Record<string, unknown>) => {
@@ -106,25 +118,35 @@ it('persists the phone-created selection before sending and keeps it after PC na
     if (body?.operation === 'queueRead' || body?.operation === 'queueEnqueue') return emptyQueue();
     return { data: [], nextCursor: null };
   });
-  let phoneEvents!: ConnectionEvents;
-  const phone = new ChatController(events => {
-    phoneEvents = events;
-    return { request: request as <T>(method: string, body?: unknown) => Promise<T>,
-      start: () => { events.mode('relay'); events.ready(); }, stop: () => {} };
-  });
-  cleanup.push(() => phone.stop());
-  cleanup.push(bridge.subscribe(snapshot => phoneEvents.event({ method: COMPOSER_EVENT, params: snapshot })));
-  phone.start(); await vi.waitFor(() => expect(phone.snapshot().ready).toBe(true));
-  await phone.setSettings({ effort: 'high' });
+  const phone = await connectPhone(request as <T>(method: string, body?: unknown) => Promise<T>);
+  await phone.setSettings({ effort: 'high', access: 'danger-full-access' });
   await vi.waitFor(() => expect(phone.snapshot().settingsBusy).toBe(false));
   await pc.select('pc');
   expect(pc.getSnapshot().settings.effort).toBe('low');
-  expect(await phone.send({ text: 'phone probe', access: 'workspace-write' })).toBe(true);
+  expect(await phone.send({ text: 'phone probe', access: phone.snapshot().settings.access })).toBe(true);
+  expect(request).toHaveBeenCalledWith('request', expect.objectContaining({
+    operation: 'start', access: 'danger-full-access',
+  }));
   pc.newConversation(); await pc.modelSettings.ready(null);
   expect(phone.snapshot().settings.effort).toBe('high');
   await pc.select(created.id);
   expect(pc.getSnapshot().settings.effort).toBe('high');
-  expect(await phone.send({ text: 'follow up', access: 'workspace-write' })).toBe(true);
+  expect(await phone.send({ text: 'follow up', access: phone.snapshot().settings.access })).toBe(true);
   expect(request).toHaveBeenCalledWith('request', expect.objectContaining({ operation: 'queueEnqueue',
-    threadId: created.id, model: 'model', effort: 'high' }));
+    threadId: created.id, model: 'model', effort: 'high', access: 'danger-full-access' }));
+  request.mockClear();
+  phone.back();
+  await vi.waitFor(() => expect(phone.snapshot().settingsBusy).toBe(false));
+  expect(phone.snapshot().settings.access).toBe('danger-full-access');
+  expect(request).toHaveBeenCalledWith('request', expect.objectContaining({ operation: 'composerSet',
+    threadId: null, settings: expect.objectContaining({ access: 'danger-full-access' }) }));
+});
+
+it('restores the last phone permission for new conversations after the PC reopens', async () => {
+  await bridge.update({ access: 'danger-full-access' }, 'phone');
+  const reopened = new GuiController();
+  const restoredBridge = new ComposerBridge();
+  reopened.setProviderModels(models);
+  cleanup.push(restoredBridge.attach(reopened)); cleanup.push(() => reopened.dispose());
+  expect((await restoredBridge.read(null)).settings.access).toBe('danger-full-access');
 });

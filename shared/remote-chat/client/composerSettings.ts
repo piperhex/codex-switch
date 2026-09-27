@@ -102,7 +102,7 @@ export class RemoteComposerSettings {
     if (!wasScoped && this.scoped && threadId !== (this.host.snapshot().selected?.id ?? null)) void this.select();
   }
 
-  select(inherit?: Pick<ComposerSettings, 'model' | 'effort'>): Promise<void> {
+  select(inherit?: Pick<ComposerSettings, 'model' | 'effort' | 'access'>): Promise<void> {
     if (!this.scoped) return Promise.resolve();
     if (inherit) this.set(inherit);
     this.show();
@@ -167,7 +167,7 @@ export class RemoteComposerSettings {
     if (!this.scoped) return;
     const entry = this.entry(threadId);
     entry.remote = { threadId, settings, models: this.host.snapshot().models, revision: -1 };
-    entry.pending = { model: settings.model, effort: settings.effort };
+    entry.pending = { model: settings.model, effort: settings.effort, access: settings.access };
     await this.save(threadId);
     if (Object.keys(entry.pending).length) throw new Error(entry.failed || SAVE_ERROR);
   }
