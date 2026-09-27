@@ -78,6 +78,7 @@ export interface Turn {
   id: string; status: string; items: Item[]; startedAt?: number | null;
   error?: import("./requestError").RequestError | null;
   retryError?: import("./requestError").RequestError;
+  requestErrors?: import("./turnRequestErrors").TurnRequestError[];
   completedAt?: number | null;
   durationMs?: number | null;
   diff?: string;

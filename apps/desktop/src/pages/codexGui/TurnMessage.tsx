@@ -6,12 +6,11 @@ import { TurnDuration } from "./TurnDuration";
 import { TurnPlan } from "./TurnPlan";
 import { TurnDiff } from "./TurnDiff";
 import { useTurnChangedFiles } from "./useTurnChangedFiles";
-import { visibleContinuationItems } from "./continuation";
 import styles from "./styles.module.less";
 import { GeneratedImages } from "./GeneratedImages";
 import { RequestErrorNotice } from "./RequestErrorNotice";
-import { hasVisibleProcessContent, TurnProcess } from "./TurnProcess";
-import { groupTurnItems } from "../../../../../shared/chat/turnGroups";
+import { TurnProcess } from "./TurnProcess";
+import { turnMessageGroups } from "./turnMessageGroups";
 export { groupTurnItems } from "../../../../../shared/chat/turnGroups";
 
 export const TurnMessage = memo(function TurnMessage({ turn, running, active, followsInterruption = false,
@@ -22,18 +21,15 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
   visibleItems?: Item[];
   onFork?: () => void; forkDisabled?: boolean;
 }) {
-  const groups = useMemo(() => {
-    const visible = new Set(visibleItems.map((item) => item.id));
-    return groupTurnItems(followsInterruption ? visibleContinuationItems(turn.items) : turn.items)
-      .map((group) => ({ ...group, key: group.items[0].id, items: group.items.filter((item) =>
-        visible.has(item.id) && (group.type !== "work" || hasVisibleProcessContent(item))) }))
-      .filter((group) => group.items.length > 0);
-  }, [turn.items, followsInterruption, visibleItems]);
+  const groups = useMemo(() => turnMessageGroups(turn, { visibleItems, followsInterruption }),
+    [turn, followsInterruption, visibleItems]);
   const files = useTurnChangedFiles(turn);
   const showChanges = !running && turn.status !== "inProgress" && files.length > 0;
-  const responseIndex = groups.findIndex((group) => group.items[0].type !== "userMessage");
+  const responseIndex = groups.findIndex((group) => group.type !== "error" && group.items[0].type !== "userMessage");
   return <div className={styles.turn} data-turn-id={turn.id}>
-    {groups.map((group, index) => <Fragment key={group.key}>
+    {groups.map((group, index) => group.type === "error"
+      ? <RequestErrorNotice key={group.key} turn={turn} record={group.error} />
+      : <Fragment key={group.key}>
       {index === responseIndex && group.type !== "work"
         && <TurnDuration turn={turn} running={running} active={active} />}
       {group.type === "work" ? <TurnProcess turn={turn} items={group.items} running={running}
@@ -51,6 +47,5 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
     {showChanges && <TurnDiff files={files} title={turn.diff ? "本轮修改" : "文件修改记录"}
       threadId={threadId} turnId={turn.id}
       disabled={running || turn.status === "inProgress" || Boolean(editDisabled)} />}
-    <RequestErrorNotice turn={turn} />
   </div>;
 });

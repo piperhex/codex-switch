@@ -8,6 +8,7 @@ const REFRESH_MS = 100;
 const initial = reduceConversation(conversation({ id: "test", cwd: "", preview: "", updatedAt: 1,
   turns: [{ id: "first", status: "inProgress", items: [
     { id: "question", type: "userMessage", content: [{ type: "text", text: "请检查连接" }] },
+    { id: "before", type: "agentMessage", phase: "commentary", text: "正在检查连接，这是中断前的进度。" },
   ] }] }), { method: "error", params: { turnId: "first", willRetry: true,
   error: { message: "HTTP 502 Bad Gateway", additionalDetails: `upstream timed out\n${"response".repeat(100)}` } } });
 
@@ -21,16 +22,23 @@ function Harness() {
     })), REFRESH_MS);
     return () => clearInterval(timer);
   }, []);
+  const resume = () => setValue((current) => reduceConversation(current, { method: "item/completed", params: {
+    turnId: "first", item: { id: "after", type: "agentMessage", phase: "commentary",
+      text: "连接已恢复，正在继续检查。" },
+  } }));
   const nextReply = () => setValue((current) => {
     const completed = reduceConversation(current, { method: "turn/completed", params: {
-      turn: { id: "first", status: "completed", items: [] },
+      turn: { id: "first", status: "completed", items: [
+        { id: "final", type: "agentMessage", phase: "final_answer", text: "连接检查完成。" },
+      ] },
     } });
     return reduceConversation(completed, { method: "turn/started", params: {
       turn: { id: "second", status: "inProgress", items: [] },
     } });
   });
   return <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-    <nav><button onClick={nextReply}>继续对话</button><output aria-label="刷新次数">{value.tokens}</output></nav>
+    <nav><button onClick={resume}>恢复连接</button><button onClick={nextReply}>继续对话</button>
+      <output aria-label="刷新次数">{value.tokens}</output></nav>
     <main className={`${styles.page} ${styles.collapsed}`} style={{ flex: 1 }}>
       <div className={styles.workspace}>
         <Messages selected="test" value={value} footer={<input aria-label="消息" />} />

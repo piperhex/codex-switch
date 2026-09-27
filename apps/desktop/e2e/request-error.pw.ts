@@ -5,7 +5,7 @@ for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/e2e/request-error-harness.html");
     const first = page.locator('[data-turn-id="first"]');
-    const notice = first.locator("details");
+    const notice = first.locator('details').filter({ has: page.locator('summary [role="status"]') });
     await expect(notice).toContainText("Codex 正在重试");
     await expect(notice.locator("pre")).toHaveCount(0);
     await notice.locator("summary").focus();
@@ -17,10 +17,19 @@ for (const width of [390, 1280]) {
     await page.getByLabel("消息", { exact: true }).fill("继续检查");
     await expect.poll(async () => Number(await page.getByLabel("刷新次数").textContent())).toBeGreaterThan(refreshes);
     await expect(page.getByLabel("消息", { exact: true })).toHaveValue("继续检查");
+    const before = first.locator('[data-message-id="before"]');
+    expect((await before.boundingBox())!.y).toBeLessThan((await notice.boundingBox())!.y);
+    await page.getByRole("button", { name: "恢复连接" }).click();
+    await expect(notice).toContainText("现已恢复");
+    await expect(notice.locator("pre")).toBeVisible();
+    const after = first.locator('[data-message-id="after"]');
+    expect((await notice.boundingBox())!.y).toBeLessThan((await after.boundingBox())!.y);
     await page.getByRole("button", { name: "继续对话" }).click();
     await expect(notice).toContainText("现已恢复");
     await expect(notice.locator("pre")).toBeVisible();
     await expect(page.locator('[data-turn-id="second"] details')).toHaveCount(0);
+    const final = first.locator('[data-message-id="final"]');
+    expect((await notice.boundingBox())!.y).toBeLessThan((await final.boundingBox())!.y);
     await notice.locator("summary").click();
     await expect(notice.locator("pre")).toHaveCount(0);
   });
