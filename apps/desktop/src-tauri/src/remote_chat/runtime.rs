@@ -36,9 +36,11 @@ pub(super) fn run(
     mut commands: mpsc::Receiver<Command>,
     mut configs: watch::Receiver<Option<Config>>,
     upload_policy: Arc<UploadPolicyStore>,
+    tcp_authority: Arc<super::tcp::Authority>,
 ) {
     let mut runtime = Runtime {
         upload_policy,
+        tcp_authority,
         ..Runtime::default()
     };
     loop {
@@ -66,6 +68,7 @@ struct ConnectionTimes {
 }
 
 pub(super) struct Runtime {
+    tcp_authority: Arc<super::tcp::Authority>,
     upload_policy: Arc<UploadPolicyStore>,
     config: Option<Config>,
     bridge: Option<Bridge>,
@@ -83,6 +86,7 @@ impl Default for Runtime {
     fn default() -> Self {
         let now = Instant::now();
         Self {
+            tcp_authority: Arc::default(),
             upload_policy: Arc::default(),
             config: None,
             bridge: None,
@@ -183,6 +187,9 @@ impl Runtime {
         // Pairing may have arrived while the WebView was paused. Such peers do not yet have
         // usable encryption keys and must not be claimed on a replacement connection.
         for session_id in self.sessions.disconnected() {
+            if let Err(error) = self.tcp_authority.remove(&session_id) {
+                eprintln!("TCP path cleanup: {error}");
+            }
             self.emit(Event::Message {
                 data: json!({ "type": "peer-close", "sessionId": session_id }).to_string(),
             });
@@ -195,6 +202,9 @@ impl Runtime {
         self.generation += 1;
         self.registered = false;
         self.sessions.clear();
+        if let Err(error) = self.tcp_authority.clear() {
+            eprintln!("TCP paths reset: {error}");
+        }
         self.retry_at = Instant::now() + RECONNECT_DELAY;
         if let Some(bridge) = self.bridge.as_mut() {
             bridge.reset(self.generation);
@@ -278,6 +288,7 @@ impl Runtime {
         self.binary_relay = false;
         let config = self.config.as_ref().ok_or(ChatError::Transport)?;
         let frame = json!({ "type": "authenticate", "role": "desktop", "transportVersion": 2, "binaryRelay": true,
+            "tcpPunch": true,
             "accessToken": config.access_token, "deviceId": config.device_id,
             "sessions": self.sessions.authentication() });
         socket
@@ -340,6 +351,9 @@ impl Runtime {
                 .map_err(|_| ChatError::InvalidFrame)?;
         }
         self.sessions.receive(&message)?;
+        self.tcp_authority
+            .receive(&message)
+            .map_err(|_| ChatError::InvalidFrame)?;
         if message["type"] == "registered" {
             self.registered = true;
         } else {
@@ -369,6 +383,9 @@ impl Runtime {
             // A local expiry may race a native reconnect. Never resume keys that the frontend destroyed.
             // Session UUIDs are not reused across owners, so forgetting is safe across socket generations.
             self.sessions.remove(session_id);
+            if let Err(error) = self.tcp_authority.remove(session_id) {
+                eprintln!("TCP path cleanup: {error}");
+            }
         } else if request.generation != self.generation {
             return;
         }

@@ -35,8 +35,15 @@ func TestSTUNBindingAndMalformedPackets(t *testing.T) {
 			t.Fatal("accepted malformed STUN datagram")
 		}
 	}
-	if bindingResponse(request, &net.UDPAddr{IP: net.ParseIP("::1"), Port: 1}) != nil {
-		t.Fatal("accepted unsupported IPv6")
+	ipv6 := net.ParseIP("2001:db8::1234")
+	response6 := bindingResponse(request, &net.UDPAddr{IP: ipv6, Port: 54321})
+	if len(response6) != 44 || response6[25] != 2 {
+		t.Fatal("missing IPv6 XOR-MAPPED-ADDRESS")
+	}
+	for index, octet := range ipv6.To16() {
+		if response6[28+index]^request[4+index] != octet {
+			t.Fatal("incorrect IPv6 XOR address")
+		}
 	}
 }
 

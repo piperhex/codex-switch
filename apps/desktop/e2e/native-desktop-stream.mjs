@@ -1,7 +1,16 @@
 import { chromium } from '@playwright/test';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const { CSW_NATIVE_TEST_ENDPOINT: endpoint, CSW_NATIVE_TEST_TOKEN: token } = process.env;
 if (!endpoint?.startsWith('http://127.0.0.1:') || !token) throw new Error('Local native test harness required');
+const animation = process.env.CSW_NATIVE_TEST_MOVING ? spawn(fileURLToPath(new URL(
+  '../../../.codex-tmp/remote-desktop-runtime/native-build/Release/desktop-video-fixture.exe', import.meta.url)),
+['--animate'], { windowsHide: true, stdio: 'ignore', env: { ...process.env,
+  PATH: `${fileURLToPath(new URL('../src-tauri/resources/remote-desktop/runtime', import.meta.url))};${process.env.PATH}`,
+} }) : undefined;
+let animationError;
+animation?.on('error', error => { animationError = error; });
 const browser = await chromium.launch({ channel: 'msedge', headless: true,
   args: process.env.CSW_NATIVE_TEST_CA_BASE64 ? ['--ignore-certificate-errors'] : [] });
 try {
@@ -55,4 +64,8 @@ try {
   // Idle desktops only send periodic recovery frames; a high frame count requires a moving source.
   if (result.connected !== 'connected' || result.width === 0 || result.frames < 1) throw new Error('Native video failed');
   if (iceServers.length && result.candidateType !== 'relay') throw new Error('Native relay bypassed');
-} finally { await browser.close(); }
+  if (animationError) throw animationError;
+  if (process.env.CSW_NATIVE_TEST_MIN_FPS && result.fps < Number(process.env.CSW_NATIVE_TEST_MIN_FPS)) {
+    throw new Error(`Native playback was only ${result.fps.toFixed(1)} FPS`);
+  }
+} finally { animation?.kill(); await browser.close(); }

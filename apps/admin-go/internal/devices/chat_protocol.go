@@ -71,6 +71,9 @@ func chatSignal(value interface{}) (platform.JSON, error) {
 	if message["kind"] == "ice" && validICE(message) {
 		return message, nil
 	}
+	if message["kind"] == "tcp" && validTCPSignal(message) {
+		return message, nil
+	}
 	return nil, errors.New("invalid signal")
 }
 

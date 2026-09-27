@@ -33,6 +33,7 @@ type ChatGateway struct {
 	done        chan struct{}
 	stopped     chan struct{}
 	stun        *stunServer
+	tcp         *tcpPunchServer
 	media       *mediarelay.Proxy
 }
 
@@ -60,6 +61,13 @@ func newChatGateway(service *Service) (*ChatGateway, error) {
 		if stun != nil {
 			stun.close()
 		}
+		return nil, err
+	}
+	if err := gateway.startTCPPunch(); err != nil {
+		if stun != nil {
+			stun.close()
+		}
+		gateway.media.Close()
 		return nil, err
 	}
 	go gateway.maintain()
@@ -280,6 +288,7 @@ func (runtime *Runtime) Close() error {
 	runtime.control.mu.Unlock()
 	g := runtime.chat
 	g.media.Close()
+	g.tcp.close()
 	close(g.done)
 	<-g.stopped
 	g.mu.Lock()

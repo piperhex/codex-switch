@@ -27,6 +27,10 @@ Capture::Capture(ID3D11Device* device, const Config& config) {
     // ReportOnly keeps complete surfaces: skipped/coalesced frames can never leave stale rectangles.
     // Older Windows throws E_NOINTERFACE here and the host selects its compatibility backend.
     session.DirtyRegionMode(GraphicsCaptureDirtyRegionMode::ReportOnly);
+    // Oversample before output pacing: a 60 Hz capture interval on a 144 Hz source
+    // otherwise rounds up to three display ticks and delivers only 48 changed frames/s.
+    session.MinUpdateInterval(std::chrono::duration_cast<winrt::Windows::Foundation::TimeSpan>(
+        std::chrono::duration<double>(1.0 / (config.fps * 2))));
     session.IsCursorCaptureEnabled(false);
     session.StartCapture();
 }

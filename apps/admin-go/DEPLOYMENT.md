@@ -123,9 +123,19 @@ Get-FileHash -LiteralPath $archive -Algorithm SHA256
 
 HTTP 默认只发布 `127.0.0.1:8080`，Kong 通过容器网络访问 Go。保留实际生产别名和覆盖文件。
 内置 STUN 默认监听并发布 UDP 3478；`CHAT_STUN_URLS=stun:你的公网域名:3478`
-需要匹配公网映射、安全组和防火墙。UDP 不经过 Kong，无需开放 TCP 3478。
+需要匹配公网映射、安全组和防火墙。UDP 不经过 Kong。
+可选 TCP 打洞发现服务使用 `CHAT_TCP_URLS=tcp://你的公网域名:3478`，
+并设置 `CHAT_TCP_LISTEN=0.0.0.0:3478`，开放公网 TCP 3478。
+Compose 使用 `ADMIN_GO_TCP_BIND` / `ADMIN_GO_TCP_PORT` 控制宿主机映射。
+`CHAT_TCP_URLS` 留空时不启动 TCP 服务，也不向客户端启用新路径；映射端口仍由 Compose 预留，
+若该 TCP 端口已有其他服务，需调整映射或在覆盖文件中删除它。
+可用逗号填写最多两个发现地址；第二个应位于另一公网地址以提供冗余。
+IPv6 需使用 `tcp://[公网IPv6]:3478` 并配置对应 IPv6 监听、容器路由及防火墙。
+发现服务必须直接接收 TCP 连接，不能放在会改写来源地址的 HTTP 反向代理后面。
+它只返回连接来源地址，不中转聊天内容；远程桌面视频仍使用原有 ICE/TURN。
+当前新增 TCP 路径支持桌面与 Android；Web、iOS 和旧客户端继续使用现有 WebRTC/中转。
 使用外部 STUN 或设置 `CHAT_STUN_PORT=0` 时，应在覆盖文件中用 `ports: !override`
-仅保留 HTTP，避免基础 UDP 映射指向端口 0；此语法需要 Compose 2.24.4+。
+移除基础 UDP 映射，避免它指向端口 0；按需保留 HTTP 和 TCP 发现端口，此语法需要 Compose 2.24.4+。
 
 ## 加载并更新 Go
 

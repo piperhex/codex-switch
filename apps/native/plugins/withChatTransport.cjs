@@ -1,6 +1,7 @@
 const { withAndroidManifest, withInfoPlist } = require('expo/config-plugins');
 
 module.exports = function withChatTransport(config) {
+  require('../scripts/patch-tcp-punch.cjs').applyTcpPunchPatch();
   config = withAndroidManifest(config, (result) => {
     const application = result.modResults.manifest.application[0];
     // Expo does not map the existing android.usesCleartextTraffic setting into release manifests by itself.

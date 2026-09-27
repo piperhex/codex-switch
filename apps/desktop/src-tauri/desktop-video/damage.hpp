@@ -13,15 +13,22 @@ constexpr auto refresh_interval = std::chrono::seconds(2);
 class DamageGate {
     Clock::duration interval;
     Clock::time_point sent{};
+    Clock::time_point next{};
     bool pending = true;
     bool started = false;
 public:
     explicit DamageGate(int fps) : interval(std::chrono::nanoseconds(1'000'000'000 / fps)) {}
     void observe(bool changed) { pending |= changed; }
     bool due(Clock::time_point now) const {
-        return !started || now - sent >= refresh_interval || (pending && now - sent >= interval);
+        return !started || now - sent >= refresh_interval || (pending && now >= next);
     }
-    void submitted(Clock::time_point now) { sent = now; started = true; pending = false; }
+    void submitted(Clock::time_point now) {
+        // Keep the original cadence: resetting from each arrival quantizes 144 Hz -> 60 FPS to 48 FPS.
+        // Advance past missed slots without emitting a burst after an idle screen or slow encoder.
+        if (!started) next = now + interval;
+        else if (now >= next) next += interval * ((now - next) / interval + 1);
+        sent = now; started = true; pending = false;
+    }
 };
 
 struct DamageRect {

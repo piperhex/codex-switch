@@ -16,6 +16,7 @@ export class HotPeer {
   private closed = false;
   constructor(private readonly options: {
     desktop: boolean; iceServers: IceServer[]; createPeer: PeerFactory;
+    sessionId?: string; tcp?: import('./tcp/types').TcpPunchConfig;
     signal: (signal: RecoverySignal) => void; channel: (channel: Channel) => void; disconnected: () => void;
     diagnostic?: ConnectionDiagnostic;
   }) { this.create(); }
@@ -29,6 +30,8 @@ export class HotPeer {
     this.unhealthySince = undefined;
     try {
       this.peer = this.options.createPeer({
+        sessionId: this.options.sessionId, desktop: this.options.desktop, generation,
+        tcp: this.options.tcp,
         iceServers: this.options.iceServers,
         signal: (signal) => {
           if (signal.kind === 'key') return;

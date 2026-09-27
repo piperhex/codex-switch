@@ -7,6 +7,7 @@ export interface LinkOptions {
   secret: Uint8Array;
   publicKey?: string;
   iceServers: IceServer[];
+  tcp?: import('./tcp/types').TcpPunchConfig;
   createPeer: PeerFactory;
   createPacketCipher?: PacketCipherFactory;
   signal: (message: object) => void;

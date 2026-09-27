@@ -5,7 +5,7 @@ export const REQUEST_TIMEOUT_MS = 60_000;
 export const MAX_MESSAGE_CHARS = 8 * 1024 * 1024;
 export const MAX_BUFFER_BYTES = 512 * 1024;
 export type ConnectionMode = 'connecting' | 'direct' | 'relay' | 'offline';
-export type Signal =
+export type Signal = import('./tcp/types').TcpSignal
   | { kind: 'key'; key: string }
   | { kind: 'sdp'; type: 'offer' | 'answer'; sdp: string }
   | { kind: 'ice'; candidate: string; sdpMid: string | null; sdpMLineIndex: number | null };
@@ -26,6 +26,10 @@ export interface Peer {
 }
 export type PeerConnectionState = 'new' | 'connecting' | 'connected' | 'disconnected' | 'failed' | 'closed';
 export interface PeerOptions {
+  sessionId?: string;
+  desktop?: boolean;
+  generation?: number;
+  tcp?: import('./tcp/types').TcpPunchConfig;
   iceServers: IceServer[];
   signal: (signal: Signal) => void;
   channel: (channel: Channel) => void;

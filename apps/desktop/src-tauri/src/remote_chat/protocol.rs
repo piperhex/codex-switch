@@ -64,7 +64,10 @@ impl Outgoing {
         }
         match self {
             Self::Signal { payload, .. }
-                if !matches!(payload["kind"].as_str(), Some("key" | "sdp" | "ice")) =>
+                if !matches!(
+                    payload["kind"].as_str(),
+                    Some("key" | "sdp" | "ice" | "tcp")
+                ) =>
             {
                 Err(ChatError::InvalidFrame)
             }

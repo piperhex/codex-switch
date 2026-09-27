@@ -18,7 +18,7 @@ const stunHeaderBytes = 20
 const maxSTUNPacket = 1200
 
 func bindingResponse(request []byte, remote *net.UDPAddr) []byte {
-	if len(request) < stunHeaderBytes || len(request) > maxSTUNPacket || remote.IP.To4() == nil {
+	if len(request) < stunHeaderBytes || len(request) > maxSTUNPacket || remote.IP.To16() == nil {
 		return nil
 	}
 	length := int(binary.BigEndian.Uint16(request[2:4]))
@@ -26,16 +26,20 @@ func bindingResponse(request []byte, remote *net.UDPAddr) []byte {
 		length%4 != 0 || length != len(request)-stunHeaderBytes {
 		return nil
 	}
-	response := make([]byte, 32)
+	ip, family := remote.IP.To4(), byte(1)
+	if ip == nil {
+		ip, family = remote.IP.To16(), 2
+	}
+	response := make([]byte, 28+len(ip))
 	binary.BigEndian.PutUint16(response[:2], 0x0101)
-	binary.BigEndian.PutUint16(response[2:4], 12)
+	binary.BigEndian.PutUint16(response[2:4], uint16(8+len(ip)))
 	binary.BigEndian.PutUint32(response[4:8], stunCookie)
 	copy(response[8:20], request[8:20])
 	binary.BigEndian.PutUint16(response[20:22], 0x0020)
-	binary.BigEndian.PutUint16(response[22:24], 8)
-	response[25] = 1
+	binary.BigEndian.PutUint16(response[22:24], uint16(4+len(ip)))
+	response[25] = family
 	binary.BigEndian.PutUint16(response[26:28], uint16(remote.Port)^uint16(stunCookie>>16))
-	for index, octet := range remote.IP.To4() {
+	for index, octet := range ip {
 		response[28+index] = octet ^ response[4+index]
 	}
 	return response

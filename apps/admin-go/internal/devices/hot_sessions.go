@@ -17,6 +17,7 @@ type hotSession struct {
 	desktop                  chatEndpoint
 	mobile                   *chatEndpoint
 	expires                  time.Time
+	tcp                      bool
 }
 type closedSession struct {
 	sockets []*peer
@@ -29,10 +30,12 @@ type hotJoin struct {
 	message  platform.JSON
 	desktop  chatEndpoint
 	ice      []platform.JSON
+	tcp      bool
 }
 
 // Access is serialized by chatSessions.mu; credentials remain in process memory only.
 type hotSessions struct {
+	tcpConfig   platform.JSON
 	limit       float64
 	sessions    map[string]*hotSession
 	closed      map[string]closedSession
@@ -170,6 +173,10 @@ func (s *hotSessions) join(input hotJoin) error {
 	s.sessions[session.id] = session
 	common := platform.JSON{"sessionId": session.id, "resumeToken": session.token, "transportVersion": 2,
 		"iceServers": input.ice, "expiresAt": expires.UnixMilli(), "type": "peer-open", "publicKey": key}
+	if s.tcpConfig != nil && input.tcp && input.message["tcpPunch"] == true {
+		session.tcp = true
+		common["tcpPunch"] = s.tcpConfig
+	}
 	if s.desktopICE != nil {
 		common["desktopIceServers"] = s.desktopICE(session.owner, expires)
 	}
@@ -194,6 +201,7 @@ func (s *hotSessions) resume(input hotJoin, value interface{}) error {
 		input.client.close(4004, "Waiting for PC session")
 		return nil
 	}
+	session.tcp = s.tcpConfig != nil && input.tcp && input.message["tcpPunch"] == true
 	previous := session.mobile
 	session.mobile = &chatEndpoint{input.client, input.identity.expires}
 	if previous != nil && previous.socket != input.client {
@@ -262,6 +270,9 @@ func (s *hotSessions) forward(session *hotSession, target *peer, message platfor
 		payload, err := chatSignal(message["payload"])
 		if err != nil {
 			return err
+		}
+		if payload["kind"] == "tcp" && !session.tcp {
+			return errors.New("TCP paths not negotiated")
 		}
 		target.send(platform.JSON{"type": "signal", "sessionId": session.id, "payload": payload}, nil)
 		return nil

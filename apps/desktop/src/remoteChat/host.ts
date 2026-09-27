@@ -3,6 +3,9 @@ import { CHAT_POLICY_MESSAGE, setChatPolicy } from '../../../../shared/remote-ch
 import { keyPair } from '../../../../shared/remote-chat/cipher';
 import { ChatLink } from '../../../../shared/remote-chat/link';
 import { RtcPeer } from '../../../../shared/remote-chat/rtcPeer';
+import { MultipathPeer } from '../../../../shared/remote-chat/multipathPeer';
+import { DesktopTcpNetwork } from './tcpNetwork';
+import type { PeerFactory } from '../../../../shared/remote-chat/protocol';
 import { parseMessage, type ConnectionMode, type IceServer, type Signal }
   from '../../../../shared/remote-chat/protocol';
 import { ChatOperations } from './operations';
@@ -164,7 +167,13 @@ export class ChatHost {
       sessionId, desktop: true, secret: keys.secret, publicKey: String(message.publicKey),
       transportVersion: Number(message.transportVersion), reconnectRelay: () => this.transport.reconnect(),
       iceServers: message.iceServers as IceServer[],
-      createPeer: (options) => new RtcPeer(options, () => new RTCPeerConnection({ iceServers: options.iceServers })),
+      tcp: message.tcpPunch as import('../../../../shared/remote-chat/tcp/types').TcpPunchConfig | undefined,
+      createPeer: options => {
+        const rtc: PeerFactory = peer => new RtcPeer(peer, () => new RTCPeerConnection({ iceServers: peer.iceServers }));
+        return options.tcp ? new MultipathPeer(options, { rtc,
+          network: new DesktopTcpNetwork(sessionId, options.generation ?? 0),
+          random: size => crypto.getRandomValues(new Uint8Array(size)) }) : rtc(options);
+      },
       signal: (frame) => this.send(frame), relayBuffered: () => this.transport.bufferedAmount,
       mode: (mode) => this.updateConnection(sessionId, mode),
       error: () => this.drop(sessionId),

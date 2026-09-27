@@ -56,9 +56,9 @@ struct Window {
     ~Window() { if (handle) DestroyWindow(handle); }
 };
 
-void update(double seconds, HWND window) {
-    const int next_phase = std::min(5, static_cast<int>(seconds / 3));
-    const int next_tick = static_cast<int>(seconds * (next_phase == 1 ? 5 : 30));
+void update(double seconds, HWND window, bool rate) {
+    const int next_phase = rate ? 2 : std::min(5, static_cast<int>(seconds / 3));
+    const int next_tick = static_cast<int>(seconds * (rate ? 144 : (next_phase == 1 ? 5 : 30)));
     if (phase != next_phase) {
         phase = next_phase;
         std::fprintf(stderr, "phase=%d\n", phase);
@@ -68,7 +68,21 @@ void update(double seconds, HWND window) {
     UpdateWindow(window);
 }
 
-void run(bool gdi, bool baseline) {
+void animate() {
+    Window window;
+    SetWindowPos(window.handle, HWND_TOPMOST, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    const auto start = Clock::now();
+    FrameWait wait;
+    while (Clock::now() - start < std::chrono::seconds(30)) {
+        MSG message{};
+        while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) DispatchMessage(&message);
+        update(std::chrono::duration<double>(Clock::now() - start).count(), window.handle, true);
+        wait.until(Clock::now() + std::chrono::milliseconds(1));
+    }
+}
+
+void run(bool gdi, bool baseline, bool rate) {
     std::promise<HWND> ready;
     auto handle = ready.get_future();
     std::jthread ui([&](std::stop_token stopped) {
@@ -76,12 +90,17 @@ void run(bool gdi, bool baseline) {
             Window window;
             ready.set_value(window.handle);
             const auto start = Clock::now();
+            FrameWait ui_wait;
+            int iterations = 0;
             while (!stopped.stop_requested()) {
                 MSG message{};
                 while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) DispatchMessage(&message);
-                update(std::chrono::duration<double>(Clock::now() - start).count(), window.handle);
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                update(std::chrono::duration<double>(Clock::now() - start).count(), window.handle, rate);
+                ++iterations;
+                ui_wait.until(Clock::now() + std::chrono::milliseconds(rate ? 1 : 5));
             }
+            if (rate) std::fprintf(stderr, "sourcePolls=%d sourceSeconds=%.3f\n", iterations,
+                std::chrono::duration<double>(Clock::now() - start).count());
         } catch (...) { ready.set_exception(std::current_exception()); }
     });
     Config config{width, height, 60, 3'000'000, nullptr, gdi, handle.get()};
@@ -93,8 +112,12 @@ void run(bool gdi, bool baseline) {
     DamageGate gate(config.fps);
     FrameWait wait;
     const auto start = Clock::now();
+    auto next = start;
+    const auto interval = std::chrono::nanoseconds(1'000'000'000 / config.fps);
+    int iterations = 0, submissions = 0;
+    double encode_seconds = 0;
     std::fprintf(stderr, "phase=0\n");
-    while (Clock::now() - start < std::chrono::seconds(18)) {
+    while (Clock::now() - start < std::chrono::seconds(rate ? 8 : 18)) {
         const bool captured = gdi ? software->poll(gate) : capture->poll(gate);
         if (baseline) gate.observe(true);
         const auto now = Clock::now();
@@ -102,10 +125,18 @@ void run(bool gdi, bool baseline) {
             if (gdi) encoder.submit(*software);
             else encoder.submit(capture->texture().get());
             gate.submitted(now);
+            ++submissions;
+            encode_seconds += std::chrono::duration<double>(Clock::now() - now).count();
         }
         encoder.receive();
-        wait.until(Clock::now() + std::chrono::milliseconds(gdi ? 16 : 1));
+        ++iterations;
+        if (gdi) {
+            next += interval * ((Clock::now() - next) / interval + 1);
+            wait.until(next);
+        } else wait.until(Clock::now() + std::chrono::milliseconds(1));
     }
+    if (rate) std::fprintf(stderr, "capturePolls=%d submissions=%d encodeSeconds=%.3f\n",
+        iterations, submissions, encode_seconds);
 }
 }
 }
@@ -116,8 +147,13 @@ int main(int argc, char** argv) {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
         av_log_set_level(AV_LOG_ERROR);
+        if (argc > 1 && std::strcmp(argv[1], "--animate") == 0) {
+            desktop::animate();
+            return 0;
+        }
         desktop::run(argc > 1 && std::strcmp(argv[1], "gdi") == 0,
-            argc > 2 && std::strcmp(argv[2], "baseline") == 0);
+            argc > 2 && std::strcmp(argv[2], "baseline") == 0,
+            argc > 3 && std::strcmp(argv[3], "rate") == 0);
         return 0;
     } catch (const winrt::hresult_error& error) {
         std::fprintf(stderr, "fixture Windows error=%08lx\n", static_cast<unsigned long>(error.code().value));

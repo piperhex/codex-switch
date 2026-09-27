@@ -14,6 +14,7 @@ services:
     ports:
       - "${ADMIN_GO_BIND:-127.0.0.1}:${ADMIN_GO_PORT:-8080}:8080"
       - "${ADMIN_GO_STUN_BIND:-0.0.0.0}:${ADMIN_GO_STUN_PORT:-3478}:${CHAT_STUN_PORT:-3478}/udp"
+      - "${ADMIN_GO_TCP_BIND:-0.0.0.0}:${ADMIN_GO_TCP_PORT:-3478}:3478/tcp"
     networks:
       database:
       kong:

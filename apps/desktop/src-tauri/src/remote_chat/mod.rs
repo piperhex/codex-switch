@@ -8,6 +8,7 @@ mod config;
 mod protocol;
 mod runtime;
 mod sessions;
+pub(crate) mod tcp;
 mod wire;
 
 #[cfg(test)]
@@ -133,5 +134,8 @@ pub(crate) fn start<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
         std::sync::Arc::clone(&app.state::<crate::codex_gui::GuiState>().upload_policy);
     let configs = config::watch(app.clone());
     client::start(&app, configs.clone());
-    std::thread::spawn(move || runtime::run(receiver, configs, upload_policy));
+    let tcp = tcp::State::default();
+    let authority = tcp.authority.clone();
+    app.manage(tcp);
+    std::thread::spawn(move || runtime::run(receiver, configs, upload_policy, authority));
 }

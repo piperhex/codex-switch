@@ -8,6 +8,7 @@ const { applyListRenderRangePatch } = require('./scripts/patch-list-render-range
 // Cover direct Metro/Gradle builds, including installations made with --ignore-scripts.
 applyDrawerTapPatch();
 applyListRenderRangePatch();
+require('./scripts/patch-tcp-punch.cjs').applyTcpPunchPatch();
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');

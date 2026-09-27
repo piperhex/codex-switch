@@ -58,6 +58,7 @@ export class RtcPeer implements Peer {
 
   private async apply(signal: Exclude<Signal, { kind: 'key' }>) {
     if (this.closed) return;
+    if (signal.kind === 'tcp') return;
     if (signal.kind === 'ice') {
       if (this.pc.remoteDescription) await this.addCandidate(signal);
       else if (this.candidates.length < MAX_PENDING_CANDIDATES) this.candidates.push(signal);

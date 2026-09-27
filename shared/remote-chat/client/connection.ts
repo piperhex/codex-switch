@@ -22,6 +22,7 @@ export interface ConnectionEvents {
 }
 
 interface ConnectionOptions extends ConnectionEvents {
+  tcpPunch?: boolean;
   clientInfo?: ChatClientInfo;
   createSocket?: (url: string) => ChatSocket;
   deviceId: string;
@@ -90,7 +91,7 @@ export class ChatConnection {
       if (generation !== this.generation) { socket.close(); return; }
       socket.send(JSON.stringify({ type: 'authenticate', role: 'mobile',
         accessToken, deviceId: this.options.deviceId, publicKey: keys.publicKey,
-        transportVersion: 2, binaryRelay: true, resume: this.resume,
+        transportVersion: 2, binaryRelay: true, tcpPunch: this.options.tcpPunch === true, resume: this.resume,
         clientInfo: this.options.clientInfo ?? browserClientInfo() }));
     };
     socket.onmessage = ({ data }: { data: unknown }) => {
@@ -157,6 +158,7 @@ export class ChatConnection {
         this.lease(message.expiresAt);
       }
       this.paired({ id: message.sessionId, iceServers: message.iceServers as IceServer[], keys,
+        tcp: message.tcpPunch as import('../tcp/types').TcpPunchConfig | undefined,
         transportVersion: Number(message.transportVersion) });
       return;
     }
@@ -177,13 +179,14 @@ export class ChatConnection {
   }
 
   private paired(input: {
+    tcp?: import('../tcp/types').TcpPunchConfig;
     id: string; iceServers: IceServer[]; keys: ReturnType<typeof keyPair>; transportVersion: number;
   }) {
     if (this.link) throw new Error('Already paired');
     this.rpc = new ChatRpc({ prefix: input.keys.publicKey.slice(0, 24),
       send: (message, progress) => this.link!.send(message, progress), event: this.options.event });
     this.link = new ChatLink({
-      sessionId: input.id, desktop: false, secret: input.keys.secret, iceServers: input.iceServers,
+      sessionId: input.id, desktop: false, secret: input.keys.secret, iceServers: input.iceServers, tcp: input.tcp,
       transportVersion: input.transportVersion, reconnectRelay: () => this.fail(CONNECTION_ERRORS.network, true),
       createPeer: this.options.createPeer,
       createPacketCipher: this.options.createPacketCipher,

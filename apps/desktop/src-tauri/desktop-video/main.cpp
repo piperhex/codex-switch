@@ -34,8 +34,9 @@ void stream_gpu(const Config& config, Encoder& encoder) {
     DamageGate gate(config.fps);
     FrameWait wait;
     for (;;) {
+        const bool captured = capture.poll(gate);
         const auto now = Clock::now();
-        if (capture.poll(gate) && gate.due(now)) {
+        if (captured && gate.due(now)) {
             encoder.submit(capture.texture().get());
             gate.submitted(now);
         }
@@ -50,8 +51,8 @@ void stream_gdi(const Config& config, Encoder& encoder) {
     DamageGate gate(config.fps);
     FrameWait wait;
     const auto interval = std::chrono::nanoseconds(1'000'000'000 / config.fps);
+    auto next = Clock::now();
     for (;;) {
-        const auto next = Clock::now() + interval;
         capture.poll(gate);
         const auto now = Clock::now();
         if (gate.due(now)) {
@@ -59,6 +60,8 @@ void stream_gdi(const Config& config, Encoder& encoder) {
             gate.submitted(now);
         }
         encoder.receive();
+        const auto finished = Clock::now();
+        next += interval * ((finished - next) / interval + 1);
         wait.until(next);
     }
 }
