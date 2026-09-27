@@ -30,6 +30,8 @@ import { MobileConnectionStatus } from "./codexGui/MobileConnectionStatus";
 import { GUI_VIEW_TITLES, type GuiView } from "./codexGui/GuiNavigation";
 import type { SkillsMarketPageProps } from "./skillsMarket/types";
 import paneStyles from "./codexGui/workspacePanes.module.less";
+import { GuiToolbox } from "./codexGui/GuiToolbox";
+import { localGitClient } from "./codexGui/localGitClient";
 
 const GuiPluginsPage = lazy(() => import("./codexGui/GuiPluginsPage"));
 const GuiMigrationPage = lazy(() => import("./codexGui/GuiMigrationPage"));
@@ -110,6 +112,8 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
           </strong>
         </div>
         <div className={styles.headerActions} data-tauri-drag-region={isDesktopApp || undefined}>
+          {isDesktopApp && view === "conversation" && <GuiToolbox active={conversationActive} connected
+            cwd={project} deviceName="本机" git={localGitClient} />}
           {isDesktopApp && <MobileConnectionStatus />}
           {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接 Codex"
             disabled={Boolean(running)} loading={state.connection === "connecting"}

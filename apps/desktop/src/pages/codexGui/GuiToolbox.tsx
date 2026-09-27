@@ -1,0 +1,46 @@
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Button, Popover, Tooltip } from 'antd';
+import { GitBranch, Monitor, Wrench } from 'lucide-react';
+import type { GitClient } from '../../../../../shared/remote-chat/gitTypes';
+import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
+import styles from './GuiToolbox.module.less';
+import '../../../../web/src/chat/terminal.css';
+import '../../../../web/src/chat/git/git.css';
+
+const ChatGit = lazy(() => import('../../../../web/src/chat/git/ChatGit')
+  .then(module => ({ default: module.ChatGit })));
+const RemoteDesktop = lazy(() => import('../../../../web/src/chat/desktop/RemoteDesktop')
+  .then(module => ({ default: module.RemoteDesktop })));
+
+interface Props {
+  active: boolean; connected: boolean; cwd: string; deviceName: string;
+  git: GitClient; desktop?: DesktopClient;
+}
+
+export function GuiToolbox(props: Props) {
+  const [menu, setMenu] = useState(false);
+  const [panel, setPanel] = useState<'git' | 'desktop' | null>(null);
+  useEffect(() => { if (!props.active) { setMenu(false); setPanel(null); } }, [props.active]);
+  return <>
+    <Popover trigger="click" placement="bottomRight" open={menu && props.active} onOpenChange={setMenu}
+      styles={{ root: { maxWidth: 400 } }} content={<div className={styles.menu} aria-label="工具箱">
+        {props.desktop && <button type="button" disabled={!props.connected}
+          onClick={() => { setMenu(false); setPanel('desktop'); }}>
+          <Monitor size={18} /><span>远程桌面</span>
+        </button>}
+        <button type="button" disabled={!props.connected} onClick={() => { setMenu(false); setPanel('git'); }}>
+          <GitBranch size={18} /><span>Git</span></button>
+      </div>}>
+      <Tooltip title={menu ? null : '工具箱'} styles={{ root: { maxWidth: 400 } }}>
+        <Button type="text" icon={<Wrench size={16} />} aria-label="打开工具箱" aria-expanded={menu && props.active} />
+      </Tooltip>
+    </Popover>
+    <Suspense fallback={null}>
+      {panel === 'git' && <ChatGit key={props.cwd} client={props.git} cwd={props.cwd}
+        connected={props.connected} active={props.active} deviceName={props.deviceName}
+        onClose={() => setPanel(null)} />}
+      {panel === 'desktop' && props.desktop && <RemoteDesktop client={props.desktop}
+        active={props.active && props.connected} close={() => setPanel(null)} />}
+    </Suspense>
+  </>;
+}

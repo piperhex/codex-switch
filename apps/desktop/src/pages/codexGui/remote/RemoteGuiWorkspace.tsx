@@ -39,7 +39,8 @@ export default function RemoteGuiWorkspace(props: {
       chooseLocal={() => computers.choose(null)}
       chooseDevice={(id) => { const device = computers.devices.find((entry) => entry.deviceId === id);
         if (device) computers.choose(device); }}
-      headerActions={<><RemoteGuiTools controller={chat.controller} state={chat.state} active={active} terminal={terminal} />
+      headerActions={<><RemoteGuiTools controller={chat.controller} state={chat.state} active={active}
+        terminal={terminal} deviceName={device.name} />
         <span className="gui-remote-focus"><FocusModeButton {...props.focusMode} /></span></>}
       headerEnd={props.focusMode.focused && props.windowControls}
       conversationFooter={terminal.tabs.length > 0 && <Suspense fallback={null}>

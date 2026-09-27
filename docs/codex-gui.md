@@ -47,6 +47,12 @@ Terminals start in the current remote project, support multiple tabs and resizin
 remote session ends. Hiding the terminal panel keeps its shells running. A started CLI download continues
 if the viewer disconnects; reconnecting shows its current status.
 
+The first button at the right of the conversation header opens **工具箱**. On **本机**, it only shows **Git**
+for the current local project. On a remote computer, it shows **远程桌面** and **Git** for that computer.
+Remote desktop opens its Windows primary display with mouse and keyboard controls.
+Terminal keeps its existing separate header button and is not duplicated in the toolbox.
+Leaving the workspace closes the desktop viewer and releases control.
+
 Desktop web chat and the PC remote workspace use the same file-change cards and right-side diff panel
 as the local GUI. Cards show per-file line counts, initially list three files, and expand in place.
 Click a file to review only that path, or **审核** to review the whole turn. The panel supports highlighted

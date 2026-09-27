@@ -6,7 +6,11 @@ import { useGuiComputers } from '../src/pages/codexGui/remote/useGuiComputers';
 import RemoteGuiWorkspace from '../src/pages/codexGui/remote/RemoteGuiWorkspace';
 import { DEMO_ACCOUNTS } from '../src/demo';
 import styles from '../src/pages/codexGui/styles.module.less';
+import { GuiToolbox } from '../src/pages/codexGui/GuiToolbox';
+import { createAsyncGitFixture } from '../../../shared/remote-chat/testing/gitFixture';
 import 'antd/dist/reset.css';
+
+const localGit = createAsyncGitFixture();
 
 function Harness() {
   const [localDraft, setLocalDraft] = useState('Local unsent draft');
@@ -21,7 +25,9 @@ function Harness() {
         <ProxyAccountPicker active privacyMode={false} computers={computers}
           accounts={[{ ...DEMO_ACCOUNTS[0], active: true }]} providers={[]} aggregateApis={[]} proxyRunning
           busy={false} loading={false} onSwitchAccount={async () => true} onSwitchProvider={async () => true} />
-      </aside><textarea aria-label="本机草稿" value={localDraft} onChange={event => setLocalDraft(event.target.value)} /></div>}
+      </aside><textarea aria-label="本机草稿" value={localDraft} onChange={event => setLocalDraft(event.target.value)} />
+      <div style={{ alignSelf: 'flex-start', margin: 12 }}><GuiToolbox active connected git={localGit}
+        cwd="/local/workspace" deviceName="本机" /></div></div>}
   </main></ConfigProvider>;
 }
 

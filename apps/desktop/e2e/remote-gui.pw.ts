@@ -5,7 +5,10 @@ import type { WebSocketServer as Server } from 'ws';
 import type { AddressInfo } from 'node:net';
 import type { ChatSessions as Sessions } from '../../admin/src/modules/devices/chat/chat-sessions';
 import type { ChatIdentity } from '../../admin/src/modules/devices/chat/protocol';
+import type { desktopTest } from '../../web/e2e/remote-desktop-fixture';
 import './chat-harness-types';
+
+declare global { interface Window { desktopTest: typeof desktopTest } }
 
 const require = createRequire(import.meta.url);
 const { WebSocketServer } = createRequire(new URL('../../admin/package.json', import.meta.url))('ws') as {
@@ -61,7 +64,7 @@ for (const blocked of [false, true]) {
   test(`remote desktop tools use the selected computer over ${blocked ? 'Relay' : 'P2P'}`, async ({ context, page }) => {
     test.setTimeout(90_000);
     const office = await context.newPage();
-    await office.goto(`/e2e/chat-harness.html?role=desktop&demo&device=computer-one&title=Office`
+    await office.goto(`/e2e/chat-harness.html?role=desktop&demo&remote-desktop&device=computer-one&title=Office`
       + `&blocked=${blocked}&socket=${encodeURIComponent(endpoint)}`);
     await expect(office.locator('#status')).toHaveText('registered');
     await office.evaluate(() => {
@@ -71,10 +74,40 @@ for (const blocked of [false, true]) {
     await page.bringToFront();
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`/e2e/remote-gui-harness.html?socket=${encodeURIComponent(endpoint)}`);
+    await page.getByRole('button', { name: '打开工具箱', exact: true }).click();
+    const toolbox = page.locator('[aria-label="工具箱"]:visible');
+    await expect(toolbox.getByRole('button')).toHaveText(['Git']);
+    await page.screenshot({ path: `../../.codex-tmp/gui-local-toolbox-${blocked ? 'relay' : 'p2p'}.png` });
+    await toolbox.getByRole('button', { name: 'Git', exact: true }).click();
+    await expect(page.locator('.git-project')).toContainText('/local/workspace');
+    await page.getByRole('button', { name: '关闭 Git', exact: true }).click();
     await chooseComputer(page, 'Office PC');
     await page.getByRole('button', { name: 'Office', exact: true }).click();
     await expect(page.locator('.chat-connection')).toContainText(blocked ? 'Relay' : 'P2P');
     await expect(page.getByRole('button', { name: '远程 Codex CLI 更新' })).toContainText('0.155.0');
+    await expect(page.locator('.gui-remote-tools > button').first()).toHaveAttribute('aria-label', '打开工具箱');
+    await page.getByRole('button', { name: '打开工具箱', exact: true }).click();
+    await expect(toolbox.getByRole('button')).toHaveText(['远程桌面', 'Git']);
+    expect((await page.locator('.ant-popover:visible').boundingBox())!.width).toBeLessThanOrEqual(400);
+    await page.screenshot({ path: `../../.codex-tmp/gui-remote-toolbox-${blocked ? 'relay' : 'p2p'}.png` });
+    await toolbox.getByRole('button', { name: 'Git', exact: true }).click();
+    await expect(page.locator('.git-project')).toContainText('F:/projects/demo');
+    await expect(page.locator('.chat-terminal-device')).toContainText('Office PC');
+    await expect.poll(() => office.evaluate(() => window.chatTest.demoState().operations
+      .some(operation => operation.operation === 'guiGitChanges' && operation.cwd === 'F:/projects/demo'))).toBe(true);
+    await page.getByRole('button', { name: '关闭 Git', exact: true }).click();
+    await page.getByRole('button', { name: '打开工具箱', exact: true }).click();
+    await toolbox.getByRole('button', { name: '远程桌面', exact: true }).click();
+    const desktop = page.getByRole('dialog', { name: '远程桌面', exact: true });
+    await expect(desktop).toBeVisible();
+    await expect.poll(() => desktop.locator('video').evaluate(video => video.videoWidth), { timeout: 20_000 })
+      .toBeGreaterThan(0);
+    await desktop.getByRole('button', { name: '显示桌面', exact: true }).click();
+    await expect.poll(() => office.evaluate(() => window.desktopTest.inputs.at(-1)))
+      .toEqual({ kind: 'key', key: 'desktop' });
+    await desktop.getByRole('button', { name: '关闭', exact: true }).click();
+    await expect(desktop).toHaveCount(0);
+    await expect.poll(() => office.evaluate(() => window.desktopTest.closed)).toBeGreaterThan(0);
     await page.getByRole('button', { name: '重新连接远程 Codex' }).click();
     await expect.poll(() => office.evaluate(() => window.chatTest.demoState().operations
       .some(operation => operation.operation === 'guiReconnect'))).toBe(true);
@@ -115,7 +148,7 @@ for (const blocked of [false, true]) {
       .some(operation => operation.operation === 'guiTerminalClose'))).toBe(true);
     await chooseComputer(page, '本机');
     expect(await page.evaluate(() => window.remoteGuiFixture.commands
-      .filter(command => /codex_gui_(cli_|terminal_|connect$|file_)/.test(command)))).toEqual([]);
+      .filter(command => /codex_gui_(cli_|terminal_|connect$|file_|git_tool)/.test(command)))).toEqual([]);
   });
 }
 
