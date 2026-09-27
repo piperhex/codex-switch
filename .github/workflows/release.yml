@@ -41,12 +41,15 @@ jobs:
             const tag = process.env.TAG_NAME;
             const boilerplate = "Windows, macOS, Linux, Android, and iOS build artifacts are attached below.";
 
-            try {
-              const { data: release } = await github.rest.repos.getReleaseByTag({
-                owner,
-                repo,
-                tag,
-              });
+            // Tag lookup omits drafts; retries must reuse the draft and its uploaded assets.
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              owner,
+              repo,
+              per_page: 100,
+            });
+            const existingRelease = releases.find((release) => release.tag_name === tag);
+            if (existingRelease) {
+              const release = existingRelease;
               const update = {};
               if (release.name !== process.env.RELEASE_NAME) {
                 update.name = process.env.RELEASE_NAME;
@@ -71,8 +74,6 @@ jobs:
               core.setOutput("release_draft", String(release.draft));
               core.info(`Using existing release ${release.id} for ${tag}.`);
               return release.id.toString();
-            } catch (error) {
-              if (error.status !== 404) throw error;
             }
 
             const { data: release } = await github.rest.repos.createRelease({
