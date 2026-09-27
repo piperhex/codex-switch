@@ -9,6 +9,9 @@ export interface DesktopOffer { sdp: string; iceServers: IceServer[] }
 export interface DesktopSignal { answer?: string; candidates: RTCIceCandidateInit[] }
 export interface DesktopStats {
   fps: number; width: number; height: number; bitrate: number; connection?: 'direct' | 'relay';
+  receivedFps?: number; receivedBitrate?: number; elapsedSeconds?: number;
+  rttMs?: number; decodeMs?: number; lossPercent?: number;
+  transport?: 'UDP' | 'TCP' | 'TLS'; network?: 'Wi-Fi' | 'Ethernet' | 'Cellular';
 }
 export type DesktopInput =
   | { kind: 'move'; x: number; y: number }

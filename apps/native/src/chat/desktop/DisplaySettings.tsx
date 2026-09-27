@@ -3,8 +3,9 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { MAX_FPS, type DesktopSettings } from '../../../../../shared/remote-desktop/protocol';
 import { desktopStyles as s } from './styles';
 
-export function DisplaySettings({ settings, update, saving, close }: {
+export function DisplaySettings({ settings, update, saving, close, stats }: {
   settings: DesktopSettings; update: (next: DesktopSettings) => Promise<void>; saving: boolean; close: () => void;
+  stats: { visible: boolean; toggle: () => void };
 }) {
   const [custom, setCustom] = useState(settings.fps === 'auto' ? '30' : String(settings.fps));
   const [error, setError] = useState('');
@@ -18,6 +19,9 @@ export function DisplaySettings({ settings, update, saving, close }: {
       <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="关闭显示设置">
         <Text style={s.text}>完成</Text></Pressable></View>
     <ScrollView contentContainerStyle={s.panelContent} keyboardShouldPersistTaps="handled">
+    <Pressable style={s.choice} accessibilityRole="switch" accessibilityLabel="连接状态"
+      accessibilityState={{ checked: stats.visible }} onPress={stats.toggle}>
+      <Text style={s.text}>{stats.visible ? '隐藏连接状态' : '显示连接状态'}</Text></Pressable>
     <Text style={s.text}>帧率</Text><View style={s.row}>
       {(['auto', 30, 60, 90, 144] as const).map(fps => <Pressable key={fps} disabled={saving}
         accessibilityRole="radio" accessibilityState={{ checked: settings.fps === fps }}
@@ -39,6 +43,7 @@ export function DisplaySettings({ settings, update, saving, close }: {
           <Text style={s.text}>{item.label}</Text></Pressable>)}
     </View><Text style={s.hint}>默认根据网络情况调整画质和帧率，让操作保持流畅。</Text>
     <Text style={s.text}>鼠标操作</Text>
+    <Text style={s.hint}>在鼠标面板外，双指张合缩放画面，双指滑动平移画面。</Text>
     <Text style={s.hint}>滑动画面或鼠标下半部移动指针，轻点单击。长按左键开始拖拽，再点左键结束。中央箭头用于滚动，横线把手可移动鼠标面板。</Text>
   </ScrollView></View>;
 }

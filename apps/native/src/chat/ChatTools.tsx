@@ -46,7 +46,7 @@ function ProjectTools({ client, ...props }: Props) {
     </ChatToolsPopover>}
     <ChatTerminal {...props} client={client.terminal} launchId={launchId} hideTrigger />
     {git && <ChatGit {...props} client={client.git} onClose={() => setGit(false)} />}
-    {desktop && <RemoteDesktop client={client.desktop} active={props.active && props.connected}
+    {desktop && <RemoteDesktop client={client.desktop} active={props.active}
       close={() => setDesktop(false)} />}
   </>;
 }

@@ -3,18 +3,21 @@ import { PanResponder } from 'react-native';
 import type { DesktopPointer } from '../../../../../shared/remote-desktop/input';
 import { desktopPoint, type DesktopViewport } from '../../../../../shared/remote-desktop/geometry';
 import type { MousePanelActivity } from '../../../../../shared/remote-desktop/useMousePanel';
+import type { DesktopZoom } from '../../../../../shared/remote-desktop/zoom';
+import { usePinchZoom } from './usePinchZoom';
 
 interface Options {
   pointer: DesktopPointer; viewport: DesktopViewport; direct?: boolean; click?: boolean;
-  panel: MousePanelActivity; id: string; cancel?: () => void;
+  panel: MousePanelActivity; id: string; cancel?: () => void; zoom?: DesktopZoom;
 }
 export function useTrackpad(options: Options) {
   const latest = useRef(options); latest.current = options;
+  const pinch = usePinchZoom(options);
   const [pressed, setPressed] = useState(false);
   const previous = useRef({ dx: 0, dy: 0, x: 0, y: 0, distance: 0, accepted: false });
   useEffect(() => () => {
     const { pointer, panel, id } = latest.current;
-    pointer.release(); panel.hold(id, false);
+    pinch.end(); pointer.release(); panel.hold(id, false);
   }, [options.pointer, options.direct]);
   const responder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -27,9 +30,13 @@ export function useTrackpad(options: Options) {
       const target = direct ? desktopPoint({ x, y }, viewport) : undefined;
       previous.current = { dx: 0, dy: 0, x, y, distance: 0, accepted: !!target };
       setPressed(true); panel.hold(id, true);
+      if (pinch.start(event)) return;
       if (target) { pointer.absolute(target.x, target.y); pointer.button('left', true); }
     },
-    onPanResponderMove: (_, gesture) => {
+    onPanResponderStart: event => { pinch.update(event); },
+    onPanResponderEnd: event => { pinch.update(event); },
+    onPanResponderMove: (event, gesture) => {
+      if (pinch.update(event)) return;
       const { pointer, viewport, direct } = latest.current;
       const before = previous.current;
       const dx = gesture.dx - before.dx; const dy = gesture.dy - before.dy;
@@ -42,13 +49,14 @@ export function useTrackpad(options: Options) {
     },
     onPanResponderRelease: () => {
       const { pointer, direct, click = true, panel, id } = latest.current;
+      const pinched = pinch.end();
       if (direct) { if (previous.current.accepted) pointer.button('left', false); }
-      else if (click && previous.current.distance < 5) pointer.click();
+      else if (!pinched && click && previous.current.distance < 5) pointer.click();
       pointer.flush(); setPressed(false); panel.hold(id, false);
     },
     onPanResponderTerminate: () => {
       const { pointer, panel, id, cancel } = latest.current;
-      pointer.release(); cancel?.(); setPressed(false); panel.hold(id, false);
+      pinch.end(); pointer.release(); cancel?.(); setPressed(false); panel.hold(id, false);
     },
   }), []);
   return { ...responder, pressed };

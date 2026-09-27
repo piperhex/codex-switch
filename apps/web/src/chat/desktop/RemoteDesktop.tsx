@@ -4,14 +4,17 @@ import { Grid2X2, Hand, Keyboard, Maximize, Monitor, Mouse, Settings2, X } from 
 import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
 import { useDesktopSession } from '../../../../../shared/remote-desktop/useDesktopSession';
 import { DisplaySettings } from './DisplaySettings';
+import { DesktopStats } from './DesktopStats';
 import { DesktopMouse } from './MousePad';
 import { useTrackpad } from './useTrackpad';
 import { useVideoViewport } from './useVideoViewport';
 import { useMousePanel } from '../../../../../shared/remote-desktop/useMousePanel';
 import { useMouseViewport } from '../../../../../shared/remote-desktop/useMouseViewport';
+import { useDesktopZoom } from '../../../../../shared/remote-desktop/useDesktopZoom';
 import { MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE } from '../../../../../shared/remote-desktop/geometry';
 import { t } from '../../i18n';
 import { usePageVisibility } from './usePageVisibility';
+import { useKeyboardViewport } from './useKeyboardViewport';
 import './desktop.css';
 
 const createPeer = (configuration: RTCConfiguration) => new RTCPeerConnection(configuration);
@@ -23,7 +26,9 @@ export function RemoteDesktop({ client, active, close }: {
   const session = useDesktopSession({ client, active: active && visible, createPeer });
   const [display, setDisplay] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
+  const keyboardViewport = useKeyboardViewport(keyboard);
   const [direct, setDirect] = useState(false);
+  const [statsVisible, setStatsVisible] = useState(true);
   const panelVisible = !direct && !display && !keyboard;
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const [text, setText] = useState('');
@@ -31,9 +36,10 @@ export function RemoteDesktop({ client, active, close }: {
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const fitted = useVideoViewport(stage, video, active);
-  const viewport = useMouseViewport(session.pointer, fitted,
-    panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined);
-  const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage' });
+  const zoom = useDesktopZoom(fitted, active);
+  const viewport = useMouseViewport(session.pointer, zoom.viewport,
+    panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined, zoom.modified);
+  const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage', zoom: zoom.gestures });
   const wheel = (delta: number) => { session.pointer.synchronize(); session.input({ kind: 'wheel', delta }); };
   const switchMode = (next: boolean) => { session.pointer.release(); setDirect(next); if (!next) panel.expand(); };
   useEffect(() => {
@@ -53,7 +59,8 @@ export function RemoteDesktop({ client, active, close }: {
     else void root.current?.requestFullscreen?.().catch(() => undefined);
   };
   if (!active) return null;
-  return createPortal(<div ref={root} tabIndex={-1} className="rd-root" role="dialog" aria-modal="true"
+  return createPortal(<div ref={root} tabIndex={-1} className="rd-root" style={keyboardViewport}
+    role="dialog" aria-modal="true"
     aria-label={t('远程桌面')} onContextMenu={event => event.preventDefault()}>
     <div ref={stage} className="rd-stage">
       <video ref={video} autoPlay playsInline muted className="rd-video" style={{
@@ -61,14 +68,14 @@ export function RemoteDesktop({ client, active, close }: {
         width: viewport.content.width, height: viewport.content.height }} />
       <div key={direct ? 'direct' : 'trackpad'} className="rd-touch" {...trackpad}
         onWheel={event => wheel(event.deltaY > 0 ? -120 : 120)} aria-label={t('远程桌面触控区域')} />
-      {session.stats && <span className="rd-stats">
-        {session.stats.width} × {session.stats.height} · {session.stats.fps} {t('帧/秒')}
-        {session.stats.connection && ` · ${t(session.stats.connection === 'relay' ? '中继' : '直连')}`}</span>}
+      {session.stats && statsVisible && !keyboard
+        && <DesktopStats stats={session.stats} close={() => setStatsVisible(false)} />}
       {session.stream && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
-        visible={panelVisible} wheel={wheel} />}
+        visible={panelVisible} zoomed={zoom.modified} wheel={wheel} />}
       {session.status && <div className="rd-status" role="status"><span>{t(session.status)}</span>
         <button onClick={session.retry}>{t('重新连接')}</button></div>}
       {display && <DisplaySettings settings={session.settings} update={session.update} saving={session.saving}
+        stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}
         close={() => setDisplay(false)} />}
       {keyboard && <form className="rd-keyboard" onSubmit={event => { event.preventDefault(); send(); }}>
         <div><input autoFocus value={text} maxLength={1000} aria-label={t('发送到电脑的文字')}
@@ -81,8 +88,8 @@ export function RemoteDesktop({ client, active, close }: {
       </form>}
     </div>
     <nav className="rd-toolbar" aria-label={t('远程桌面操作')}>
-      <button aria-pressed={!direct} onClick={() => switchMode(false)}><Mouse /><span>{t('鼠标')}</span></button>
-      <button aria-pressed={direct} onClick={() => switchMode(!direct)}><Hand /><span>{t('触屏')}</span></button>
+      <button aria-label={t(direct ? '切换为鼠标模式' : '切换为触屏模式')} className="rd-mode"
+        onClick={() => switchMode(!direct)}>{direct ? <Hand /> : <Mouse />}<span>{t(direct ? '触屏' : '鼠标')}</span></button>
       <button aria-pressed={keyboard} onClick={() => { setKeyboard(!keyboard); setDisplay(false); }}>
         <Keyboard /><span>{t('键盘')}</span></button>
       <button onClick={() => session.input({ kind: 'key', key: 'desktop' })}><Monitor /><span>{t('显示桌面')}</span></button>

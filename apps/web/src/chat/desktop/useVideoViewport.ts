@@ -7,7 +7,8 @@ export function useVideoViewport(stage: RefObject<HTMLElement>, video: RefObject
     const area = stage.current; const media = video.current;
     if (!active || !area || !media) return;
     const measure = () => setViewport(desktopViewport({ width: area.clientWidth, height: area.clientHeight },
-      { width: media.videoWidth || 16, height: media.videoHeight || 9 }));
+      { width: media.videoWidth || 16, height: media.videoHeight || 9 },
+      window.matchMedia('(orientation: landscape)').matches));
     const observer = new ResizeObserver(measure); observer.observe(area);
     media.addEventListener('resize', measure); media.addEventListener('loadedmetadata', measure); measure();
     return () => { observer.disconnect(); media.removeEventListener('resize', measure);

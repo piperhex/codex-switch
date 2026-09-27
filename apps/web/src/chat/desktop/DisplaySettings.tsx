@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { MAX_FPS, type DesktopSettings } from '../../../../../shared/remote-desktop/protocol';
 import { t } from '../../i18n';
 
-export function DisplaySettings({ settings, update, saving, close }: {
+export function DisplaySettings({ settings, update, saving, close, stats }: {
   settings: DesktopSettings; update: (settings: DesktopSettings) => Promise<void>; saving: boolean; close: () => void;
+  stats: { visible: boolean; toggle: () => void };
 }) {
   const [custom, setCustom] = useState(settings.fps === 'auto' ? 30 : settings.fps);
   const [error, setError] = useState('');
@@ -13,6 +14,8 @@ export function DisplaySettings({ settings, update, saving, close }: {
   };
   return <aside className="rd-settings" aria-label={t('显示设置')}>
     <header><strong>{t('显示')}</strong><button onClick={close}>{t('完成')}</button></header>
+    <p><button role="switch" aria-label={t('连接状态')} aria-checked={stats.visible} onClick={stats.toggle}>
+      {t(stats.visible ? '隐藏连接状态' : '显示连接状态')}</button></p>
     <p>{t('帧率')}</p><div className="rd-options" role="group" aria-label={t('帧率')}>
       {(['auto', 30, 60, 90, 144] as const).map(fps => <button key={fps} disabled={saving}
         aria-pressed={settings.fps === fps} onClick={() => { void update({ ...settings, fps }); }}>
@@ -29,6 +32,8 @@ export function DisplaySettings({ settings, update, saving, close }: {
           onClick={() => { void update({ ...settings, quality: item.value }); }}>{t(item.label)}</button>)}
     </div><small>{t('默认根据网络情况调整画质和帧率，让操作保持流畅。')}</small>
     <p>{t('鼠标操作')}</p><small>
+      {t('在鼠标面板外，双指张合缩放画面，双指滑动平移画面。')}
+    </small><br /><small>
       {t('滑动画面或鼠标下半部移动指针，轻点单击。长按左键开始拖拽，再点左键结束。中央箭头用于滚动，横线把手可移动鼠标面板。')}
     </small>
   </aside>;

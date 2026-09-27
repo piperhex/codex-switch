@@ -12,11 +12,11 @@ import { desktopStyles as s } from './styles';
 interface Props {
   pointer: DesktopPointer; viewport: DesktopViewport; panel: MousePanelActivity; wheel: (delta: number) => void;
 }
-export function DesktopMouse({ visible, ...props }: Props & { visible: boolean }) {
+export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { visible: boolean; zoomed?: boolean }) {
   const position = useSyncExternalStore(props.pointer.subscribe, props.pointer.getSnapshot);
   const cursor = cursorPosition(position, props.viewport);
-  const panel = mousePanelPosition(cursor);
   const panelSize = props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE;
+  const panel = mousePanelPosition(cursor, zoomed ? props.viewport.stage : undefined, panelSize);
   return <>
     <View pointerEvents="none" accessible={false} style={[s.cursor, { left: cursor.x, top: cursor.y }]}>
       <Image accessible={false} source={require('../../../../../shared/remote-desktop/cursor.png')}

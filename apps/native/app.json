@@ -76,6 +76,7 @@
       "./plugins/withChatBackground.cjs",
       "./plugins/withChatTextSelection.cjs",
       "./plugins/withChatScroll.cjs",
+      "./plugins/withDesktopWindow.cjs",
       "./plugins/withChatTransport.cjs",
       "./plugins/withChatPacketCipher.cjs",
       "./plugins/withChatHistoryWorker.cjs",

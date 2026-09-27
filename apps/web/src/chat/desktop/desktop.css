@@ -2,6 +2,9 @@
   font-family: system-ui, sans-serif; padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left); outline: none; }
 .rd-root * { box-sizing: border-box; }
+@media (orientation: landscape) {
+  .rd-root { padding-top: 0; padding-bottom: 0; }
+}
 .rd-root button { color: inherit; font: inherit; cursor: pointer; border: 0; }
 .rd-root button:focus-visible { outline: 2px solid #88b5ff; outline-offset: -2px; }
 .rd-root button:disabled { opacity: .5; cursor: wait; }
@@ -23,9 +26,14 @@
   scrollbar-width: thin; gap: 8px; background: #171c28; padding: 8px; }
 .rd-toolbar button { display: flex; flex-direction: column; align-items: center; gap: 7px; background: transparent;
   flex-shrink: 0; min-height: 56px; border-radius: 10px; padding: 10px 2px; font-size: 12px; }
-.rd-toolbar button[aria-pressed=true], .rd-options button[aria-pressed=true] { background: #355987; }
-.rd-stats { position: absolute; left: 10px; top: 10px; font-size: 11px; border-radius: 5px; padding: 5px;
-  background: #111827bb; pointer-events: none; }
+.rd-toolbar button[aria-pressed=true], .rd-toolbar .rd-mode,
+.rd-options button[aria-pressed=true] { background: #355987; }
+.rd-stats { position: absolute; left: 10px; top: 10px; display: flex; align-items: flex-start;
+  max-width: 240px; border-radius: 6px; color: #cbd5e1; background: #080b1299; pointer-events: none; }
+.rd-stats span { padding: 8px; white-space: pre-line; font: 12px/19px ui-monospace, monospace;
+  font-variant-numeric: tabular-nums; }
+.rd-stats button { width: 32px; height: 32px; display: grid; place-items: center;
+  padding: 0; background: transparent; pointer-events: auto; border-radius: 6px; }
 .rd-status { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); padding: 14px; border-radius: 12px;
   background: #222b3aee; width: max-content; max-width: min(400px, 90%); display: grid; gap: 10px; font-size: 14px; }
 .rd-status button, .rd-settings button, .rd-keyboard button { background: #333d50; padding: 10px 12px; border-radius: 9px; }
@@ -50,9 +58,17 @@
 .rd-root input { background: #111827; border: 1px solid #5a6981; border-radius: 9px; padding: 10px; color: white; min-width: 0; }
 .rd-custom input { width: 80px; }
 .rd-keyboard { position: absolute; left: 8px; bottom: 8px; width: min(400px, calc(100% - 16px));
-  background: #202634f5; padding: 12px; border-radius: 12px; display: grid; gap: 10px; }
-.rd-keyboard > div { display: flex; gap: 8px; flex-wrap: wrap; }
+  background: #202634; padding: 12px; border-radius: 12px; display: grid; gap: 10px;
+  z-index: 3; max-height: calc(100% - 16px); overflow: auto; }
+.rd-keyboard > div { display: flex; gap: 6px; }
+.rd-keyboard > div:last-child { overflow-x: auto; }
+.rd-keyboard button { flex-shrink: 0; }
 .rd-keyboard input { flex: 1; }
+@media (orientation: landscape) and (max-height: 450px) {
+  .rd-keyboard { padding: 6px; gap: 4px; bottom: 4px; }
+  .rd-keyboard button { padding: 6px 10px; font-size: 14px; }
+  .rd-keyboard input { padding: 4px 10px; height: 36px; font-size: 14px; }
+}
 @media (orientation: portrait) and (max-width: 700px) {
   .rd-root { flex-direction: column; }
   .rd-toolbar { width: auto; flex-direction: row; gap: 2px; padding: 8px 4px; overflow: visible; touch-action: auto; }

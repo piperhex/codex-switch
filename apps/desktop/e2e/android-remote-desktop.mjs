@@ -26,7 +26,14 @@ try {
   await adb('shell', 'am', 'force-stop', 'com.codexswitch.mobile');
   await fetch(`${apiUrl}/test/reset`, { method: 'POST' });
   report.device = await prepare();
-  await waitText('云端服务器地址');
+  await waitFor(async () => {
+    try { return await hasText('云端服务器地址'); }
+    catch (error) {
+      // A cold install briefly exposes only the splash window, with no accessibility root yet.
+      if (!String(error).includes('A fresh hierarchy is required')) throw error;
+      return false;
+    }
+  }, 'login screen after cold start');
   await waitFor(async () => {
     if (await hasText('忽略本版本')) await tap('忽略本版本');
     return (await nodes()).filter(node => node.class === 'android.widget.EditText').length >= 3;
@@ -39,13 +46,14 @@ try {
   await waitFor(async () => (await hasText('Relay')) || (await hasText('P2P')), 'chat connected');
   await tap('打开工具'); await tap('远程桌面');
   await check('01-native-video', async () => {
-    await waitText('帧/秒');
+    await waitText('fps');
     const logs = await adb('logcat', '-d', '-s', 'WebRTCModule:V', 'WebRTCView:V', 'org.webrtc.Logging:V');
     await writeFile(path.join(output, 'native-webrtc.log'), logs);
     assert((await serverState()).desktop.frames > 5);
   });
   await check('02-mouse-buttons', async () => {
     if (await hasText('展开鼠标面板')) await tap('展开鼠标面板');
+    await waitText('鼠标左键');
     await tap('鼠标左键'); await tap('鼠标右键'); await tap('向下滚动');
     await waitFor(async () => (await serverState()).desktop.inputs.some(value =>
       value.kind === 'wheel' && value.delta === -120), 'wheel input');
@@ -56,6 +64,7 @@ try {
   });
   await check('02b-latched-drag', async () => {
     if (await hasText('展开鼠标面板')) await tap('展开鼠标面板');
+    await waitText('鼠标左键');
     const left = (await nodes()).find(node => node['content-desc'] === '鼠标左键');
     const [x1, y1, x2, y2] = left.rect;
     const x = String(Math.round((x1 + x2) / 2)); const y = String(Math.round((y1 + y2) / 2));
@@ -74,12 +83,31 @@ try {
     await tap('鼠标左键');
     await waitFor(async () => (await serverState()).desktop.inputs.at(-1).down === false, 'drag release');
   });
+  await check('02c-input-mode-toggle', async () => {
+    const modes = (await nodes()).filter(node => /切换为(鼠标|触屏)模式/.test(node['content-desc']));
+    assert.equal(modes.length, 1, 'mouse and touch share one mode button');
+    await tap('切换为触屏模式'); await waitText('切换为鼠标模式');
+    assert(!(await hasText('鼠标左键')) && !(await hasText('展开鼠标面板')));
+    await tap('切换为鼠标模式'); await waitText('鼠标左键'); await waitText('切换为触屏模式');
+  });
   await check('03-landscape', async () => {
     await tap('旋转');
     await waitFor(async () => {
       const stage = (await nodes()).find(node => node['content-desc'] === '远程桌面触控区域');
       return stage && stage.rect[2] - stage.rect[0] > stage.rect[3] - stage.rect[1];
     }, 'landscape layout');
+  });
+  await check('03a-pinch-and-stats', async () => {
+    const before = (await serverState()).desktop.inputs.length;
+    const result = await adb('shell', 'uiautomator', 'runtest', '/system/framework/android.test.base.jar',
+      '/data/local/tmp/chat-hierarchy.jar', '-c', 'dev.codexswitch.testing.RemoteDesktopGestureTest');
+    assert(result.includes('OK (2 tests)') && !result.includes('shortMsg='), result);
+    const gestures = (await serverState()).desktop.inputs.slice(before);
+    assert(gestures.length > 0 && gestures.every(value => value.kind === 'move'),
+      'only the stability-check swipe moves the mouse, with no accidental clicks');
+    await waitText('Mbps'); await waitText('丢包');
+    await tap('关闭连接状态'); await waitFor(async () => !(await hasText('Mbps')), 'stats hidden');
+    await tap('显示'); await tap('连接状态'); await tap('关闭显示设置'); await waitText('Mbps');
   });
   await check('03b-mouse-black-border', async () => {
     const stage = (await nodes()).find(node => node['content-desc'] === '远程桌面触控区域');
@@ -112,7 +140,18 @@ try {
     await tap('关闭显示设置');
   });
   await check('05-native-keyboard', async () => {
-    await tap('键盘'); await waitText('发送到电脑的文字'); await input('发送到电脑的文字', 'native-desktop');
+    const initialStage = (await nodes()).find(node => node['content-desc'] === '远程桌面触控区域');
+    await tap('键盘'); await waitText('发送到电脑的文字');
+    await waitFor(async () => {
+      const current = await nodes();
+      const editor = current.find(node => node['content-desc'] === '发送到电脑的文字');
+      const stage = current.find(node => node['content-desc'] === '远程桌面触控区域');
+      const keyboard = await adb('shell', 'dumpsys', 'input_method');
+      return editor && stage && stage.rect[3] < initialStage.rect[3]
+        && editor.rect[1] > stage.rect[1] && editor.rect[3] <= stage.rect[3]
+        && /mInputShown=true/.test(keyboard);
+    }, 'keyboard input visible above the landscape IME');
+    await input('发送到电脑的文字', 'native-desktop'); await waitText('native-desktop');
     await tap('发送');
     await waitFor(async () => (await serverState()).desktop.inputs.some(value => value.text === 'native-desktop'),
       'keyboard input');

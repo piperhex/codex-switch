@@ -14,11 +14,11 @@ interface Props {
   pointer: DesktopPointer; viewport: DesktopViewport; panel: MousePanelActivity;
   wheel: (delta: number) => void;
 }
-export function DesktopMouse({ visible, ...props }: Props & { visible: boolean }) {
+export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { visible: boolean; zoomed?: boolean }) {
   const position = useSyncExternalStore(props.pointer.subscribe, props.pointer.getSnapshot);
   const cursor = cursorPosition(position, props.viewport);
-  const panel = mousePanelPosition(cursor);
   const panelSize = props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE;
+  const panel = mousePanelPosition(cursor, zoomed ? props.viewport.stage : undefined, panelSize);
   return <>
     <img className="rd-cursor" src={cursorImage} alt="" aria-hidden="true" draggable={false}
       style={{ ...CURSOR_SIZE, left: cursor.x, top: cursor.y }} />

@@ -21,8 +21,6 @@ export const desktopStyles = StyleSheet.create({
     borderRadius: 12, padding: 12, gap: 8 },
   text: { color: '#e7edf8', fontSize: 14 },
   hint: { color: '#aebad0', fontSize: 12, lineHeight: 18 },
-  stats: { position: 'absolute', left: 10, top: 10, color: '#d9e4f4', fontSize: 11,
-    backgroundColor: '#111827bb', padding: 5, borderRadius: 5 },
   cursor: { position: 'absolute', ...CURSOR_SIZE, zIndex: 2 },
   // Explicit image dimensions override Metro's 3x bitmap dimensions on both native platforms.
   cursorImage: { ...CURSOR_SIZE },
@@ -52,5 +50,10 @@ export const desktopStyles = StyleSheet.create({
   input: { color: '#fff', borderColor: '#5a6981', borderWidth: 1, borderRadius: 9,
     padding: 10, minWidth: 78 },
   keyboard: { position: 'absolute', left: 8, right: 8, bottom: 8, maxWidth: 400, alignSelf: 'center',
-    backgroundColor: '#202634f5', padding: 12, borderRadius: 12, gap: 8 },
+    backgroundColor: '#202634', padding: 12, borderRadius: 12, gap: 8, zIndex: 3 },
+  keyboardCompact: { padding: 6, gap: 4, bottom: 4 },
+  keyboardRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  keyboardInput: { flex: 1, minWidth: 0, fontSize: 14 },
+  keyboardInputCompact: { paddingVertical: 4, height: 36 },
+  keyboardButtonCompact: { paddingVertical: 6, paddingHorizontal: 10 },
 });

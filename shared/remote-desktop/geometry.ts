@@ -11,9 +11,10 @@ const EDGE_GAP = 8;
 const BOTTOM_EDGE_PAN_GAIN = 2;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-/** Match contain-fit video; the surrounding letterbox belongs to the control overlay. */
-export function desktopViewport(stage: Size, source: Size): DesktopViewport {
-  const scale = Math.min(stage.width / Math.max(source.width, 1), stage.height / Math.max(source.height, 1));
+/** Landscape can fill the height without stretching the desktop; portrait keeps the complete picture. */
+export function desktopViewport(stage: Size, source: Size, fillHeight = false): DesktopViewport {
+  const heightScale = stage.height / Math.max(source.height, 1);
+  const scale = fillHeight ? heightScale : Math.min(stage.width / Math.max(source.width, 1), heightScale);
   const width = source.width * scale; const height = source.height * scale;
   return { stage, content: { width, height, x: (stage.width - width) / 2, y: (stage.height - height) / 2 } };
 }
@@ -29,8 +30,12 @@ export function desktopPoint(point: Point, { content }: DesktopViewport, clampOu
 }
 
 /** The panel stays to the right of the pointer; the viewport pans instead of reflowing controls. */
-export function mousePanelPosition(cursor: Point): Point {
-  return { x: cursor.x + PANEL_GAP, y: cursor.y };
+export function mousePanelPosition(cursor: Point, stage?: Size, panel?: Size): Point {
+  const position = { x: cursor.x + PANEL_GAP, y: cursor.y };
+  if (!stage || !panel) return position;
+  // During manual zoom the pointer may leave the view; keep its controls reachable without moving the video.
+  return { x: clamp(position.x, EDGE_GAP, Math.max(EDGE_GAP, stage.width - panel.width - EDGE_GAP)),
+    y: clamp(position.y, EDGE_GAP, Math.max(EDGE_GAP, stage.height - panel.height - EDGE_GAP)) };
 }
 
 /** Reveal canvas at the bottom edge and restore it on upward movement, without idle recentering. */

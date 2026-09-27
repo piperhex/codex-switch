@@ -158,14 +158,16 @@ test('follows the local pointer, collapses when idle and maps direct touches thr
   await page.mouse.move(left.x + left.width / 2, left.y + left.height / 2); await page.mouse.down();
   await expect(page.getByText('拖拽中', { exact: true })).toBeVisible(); await page.mouse.up();
   await page.waitForTimeout(MOUSE_IDLE_DELAY + 200); await expect(page.locator('.rd-mouse')).toBeVisible();
-  await page.getByRole('button', { name: '触屏', exact: true }).click();
+  const mode = page.locator('.rd-toolbar .rd-mode');
+  await expect(mode).toHaveCount(1); await expect(mode).toHaveText('鼠标');
+  await page.getByRole('button', { name: '切换为触屏模式', exact: true }).click();
+  await expect(mode).toHaveText('触屏');
   await expect.poll(() => page.evaluate(() => window.desktopTest.inputs.at(-1)))
     .toEqual({ kind: 'button', button: 'left', down: false });
   await expect(page.locator('.rd-mouse-layer')).toHaveCount(0);
   await page.evaluate(() => { window.desktopTest.inputs.length = 0; });
-  const scale = Math.min(stage.width / 1600, stage.height / 900);
-  const width = 1600 * scale; const height = 900 * scale;
-  const leftEdge = stage.x + (stage.width - width) / 2; const topEdge = stage.y + (stage.height - height) / 2;
+  const directVideo = (await page.locator('video').boundingBox())!;
+  const { width, height, x: leftEdge, y: topEdge } = directVideo;
   await page.mouse.click(leftEdge + (width - 1) * 0.25, topEdge + (height - 1) * 0.7);
   await expect.poll(() => page.evaluate(() => window.desktopTest.inputs.at(-1)))
     .toEqual({ kind: 'button', button: 'left', down: false });
@@ -177,12 +179,14 @@ test('follows the local pointer, collapses when idle and maps direct touches thr
     { kind: 'button', button: 'left', down: true }, { kind: 'button', button: 'left', down: false },
   ]);
   const count = inputs.length;
-  // Each configured viewport has either horizontal or vertical letterboxing.
-  await page.mouse.click(stage.x + 2, stage.y + 2);
-  await page.waitForTimeout(150);
-  expect(await page.evaluate(() => window.desktopTest.inputs.length)).toBe(count);
+  if (leftEdge > stage.x + 2 || topEdge > stage.y + 2) {
+    await page.mouse.click(stage.x + 2, stage.y + 2);
+    await page.waitForTimeout(150);
+    expect(await page.evaluate(() => window.desktopTest.inputs.length)).toBe(count);
+  }
   await page.screenshot({ path: info.outputPath('direct-touch.png') });
-  await page.getByRole('button', { name: '鼠标', exact: true }).click();
+  await page.getByRole('button', { name: '切换为鼠标模式', exact: true }).click();
+  await expect(mode).toHaveText('鼠标');
   await expect(page.locator('.rd-mouse')).toBeVisible();
   await page.getByRole('button', { name: '关闭', exact: true }).click();
 });

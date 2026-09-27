@@ -2,6 +2,12 @@ export const remoteDesktopMessages: Record<string, string> = {
   '远程桌面': 'Remote desktop', '远程桌面操作': 'Remote desktop controls',
   '远程桌面触控区域': 'Remote desktop touchpad', '显示设置': 'Display settings',
   '显示': 'Display', '帧率': 'Frame rate', '帧': 'FPS', '帧/秒': 'FPS',
+  '连接状态': 'Connection stats', '关闭连接状态': 'Close connection stats',
+  '隐藏连接状态': 'Hide connection stats', '显示连接状态': 'Show connection stats',
+  '延迟': 'latency', '解码': 'decode', '丢包': 'loss', '网络': 'network',
+  'Ethernet': 'Ethernet', 'Cellular': 'Cellular',
+  '在鼠标面板外，双指张合缩放画面，双指滑动平移画面。':
+    'Outside the mouse controls, pinch to zoom and swipe with two fingers to pan.',
   '自定义帧率': 'Custom frame rate', '应用帧率': 'Apply frame rate', '画质': 'Quality',
   '流畅': 'Smooth', '高清': 'High', '超清': 'Ultra',
   '支持 1–144 帧。实际帧率取决于网络和电脑性能。': 'Choose 1–144 FPS. Actual performance depends on your network and computer.',
@@ -9,6 +15,7 @@ export const remoteDesktopMessages: Record<string, string> = {
   '默认根据网络情况调整画质和帧率，让操作保持流畅。':
     'Quality and frame rate adapt to your connection by default to keep controls responsive.',
   '触屏': 'Touch', '展开鼠标面板': 'Expand mouse controls',
+  '切换为触屏模式': 'Switch to touch mode', '切换为鼠标模式': 'Switch to mouse mode',
   '鼠标操作': 'Mouse controls', '鼠标': 'Mouse', '键盘': 'Keyboard',
   '鼠标左键': 'Left mouse button', '鼠标右键': 'Right mouse button', '左键': 'Left', '右键': 'Right',
   '向上滚动': 'Scroll up', '向下滚动': 'Scroll down', '拖动鼠标面板': 'Move mouse panel',

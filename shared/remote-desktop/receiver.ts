@@ -1,5 +1,6 @@
 import type { DesktopClient, DesktopInput, DesktopSettings, DesktopStats } from './protocol';
 import { sendDesktopInput } from './input';
+import { monitorDesktopStats } from './statsMonitor';
 
 interface ReceiverOptions {
   client: DesktopClient;
@@ -22,6 +23,9 @@ export class DesktopReceiver {
   private poll?: ReturnType<typeof setTimeout>;
   private heartbeat?: ReturnType<typeof setInterval>;
   private timeout?: ReturnType<typeof setTimeout>;
+  private stopStats?: () => void;
+  private hostStats: DesktopStats = { width: 0, height: 0, fps: 0, bitrate: 0 };
+  private measured: Partial<DesktopStats> = {};
   constructor(private readonly options: ReceiverOptions) {}
 
   async start(settings: DesktopSettings) {
@@ -55,6 +59,9 @@ export class DesktopReceiver {
     pc.addEventListener('connectionstatechange', () => {
       if (pc.connectionState === 'connected') {
         clearTimeout(this.timeout); this.options.status('');
+        this.stopStats ??= monitorDesktopStats(pc, stats => {
+          this.measured = stats; this.options.stats({ ...this.hostStats, ...stats });
+        });
       } else if (['failed', 'closed'].includes(pc.connectionState) && !this.stopped) {
         this.fail('桌面连接已断开，请重新连接。');
       } else if (pc.connectionState === 'disconnected') {
@@ -78,7 +85,9 @@ export class DesktopReceiver {
       if (this.stopped || typeof data !== 'string' || data.length > 2048) return;
       try {
         const message = JSON.parse(data) as DesktopStats & { kind?: string; message?: string };
-        if (message.kind === 'stats') this.options.stats(message);
+        if (message.kind === 'stats') {
+          this.hostStats = message; this.options.stats({ ...message, ...this.measured });
+        }
         if (message.kind === 'error') this.fail(message.message || '远程操作未完成，请重试。');
       } catch { this.fail('桌面连接异常，请重新连接。'); }
     });
@@ -114,6 +123,7 @@ export class DesktopReceiver {
     if (this.stopped) return;
     this.stopped = true;
     clearTimeout(this.poll); clearTimeout(this.timeout); clearInterval(this.heartbeat);
+    this.stopStats?.();
     this.candidates.length = 0;
     this.channel?.close(); this.pc?.close();
     void this.closeRemote();

@@ -19,6 +19,14 @@ it('keeps a following panel in black letterboxing instead of clamping to the vid
   expect(panel).toEqual({ x: cursor.x + 24, y: cursor.y });
   expect(panel.y + MOUSE_PANEL_SIZE.height).toBeGreaterThan(viewport.content.y + viewport.content.height);
 });
+it('keeps zoomed-view mouse controls reachable even when the pointer is outside the stage', () => {
+  const stage = { width: 800, height: 450 };
+  for (const size of [MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE]) {
+    expect(mousePanelPosition({ x: -1000, y: -500 }, stage, size)).toEqual({ x: 8, y: 8 });
+    expect(mousePanelPosition({ x: 2000, y: 1500 }, stage, size))
+      .toEqual({ x: 800 - size.width - 8, y: 450 - size.height - 8 });
+  }
+});
 it('keeps the same pointer-to-panel offset independent of viewport edges', () => {
   for (const stage of [{ width: 390, height: 750 }, { width: 774, height: 390 }, { width: 1352, height: 900 }]) {
     const viewport = desktopViewport(stage, { width: 1600, height: 900 });

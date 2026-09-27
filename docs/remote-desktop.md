@@ -60,15 +60,42 @@ At the bottom, the canvas opens at twice the swipe speed because the touchpad le
 This assistance stops at the margin needed to fit the panel at the desktop's bottom edge.
 The translation stays unchanged on reverse motion or idle collapse, and resets on rotation
 or a switch to direct touch. Cursor placement and video rendering share the translated rectangle. The native cursor image
-has explicit layout dimensions so its 3x bitmap cannot enlarge it. Motion and direct touches use the actual contain-fit video rectangle.
+has explicit layout dimensions so its 3x bitmap cannot enlarge it. Motion and direct touches use the displayed video rectangle,
+including the current zoom and translation.
 The mouse provides left/right buttons, scroll arrows, a relative touchpad and a handle that moves the pointer and panel together.
 Long-press the left button to latch a drag and press it again to release. Tapping the touchpad clicks.
 After ten idle seconds the panel collapses to a round mouse icon; tapping it reopens the controls.
 Held fingers, buttons and latched drags prevent automatic collapse.
-The toolbar switches between mouse and direct-touch modes. Direct touches click or drag at the touched video position;
+One toolbar button shows the current mouse/direct-touch mode; tapping it switches to the other mode.
+Direct touches click or drag at the touched video position;
 touches that start in the letterbox are ignored. Switching modes releases held buttons.
 The keyboard sends Unicode text and common keys; Windows shortcuts show the desktop and Task View.
+The input panel stays above the software keyboard, uses a compact landscape layout and hides stats while open.
+Web follows visual-viewport keyboard resizing; dismissing input restores the user's stats visibility choice.
+Native disables keyboard padding when both input panels are closed, so Android navigation-bar insets cannot
+leave a gap below the desktop after dismissing the keyboard.
 Native rotation and Web responsive layouts retain the same controls. Display panels stay within 400 px.
+
+Landscape fits the desktop to the full viewer height without stretching. Wider desktops can extend past the sides;
+portrait fits the complete picture. The native landscape modal hides the status bar and removes top/bottom safe-area
+padding while retaining side insets for cutouts. The Web viewer removes its vertical safe-area padding in landscape.
+Outside the mouse panel, pinch with two fingers to zoom from the fitted size up to 4×, and move both fingers to pan.
+The pinch follows its center without moving the remote mouse. After one finger lifts, the remaining finger is ignored
+until the gesture ends. While magnified, only two-finger gestures move the picture; mouse input and panel collapse
+cannot recenter it. Mouse controls stay within the stage even if the pointer is outside the magnified view.
+Shrinking to the fitted size restores mouse edge assistance. Rotation and closing reset zoom.
+The native video surface retains its fitted layout size and applies translation/scale together as a transform,
+so Android does not resize the underlying surface on each pinch event or show a late jump after release.
+
+The top-left overlay shows elapsed connection time, the selected transport/direct-or-relay route, received FPS and Mbps,
+round-trip latency, average decode time per frame, interval packet loss, resolution and local network type when available.
+Values come from receiver [WebRTC statistics](https://www.w3.org/TR/webrtc-stats/), sampled once per second without
+overlapping reads. Configured sender limits are not displayed as measured rates. Missing metrics use “—”; browsers may
+withhold the local network type. The close button on the overlay's right hides only the statistics. Display settings can
+show them again, without reconnecting the desktop.
+
+A transient chat-connection interruption keeps the viewer open and preserves its orientation. Desktop media has
+its own connection state and retry action; chat reconnection does not dismiss the viewer or restore portrait.
 
 Only one remote desktop may own a host at a time. Control queues are bounded and coalesce pointer motion while
 preserving button ordering. Closing the viewer, hiding the app/page, losing its chat session or missing the

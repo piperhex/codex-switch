@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { RTCPeerConnection, RTCView, type MediaStream as NativeMediaStream } from 'react-native-webrtc';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,8 +12,11 @@ import { useTrackpad } from './useTrackpad';
 import { desktopViewport, MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE } from '../../../../../shared/remote-desktop/geometry';
 import { useMousePanel } from '../../../../../shared/remote-desktop/useMousePanel';
 import { useMouseViewport } from '../../../../../shared/remote-desktop/useMouseViewport';
+import { useDesktopZoom } from '../../../../../shared/remote-desktop/useDesktopZoom';
 import { DisplaySettings } from './DisplaySettings';
 import { DesktopKeyboard } from './DesktopKeyboard';
+import { DesktopStats } from './DesktopStats';
+import { useDesktopWindow } from './useDesktopWindow';
 import { desktopStyles as s } from './styles';
 
 // Native WebRTC owns SRTP decryption, jitter buffering, video decoding and SurfaceView rendering.
@@ -26,22 +29,26 @@ export function RemoteDesktop({ client, active, close }: {
 }) {
   const session = useDesktopSession({ client, active, createPeer });
   const orientation = useTerminalOrientation(active);
+  const window = useDesktopWindow(orientation.landscape);
   const [display, setDisplay] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
   const [direct, setDirect] = useState(false);
+  const [statsVisible, setStatsVisible] = useState(true);
   const panelVisible = !direct && !display && !keyboard;
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const [source, setSource] = useState({ width: 16, height: 9 });
   const [size, setSize] = useState({ width: 400, height: 600 });
-  const fitted = desktopViewport(size, source);
-  const viewport = useMouseViewport(session.pointer, fitted,
-    panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined);
-  const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage' });
+  const fitted = desktopViewport(size, source, orientation.landscape);
+  const zoom = useDesktopZoom(fitted, active);
+  const viewport = useMouseViewport(session.pointer, zoom.viewport,
+    panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined, zoom.modified);
+  const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage', zoom: zoom.gestures });
   const wheel = (delta: number) => { session.pointer.synchronize(); session.input({ kind: 'wheel', delta }); };
   const switchMode = (next: boolean) => { session.pointer.release(); setDirect(next); if (!next) panel.expand(); };
-  const tools: { label: string; icon: keyof typeof Ionicons.glyphMap | 'mouse'; run: () => void; selected?: boolean }[] = [
-    { label: '鼠标', icon: 'mouse', run: () => switchMode(false), selected: !direct },
-    { label: '触屏', icon: 'hand-left-outline', run: () => switchMode(!direct), selected: direct },
+  const tools: { label: string; action?: string; icon: keyof typeof Ionicons.glyphMap | 'mouse';
+    run: () => void; selected?: boolean }[] = [
+    { label: direct ? '触屏' : '鼠标', action: direct ? '切换为鼠标模式' : '切换为触屏模式',
+      icon: direct ? 'hand-left-outline' : 'mouse', run: () => switchMode(!direct), selected: true },
     { label: '键盘', icon: 'keypad-outline', run: () => { setKeyboard(!keyboard); setDisplay(false); }, selected: keyboard },
     { label: '显示桌面', icon: 'desktop-outline', run: () => session.input({ kind: 'key', key: 'desktop' }) },
     { label: '所有窗口', icon: 'grid-outline', run: () => session.input({ kind: 'key', key: 'windows' }) },
@@ -50,36 +57,42 @@ export function RemoteDesktop({ client, active, close }: {
     { label: '关闭', icon: 'close', run: close },
   ];
   const buttons = tools.map(tool =>
-    <Pressable key={tool.label} accessibilityRole="button" accessibilityLabel={tool.label}
+    <Pressable key={tool.label} accessibilityRole="button" accessibilityLabel={tool.action ?? tool.label}
       style={[s.tool, orientation.landscape && s.railTool, tool.selected && s.selected]} onPress={tool.run}>
       {tool.icon === 'mouse' ? <MaterialCommunityIcons name="mouse" size={22} color="#e7edf8" />
         : <Ionicons name={tool.icon} size={22} color="#e7edf8" />}<Text style={s.label}>{tool.label}</Text>
     </Pressable>);
-  return <Modal visible={active} onRequestClose={close} hardwareAccelerated statusBarTranslucent
+  return <Modal visible={active} onRequestClose={close} hardwareAccelerated statusBarTranslucent navigationBarTranslucent
     supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
-    <SafeAreaProvider><SafeAreaView style={s.root}>
-      <StatusBar style="light" />
-      <KeyboardAvoidingView style={[s.workspace, orientation.landscape && s.landscape]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.stage} onLayout={({ nativeEvent }) => setSize(nativeEvent.layout)}>
-          {session.stream && <RTCView style={{ position: 'absolute', left: viewport.content.x, top: viewport.content.y,
-            width: viewport.content.width, height: viewport.content.height }} objectFit="contain" zOrder={0}
+    <SafeAreaProvider><SafeAreaView style={s.root}
+      edges={orientation.landscape ? ['left', 'right'] : ['top', 'right', 'bottom', 'left']}>
+      <StatusBar style="light" hidden={orientation.landscape} />
+      <KeyboardAvoidingView style={[s.workspace, orientation.landscape && s.landscape]} behavior="padding"
+        enabled={keyboard || display}>
+        <View ref={window.stage} collapsable={false} style={s.stage}
+          onLayout={({ nativeEvent }) => { setSize(nativeEvent.layout); window.update(); }}>
+          {/* Keep the video surface size stable; changing layout during a pinch can lag behind its position. */}
+          {session.stream && <RTCView style={{ position: 'absolute', left: 0, top: 0,
+            width: fitted.content.width, height: fitted.content.height, transformOrigin: 'top left',
+            transform: [{ translateX: viewport.content.x }, { translateY: viewport.content.y },
+              { scale: viewport.content.width / fitted.content.width }] }} objectFit="contain" zOrder={0}
             streamURL={(session.stream as unknown as NativeMediaStream).toURL()}
             onDimensionsChange={({ nativeEvent }) => {
               if (nativeEvent.width > 0 && nativeEvent.height > 0) setSource(nativeEvent);
             }} />}
           <View key={direct ? 'direct' : 'trackpad'} style={s.fill} {...trackpad.panHandlers} accessibilityLabel="远程桌面触控区域" />
-          {session.stats && <Text style={s.stats}>
-            {session.stats.width} × {session.stats.height} · {session.stats.fps} 帧/秒
-            {session.stats.connection && ` · ${session.stats.connection === 'relay' ? '中继' : '直连'}`}</Text>}
+          {session.stats && statsVisible && !keyboard
+            && <DesktopStats stats={session.stats} close={() => setStatsVisible(false)} />}
           {session.stream && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
-            visible={panelVisible} wheel={wheel} />}
+            visible={panelVisible} zoomed={zoom.modified} wheel={wheel} />}
           {!!(session.status || orientation.error) && <View style={s.message}>
             <Text accessibilityRole="alert" style={s.text}>{session.status || orientation.error}</Text>
             <Pressable onPress={session.retry}><Text style={s.text}>重新连接</Text></Pressable></View>}
           {display && <DisplaySettings settings={session.settings} update={session.update} saving={session.saving}
+            stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}
             close={() => setDisplay(false)} />}
-          {keyboard && <DesktopKeyboard input={session.input} close={() => setKeyboard(false)} />}
+          {keyboard && <DesktopKeyboard input={session.input} compact={orientation.landscape}
+            close={() => setKeyboard(false)} />}
         </View>
         {orientation.landscape
           ? <ScrollView style={s.rail} contentContainerStyle={[s.toolbar, s.railContent]}

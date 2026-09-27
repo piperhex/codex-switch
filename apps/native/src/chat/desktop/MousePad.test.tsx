@@ -77,3 +77,16 @@ it('keeps the native cursor and panel offset together at the screen edges', () =
   }
   pointer.dispose();
 });
+
+it('keeps native controls visible after a pinch moves the pointer offscreen', () => {
+  const pointer = new DesktopPointer(vi.fn()); pointer.absolute(1, 1);
+  const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
+  const viewport = { stage: { width: 800, height: 450 },
+    content: { x: -500, y: -300, width: 2400, height: 1350 } };
+  const elements = nodes(DesktopMouse({ pointer, viewport, panel, visible: true, zoomed: true, wheel: vi.fn() }));
+  const cursor = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'none')!.props.style!);
+  const controls = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'box-none')!.props.style!);
+  expect(cursor.left).toBeGreaterThan(800); expect(cursor.top).toBeGreaterThan(450);
+  expect(controls).toMatchObject({ left: 672, top: 306, width: 120, height: 136 });
+  pointer.dispose();
+});
