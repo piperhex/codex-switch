@@ -4,7 +4,7 @@
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
-    "postinstall": "node ./scripts/patch-drawer-taps.cjs && node ./scripts/patch-list-render-range.cjs",
+    "postinstall": "node ./scripts/patch-drawer-taps.cjs && node ./scripts/patch-list-render-range.cjs && node ./scripts/patch-webrtc-ice.cjs",
     "start": "node ./scripts/expo.cjs start",
     "android": "node ./scripts/expo.cjs start --android",
     "ios": "node ./scripts/expo.cjs start --ios",
@@ -52,7 +52,7 @@
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-tcp-socket": "^6.4.3",
-    "react-native-webrtc": "^124.0.8",
+    "react-native-webrtc": "124.0.8",
     "react-native-webview": "13.13.5"
   },
   "devDependencies": {
