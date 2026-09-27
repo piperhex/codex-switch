@@ -187,7 +187,7 @@ test('follows the local pointer, collapses when idle and maps direct touches thr
   await page.getByRole('button', { name: '关闭', exact: true }).click();
 });
 
-test('opens the bottom canvas faster after contact and caps it at the panel margin', async ({ page }) => {
+test('opens the bottom canvas faster and restores it as soon as the swipe reverses', async ({ page }) => {
   await page.goto('e2e/remote-desktop-harness.html');
   await page.getByRole('button', { name: '打开工具' }).click();
   await page.getByRole('button', { name: '远程桌面', exact: true }).click();
@@ -210,8 +210,18 @@ test('opens the bottom canvas faster after contact and caps it at the panel marg
     await expect.poll(async () => video.y - (await page.locator('video').boundingBox())!.y)
       .toBeCloseTo(distance * 2, 0);
     await expectAnchoredMouse(page);
+    const openedY = (await page.locator('video').boundingBox())!.y;
+    await swipeDown(-distance / 2);
+    await expect.poll(async () => (await page.locator('video').boundingBox())!.y - openedY)
+      .toBeCloseTo(distance, 0);
+    await expectAnchoredMouse(page);
     await swipeDown(video.height);
     expect(video.y - (await page.locator('video').boundingBox())!.y).toBeCloseTo(margin, 0);
+    const cappedY = (await page.locator('video').boundingBox())!.y;
+    await page.mouse.move(stage.x + 10, stage.y + stage.height - 10); await page.mouse.down();
+    await page.mouse.move(stage.x + 10, stage.y + 10, { steps: 10 }); await page.mouse.up();
+    expect((await page.locator('video').boundingBox())!.y).toBeGreaterThan(cappedY);
+    expect((await page.locator('video').boundingBox())!.y).toBeCloseTo(video.y, 0);
   } else {
     await swipeDown(video.height);
     expect((await page.locator('video').boundingBox())!.y).toBeCloseTo(video.y, 0);

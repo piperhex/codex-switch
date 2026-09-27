@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { RTCPeerConnection, RTCView, type MediaStream as NativeMediaStream } from 'react-native-webrtc';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -49,6 +49,12 @@ export function RemoteDesktop({ client, active, close }: {
     { label: '旋转', icon: 'phone-landscape-outline', run: orientation.rotate },
     { label: '关闭', icon: 'close', run: close },
   ];
+  const buttons = tools.map(tool =>
+    <Pressable key={tool.label} accessibilityRole="button" accessibilityLabel={tool.label}
+      style={[s.tool, orientation.landscape && s.railTool, tool.selected && s.selected]} onPress={tool.run}>
+      {tool.icon === 'mouse' ? <MaterialCommunityIcons name="mouse" size={22} color="#e7edf8" />
+        : <Ionicons name={tool.icon} size={22} color="#e7edf8" />}<Text style={s.label}>{tool.label}</Text>
+    </Pressable>);
   return <Modal visible={active} onRequestClose={close} hardwareAccelerated statusBarTranslucent
     supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
     <SafeAreaProvider><SafeAreaView style={s.root}>
@@ -75,12 +81,10 @@ export function RemoteDesktop({ client, active, close }: {
             close={() => setDisplay(false)} />}
           {keyboard && <DesktopKeyboard input={session.input} close={() => setKeyboard(false)} />}
         </View>
-        <View style={[s.toolbar, orientation.landscape && s.rail]}>{tools.map(tool =>
-          <Pressable key={tool.label} accessibilityRole="button" accessibilityLabel={tool.label}
-            style={[s.tool, tool.selected && s.selected]} onPress={tool.run}>
-            {tool.icon === 'mouse' ? <MaterialCommunityIcons name="mouse" size={22} color="#e7edf8" />
-              : <Ionicons name={tool.icon} size={22} color="#e7edf8" />}<Text style={s.label}>{tool.label}</Text>
-          </Pressable>)}</View>
+        {orientation.landscape
+          ? <ScrollView style={s.rail} contentContainerStyle={[s.toolbar, s.railContent]}
+            keyboardShouldPersistTaps="handled" indicatorStyle="white">{buttons}</ScrollView>
+          : <View style={s.toolbar}>{buttons}</View>}
       </KeyboardAvoidingView>
     </SafeAreaView></SafeAreaProvider>
   </Modal>;

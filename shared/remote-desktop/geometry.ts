@@ -1,6 +1,7 @@
 export interface Point { x: number; y: number }
 export interface Size { width: number; height: number }
 export interface DesktopViewport { stage: Size; content: Size & Point }
+export interface DesktopPanState { offset: Point; point: Point }
 export const MOUSE_SIZE = { width: 120, height: 136 };
 export const MOUSE_PANEL_SIZE = MOUSE_SIZE;
 export const MOUSE_ICON_SIZE = { width: 40, height: 40 };
@@ -32,19 +33,27 @@ export function mousePanelPosition(cursor: Point): Point {
   return { x: cursor.x + PANEL_GAP, y: cursor.y };
 }
 
-/** Reveal the black canvas once the pointer/controls reach a viewer edge.
- * Retaining the previous offset avoids recentering jumps on movement or idle collapse. */
-export function panDesktopViewport(viewport: DesktopViewport, point: Point, panel: Size, previous: Point) {
+/** Reveal canvas at the bottom edge and restore it on upward movement, without idle recentering. */
+export function panDesktopViewport(viewport: DesktopViewport, point: Point, panel: Size, previous?: DesktopPanState) {
+  const offset = previous?.offset ?? { x: 0, y: 0 };
   const cursor = cursorPosition(point, viewport);
-  const x = clamp(previous.x, EDGE_GAP - cursor.x,
+  const x = clamp(offset.x, EDGE_GAP - cursor.x,
     viewport.stage.width - EDGE_GAP - cursor.x - PANEL_GAP - panel.width);
   const bottom = viewport.stage.height - EDGE_GAP - Math.max(CURSOR_SIZE.height, panel.height);
   const bottomLimit = bottom - cursor.y;
   const endLimit = bottom - cursorPosition({ x: point.x, y: 1 }, viewport).y;
   // The pad leaves little room to swipe downward at the bottom. Reveal its black margin faster,
   // capped at the space needed when the pointer reaches the desktop's last row.
-  const assistedLimit = bottomLimit < 0 ? Math.max(bottomLimit * BOTTOM_EDGE_PAN_GAIN, endLimit) : bottomLimit;
-  const y = clamp(previous.y, EDGE_GAP - cursor.y, assistedLimit);
-  return { offset: { x, y }, viewport: { ...viewport,
+  const deltaY = (point.y - (previous?.point.y ?? point.y)) * Math.max(0, viewport.content.height - 1);
+  const movingDown = !previous || deltaY > 0;
+  const assistedLimit = movingDown && bottomLimit < 0
+    ? Math.max(bottomLimit * BOTTOM_EDGE_PAN_GAIN, endLimit) : bottomLimit;
+  const downwardLimit = previous && movingDown
+    ? Math.max(assistedLimit, offset.y - deltaY * BOTTOM_EDGE_PAN_GAIN) : assistedLimit;
+  // Reverse immediately at the same gain, but keep the panel visible and stop at the fitted position.
+  const restoredY = offset.y < 0
+    ? Math.min(0, offset.y + Math.max(0, -deltaY) * BOTTOM_EDGE_PAN_GAIN) : offset.y;
+  const y = clamp(restoredY, EDGE_GAP - cursor.y, Math.min(bottomLimit, downwardLimit));
+  return { point, offset: { x, y }, viewport: { ...viewport,
     content: { ...viewport.content, x: viewport.content.x + x, y: viewport.content.y + y } } };
 }

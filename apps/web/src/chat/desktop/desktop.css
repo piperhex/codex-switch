@@ -15,10 +15,11 @@
 .rd-mouse-icon { display: flex; align-items: center; justify-content: center;
   background: #30343be6; color: white; border-radius: 50%; }
 .rd-mouse-icon { width: 40px; height: 40px; }
-.rd-toolbar { width: 88px; display: flex; flex-direction: column; align-items: stretch; justify-content: space-around;
-  gap: 6px; background: #171c28; padding: 8px; }
+.rd-toolbar { width: 88px; flex-shrink: 0; min-height: 0; display: flex; flex-direction: column; align-items: stretch;
+  justify-content: flex-start; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  scrollbar-width: thin; gap: 8px; background: #171c28; padding: 8px; }
 .rd-toolbar button { display: flex; flex-direction: column; align-items: center; gap: 7px; background: transparent;
-  border-radius: 10px; padding: 10px 2px; font-size: 12px; }
+  flex-shrink: 0; min-height: 56px; border-radius: 10px; padding: 10px 2px; font-size: 12px; }
 .rd-toolbar button[aria-pressed=true], .rd-options button[aria-pressed=true] { background: #355987; }
 .rd-stats { position: absolute; left: 10px; top: 10px; font-size: 11px; border-radius: 5px; padding: 5px;
   background: #111827bb; pointer-events: none; }
@@ -51,12 +52,12 @@
 .rd-keyboard input { flex: 1; }
 @media (orientation: portrait) and (max-width: 700px) {
   .rd-root { flex-direction: column; }
-  .rd-toolbar { width: auto; flex-direction: row; gap: 2px; padding: 8px 4px; }
-  .rd-toolbar button { flex: 1; font-size: 10px; }
+  .rd-toolbar { width: auto; flex-direction: row; gap: 2px; padding: 8px 4px; overflow: visible; touch-action: auto; }
+  .rd-toolbar button { flex: 1; min-height: 0; font-size: 10px; }
   .rd-toolbar svg { width: 21px; height: 21px; }
 }
 @media (max-height: 450px) and (orientation: landscape) {
-  .rd-toolbar { width: 70px; gap: 0; padding: 3px; }
-  .rd-toolbar button { padding: 4px 1px; gap: 2px; font-size: 10px; }
+  .rd-toolbar { width: 70px; padding: 8px 4px; }
+  .rd-toolbar button { padding: 8px 1px; gap: 4px; font-size: 10px; }
   .rd-toolbar svg { width: 20px; height: 20px; }
 }
