@@ -73,6 +73,10 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
   };
   const composer = useRef<ComposerHandle>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  useEffect(() => {
+    controller.capacityRetry.setActive(conversationActive);
+    return () => controller.capacityRetry.setActive(false);
+  }, [conversationActive, controller]);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900);
   const installer = useCliInstaller(active, controller, true);
   useEffect(retainGuiSession, [controller]);
@@ -156,6 +160,7 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
       <div className={paneStyles.conversation} hidden={view !== "conversation"}>
       {!installer.version ? <Installer installer={installer} /> :
         <Messages value={current} selected={state.selected} active={conversationActive}
+          retry={state.capacityRetry} onCancelRetry={controller.capacityRetry.cancel}
           editCwd={state.selected ? state.projectOverrides[state.selected] : undefined}
           onEdit={controller.messageEditor.submit} editDisabled={!canEditMessage(state)}
           onFork={controller.forkConversation} forkDisabled={!canForkConversation(state)}

@@ -12,6 +12,62 @@
 
 .hint { margin-left: 8px; text-decoration: underline; }
 
+.capacityNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 76px;
+  margin: 12px 0;
+  padding: 18px 24px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  color: var(--ink);
+}
+
+.capacityContent {
+  display: flex;
+  flex: 1 1 232px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  > svg { flex-shrink: 0; }
+}
+
+.capacityMessage {
+  min-width: 0;
+  max-width: 400px;
+  overflow-wrap: anywhere;
+}
+
+.countdown {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: calc(var(--gui-font-size, 14px) - 2px);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  button {
+    display: grid;
+    place-items: center;
+    padding: 2px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  button:hover { background: var(--line); }
+  button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+}
+
 .details {
   margin: 8px 0 0;
   padding: 10px 12px;

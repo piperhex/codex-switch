@@ -1,4 +1,6 @@
 import { guiApi } from "./api";
+import { CapacityRetry } from "./capacityRetry";
+import { CONTINUE_MESSAGE } from "./continuation";
 import { canForkConversation } from "./forkConversation";
 import { GuiMessageEditor } from "./editMessage";
 import { GuiGoals } from "./goals";
@@ -45,9 +47,10 @@ export class GuiController {
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener); };
   private patch = (patch: Partial<GuiState>, notify = true) => {
     if (this.disposed) return;
-    const previousSelection = this.state.selected;
+    const previous = this.state;
     this.state = { ...this.state, ...patch };
-    if (previousSelection !== this.state.selected) savePreferences(this.state);
+    this.capacityRetry.sync(previous, this.state);
+    if (previous.selected !== this.state.selected) savePreferences(this.state);
     if (notify) this.listeners.forEach((listener) => listener());
   };
   report = (error: unknown) => {
@@ -55,6 +58,8 @@ export class GuiController {
     this.patch({ error: typeof message === "string" ? message : "操作未完成，请重试。" });
   };
   clearError = () => this.patch({ error: "" });
+  readonly capacityRetry = new CapacityRetry({ getSnapshot: this.getSnapshot, patch: this.patch,
+    send: () => this.send(CONTINUE_MESSAGE, []) });
   setWorkspaceBusy = (workspaceBusy: boolean) => {
     this.patch({ workspaceBusy });
     if (!workspaceBusy) Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
@@ -80,6 +85,7 @@ export class GuiController {
       this.patch({ conversations: { ...this.state.conversations, [threadId]: { ...current,
         turns: current.turns.map((entry) => entry.id === turn.id
           ? { ...entry, items: mergeMessageItems(turn.items ?? [], entry.items) } : entry) } } });
+      this.capacityRetry.receive({ method: "turn/completed", params: { threadId, turn } });
       return;
     }
     const timedTurn = turn.status === "inProgress" ? restoreTurnTiming(turn) : completeTurnTiming(turn);
@@ -88,6 +94,7 @@ export class GuiController {
       processing: turn.status === "inProgress" ? restoreProcessing(timedTurn) : undefined } } });
     this.readState.receive({ method: turn.status === "inProgress" ? "turn/started" : "turn/completed",
       params: { threadId, turn } });
+    if (turn.status !== "inProgress") this.capacityRetry.receive({ method: "turn/completed", params: { threadId, turn } });
   }
 
   private flushStream = () => {
@@ -116,6 +123,7 @@ export class GuiController {
     }
     this.flushStream();
     this.patch(reduceEvent(this.state, event));
+    this.capacityRetry.receive(event);
     this.readState.receive(event);
     if (["turn/diff/updated", "turn/plan/updated"].includes(event.method) && event.params.threadId) {
       const value = this.state.conversations[event.params.threadId];
@@ -338,6 +346,7 @@ export class GuiController {
       return accepted;
     }
     const startedAtMs = Date.now();
+    const canSend = this.capacityRetry.sendGuard();
     this.patch({ sending: true, pendingRequest: { threadId: selected, startedAtMs }, error: "" });
     try {
       const response = selected
@@ -346,6 +355,7 @@ export class GuiController {
         : await guiApi.request<{ thread: Thread }>({ operation: "start", cwd: settings.cwd || undefined,
           model: settings.model || undefined, access: settings.access });
       const { thread } = response;
+      if (!canSend()) return false;
       this.acceptSentThread(thread, { selected, startedAtMs, projectOverride, settings });
       // Loaded threads can ignore resume overrides; apply project and access settings to each new turn.
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "send", threadId: thread.id,
@@ -415,6 +425,7 @@ export class GuiController {
   };
 
   interrupt = async () => {
+    this.capacityRetry.stop();
     const id = this.state.selected;
     const turnId = id ? this.state.conversations[id]?.activeTurn : null;
     if (!id || !turnId) return;
@@ -496,6 +507,7 @@ export class GuiController {
     this.patch({ ...reduceEvent(this.state, { method: "connection/closed", params: {} }), error: "" });
   };
   dispose = () => {
+    this.capacityRetry.cancel();
     this.disposed = true; this.unlisten?.(); this.unlisten = undefined;
     clearTimeout(this.streamTimer); this.streamTimer = undefined; this.streamEvents = []; this.listeners.clear();
   };

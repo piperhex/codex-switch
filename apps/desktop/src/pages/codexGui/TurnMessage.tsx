@@ -9,18 +9,22 @@ import { useTurnChangedFiles } from "./useTurnChangedFiles";
 import styles from "./styles.module.less";
 import { GeneratedImages } from "./GeneratedImages";
 import { RequestErrorNotice } from "./RequestErrorNotice";
+import type { CapacityRetryControl } from "./CapacityErrorNotice";
+import { turnRequestErrors } from "./turnRequestErrors";
+import { isModelCapacityError } from "./requestError";
 import { TurnProcess } from "./TurnProcess";
 import { turnMessageGroups } from "./turnMessageGroups";
 export { groupTurnItems } from "../../../../../shared/chat/turnGroups";
 
 export const TurnMessage = memo(function TurnMessage({ turn, running, active, followsInterruption = false,
-  editableItemId, onEdit, editDisabled, threadId, visibleItems = turn.items, onFork, forkDisabled }: {
+  editableItemId, onEdit, editDisabled, threadId, visibleItems = turn.items, onFork, forkDisabled,
+  retry, onCancelRetry }: {
   turn: Turn; running: boolean; active: boolean; followsInterruption?: boolean;
   editableItemId?: string; onEdit?: SubmitMessageEdit; editDisabled?: boolean;
   threadId?: string;
   visibleItems?: Item[];
   onFork?: () => void; forkDisabled?: boolean;
-}) {
+} & CapacityRetryControl) {
   const groups = useMemo(() => turnMessageGroups(turn, { visibleItems, followsInterruption }),
     [turn, followsInterruption, visibleItems]);
   const files = useTurnChangedFiles(turn);
@@ -28,7 +32,9 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
   const responseIndex = groups.findIndex((group) => group.type !== "error" && group.items[0].type !== "userMessage");
   return <div className={styles.turn} data-turn-id={turn.id}>
     {groups.map((group, index) => group.type === "error"
-      ? <RequestErrorNotice key={group.key} turn={turn} record={group.error} />
+      ? <RequestErrorNotice key={group.key} turn={turn} record={group.error}
+        retry={group.error.id === turnRequestErrors(turn).at(-1)?.id ? retry : undefined}
+        onCancelRetry={onCancelRetry} />
       : <Fragment key={group.key}>
       {index === responseIndex && group.type !== "work"
         && <TurnDuration turn={turn} running={running} active={active} />}
@@ -41,7 +47,8 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
         onEdit={group.items[0].id === editableItemId ? onEdit : undefined} editDisabled={editDisabled}
         streaming={running && group.items[0].status !== "completed"} /></div>}
     </Fragment>)}
-    {responseIndex === -1 && !running && <TurnDuration turn={turn} running={running} active={active} />}
+    {responseIndex === -1 && !running && !isModelCapacityError(turn.error)
+      && <TurnDuration turn={turn} running={running} active={active} />}
     <GeneratedImages items={visibleItems} />
     <TurnPlan turn={turn} />
     {showChanges && <TurnDiff files={files} title={turn.diff ? "本轮修改" : "文件修改记录"}

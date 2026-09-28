@@ -57,7 +57,7 @@ export function messageWindow(turns: Turn[], options: { start?: MessageCursor; o
     ?? { turn: 0, item: 0 };
   const entries = turns.slice(first.turn).map((turn, index) => ({ turn,
     items: index === 0 && first.item > 0 ? turn.items.slice(first.item) : turn.items,
-    followsInterruption: turns[first.turn + index - 1]?.status === "interrupted",
+    followsInterruption: ["interrupted", "failed"].includes(turns[first.turn + index - 1]?.status),
   }));
   const firstItem = entries.find((entry) => entry.items.length > 0);
   return { entries, hasMore: hasEarlierItems(turns, first),

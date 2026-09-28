@@ -16,15 +16,16 @@ import styles from "./styles.module.less";
 import { ImageThreadContext } from "./useImageSource";
 import { FileThreadContext } from "./fileApi";
 import { MessageEditContext } from "./messageEditContext";
+import type { CapacityRetryControl } from "./CapacityErrorNotice";
 
 export function Messages({ value, selected, active = true, footer, pendingRequest, onQuote,
-  onEdit, editDisabled, editCwd, onFork, forkDisabled }: {
+  onEdit, editDisabled, editCwd, onFork, forkDisabled, retry, onCancelRetry }: {
   value?: Conversation; selected: string | null; active?: boolean; footer?: ReactNode;
   pendingRequest?: PendingRequest;
   onQuote?: (quote: ReplyQuote) => boolean;
   onEdit?: EditMessage; editDisabled?: boolean; editCwd?: string;
   onFork?: (threadId: string, turnId: string) => Promise<boolean>; forkDisabled?: boolean;
-}) {
+} & CapacityRetryControl) {
   const last = lastUserMessage(value);
   const { viewport, content, away, onScroll, jumpToLatest, pauseFollowing } = useFollowScroll(selected, active);
   const history = useMessageWindow({ turns: value?.turns, selected, active, viewport, pauseFollowing });
@@ -60,6 +61,8 @@ export function Messages({ value, selected, active = true, footer, pendingReques
           {history.entries.map(({ turn, items, followsInterruption }) => <TurnMessage
             key={`${selected}:${turn.id}`} turn={turn} visibleItems={items}
             threadId={selected ?? undefined}
+            retry={retry?.threadId === selected && retry.turnId === turn.id ? retry : undefined}
+            onCancelRetry={onCancelRetry}
             onFork={onFork && selected ? () => { void onFork(selected, turn.id); } : undefined}
             forkDisabled={forkDisabled}
             editableItemId={last?.turnId === turn.id ? last.item.id : undefined}
