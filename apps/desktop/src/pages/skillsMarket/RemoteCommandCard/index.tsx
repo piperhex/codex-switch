@@ -30,8 +30,7 @@ export function RemoteCommandCard({ homeId, active, onBusyChange }: Props) {
     </div>
     <div className="skill-card-body">
       <div className="skill-card-title"><h3>远程命令</h3></div>
-      <p>让 AI 在同账号的其他电脑执行命令，查看运行状态、排查问题并分析结果。</p>
-      <p className={styles.hint}>安装并启用后，同账号的其他电脑也可在本机执行命令。停用即可停止访问。</p>
+      <p>让 AI 在同账号的电脑间执行命令、排查问题，停用即可停止访问。</p>
       <div className={styles.status} role="status">{statusText(status)}</div>
       {error && <div className={styles.error} role="alert">{error}</div>}
       <div className="skill-card-meta"><span>Codex Switch</span><span>远程诊断</span></div>
