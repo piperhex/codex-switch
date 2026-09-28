@@ -1,11 +1,16 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { loadDreamSkinStatus, loadDreamSkinThemePreview } from "../../api/backend";
 import type { DreamSkinStatus } from "../../types";
+import { BUILT_IN_DREAM_SKIN_THEMES } from "../../dreamSkinBuiltIns";
 import { DREAM_SKIN_STATUS_CHANGED } from "../dreamSkin/statusEvents";
 import { DEFAULT_GUI_THEME, useGuiTheme, type GuiTheme } from "./guiTheme";
+import { useGuiSkin } from "./guiSkin";
 
 const DEFAULT_OVERLAY_OPACITY = 0.8;
-type Skin = { status: DreamSkinStatus; image: string | null };
+type Skin = {
+  status: Pick<DreamSkinStatus, "installed" | "session" | "activeThemeAppearance" | "activeThemeOverlayOpacity">;
+  image: string | null;
+};
 type SkinStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 export function dreamSkinStyle({ status, image }: Skin, theme: GuiTheme = DEFAULT_GUI_THEME): SkinStyle | undefined {
@@ -41,8 +46,34 @@ export function dreamSkinStyle({ status, image }: Skin, theme: GuiTheme = DEFAUL
 
 export function useDreamSkin(active: boolean) {
   const theme = useGuiTheme();
+  const settings = useGuiSkin();
+  const sharedSkin = useSharedDreamSkin(active && settings.mode === "inherit");
+  const selectedImage = useSelectedImage(active && settings.mode === "custom", settings);
+  if (settings.mode === "none") return undefined;
+  if (settings.mode === "inherit") return sharedSkin ? dreamSkinStyle(sharedSkin, theme) : undefined;
+  return dreamSkinStyle({ image: selectedImage, status: {
+    installed: true, session: "active", activeThemeOverlayOpacity: settings.overlayOpacity,
+    activeThemeAppearance: BUILT_IN_DREAM_SKIN_THEMES.find((entry) => entry.id === settings.themeId)?.appearance,
+  } }, theme);
+}
+
+function useSelectedImage(active: boolean, { themeId, imageRevision }: ReturnType<typeof useGuiSkin>) {
+  const [preview, setPreview] = useState<{ id: string; image: string | null } | null>(null);
+  useEffect(() => {
+    if (!active || !themeId) return;
+    let disposed = false;
+    void loadDreamSkinThemePreview(themeId).then((image) => {
+      if (!disposed) setPreview({ id: themeId, image });
+    }).catch(() => { if (!disposed) setPreview(null); });
+    return () => { disposed = true; };
+  }, [active, themeId, imageRevision]);
+  return preview?.id === themeId ? preview.image : null;
+}
+
+function useSharedDreamSkin(active: boolean) {
   const [skin, setSkin] = useState<Skin | null>(null);
   useEffect(() => {
+    if (!active) return;
     let disposed = false;
     let revision = 0;
     const apply = async (status: DreamSkinStatus, request: number) => {
@@ -65,5 +96,5 @@ export function useDreamSkin(active: boolean) {
     }
     return () => { disposed = true; window.removeEventListener(DREAM_SKIN_STATUS_CHANGED, changed); };
   }, [active]);
-  return skin ? dreamSkinStyle(skin, theme) : undefined;
+  return skin;
 }

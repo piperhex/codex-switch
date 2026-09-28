@@ -1,0 +1,10 @@
+.panel { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 16px; }
+.toolbar { display: grid; flex-shrink: 0; gap: 12px; padding-right: 4px;
+  :global(.ant-alert-message) { max-width: 400px; overflow-wrap: anywhere; }
+}
+.hint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.search { width: 240px; max-width: 100%; }
+.browser { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain;
+  > section { width: 100%; max-width: 100%; margin: 0; padding-right: 8px; }
+}

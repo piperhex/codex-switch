@@ -7,6 +7,7 @@ import type { DreamSkinStatus } from "../../types";
 import { publishDreamSkinStatus } from "../dreamSkin/statusEvents";
 import { dreamSkinStyle, useDreamSkin } from "./useDreamSkin";
 import { saveGuiTheme } from "./guiTheme";
+import { saveGuiSkin } from "./guiSkin";
 
 vi.mock("../../api/backend", () => ({ loadDreamSkinStatus: vi.fn(), loadDreamSkinThemePreview: vi.fn() }));
 const status: DreamSkinStatus = { supported: true, platform: "windows", installed: true,
@@ -78,4 +79,64 @@ it("clamps the shared opacity and lets automatic appearance inherit the app them
   expect(style(2)?.["--gui-skin-overlay"]).toBe("100%");
   expect(style(NaN)?.["--gui-skin-overlay"]).toBe("80%");
   expect(style(0.5)?.colorScheme).toBeUndefined();
+});
+
+it("keeps the independent image and opacity when the shared skin changes or is disabled", async () => {
+  saveGuiSkin({ mode: "custom", themeId: "preset-rose-reverie", overlayOpacity: 0.35 });
+  await act(async () => root.render(<Fixture />));
+  expect(loadDreamSkinStatus).not.toHaveBeenCalled();
+  expect(current?.["--gui-skin-image"]).toContain("preset-rose-reverie");
+  expect(current?.["--gui-skin-overlay"]).toBe("35%");
+  await act(async () => publishDreamSkinStatus({ ...status, installed: false, session: "paused" }));
+  expect(current?.["--gui-skin-image"]).toContain("preset-rose-reverie");
+  await act(async () => { saveGuiSkin({ overlayOpacity: 0.5 }); });
+  expect(current?.["--gui-skin-overlay"]).toBe("50%");
+  expect(loadDreamSkinThemePreview).toHaveBeenCalledTimes(1);
+  await act(async () => root.unmount());
+  root = createRoot(document.createElement("div"));
+  await act(async () => root.render(<Fixture />));
+  expect(current?.["--gui-skin-image"]).toContain("preset-rose-reverie");
+  expect(current?.["--gui-skin-overlay"]).toBe("50%");
+});
+
+it("can turn off the skin and resume either the saved choice or the shared skin", async () => {
+  saveGuiSkin({ mode: "custom", themeId: "saved-skin" });
+  await act(async () => root.render(<Fixture />));
+  await act(async () => { saveGuiSkin({ mode: "none" }); });
+  expect(current).toBeUndefined();
+  await act(async () => publishDreamSkinStatus(status));
+  expect(current).toBeUndefined();
+  await act(async () => { saveGuiSkin({ mode: "custom" }); });
+  expect(current?.["--gui-skin-image"]).toContain("saved-skin");
+  await act(async () => { saveGuiSkin({ mode: "inherit" }); });
+  expect(current?.["--gui-skin-image"]).toContain("first");
+});
+
+it("discards an outdated independent image and stays readable when the selected image is missing", async () => {
+  let finish!: (image: string) => void;
+  saveGuiSkin({ mode: "custom", themeId: "slow" });
+  vi.mocked(loadDreamSkinThemePreview).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  await act(async () => root.render(<Fixture />));
+  await act(async () => { saveGuiSkin({ themeId: "new" }); });
+  await act(async () => finish("data:image/png;base64,old"));
+  expect(current?.["--gui-skin-image"]).toContain("new");
+  vi.mocked(loadDreamSkinThemePreview).mockRejectedValueOnce(new Error("missing"));
+  await act(async () => { saveGuiSkin({ themeId: "missing" }); });
+  expect(current).toBeUndefined();
+});
+
+it("accepts skin changes from another window and rejects invalid saved theme ids", async () => {
+  await act(async () => root.render(<Fixture />));
+  const changeStorage = async (value: string) => act(async () => {
+    localStorage.setItem("codex-switch:gui-skin", value);
+    window.dispatchEvent(new StorageEvent("storage", { key: "codex-switch:gui-skin" }));
+  });
+  await changeStorage('{"mode":"custom","themeId":"another-window","overlayOpacity":2}');
+  expect(current?.["--gui-skin-image"]).toContain("another-window");
+  expect(current?.["--gui-skin-overlay"]).toBe("100%");
+  await changeStorage('{"mode":"custom","themeId":"../invalid"}');
+  expect(current).toBeUndefined();
+  expect(loadDreamSkinThemePreview).not.toHaveBeenCalledWith("../invalid");
+  await changeStorage("invalid-json");
+  expect(current?.["--gui-skin-image"]).toContain("first");
 });

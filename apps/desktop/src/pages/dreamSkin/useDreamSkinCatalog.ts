@@ -74,9 +74,9 @@ export function useDreamSkinCatalog(themeTab: ThemeTab): CatalogState {
 
   useEffect(() => {
     if (themeTab !== "market") return;
-    if (!market && !marketLoading) void refreshMarket();
+    if (!market && !marketLoading && !marketError) void refreshMarket();
     if (!communityInitialized && !loadingRef.current) void loadCommunityThemes();
-  }, [communityInitialized, loadCommunityThemes, market, marketLoading, refreshMarket, themeTab]);
+  }, [communityInitialized, loadCommunityThemes, market, marketError, marketLoading, refreshMarket, themeTab]);
 
   const communityHasMore = communityTotal === null
     || offsetRef.current < Math.min(communityTotal, COMMUNITY_CATALOG_LIMIT);

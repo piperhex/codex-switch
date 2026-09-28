@@ -98,21 +98,17 @@ function useLazyPreview(options: Pick<ThemeCardProps, "id" | "preview" | "previe
 
 export function SavedThemeCard(props: {
   theme: DreamSkinThemeSummary;
-  status: DreamSkinStatus;
+  status: Pick<DreamSkinStatus, "activeThemeId"> | null;
   busy: boolean;
+  disabled?: boolean;
   onApply: () => void;
-  onSelectionChange: (selected: boolean) => void;
-  selected: boolean;
+  selection?: ThemeCardProps["selection"];
   t: Translate;
 }) {
-  const { theme, status, busy, onApply, onSelectionChange, selected, t } = props;
-  return <ThemeCard active={status.activeThemeId === theme.id} busy={busy}
+  const { theme, status, busy, disabled, onApply, selection, t } = props;
+  return <ThemeCard active={status?.activeThemeId === theme.id} busy={busy} disabled={disabled}
     description={t("dreamSkin.saved.description")} id={theme.id} name={theme.name}
-    previewEnabled onApply={onApply} selection={{
-      label: t("dreamSkin.saved.select", { name: theme.name }),
-      selected,
-      onChange: onSelectionChange,
-    }} t={t} />;
+    previewEnabled onApply={onApply} selection={selection} t={t} />;
 }
 
 function InstallButton(props: {

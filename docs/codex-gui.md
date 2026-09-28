@@ -70,11 +70,17 @@ computer. Web chat accepts image files and embedded images with their text. If t
 local image URLs, it keeps the text and asks the user to copy the images separately or save and attach them.
 Switching computers keeps the local workspace mounted so its running reply and unsent draft survive.
 
-The gear in the local account list opens **Codex GUI 设置**, with top tabs for **自动切号**
-and **界面**. The appearance tab changes the conversation font size from 12–24 px (14 px by default),
+The gear in the local account list opens **Codex GUI 设置**, with top tabs for **自动切号**,
+**界面**, **主题**, and **皮肤**. The appearance tab changes the conversation font size from 12–24 px (14 px by default),
 with an immediate preview and a reset button. Messages, the composer, code, tool output, and file diffs
 follow the saved size; other Codex Switch pages keep their own typography. Font changes are saved locally
 as soon as they are made, independently of account settings.
+
+The skin tab reuses the built-in, community, and saved images from the existing skin page.
+Selecting an image applies it only to Codex GUI, with an independently saved overlay opacity.
+Community images are downloaded into the shared library without applying or restarting the external skin runtime.
+Users can also disable the GUI background or follow the skin page, which remains the default for existing users.
+Independent choices survive restarts and are unaffected when the shared skin is changed, paused, or restored.
 
 Successful GUI turns send a native desktop completion notification, including when another conversation
 is selected or the app is minimized. On Windows, these appear in the system notification area at the

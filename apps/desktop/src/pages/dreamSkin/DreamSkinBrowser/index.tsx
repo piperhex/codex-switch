@@ -8,16 +8,18 @@ import { CommunityThemeCard, MarketThemeCard, SavedThemeCard, ThemeCard } from "
 import styles from "./index.module.less";
 
 type Props = {
-  actions: ThemeActions;
+  actions: Pick<ThemeActions, "applyTheme" | "installAndApplyCommunityTheme" | "installAndApplyMarketTheme">;
   busy: string | null;
   builtInQuery: string;
   catalog: CatalogState;
-  chooseCustomImage: () => Promise<void>;
+  chooseCustomImage?: () => Promise<void>;
   isBusy: boolean;
   resourcesReady: boolean;
-  savedLibrary: SavedThemeLibrary;
+  savedLibrary?: SavedThemeLibrary;
+  savedQuery?: string;
   savedThemes: DreamSkinThemeSummary[];
-  status: DreamSkinStatus | null;
+  status: Pick<DreamSkinStatus, "installed" | "activeThemeId"> | null;
+  showInstallHint?: boolean;
   t: Translate;
   themeTab: ThemeTab;
 };
@@ -25,7 +27,7 @@ type Props = {
 export function DreamSkinBrowser(props: Props) {
   const { status, t, themeTab } = props;
   return <>
-    {!status?.installed && <Alert className={styles.prerequisite} type="info" showIcon
+    {props.showInstallHint !== false && !status?.installed && <Alert className={styles.prerequisite} type="info" showIcon
       message={t("dreamSkin.installHint.title")} description={t("dreamSkin.installHint.description")} />}
     <section className={styles.browser}>
       {themeTab === "builtIn" ? <BuiltInThemes {...props} />
@@ -43,19 +45,19 @@ function BuiltInThemes(props: Props) {
   return <div className={styles.themeGrid} role="tabpanel" aria-label={t("dreamSkin.tabs.builtIn")}>
     {themes.map((theme) => <ThemeCard key={theme.id}
       active={status?.activeThemeId === theme.id} busy={busy === `apply:${theme.id}`}
-      disabled={!resourcesReady} description={t(theme.descriptionKey)} id={theme.id} name={t(theme.nameKey)}
+      disabled={!resourcesReady || isBusy} description={t(theme.descriptionKey)} id={theme.id} name={t(theme.nameKey)}
       previewEnabled={resourcesReady} tone={theme.tone} onApply={() => actions.applyTheme(theme.id)} t={t} />)}
     {themes.length === 0 && <div className={`${styles.marketEmpty} ${styles.themeEmpty}`}>
       {t("dreamSkin.presets.empty")}
     </div>}
-    <article className={styles.themeImportCard}>
+    {chooseCustomImage && <article className={styles.themeImportCard}>
       <button type="button" className={styles.importTrigger} disabled={isBusy}
         onClick={() => void chooseCustomImage()}>
         <span className={styles.importIcon}><ImagePlus size={28} /></span>
         <span><b>{t("dreamSkin.import.title")}</b><small>{t("dreamSkin.import.description")}</small></span>
         <em><WandSparkles size={15} />{t("dreamSkin.import.action")}</em>
       </button>
-    </article>
+    </article>}
   </div>;
 }
 
@@ -121,15 +123,18 @@ function SavedThemes(props: Props) {
     return <div className={styles.marketEmpty} role="tabpanel"
       aria-label={t("dreamSkin.tabs.savedCommunity")}>{t("dreamSkin.saved.empty")}</div>;
   }
-  const query = savedLibrary.query.trim().toLocaleLowerCase();
+  const query = (savedLibrary?.query ?? props.savedQuery ?? "").trim().toLocaleLowerCase();
   const filteredThemes = savedThemes.filter((theme) => !query
     || [theme.name, theme.id].some((value) => value.toLocaleLowerCase().includes(query)));
   return <div className={styles.themeGrid} role="tabpanel"
     aria-label={t("dreamSkin.tabs.savedCommunity")}>
-    {filteredThemes.map((theme) => <SavedThemeCard key={theme.id} theme={theme} status={status!}
-      busy={busy === `apply:${theme.id}`} onApply={() => actions.applyTheme(theme.id)} t={t}
-      selected={savedLibrary.selectedThemeIds.includes(theme.id)}
-      onSelectionChange={(selected) => savedLibrary.toggleTheme(theme.id, selected)} />)}
+    {filteredThemes.map((theme) => <SavedThemeCard key={theme.id} theme={theme} status={status}
+      busy={busy === `apply:${theme.id}`} disabled={props.isBusy} onApply={() => actions.applyTheme(theme.id)} t={t}
+      selection={savedLibrary ? {
+        label: t("dreamSkin.saved.select", { name: theme.name }),
+        selected: savedLibrary.selectedThemeIds.includes(theme.id),
+        onChange: (selected) => savedLibrary.toggleTheme(theme.id, selected),
+      } : undefined} />)}
     {filteredThemes.length === 0
       && <div className={`${styles.marketEmpty} ${styles.themeEmpty}`}>{t("dreamSkin.saved.searchEmpty")}</div>}
   </div>;
