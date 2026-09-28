@@ -79,6 +79,15 @@ pub(crate) struct StreamStats {
     pub bitrate: u32,
     pub closed: bool,
     pub connection: Option<Connection>,
+    pub audio: Option<AudioState>,
+}
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum AudioState {
+    Starting,
+    Playing,
+    Unavailable,
 }
 
 #[derive(Clone, Copy, Serialize)]

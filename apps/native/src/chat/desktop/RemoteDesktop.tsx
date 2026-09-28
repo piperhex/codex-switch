@@ -28,6 +28,7 @@ export function RemoteDesktop({ client, active, close }: {
   client: DesktopClient; active: boolean; close: () => void;
 }) {
   const session = useDesktopSession({ client, active, createPeer });
+  const audioUnavailable = !session.hasAudio || session.stats?.audio === 'unavailable';
   const orientation = useTerminalOrientation(active);
   const window = useDesktopWindow(orientation.landscape);
   const [display, setDisplay] = useState(false);
@@ -50,10 +51,14 @@ export function RemoteDesktop({ client, active, close }: {
   // Android hides its navigation bar; iOS keeps the home indicator visible in landscape.
   if (!orientation.landscape || Platform.OS === 'ios') safeEdges.push('bottom');
   const tools: { label: string; action?: string; icon: keyof typeof Ionicons.glyphMap | 'mouse';
-    run: () => void; selected?: boolean }[] = [
+    run: () => void; selected?: boolean; disabled?: boolean }[] = [
     { label: direct ? '触屏' : '鼠标', action: direct ? '切换为鼠标模式' : '切换为触屏模式',
       icon: direct ? 'hand-left-outline' : 'mouse', run: () => switchMode(!direct), selected: true },
     { label: '键盘', icon: 'keypad-outline', run: () => { setKeyboard(!keyboard); setDisplay(false); }, selected: keyboard },
+    { label: session.muted ? '开启声音' : '声音',
+      action: audioUnavailable ? '声音暂不可用' : session.muted ? '开启声音' : '静音',
+      icon: session.muted || audioUnavailable ? 'volume-mute-outline' : 'volume-high-outline',
+      run: () => session.mute(!session.muted), selected: !session.muted && !audioUnavailable, disabled: audioUnavailable },
     { label: '显示桌面', icon: 'desktop-outline', run: () => session.input({ kind: 'key', key: 'desktop' }) },
     { label: '所有窗口', icon: 'grid-outline', run: () => session.input({ kind: 'key', key: 'windows' }) },
     { label: '显示', icon: 'options-outline', run: () => { setDisplay(!display); setKeyboard(false); }, selected: display },
@@ -62,6 +67,7 @@ export function RemoteDesktop({ client, active, close }: {
   ];
   const buttons = tools.map(tool =>
     <Pressable key={tool.label} accessibilityRole="button" accessibilityLabel={tool.action ?? tool.label}
+      disabled={tool.disabled} accessibilityState={{ disabled: tool.disabled, selected: tool.selected }}
       style={[s.tool, orientation.landscape && s.railTool, tool.selected && s.selected]} onPress={tool.run}>
       {tool.icon === 'mouse' ? <MaterialCommunityIcons name="mouse" size={22} color="#e7edf8" />
         : <Ionicons name={tool.icon} size={22} color="#e7edf8" />}<Text style={s.label}>{tool.label}</Text>

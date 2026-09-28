@@ -21,7 +21,7 @@ fn timed_samples(data: Vec<u8>, elapsed: Duration) -> [Sample; 2] {
 
 /// Advance time before the current frame. webrtc-rs applies Sample.duration after packetization;
 /// putting the preceding idle interval on the frame would timestamp the next update two seconds late.
-/// An empty H.264 sample advances the clock without sending RTP or consuming sequence numbers.
+/// Empty H.264 and Opus samples advance the clock without sending RTP or consuming sequence numbers.
 pub(super) async fn write_frame(
     track: &TrackLocalStaticSample,
     data: Vec<u8>,

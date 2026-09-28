@@ -6,6 +6,23 @@ import type { IceServer } from '../../../shared/remote-chat/protocol';
 declare global { interface Window { desktopRelayFixture?: { iceServers: IceServer[] } } }
 
 const canvas = document.createElement('canvas');
+// Supply a real Opus source through the existing video fixture to exercise the production receiver.
+if (new URLSearchParams(location.search).has('audio')) {
+  const addTrack = RTCPeerConnection.prototype.addTrack;
+  RTCPeerConnection.prototype.addTrack = function(track, ...streams) {
+    if (track.kind === 'video' && streams[0]) {
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      const destination = context.createMediaStreamDestination();
+      oscillator.connect(destination); oscillator.start();
+      addTrack.call(this, destination.stream.getAudioTracks()[0], streams[0]);
+      this.addEventListener('connectionstatechange', () => {
+        if (this.connectionState === 'closed') { oscillator.stop(); void context.close(); }
+      });
+    }
+    return addTrack.call(this, track, ...streams);
+  };
+}
 let opened = 0;
 export const desktopTest = { inputs: [] as DesktopInput[], settings: [] as DesktopSettings[],
   peers: [] as RTCPeerConnection[],

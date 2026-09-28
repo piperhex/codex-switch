@@ -2,6 +2,10 @@
 #[cfg(windows)]
 mod annex_b;
 #[cfg(windows)]
+mod audio;
+#[cfg(windows)]
+mod audio_packet;
+#[cfg(windows)]
 mod encoder;
 #[cfg(windows)]
 mod feedback;

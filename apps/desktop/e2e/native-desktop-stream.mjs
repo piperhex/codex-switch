@@ -11,9 +11,19 @@ const animation = process.env.CSW_NATIVE_TEST_MOVING ? spawn(fileURLToPath(new U
 } }) : undefined;
 let animationError;
 animation?.on('error', error => { animationError = error; });
-const browser = await chromium.launch({ channel: 'msedge', headless: true,
-  args: process.env.CSW_NATIVE_TEST_CA_BASE64 ? ['--ignore-certificate-errors'] : [] });
+const audioFixture = spawn(fileURLToPath(new URL(
+  '../../../.codex-tmp/remote-desktop-runtime/native-build/Release/desktop-audio-fixture.exe', import.meta.url)),
+[], { windowsHide: true, stdio: ['ignore', 'ignore', 'inherit'], env: { ...process.env,
+  PATH: `${fileURLToPath(new URL('../src-tauri/resources/remote-desktop/runtime', import.meta.url))};${process.env.PATH}`,
+} });
+let audioError;
+audioFixture.on('error', error => { audioError = error; });
+audioFixture.on('exit', code => { audioError ??= new Error(`Audio fixture exited: ${code}`); });
+let browser;
 try {
+  browser = await chromium.launch({ channel: 'msedge', headless: true,
+    args: ['--autoplay-policy=no-user-gesture-required',
+      ...(process.env.CSW_NATIVE_TEST_CA_BASE64 ? ['--ignore-certificate-errors'] : [])] });
   const page = await browser.newPage();
   await page.exposeFunction('nativeRequest', async (path, body) => {
     const response = await fetch(`${endpoint}${path}`, { method: 'POST',
@@ -23,14 +33,26 @@ try {
   });
   const iceServers = JSON.parse(process.env.CSW_NATIVE_TEST_ICE || '[]');
   const result = await page.evaluate(async iceServers => {
+    const sound = new AudioContext();
+    await sound.resume();
     const offer = await window.nativeRequest('/offer');
     const peer = new RTCPeerConnection({ iceServers, iceTransportPolicy: iceServers.length ? 'relay' : 'all' });
     const video = document.createElement('video'); video.muted = true; video.autoplay = true;
     document.body.append(video);
     const pending = [];
+    let receivedSound;
+    const analyser = sound.createAnalyser(); analyser.fftSize = 2048;
+    const silent = sound.createGain(); silent.gain.value = 0; silent.connect(sound.destination);
     let timer;
     peer.onicecandidate = ({ candidate }) => { if (candidate) pending.push(candidate.toJSON()); };
-    peer.ontrack = ({ streams }) => { video.srcObject = streams[0]; };
+    peer.ontrack = ({ streams, track }) => {
+      video.srcObject = streams[0];
+      if (track.kind === 'audio') {
+        // Pull decoded audio without feeding the remote sound back into this machine's loopback capture.
+        receivedSound = sound.createMediaStreamSource(new MediaStream([track]));
+        receivedSound.connect(analyser); analyser.connect(silent);
+      }
+    };
     peer.ondatachannel = ({ channel }) => {
       channel.onopen = () => {
         channel.send('{"kind":"ping"}');
@@ -55,17 +77,30 @@ try {
       frames: video.getVideoPlaybackQuality().totalVideoFrames - first,
       fps: (video.getVideoPlaybackQuality().totalVideoFrames - first) * 1000 / (performance.now() - sampleStart) };
     const stats = await peer.getStats();
+    const audio = [...stats.values()].find(item => item.type === 'inbound-rtp' && item.kind === 'audio');
+    sample.audioPackets = audio?.packetsReceived ?? 0;
+    sample.audioSamples = audio?.totalSamplesReceived ?? 0;
+    sample.audioConcealed = audio?.concealedSamples ?? 0;
+    sample.audioJitter = audio?.jitter;
+    sample.audioBytes = audio?.bytesReceived;
+    // Audio-level RTP extensions are optional; inspect decoded PCM rather than relying on totalAudioEnergy.
+    const samples = new Float32Array(analyser.fftSize); analyser.getFloatTimeDomainData(samples);
+    sample.audioPeak = Math.max(...samples.map(Math.abs));
     const transport = [...stats.values()].find(item => item.type === 'transport' && item.selectedCandidatePairId);
     const pair = transport && stats.get(transport.selectedCandidatePairId);
     sample.candidateType = pair && stats.get(pair.localCandidateId)?.candidateType;
-    clearInterval(timer); peer.close(); return sample;
+    clearInterval(timer); peer.close(); await sound.close(); return sample;
   }, iceServers);
   console.log(JSON.stringify(result));
+  if (audioError) throw audioError;
   // Idle desktops only send periodic recovery frames; a high frame count requires a moving source.
   if (result.connected !== 'connected' || result.width === 0 || result.frames < 1) throw new Error('Native video failed');
+  if (result.audioPackets < 100 || result.audioSamples < 48_000 || result.audioPeak <= 0.00001) {
+    throw new Error('Native system sound did not reach the browser decoder');
+  }
   if (iceServers.length && result.candidateType !== 'relay') throw new Error('Native relay bypassed');
   if (animationError) throw animationError;
   if (process.env.CSW_NATIVE_TEST_MIN_FPS && result.fps < Number(process.env.CSW_NATIVE_TEST_MIN_FPS)) {
     throw new Error(`Native playback was only ${result.fps.toFixed(1)} FPS`);
   }
-} finally { animation?.kill(); await browser.close(); }
+} finally { animation?.kill(); audioFixture.kill(); await browser?.close(); }

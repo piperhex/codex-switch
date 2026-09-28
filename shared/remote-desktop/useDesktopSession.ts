@@ -18,12 +18,17 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
   const [stats, setStats] = useState<DesktopStats>();
   const [attempt, setAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false);
+  const [hasAudio, setHasAudio] = useState(false);
   const pointer = useMemo(() => new DesktopPointer(input => receiver.current?.input(input)), []);
 
   useEffect(() => {
-    setStream(undefined); setStats(undefined);
+    setStream(undefined); setStats(undefined); setHasAudio(false);
     if (!active) return;
-    const session = new DesktopReceiver({ client, createPeer, stream: setStream, status: setStatus, stats: setStats });
+    const session = new DesktopReceiver({ client, createPeer, stream: setStream, status: setStatus,
+      stats: setStats, audio: setHasAudio });
+    session.mute(mutedRef.current);
     receiver.current = session;
     void session.start(settingsRef.current);
     return () => { receiver.current = undefined; pointer.dispose(); session.stop(); };
@@ -38,7 +43,10 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
     } catch (error) { setStatus(error instanceof Error ? error.message : '显示设置未能保存，请重试。'); }
     finally { setSaving(false); }
   };
-  return { stream, status, stats, settings, update, saving, pointer,
+  const mute = (value: boolean) => {
+    mutedRef.current = value; setMuted(value); receiver.current?.mute(value);
+  };
+  return { stream, status, stats, settings, update, saving, pointer, muted, mute, hasAudio,
     input: (input: Parameters<DesktopReceiver['input']>[0]) => receiver.current?.input(input),
     retry: () => setAttempt(value => value + 1) };
 }

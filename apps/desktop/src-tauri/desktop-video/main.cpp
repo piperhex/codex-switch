@@ -1,4 +1,5 @@
 #include "video.hpp"
+#include "audio.hpp"
 #include "pacing.hpp"
 #include <charconv>
 #include <cstdio>
@@ -74,6 +75,7 @@ int main(int argc, char** argv) {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
         av_log_set_level(AV_LOG_ERROR);
+        if (argc == 2 && std::string_view(argv[1]) == "audio") { desktop::audio::stream(); return 0; }
         const auto config = desktop::parse(argc, argv);
         desktop::Encoder encoder(config);
         if (config.gdi) desktop::stream_gdi(config, encoder);

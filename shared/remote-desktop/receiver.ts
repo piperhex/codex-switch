@@ -8,6 +8,7 @@ interface ReceiverOptions {
   stream: (stream: MediaStream | undefined) => void;
   status: (status: string) => void;
   stats: (stats: DesktopStats) => void;
+  audio?: (available: boolean) => void;
 }
 const SIGNAL_INTERVAL = 400;
 const HEARTBEAT_INTERVAL = 2000;
@@ -26,6 +27,9 @@ export class DesktopReceiver {
   private stopStats?: () => void;
   private hostStats: DesktopStats = { width: 0, height: 0, fps: 0, bitrate: 0 };
   private measured: Partial<DesktopStats> = {};
+  private media?: MediaStream;
+  private muted = false;
+  private audioTracks = new Set<MediaStreamTrack>();
   constructor(private readonly options: ReceiverOptions) {}
 
   async start(settings: DesktopSettings) {
@@ -53,7 +57,16 @@ export class DesktopReceiver {
       if (event.candidate && !this.stopped) this.candidates.push(event.candidate.toJSON());
     });
     pc.addEventListener('track', event => {
-      if (!this.stopped && event.streams[0]) this.options.stream(event.streams[0]);
+      if (this.stopped) return;
+      if (event.track.kind === 'audio') {
+        this.audioTracks.add(event.track);
+        event.track.enabled = !this.muted;
+        this.options.audio?.(true);
+      }
+      this.media ??= event.streams[0];
+      if (!this.media) return;
+      if (!this.media.getTracks().some(track => track.id === event.track.id)) this.media.addTrack(event.track);
+      this.options.stream(this.media);
     });
     pc.addEventListener('datachannel', event => this.bindChannel(event.channel));
     pc.addEventListener('connectionstatechange', () => {
@@ -108,6 +121,10 @@ export class DesktopReceiver {
   }
 
   input(input: DesktopInput) { sendDesktopInput(this.channel, input); }
+  mute(muted: boolean) {
+    this.muted = muted;
+    for (const track of this.audioTracks) track.enabled = !muted;
+  }
   async settings(settings: DesktopSettings) {
     if (!this.stopped) await this.options.client.settings(this.id, settings);
   }
@@ -124,6 +141,9 @@ export class DesktopReceiver {
     this.stopped = true;
     clearTimeout(this.poll); clearTimeout(this.timeout); clearInterval(this.heartbeat);
     this.stopStats?.();
+    for (const track of this.audioTracks) { track.enabled = false; track.stop(); }
+    this.audioTracks.clear(); this.media = undefined;
+    this.options.audio?.(false);
     this.candidates.length = 0;
     this.channel?.close(); this.pc?.close();
     void this.closeRemote();

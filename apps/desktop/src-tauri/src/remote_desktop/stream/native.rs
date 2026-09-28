@@ -26,6 +26,7 @@ pub(super) struct Stream {
     pub heartbeat: watch::Sender<Instant>,
     pub stats: Mutex<StreamStats>,
     pub last_frame: Mutex<Instant>,
+    pub audio: Mutex<AudioState>,
     received_candidates: Mutex<usize>,
 }
 
@@ -56,6 +57,7 @@ impl Stream {
             heartbeat: watch::channel(Instant::now()).0,
             stats: Mutex::new(StreamStats::default()),
             last_frame: Mutex::new(Instant::now()),
+            audio: Mutex::new(AudioState::Starting),
             received_candidates: Mutex::new(0),
         });
         let (inputs, receiver) = mpsc::channel(64);
@@ -66,6 +68,7 @@ impl Stream {
             stream.close().await;
         }
         let offer = offer?;
+        tokio::spawn(super::audio::run(Arc::clone(&stream), path.clone()));
         tokio::spawn(pump::run(Arc::clone(&stream), path, encoder));
         tokio::spawn(pump::inputs(Arc::clone(&stream), receiver));
         Ok((stream, offer))

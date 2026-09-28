@@ -7,7 +7,7 @@ import { RemoteDesktop } from './RemoteDesktop';
 import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
 
 const runtime = vi.hoisted(() => ({ landscape: false, input: vi.fn(), rotate: vi.fn(),
-  session: vi.fn(), dimensions: vi.fn(), createPeer: vi.fn(), immersive: vi.fn(),
+  session: vi.fn(), dimensions: vi.fn(), createPeer: vi.fn(), immersive: vi.fn(), mute: vi.fn(),
   stream: { toURL: vi.fn(() => 'native-ios-stream') } }));
 vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
   useState: (value: unknown) => [value, runtime.dimensions], useRef: () => ({ current: null }),
@@ -29,7 +29,7 @@ vi.mock('../terminal/useTerminalOrientation', () => ({ useTerminalOrientation: (
 }) }));
 vi.mock('../../../../../shared/remote-desktop/useDesktopSession', () => ({ useDesktopSession: (options: unknown) => {
   runtime.session(options);
-  return { stream: runtime.stream, pointer: {}, input: runtime.input };
+  return { stream: runtime.stream, pointer: {}, input: runtime.input, hasAudio: true, muted: false, mute: runtime.mute };
 } }));
 vi.mock('../../../../../shared/remote-desktop/useMousePanel', () => ({ useMousePanel: () => ({ expanded: true }) }));
 vi.mock('../../../../../shared/remote-desktop/useMouseViewport', () => ({
@@ -77,6 +77,8 @@ it('uses native iOS video, forwards ICE configuration and keeps control actions 
   }
   expect(runtime.input.mock.calls).toEqual([[{ kind: 'key', key: 'desktop' }], [{ kind: 'key', key: 'windows' }]]);
   expect(runtime.rotate).toHaveBeenCalledOnce();
+  elements.find(node => node.type === Pressable && node.props.accessibilityLabel === '静音')!.props.onPress!();
+  expect(runtime.mute).toHaveBeenCalledWith(true);
   expect(runtime.immersive).not.toHaveBeenCalled();
 });
 

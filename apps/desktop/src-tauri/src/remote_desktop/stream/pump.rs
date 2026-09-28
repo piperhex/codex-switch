@@ -37,7 +37,7 @@ pub(super) async fn run(stream: Arc<Stream>, path: PathBuf, mut encoder: Encoder
     }
 }
 
-async fn wait_connected(stream: &Stream) -> Result<()> {
+pub(super) async fn wait_connected(stream: &Stream) -> Result<()> {
     let mut connected = stream.connected.subscribe();
     let mut cancel = stream.cancel.subscribe();
     let mut lease = tokio::time::interval(Duration::from_secs(2));
@@ -169,6 +169,7 @@ async fn report(stream: &Stream, encoder: &Encoder, frames: u32, started: Instan
         bitrate: encoder.bitrate,
         closed: false,
         connection,
+        audio: Some(*stream.audio.lock().await),
     };
     let mut message = serde_json::to_value(&stats).map_err(|_| DesktopError::Platform)?;
     message["kind"] = "stats".into();

@@ -26,9 +26,25 @@ iOS device check of H.264 playback, local-network permission, rotation, keyboard
 
 ## Media and threading
 
+Windows hosts also capture the default playback device through WASAPI loopback. The bundled native helper
+encodes 48 kHz stereo Opus in 20 ms frames and sends it alongside H.264 in the same WebRTC media stream.
+Audio stays off the UI thread and outside JavaScript. Capture timestamps preserve spacing across pipe reads;
+bounded buffers discard stale sound. Silence keeps the media clock moving when the computer is quiet.
+The host retries audio after an output device change or failure without interrupting desktop video.
+
+Native and Web viewers start with sound enabled and offer a sound/mute button. If a browser blocks sound
+autoplay, video continues muted and the button offers **Enable sound**. Closing the desktop stops both tracks.
+Android uses media audio attributes; iOS uses a playback-only audio session, retaining headphone/Bluetooth
+output and avoiding microphone capture. The version-pinned WebRTC playback patch is applied during Expo
+configuration. A new native build is required for these audio route changes.
+
+An old host, missing native runtime, unavailable output device or the legacy WebView capture fallback can
+still show video without sound; the sound button is unavailable in that case. macOS/Linux hosting retains
+the existing unsupported-platform behavior.
+
 - The existing authenticated, end-to-end encrypted chat connection carries offer/answer, ICE and display settings.
   Host ownership is the individual chat session, not a client-supplied owner or the persistent terminal owner.
-- A separate WebRTC connection carries video with DTLS/SRTP encryption and an ordered control DataChannel.
+- A separate WebRTC connection carries video and system audio with DTLS/SRTP encryption and an ordered control DataChannel.
   It uses the ICE servers supplied by the authenticated coordinator. Optional TURN UDP/TCP/TLS supplies a media
   relay when direct connectivity fails. Chat WebSocket relay and video relay remain separate connections.
   The desktop overlay reports the selected video candidate route, independently of the chat's P2P/Relay label.
@@ -142,11 +158,15 @@ cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch
 cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --tests -- -D warnings
 # Build the native helper and compare controlled idle/local/full-motion scenes through a real H.264 decoder:
 node scripts/test-desktop-damage.mjs
-# Interactive Windows capture -> native H.264/WebRTC -> real Edge decoder (opt-in):
+# Interactive Windows video + WASAPI sound -> native H.264/Opus/WebRTC -> real Edge decoders (opt-in):
 $env:CSW_NATIVE_TEST_REQUIRE_DAMAGE = '1'
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch_lib_tests native_capture_reaches_a_real_browser_decoder -- --ignored --nocapture
 Remove-Item Env:CSW_NATIVE_TEST_REQUIRE_DAMAGE
 ```
+
+The native test renders a quiet 440 Hz tone and checks decoded audio samples alongside video frames. It needs
+an active default Windows output device. It also checks Opus packet/sample counts; waveform analysis avoids
+depending on the optional audio-level RTP extension. iOS audio route behavior still needs a physical device check.
 
 The browser fixture substitutes only Tauri capture/input IPC; it exercises the production sender, receiver,
 WebRTC connection and control channel. Screenshots cover portrait, landscape and desktop layouts.

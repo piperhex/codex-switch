@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Grid2X2, Hand, Keyboard, Maximize, Monitor, Mouse, Settings2, X } from 'lucide-react';
+import { Grid2X2, Hand, Keyboard, Maximize, Monitor, Mouse, Settings2, Volume2, VolumeX, X } from 'lucide-react';
 import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
 import { useDesktopSession } from '../../../../../shared/remote-desktop/useDesktopSession';
 import { DisplaySettings } from './DisplaySettings';
@@ -15,6 +15,7 @@ import { MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE } from '../../../../../shared/remote-
 import { t } from '../../i18n';
 import { usePageVisibility } from './usePageVisibility';
 import { useKeyboardViewport } from './useKeyboardViewport';
+import { useDesktopPlayback } from './useDesktopPlayback';
 import './desktop.css';
 
 const createPeer = (configuration: RTCConfiguration) => new RTCPeerConnection(configuration);
@@ -33,6 +34,12 @@ export function RemoteDesktop({ client, active, close }: {
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const [text, setText] = useState('');
   const video = useRef<HTMLVideoElement>(null);
+  const playback = useDesktopPlayback(video, session.stream, session.muted);
+  const silent = session.muted || playback.blocked;
+  const audioUnavailable = !session.hasAudio || session.stats?.audio === 'unavailable';
+  const toggleAudio = () => {
+    if (silent) { session.mute(false); playback.enable(); } else session.mute(true);
+  };
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const fitted = useVideoViewport(stage, video, active);
@@ -42,11 +49,6 @@ export function RemoteDesktop({ client, active, close }: {
   const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage', zoom: zoom.gestures });
   const wheel = (delta: number) => { session.pointer.synchronize(); session.input({ kind: 'wheel', delta }); };
   const switchMode = (next: boolean) => { session.pointer.release(); setDirect(next); if (!next) panel.expand(); };
-  useEffect(() => {
-    const element = video.current;
-    if (element) element.srcObject = session.stream ?? null;
-    return () => { if (element) element.srcObject = null; };
-  }, [session.stream, active]);
   useEffect(() => {
     if (!active) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -63,7 +65,7 @@ export function RemoteDesktop({ client, active, close }: {
     role="dialog" aria-modal="true"
     aria-label={t('远程桌面')} onContextMenu={event => event.preventDefault()}>
     <div ref={stage} className="rd-stage">
-      <video ref={video} autoPlay playsInline muted className="rd-video" style={{
+      <video ref={video} autoPlay playsInline className="rd-video" style={{
         left: viewport.content.x, top: viewport.content.y,
         width: viewport.content.width, height: viewport.content.height }} />
       <div key={direct ? 'direct' : 'trackpad'} className="rd-touch" {...trackpad}
@@ -92,6 +94,9 @@ export function RemoteDesktop({ client, active, close }: {
         onClick={() => switchMode(!direct)}>{direct ? <Hand /> : <Mouse />}<span>{t(direct ? '触屏' : '鼠标')}</span></button>
       <button aria-pressed={keyboard} onClick={() => { setKeyboard(!keyboard); setDisplay(false); }}>
         <Keyboard /><span>{t('键盘')}</span></button>
+      <button aria-label={t(audioUnavailable ? '声音暂不可用' : silent ? '开启声音' : '静音')}
+        aria-pressed={!silent && !audioUnavailable} disabled={audioUnavailable} onClick={toggleAudio}>
+        {silent || audioUnavailable ? <VolumeX /> : <Volume2 />}<span>{t(silent ? '开启声音' : '声音')}</span></button>
       <button onClick={() => session.input({ kind: 'key', key: 'desktop' })}><Monitor /><span>{t('显示桌面')}</span></button>
       <button onClick={() => session.input({ kind: 'key', key: 'windows' })}><Grid2X2 /><span>{t('所有窗口')}</span></button>
       <button aria-pressed={display} onClick={() => { setDisplay(!display); setKeyboard(false); }}>

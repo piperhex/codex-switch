@@ -22,6 +22,7 @@ pub(super) struct Peer {
     pub connection: Arc<RTCPeerConnection>,
     pub controls: Arc<RTCDataChannel>,
     pub video: Arc<TrackLocalStaticSample>,
+    pub audio: Arc<TrackLocalStaticSample>,
     pub feedback: tokio::sync::watch::Receiver<super::feedback::Feedback>,
     pub transports: super::turn_transport::Transports,
 }
@@ -80,6 +81,7 @@ pub(super) async fn create(mut servers: Vec<IceServer>) -> Result<Peer> {
         .map_err(|_| DesktopError::Platform)?;
     // Reading RTCP drives the default NACK/report interceptors. Periodic IDRs also bound recovery time.
     let feedback = super::feedback::listen(sender);
+    let audio = super::audio::track(&connection).await?;
     let controls = connection
         .create_data_channel("remote-desktop-controls", None)
         .await
@@ -88,6 +90,7 @@ pub(super) async fn create(mut servers: Vec<IceServer>) -> Result<Peer> {
         connection,
         controls,
         video,
+        audio,
         feedback,
         transports,
     })

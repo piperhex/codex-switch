@@ -1,4 +1,5 @@
 export const remoteDesktopMessages: Record<string, string> = {
+  '声音': 'Sound', '开启声音': 'Enable sound', '静音': 'Mute', '声音暂不可用': 'Sound unavailable',
   '远程桌面': 'Remote desktop', '远程桌面操作': 'Remote desktop controls',
   '远程桌面触控区域': 'Remote desktop touchpad', '显示设置': 'Display settings',
   '显示': 'Display', '帧率': 'Frame rate', '帧': 'FPS', '帧/秒': 'FPS',
