@@ -305,6 +305,7 @@ jobs:
     runs-on: macos-15
     env:
       NODE_PATH: ${{ github.workspace }}/apps/native/node_modules
+      IOS_BUNDLE_IDENTIFIER: ${{ vars.IOS_BUNDLE_IDENTIFIER || 'com.codexswitch.mobile' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
