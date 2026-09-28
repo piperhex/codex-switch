@@ -3,13 +3,19 @@ use serde::Deserialize;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+pub(crate) mod clipboard;
+mod clipboard_files;
+mod clipboard_platform;
 mod displays;
+mod keyboard;
 #[cfg(windows)]
 mod monitors;
 pub(crate) mod stream;
 mod validation;
 #[cfg(windows)]
 mod windows;
+#[cfg(windows)]
+mod windows_input;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum DesktopError {
@@ -30,25 +36,45 @@ const LEASE: Duration = Duration::from_secs(15);
 struct Session {
     id: String,
     touched: Instant,
+    clipboard: Option<clipboard::Transfer>,
     #[cfg(windows)]
     display: monitors::Monitor,
+    #[cfg(windows)]
+    input: windows_input::InputState,
 }
 static SESSION: OnceLock<Mutex<Option<Session>>> = OnceLock::new();
 
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub(crate) enum DesktopInput {
-    Move { x: f64, y: f64 },
-    Button { button: Button, down: bool },
-    Wheel { delta: i32 },
-    Text { text: String },
-    Key { key: Key },
+    Move {
+        x: f64,
+        y: f64,
+    },
+    Button {
+        button: Button,
+        down: bool,
+    },
+    Wheel {
+        delta: i32,
+    },
+    Text {
+        text: String,
+    },
+    Key {
+        key: Key,
+    },
+    Keyboard {
+        code: keyboard::KeyboardKey,
+        down: bool,
+    },
 }
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum Button {
     Left,
     Right,
+    Middle,
 }
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,7 +99,7 @@ fn safe_error(error: DesktopError) -> String {
     .into()
 }
 
-fn with_session<T>(id: &str, operation: impl FnOnce(&Session) -> Result<T>) -> Result<T> {
+fn with_session<T>(id: &str, operation: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
     let mut guard = SESSION
         .get_or_init(|| Mutex::new(None))
         .lock()
@@ -107,14 +133,16 @@ fn open(display_id: Option<String>) -> Result<displays::Opened> {
             .get_or_init(|| Mutex::new(None))
             .lock()
             .map_err(|_| DesktopError::Platform)?;
-        if guard.is_some() {
-            windows::release_buttons()?;
+        if let Some(session) = guard.as_mut() {
+            session.input.release()?;
         }
         let id = uuid::Uuid::new_v4().to_string();
         *guard = Some(Session {
             id: id.clone(),
             touched: Instant::now(),
+            clipboard: None,
             display,
+            input: windows_input::InputState::default(),
         });
         let watched = id.clone();
         std::thread::spawn(move || expire(watched));
@@ -133,13 +161,13 @@ fn expire(id: String) {
         let Ok(mut guard) = SESSION.get_or_init(|| Mutex::new(None)).lock() else {
             return;
         };
-        let Some(session) = guard.as_ref().filter(|session| session.id == id) else {
+        let Some(session) = guard.as_mut().filter(|session| session.id == id) else {
             return;
         };
         if session.touched.elapsed() <= LEASE {
             continue;
         }
-        if let Err(error) = windows::release_buttons() {
+        if let Err(error) = session.input.release() {
             eprintln!("desktop input cleanup: {error}");
         }
         *guard = None;
@@ -152,9 +180,9 @@ fn close(id: &str) -> Result<()> {
         .get_or_init(|| Mutex::new(None))
         .lock()
         .map_err(|_| DesktopError::Platform)?;
-    if guard.as_ref().is_some_and(|session| session.id == id) {
+    if let Some(session) = guard.as_mut().filter(|session| session.id == id) {
         #[cfg(windows)]
-        windows::release_buttons()?;
+        session.input.release()?;
         *guard = None;
     }
     Ok(())
@@ -197,7 +225,7 @@ pub(crate) async fn remote_desktop_input(
         validation::input(&input)?;
         with_session(&id, |session| {
             #[cfg(windows)]
-            return windows::input(input, &session.display);
+            return session.input.apply(input, &session.display);
             #[cfg(not(windows))]
             Err(DesktopError::Unsupported)
         })

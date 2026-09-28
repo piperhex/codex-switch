@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Grid2X2, Hand, Keyboard, Maximize, Monitor, Mouse, Settings2, Volume2, VolumeX, X } from 'lucide-react';
+import { Clipboard, Grid2X2, Hand, Keyboard, Maximize, Monitor, Mouse, Settings2, Volume2, VolumeX, X } from 'lucide-react';
 import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
 import { useDesktopSession } from '../../../../../shared/remote-desktop/useDesktopSession';
 import { DisplaySettings } from './DisplaySettings';
@@ -16,6 +16,10 @@ import { t } from '../../i18n';
 import { usePageVisibility } from './usePageVisibility';
 import { useKeyboardViewport } from './useKeyboardViewport';
 import { useDesktopPlayback } from './useDesktopPlayback';
+import { useHardwarePointer } from './useDesktopMouse';
+import { useDesktopClipboard } from './useDesktopClipboard';
+import { DesktopClipboardPanel } from './DesktopClipboardPanel';
+import { DesktopInputSurface } from './DesktopInputSurface';
 import './desktop.css';
 
 const createPeer = (configuration: RTCConfiguration) => new RTCPeerConnection(configuration);
@@ -30,7 +34,9 @@ export function RemoteDesktop({ client, active, close }: {
   const keyboardViewport = useKeyboardViewport(keyboard || display);
   const [direct, setDirect] = useState(false);
   const [statsVisible, setStatsVisible] = useState(true);
-  const panelVisible = !direct && !display && !keyboard;
+  const hardware = useHardwarePointer();
+  const clipboard = useDesktopClipboard({ active: active && !!session.stream, clipboard: session.clipboard });
+  const panelVisible = !hardware && !direct && !display && !keyboard && !clipboard.open;
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const [text, setText] = useState('');
   const video = useRef<HTMLVideoElement>(null);
@@ -52,9 +58,10 @@ export function RemoteDesktop({ client, active, close }: {
   useEffect(() => {
     if (!active) return;
     const previous = document.activeElement as HTMLElement | null;
-    root.current?.focus();
+    const target = hardware ? root.current?.querySelector<HTMLTextAreaElement>('.rd-key-capture') : root.current;
+    target?.focus({ preventScroll: true });
     return () => previous?.focus();
-  }, [active]);
+  }, [active, hardware]);
   const send = () => { if (text) { session.input({ kind: 'text', text }); setText(''); } };
   const fullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
@@ -68,11 +75,12 @@ export function RemoteDesktop({ client, active, close }: {
       <video ref={video} autoPlay playsInline className="rd-video" style={{
         left: viewport.content.x, top: viewport.content.y,
         width: viewport.content.width, height: viewport.content.height }} />
-      <div key={direct ? 'direct' : 'trackpad'} className="rd-touch" {...trackpad}
-        onWheel={event => wheel(event.deltaY > 0 ? -120 : 120)} aria-label={t('远程桌面触控区域')} />
+      <DesktopInputSurface key={direct ? 'direct' : 'trackpad'} pointer={session.pointer} viewport={viewport}
+        input={session.input} trackpad={trackpad} hardware={hardware} active={!!session.stream && active}
+        clipboard={clipboard} wheel={wheel} />
       {session.stats && statsVisible && !keyboard
         && <DesktopStats stats={session.stats} close={() => setStatsVisible(false)} />}
-      {session.stream && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
+      {session.stream && !hardware && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
         visible={panelVisible} zoomed={zoom.modified} wheel={wheel} />}
       {session.status && <div className="rd-status" role="status"><span>{t(session.status)}</span>
         <button onClick={session.retry}>{t('重新连接')}</button></div>}
@@ -80,6 +88,12 @@ export function RemoteDesktop({ client, active, close }: {
         saving={session.saving || !session.stream}
         stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}
         close={() => setDisplay(false)} />}
+      {clipboard.open && <DesktopClipboardPanel clipboard={clipboard} />}
+      {!clipboard.open && clipboard.status && <div className="rd-clipboard-notice" role="status">
+        {t(clipboard.status)}{clipboard.progress !== undefined && ` ${clipboard.progress}%`}</div>}
+      {hardware && session.stream && !session.capabilities.keyboard && !clipboard.status
+        && <div className="rd-clipboard-notice" role="status">
+          {t('请更新远程电脑上的应用，启用实体键盘和剪贴板。')}</div>}
       {keyboard && <form className="rd-keyboard" onSubmit={event => { event.preventDefault(); send(); }}>
         <div><input autoFocus value={text} maxLength={1000} aria-label={t('发送到电脑的文字')}
           placeholder={t('输入文字')} onChange={event => setText(event.target.value)} />
@@ -91,16 +105,23 @@ export function RemoteDesktop({ client, active, close }: {
       </form>}
     </div>
     <nav className="rd-toolbar" aria-label={t('远程桌面操作')}>
-      <button aria-label={t(direct ? '切换为鼠标模式' : '切换为触屏模式')} className="rd-mode"
-        onClick={() => switchMode(!direct)}>{direct ? <Hand /> : <Mouse />}<span>{t(direct ? '触屏' : '鼠标')}</span></button>
-      <button aria-pressed={keyboard} onClick={() => { setKeyboard(!keyboard); setDisplay(false); }}>
+      {!hardware && <button aria-label={t(direct ? '切换为鼠标模式' : '切换为触屏模式')} className="rd-mode"
+        onClick={() => switchMode(!direct)}>{direct ? <Hand /> : <Mouse />}<span>{t(direct ? '触屏' : '鼠标')}</span></button>}
+      <button aria-pressed={keyboard} onClick={() => {
+        setKeyboard(!keyboard); setDisplay(false); clipboard.setOpen(false);
+      }}>
         <Keyboard /><span>{t('键盘')}</span></button>
+      <button aria-pressed={clipboard.open} onClick={() => {
+        clipboard.setOpen(!clipboard.open); setKeyboard(false); setDisplay(false);
+      }}><Clipboard /><span>{t('剪贴板')}</span></button>
       <button aria-label={t(audioUnavailable ? '声音暂不可用' : silent ? '开启声音' : '静音')}
         aria-pressed={!silent && !audioUnavailable} disabled={audioUnavailable} onClick={toggleAudio}>
         {silent || audioUnavailable ? <VolumeX /> : <Volume2 />}<span>{t(silent ? '开启声音' : '声音')}</span></button>
       <button onClick={() => session.input({ kind: 'key', key: 'desktop' })}><Monitor /><span>{t('显示桌面')}</span></button>
       <button onClick={() => session.input({ kind: 'key', key: 'windows' })}><Grid2X2 /><span>{t('所有窗口')}</span></button>
-      <button aria-pressed={display} onClick={() => { setDisplay(!display); setKeyboard(false); }}>
+      <button aria-pressed={display} onClick={() => {
+        setDisplay(!display); setKeyboard(false); clipboard.setOpen(false);
+      }}>
         <Settings2 /><span>{t('显示')}</span></button>
       {document.fullscreenEnabled && <button onClick={fullscreen}><Maximize /><span>{t('全屏')}</span></button>}
       <button onClick={close}><X /><span>{t('关闭')}</span></button>

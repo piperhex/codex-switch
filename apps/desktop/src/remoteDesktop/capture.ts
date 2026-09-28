@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { DesktopDisplays } from '../../../../shared/remote-desktop/protocol';
+import type { ClipboardReply } from '../../../../shared/remote-desktop/clipboard';
 import { openDesktopCapture } from './displays';
 
 /** Binary IPC avoids JSON/base64 copies; capture, resize and JPEG encoding run in Rust workers. */
@@ -38,6 +39,10 @@ export class DesktopCapture {
   }
   async input(input: unknown) {
     if (!this.stopped && this.id) await invoke('remote_desktop_input', { id: this.id, input });
+  }
+  async clipboard(message: object) {
+    if (this.stopped || !this.id) throw new Error('桌面连接已结束。');
+    return invoke<ClipboardReply>('remote_desktop_clipboard', { id: this.id, message });
   }
   private async release() {
     if (!this.id) return this.closing;

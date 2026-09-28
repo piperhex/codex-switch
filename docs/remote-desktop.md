@@ -95,7 +95,31 @@ the existing unsupported-platform behavior.
 
 ## Controls and lifecycle
 
-The viewer draws its own pointer immediately; all Windows capture paths exclude the host cursor.
+PC Web viewers use the physical mouse directly: hover, left/right/middle clicks, double clicks, dragging
+and wheel input map to the fitted video rectangle. Letterbox clicks are ignored. The virtual mouse panel
+is reserved for touch devices. Clicking the desktop focuses keyboard input; physical key down/up events
+support editing keys, modifiers and shortcuts, while local IME composition commits Unicode text once.
+Local forms and toolbar controls keep their normal keyboard behavior. Blur, disconnect and session expiry
+release remotely held keys and buttons. Browser/OS-reserved shortcuts may remain local.
+
+The Web clipboard supports bidirectional text and PNG images, plus copying files into the remote Windows
+clipboard and downloading remote clipboard files. Ctrl+C/Ctrl+X copy the remote selection; Ctrl+V consumes
+the browser's trusted paste event, including available files. The **Clipboard** panel also offers local
+paste, remote clipboard retrieval, a file picker, explicit copy retry and file downloads. Browser APIs
+cannot create arbitrary Explorer/Finder file clipboard entries; multiple remote files have individual
+download buttons. Folders must be zipped first. A copied image file can be sent as a file with the picker.
+Clipboard access requires the browser's normal permissions; denied writes retain received content for a
+user-initiated retry. Content is transferred only after a paste/copy action, with no background clipboard polling.
+
+Clipboard transfers use the authenticated desktop's ordered, encrypted control channel in acknowledged
+32 KiB chunks, capped at 64 MiB and 32 files. Native and WebView capture paths share the same clipboard
+service, session checks, validation and input ordering. Files use validated basenames inside a fresh
+application-owned temporary directory; source paths never cross the connection. Temporary files remain
+available for pasting after disconnect and expire after 24 hours, cleaned on a subsequent file transfer.
+Both the Web frontend and Windows host app must be updated. Capability negotiation keeps older hosts
+connected and explains which update is needed instead of sending unsupported keyboard/clipboard messages.
+
+The touch viewer draws its own pointer immediately; all Windows capture paths exclude the host cursor.
 The compact floating mouse follows that pointer and can extend into letterbox space around the video.
 The 18 × 24 pointer stays at the upper-left of the 120 × 136 mouse panel. Controls keep a fixed offset
 while the whole desktop pans when they reach the viewer edges, revealing black canvas.

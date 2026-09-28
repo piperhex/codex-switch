@@ -1,5 +1,8 @@
-import type { DesktopClient, DesktopDisplays, DesktopInput, DesktopSettings, DesktopStats } from './protocol';
-import { sendDesktopInput } from './input';
+import type { DesktopCapabilities, DesktopClient, DesktopDisplays, DesktopInput, DesktopSettings, DesktopStats }
+  from './protocol';
+import { MAX_BUFFERED_INPUT, sendDesktopInput } from './input';
+import { DesktopClipboard } from './clipboardTransfer';
+import { MAX_CONTROL_MESSAGE_BYTES, type ClipboardReply } from './clipboard';
 import { monitorDesktopStats } from './statsMonitor';
 
 interface ReceiverOptions {
@@ -10,6 +13,7 @@ interface ReceiverOptions {
   stats: (stats: DesktopStats) => void;
   audio?: (available: boolean) => void;
   displays?: (value: DesktopDisplays) => void;
+  capabilities?: (value: DesktopCapabilities) => void;
 }
 const SIGNAL_INTERVAL = 400;
 const HEARTBEAT_INTERVAL = 2000;
@@ -31,7 +35,14 @@ export class DesktopReceiver {
   private measured: Partial<DesktopStats> = {};
   private media?: MediaStream;
   private muted = false;
+  private capabilities: DesktopCapabilities = {};
   private audioTracks = new Set<MediaStreamTrack>();
+  readonly clipboard = new DesktopClipboard(message => {
+    if (this.stopped || this.channel?.readyState !== 'open' || this.channel.bufferedAmount > MAX_BUFFERED_INPUT) {
+      return false;
+    }
+    this.channel.send(JSON.stringify(message)); return true;
+  });
   constructor(private readonly options: ReceiverOptions) {}
 
   async start(settings: DesktopSettings) {
@@ -40,6 +51,7 @@ export class DesktopReceiver {
     try {
       const offer = await this.options.client.open(this.id, settings);
       if (this.stopped) { await this.closeRemote(); return; }
+      this.capabilities = offer.capabilities ?? {}; this.options.capabilities?.(this.capabilities);
       this.options.displays?.(offer);
       const pc = this.options.createPeer({ iceServers: offer.iceServers });
       this.pc = pc;
@@ -98,9 +110,10 @@ export class DesktopReceiver {
       if (!this.stopped) this.fail('桌面连接已断开，请重新连接。');
     });
     channel.addEventListener('message', ({ data }) => {
-      if (this.stopped || typeof data !== 'string' || data.length > 2048) return;
+      if (this.stopped || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
       try {
         const message = JSON.parse(data) as DesktopStats & { kind?: string; message?: string };
+        if (message.kind === 'clipboard') { this.clipboard.receive(message as unknown as ClipboardReply); return; }
         if (message.kind === 'stats') {
           this.hostStats = message; this.options.stats({ ...message, ...this.measured });
         }
@@ -123,7 +136,11 @@ export class DesktopReceiver {
     } catch { this.fail('桌面连接未能建立，请检查网络后重试。'); }
   }
 
-  input(input: DesktopInput) { if (!this.stopped) sendDesktopInput(this.channel, input); }
+  input(input: DesktopInput) {
+    if (input.kind === 'keyboard' && !this.capabilities.keyboard) return;
+    if (input.kind === 'button' && input.button === 'middle' && !this.capabilities.keyboard) return;
+    if (!this.stopped) sendDesktopInput(this.channel, input);
+  }
   mute(muted: boolean) {
     this.muted = muted;
     for (const track of this.audioTracks) track.enabled = !muted;
@@ -142,6 +159,7 @@ export class DesktopReceiver {
   stop() {
     if (this.stopped) return this.closing ?? Promise.resolve();
     this.stopped = true;
+    this.clipboard.stop();
     clearTimeout(this.poll); clearTimeout(this.timeout); clearInterval(this.heartbeat);
     this.stopStats?.();
     for (const track of this.audioTracks) { track.enabled = false; track.stop(); }

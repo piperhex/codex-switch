@@ -3,6 +3,7 @@ import { DesktopAdaptation, type NetworkSample } from '../../../../shared/remote
 import type { DesktopSettings, DesktopSignal } from '../../../../shared/remote-desktop/protocol';
 import { DesktopCapture } from './capture';
 import { DesktopControls } from './controls';
+import { MAX_CONTROL_MESSAGE_BYTES } from '../../../../shared/remote-desktop/clipboard';
 
 const HEARTBEAT_TIMEOUT = 12_000;
 const SETUP_TIMEOUT = 30_000;
@@ -13,7 +14,9 @@ export class DesktopHostSession {
   private readonly pc: RTCPeerConnection;
   private readonly capture = new DesktopCapture();
   private readonly adaptation = new DesktopAdaptation();
-  private readonly controls = new DesktopControls(this.capture, () => this.fail());
+  private readonly controls = new DesktopControls(this.capture, () => this.fail(), message => {
+    if (this.channel.readyState === 'open') this.channel.send(JSON.stringify(message));
+  });
   private readonly channel: RTCDataChannel;
   private sender?: RTCRtpSender;
   private candidates: RTCIceCandidateInit[] = [];
@@ -42,7 +45,9 @@ export class DesktopHostSession {
     });
     this.channel.addEventListener('close', () => this.close());
     this.channel.addEventListener('message', ({ data }) => {
-      if (this.stopped || typeof data !== 'string' || data.length > 8192) { this.fail(); return; }
+      if (this.stopped || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) {
+        this.fail(); return;
+      }
       if (data === '{"kind":"ping"}') {
         clearTimeout(this.expires); this.expires = setTimeout(() => this.close(), HEARTBEAT_TIMEOUT); return;
       }

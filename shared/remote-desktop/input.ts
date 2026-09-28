@@ -1,6 +1,6 @@
 import type { DesktopInput } from './protocol';
 
-const MAX_BUFFERED_INPUT = 16 * 1024;
+export const MAX_BUFFERED_INPUT = 256 * 1024;
 const MOVE_INTERVAL = 16;
 
 /** Coalesce pointer motion; button events flush it first so dragging preserves ordering. */
@@ -18,15 +18,17 @@ export class DesktopPointer {
   }
   private pending = false;
   private timer?: ReturnType<typeof setTimeout>;
-  isHeld(button: 'left' | 'right') { return this.held.has(button); }
-  private readonly held = new Set<'left' | 'right'>();
+  isHeld(button: 'left' | 'right' | 'middle') { return this.held.has(button); }
+  private readonly held = new Set<'left' | 'right' | 'middle'>();
   constructor(private readonly send: (input: DesktopInput) => void) {}
   move(dx: number, dy: number, width: number, height: number) {
     if (!this.update(this.position.x + dx / Math.max(width, 1), this.position.y + dy / Math.max(height, 1))) return;
     this.timer ??= setTimeout(() => this.flush(), MOVE_INTERVAL);
   }
-  absolute(x: number, y: number) {
-    if (this.update(x, y)) this.flush();
+  absolute(x: number, y: number, immediate = true) {
+    if (!this.update(x, y)) return;
+    if (immediate) this.flush();
+    else this.timer ??= setTimeout(() => this.flush(), MOVE_INTERVAL);
   }
   /** Reassert the local target before clicking, even if the host's physical mouse moved. */
   synchronize() { this.pending = true; this.flush(); }
@@ -34,7 +36,7 @@ export class DesktopPointer {
     clearTimeout(this.timer); this.timer = undefined;
     if (this.pending) { this.pending = false; this.send({ kind: 'move', ...this.position }); }
   }
-  button(button: 'left' | 'right', down: boolean) {
+  button(button: 'left' | 'right' | 'middle', down: boolean) {
     if (this.held.has(button) === down) return;
     if (down) this.synchronize(); else this.flush();
     if (down) this.held.add(button); else this.held.delete(button);
@@ -45,7 +47,7 @@ export class DesktopPointer {
     if (this.held.has(button)) return;
     this.button(button, true); this.button(button, false);
   }
-  release() { this.button('left', false); this.button('right', false); }
+  release() { this.button('left', false); this.button('right', false); this.button('middle', false); }
   dispose() {
     clearTimeout(this.timer); this.timer = undefined; this.pending = false; this.held.clear();
     this.listeners.forEach(listener => listener());

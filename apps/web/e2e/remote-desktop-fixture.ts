@@ -2,6 +2,8 @@ import type { DesktopDisplay, DesktopInput, DesktopSettings } from '../../../sha
 import { RemoteDesktopHost } from '../../desktop/src/remoteDesktop/host';
 import { createGuiToolsClient } from '../../../shared/remote-chat/guiTools';
 import type { IceServer } from '../../../shared/remote-chat/protocol';
+import { clipboardFixture, desktopClipboard } from './remote-desktop-clipboard-fixture';
+import type { ClipboardMessage } from '../../../shared/remote-desktop/clipboard';
 
 declare global { interface Window { desktopRelayFixture?: { iceServers: IceServer[] } } }
 
@@ -31,6 +33,7 @@ const displays: DesktopDisplay[] = [
 let selected = displays[0];
 const multiDisplay = new URLSearchParams(location.search).has('displays');
 export const desktopTest = { inputs: [] as DesktopInput[], settings: [] as DesktopSettings[],
+  clipboard: clipboardFixture,
   selectedDisplays: [] as string[], inputDisplays: [] as string[],
   displays,
   peers: [] as RTCPeerConnection[],
@@ -64,7 +67,10 @@ async function frame(width: number) {
 
 // Only native IPC is substituted. Host capture pacing, WebRTC/SRTP, receiver and controls are production code.
 Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {
-  invoke: async (command: string, args: { width?: number; input?: DesktopInput; displayId?: string }) => {
+  invoke: async (command: string, args: {
+    width?: number; input?: DesktopInput; displayId?: string; message?: ClipboardMessage;
+  }) => {
+    if (command === 'remote_desktop_clipboard') return desktopClipboard(args.message!);
     if (command === 'remote_desktop_open') {
       desktopTest.captures += 1;
       selected = desktopTest.displays.find(item => item.id === args.displayId) ?? desktopTest.displays[0];
@@ -101,7 +107,13 @@ export async function desktopRequest<T>(body: object): Promise<T> {
     return new Promise<T>(() => {});
   }
   if (request.settings) desktopTest.settings.push(request.settings);
-  try { return await host.request(body, 'fixture') as T; }
+  try {
+    const result = await host.request(body, 'fixture');
+    if (request.action === 'open' && new URLSearchParams(location.search).has('legacy')) {
+      delete (result as { capabilities?: unknown }).capabilities;
+    }
+    return result as T;
+  }
   catch (error) { desktopTest.errors.push(String(error)); throw error; }
 }
 export const client = createGuiToolsClient(desktopRequest);

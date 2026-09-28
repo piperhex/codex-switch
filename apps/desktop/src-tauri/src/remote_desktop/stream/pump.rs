@@ -195,17 +195,31 @@ pub(super) async fn inputs(stream: Arc<Stream>, mut inputs: mpsc::Receiver<bytes
         };
         let id = stream.id.clone();
         let result = tauri::async_runtime::spawn_blocking(move || apply_input(&id, &message)).await;
-        if !matches!(result, Ok(Ok(()))) {
+        let Ok(Ok(reply)) = result else {
             stream.cancel.send_replace(true);
             return;
+        };
+        if let Some(reply) = reply {
+            if stream.peer.controls.send_text(reply).await.is_err() {
+                stream.cancel.send_replace(true);
+                return;
+            }
         }
     }
 }
 
-fn apply_input(id: &str, data: &[u8]) -> Result<()> {
-    let input: DesktopInput = serde_json::from_slice(data).map_err(|_| DesktopError::Invalid)?;
+fn apply_input(id: &str, data: &[u8]) -> Result<Option<String>> {
+    let value: serde_json::Value =
+        serde_json::from_slice(data).map_err(|_| DesktopError::Invalid)?;
+    if value.get("kind").and_then(serde_json::Value::as_str) == Some("clipboard") {
+        let message = serde_json::from_value(value).map_err(|_| DesktopError::Invalid)?;
+        let reply = super::super::clipboard::handle(id, message);
+        return serde_json::to_string(&reply)
+            .map(Some)
+            .map_err(|_| DesktopError::Platform);
+    }
+    let input: DesktopInput = serde_json::from_value(value).map_err(|_| DesktopError::Invalid)?;
     super::super::validation::input(&input)?;
-    super::super::with_session(id, |session| {
-        super::super::windows::input(input, &session.display)
-    })
+    super::super::with_session(id, |session| session.input.apply(input, &session.display))
+        .map(|()| None)
 }

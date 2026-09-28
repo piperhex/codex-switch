@@ -1,10 +1,7 @@
-use super::{Button, DesktopError, DesktopInput, Key, Result};
+use super::{DesktopError, Result};
 use image::codecs::jpeg::JpegEncoder;
 use std::{mem::size_of, ptr};
-use windows_sys::Win32::{
-    Graphics::Gdi::*,
-    UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
-};
+use windows_sys::Win32::Graphics::Gdi::*;
 
 const JPEG_QUALITY: u8 = 85;
 const MAX_PIXELS: usize = 16_777_216;
@@ -150,115 +147,6 @@ pub(super) fn capture(width: u32, display: &super::monitors::Monitor) -> Result<
         )
         .map_err(|_| DesktopError::Platform)?;
     Ok(encoded)
-}
-
-fn mouse(flags: u32, data: u32) -> INPUT {
-    INPUT {
-        r#type: INPUT_MOUSE,
-        Anonymous: INPUT_0 {
-            mi: MOUSEINPUT {
-                dwFlags: flags,
-                mouseData: data,
-                ..Default::default()
-            },
-        },
-    }
-}
-fn key(code: u16, flags: u32) -> INPUT {
-    INPUT {
-        r#type: INPUT_KEYBOARD,
-        Anonymous: INPUT_0 {
-            ki: KEYBDINPUT {
-                wVk: code,
-                dwFlags: flags,
-                ..Default::default()
-            },
-        },
-    }
-}
-fn send(inputs: &[INPUT]) -> Result<()> {
-    // SAFETY: the slice is fully initialized and its ABI size matches INPUT for this target.
-    let count = unsafe {
-        SendInput(
-            inputs.len() as u32,
-            inputs.as_ptr(),
-            size_of::<INPUT>() as i32,
-        )
-    };
-    if count != inputs.len() as u32 {
-        return Err(DesktopError::Platform);
-    }
-    Ok(())
-}
-pub(super) fn release_buttons() -> Result<()> {
-    send(&[mouse(MOUSEEVENTF_LEFTUP, 0), mouse(MOUSEEVENTF_RIGHTUP, 0)])
-}
-pub(super) fn input(input: DesktopInput, display: &super::monitors::Monitor) -> Result<()> {
-    let _dpi = super::monitors::PhysicalPixels::enter()?;
-    let bounds = display.refresh()?.bounds;
-    match input {
-        DesktopInput::Move { x, y } => {
-            let (x, y) = bounds.point(x, y);
-            // SAFETY: coordinates map validated normalized input to the selected live display.
-            let moved = unsafe { SetCursorPos(x, y) };
-            if moved == 0 {
-                return Err(DesktopError::Platform);
-            }
-            Ok(())
-        }
-        DesktopInput::Button { button, down } => {
-            let flags = match (button, down) {
-                (Button::Left, true) => MOUSEEVENTF_LEFTDOWN,
-                (Button::Left, false) => MOUSEEVENTF_LEFTUP,
-                (Button::Right, true) => MOUSEEVENTF_RIGHTDOWN,
-                (Button::Right, false) => MOUSEEVENTF_RIGHTUP,
-            };
-            send(&[mouse(flags, 0)])
-        }
-        DesktopInput::Wheel { delta } => send(&[mouse(MOUSEEVENTF_WHEEL, delta as u32)]),
-        DesktopInput::Text { text } => text_input(&text),
-        DesktopInput::Key { key: value } => shortcut(value),
-    }
-}
-fn text_input(text: &str) -> Result<()> {
-    let mut inputs = Vec::new();
-    for character in text.encode_utf16() {
-        for flags in [KEYEVENTF_UNICODE, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP] {
-            inputs.push(INPUT {
-                r#type: INPUT_KEYBOARD,
-                Anonymous: INPUT_0 {
-                    ki: KEYBDINPUT {
-                        wScan: character,
-                        dwFlags: flags,
-                        ..Default::default()
-                    },
-                },
-            });
-        }
-    }
-    if inputs.is_empty() {
-        return Ok(());
-    }
-    send(&inputs)
-}
-fn shortcut(value: Key) -> Result<()> {
-    let code = match value {
-        Key::Enter => VK_RETURN,
-        Key::Backspace => VK_BACK,
-        Key::Escape => VK_ESCAPE,
-        Key::Tab => VK_TAB,
-        Key::Desktop => 0x44,
-        Key::Windows => VK_TAB,
-    };
-    if matches!(value, Key::Desktop | Key::Windows) {
-        return send(&[
-            key(VK_LWIN, 0),
-            key(code, 0),
-            key(code, KEYEVENTF_KEYUP),
-            key(VK_LWIN, KEYEVENTF_KEYUP),
-        ]);
-    }
-    send(&[key(code, 0), key(code, KEYEVENTF_KEYUP)])
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { DesktopPointer, sendDesktopInput } from '../../../../shared/remote-desktop/input';
+import { DesktopPointer, MAX_BUFFERED_INPUT, sendDesktopInput } from '../../../../shared/remote-desktop/input';
 import { DesktopControls } from './controls';
 import type { DesktopCapture } from './capture';
 
@@ -16,7 +16,7 @@ it('coalesces pointer moves and flushes them before mouse presses', () => {
   pointer.dispose(); vi.runAllTimers(); expect(send).toHaveBeenCalledTimes(2);
 });
 it('closes congested control channels so button releases cannot be silently lost', () => {
-  const channel = { readyState: 'open', bufferedAmount: 20_000, close: vi.fn(), send: vi.fn() };
+  const channel = { readyState: 'open', bufferedAmount: MAX_BUFFERED_INPUT + 1, close: vi.fn(), send: vi.fn() };
   sendDesktopInput(channel as unknown as RTCDataChannel, { kind: 'button', button: 'left', down: false });
   expect(channel.close).toHaveBeenCalled(); expect(channel.send).not.toHaveBeenCalled();
 });

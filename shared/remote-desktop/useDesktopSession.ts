@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DesktopReceiver } from './receiver';
 import { DesktopPointer } from './input';
-import { DEFAULT_SETTINGS, validateSettings, type DesktopClient, type DesktopDisplay,
+import type { ClipboardContent, ClipboardProgress } from './clipboard';
+import { DEFAULT_SETTINGS, validateSettings, type DesktopCapabilities, type DesktopClient, type DesktopDisplay,
   type DesktopSettings, type DesktopStats }
   from './protocol';
 
@@ -25,13 +26,14 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(false);
   const [hasAudio, setHasAudio] = useState(false);
+  const [capabilities, setCapabilities] = useState<DesktopCapabilities>({});
   const pointer = useMemo(() => new DesktopPointer(input => receiver.current?.input(input)), []);
 
   useEffect(() => {
-    setStream(undefined); setStats(undefined); setHasAudio(false);
+    setStream(undefined); setStats(undefined); setHasAudio(false); setCapabilities({});
     if (!active) return;
     const session = new DesktopReceiver({ client, createPeer, stream: setStream, status: setStatus,
-      stats: setStats, audio: setHasAudio, displays: value => {
+      stats: setStats, audio: setHasAudio, capabilities: setCapabilities, displays: value => {
         setDisplays(value.displays ?? []);
         settingsRef.current = { ...settingsRef.current, displayId: value.displayId };
         setSettings(settingsRef.current);
@@ -66,7 +68,18 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
   const mute = (value: boolean) => {
     mutedRef.current = value; setMuted(value); receiver.current?.mute(value);
   };
-  return { stream, status, stats, settings, displays, update, saving, pointer, muted, mute, hasAudio,
+  const currentClipboard = () => {
+    if (!capabilities.clipboard) throw new Error('请更新远程电脑上的应用，启用实体键盘和剪贴板。');
+    if (!receiver.current) throw new Error('请等待桌面连接后重试。');
+    return receiver.current.clipboard;
+  };
+  const clipboard = {
+    read: async (shortcut?: 'copy' | 'cut', progress?: ClipboardProgress) =>
+      currentClipboard().read(shortcut, progress),
+    write: async (content: ClipboardContent, paste = true, progress?: ClipboardProgress) =>
+      currentClipboard().write(content, paste, progress),
+  };
+  return { stream, status, stats, settings, displays, update, saving, pointer, muted, mute, hasAudio, clipboard, capabilities,
     input: (input: Parameters<DesktopReceiver['input']>[0]) => receiver.current?.input(input),
     retry: () => setAttempt(value => value + 1) };
 }

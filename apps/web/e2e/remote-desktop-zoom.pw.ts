@@ -3,6 +3,7 @@ import type { desktopTest } from './remote-desktop-fixture';
 
 declare global { interface Window { desktopTest: typeof desktopTest } }
 type Touch = { x: number; y: number; id: number };
+test.use({ isMobile: true, hasTouch: true });
 
 async function openDesktop(page: Page) {
   await page.goto('e2e/remote-desktop-harness.html');

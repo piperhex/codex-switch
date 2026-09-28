@@ -1,4 +1,39 @@
 export const remoteDesktopMessages: Record<string, string> = {
+  '剪贴板': 'Clipboard', '远程桌面键盘输入': 'Remote desktop keyboard input',
+  '请更新远程电脑上的应用，启用实体键盘和剪贴板。':
+    'Update the app on the remote computer to enable physical keyboard and clipboard support.',
+  '粘贴到远程': 'Paste to remote', '获取远程剪贴板': 'Get remote clipboard', '发送文件': 'Send files',
+  '选择发送的文件': 'Choose files to send', '复制到本机': 'Copy to this device',
+  '远程剪贴板文本': 'Remote clipboard text', '远程剪贴板图片': 'Remote clipboard image',
+  '在桌面中使用 Ctrl+C、Ctrl+X 和 Ctrl+V，复制粘贴文本、图片和文件。':
+    'Use Ctrl+C, Ctrl+X and Ctrl+V in the desktop to copy and paste text, images and files.',
+  '每次最多 64 MB、32 个文件。远程文件会下载到本机；文件夹请先压缩。':
+    'Up to 64 MB and 32 files at a time. Remote files download to this device. Zip folders before copying.',
+  '正在传输剪贴板…': 'Transferring clipboard…', '已粘贴到远程电脑。': 'Pasted to the remote computer.',
+  '已复制到本机。': 'Copied to this device.', '文件已收到，可在下方下载。': 'Files received. Download them below.',
+  '内容已收到，请点击“复制到本机”。': 'Content received. Click “Copy to this device”.',
+  '剪贴板传输失败，请重试。': 'Clipboard transfer failed. Please try again.',
+  '请等待桌面连接后重试。': 'Wait for the desktop to connect, then try again.',
+  '剪贴板正在传输，请稍候。': 'A clipboard transfer is in progress. Please wait.',
+  '剪贴板传输超时，请重试。': 'The clipboard transfer timed out. Please try again.',
+  '剪贴板内容无效，请重新复制。': 'Invalid clipboard content. Please copy it again.',
+  '剪贴板内容过大，请分批复制。': 'The clipboard content is too large. Copy it in smaller batches.',
+  '剪贴板内容过大，请分批复制（每次最多 64 MB）。': 'Copy in smaller batches, up to 64 MB at a time.',
+  '剪贴板内容过大，请分批复制（每次最多 64 MB、32 个文件）。':
+    'Copy in smaller batches, up to 64 MB and 32 files at a time.',
+  '无法访问剪贴板，请重新复制后再试。': 'Unable to access the clipboard. Copy the content again and retry.',
+  '暂不支持复制文件夹，请先压缩后再复制。': 'Zip folders before copying them.',
+  '未能复制所选内容，请确认远程窗口后重试。': 'Unable to copy the selection. Check the remote window and try again.',
+  '图片过大，请缩小后再复制。': 'The image is too large. Resize it before copying.',
+  '图片未能读取，请重新复制。': 'Unable to read the image. Please copy it again.',
+  '图片未能读取，请保存后选择文件发送。': 'Save the image, then choose the file to send it.',
+  '浏览器未开放剪贴板，请点击桌面后按 Ctrl+V。': 'Click the desktop and press Ctrl+V to paste.',
+  '浏览器未开放剪贴板，请手动复制下面的内容。': 'Clipboard access is unavailable. Copy the content below manually.',
+  '无法读取本机剪贴板，请点击桌面后按 Ctrl+V，或选择文件发送。':
+    'Click the desktop and press Ctrl+V, or choose files to send.',
+  '剪贴板中没有可发送的内容，请重新复制或选择文件。': 'Copy some content or choose files to send.',
+  '无法写入本机剪贴板，请允许浏览器访问，或手动复制下面的内容。':
+    'Allow clipboard access in your browser, or copy the content below manually.',
   '显示器': 'Monitor', '主屏': 'Primary', '正在切换显示器…': 'Switching display…',
   '请选择有效的显示器。': 'Choose a valid display.',
   '显示器已断开，请重新连接桌面。': 'The display was disconnected. Please reconnect.',

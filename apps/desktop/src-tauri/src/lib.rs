@@ -266,6 +266,7 @@ pub fn run() {
             remote_desktop::remote_desktop_open,
             remote_desktop::remote_desktop_frame,
             remote_desktop::remote_desktop_input,
+            remote_desktop::clipboard::remote_desktop_clipboard,
             remote_desktop::remote_desktop_close,
             remote_desktop::stream::remote_desktop_stream_open,
             remote_desktop::stream::remote_desktop_stream_available,

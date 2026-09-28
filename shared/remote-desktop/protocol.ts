@@ -7,7 +7,10 @@ export type DesktopQuality = 'auto' | 'smooth' | 'clear' | 'original';
 export interface DesktopSettings { fps: 'auto' | number; quality: DesktopQuality; displayId?: string }
 export interface DesktopDisplay { id: string; name: string; width: number; height: number; primary: boolean }
 export interface DesktopDisplays { displays?: DesktopDisplay[]; displayId?: string }
-export interface DesktopOffer extends DesktopDisplays { sdp: string; iceServers: IceServer[] }
+export interface DesktopCapabilities { keyboard?: boolean; clipboard?: boolean }
+export interface DesktopOffer extends DesktopDisplays {
+  sdp: string; iceServers: IceServer[]; capabilities?: DesktopCapabilities;
+}
 export interface DesktopSignal { answer?: string; candidates: RTCIceCandidateInit[] }
 export interface DesktopStats {
   audio?: 'starting' | 'playing' | 'unavailable';
@@ -18,9 +21,10 @@ export interface DesktopStats {
 }
 export type DesktopInput =
   | { kind: 'move'; x: number; y: number }
-  | { kind: 'button'; button: 'left' | 'right'; down: boolean }
+  | { kind: 'button'; button: 'left' | 'right' | 'middle'; down: boolean }
   | { kind: 'wheel'; delta: number }
   | { kind: 'text'; text: string }
+  | { kind: 'keyboard'; code: string; down: boolean }
   | { kind: 'key'; key: 'enter' | 'backspace' | 'escape' | 'tab' | 'desktop' | 'windows' };
 export interface DesktopClient {
   open(id: string, settings: DesktopSettings): Promise<DesktopOffer>;

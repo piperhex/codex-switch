@@ -165,7 +165,7 @@ fn receive(
     let Some(stream) = weak.upgrade() else {
         return;
     };
-    if !message.is_string || message.data.len() > 8192 {
+    if !message.is_string || message.data.len() > 64 * 1024 {
         stream.cancel.send_replace(true);
         return;
     }

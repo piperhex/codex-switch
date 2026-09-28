@@ -25,7 +25,7 @@ test('switches landscape and portrait displays, preserves settings, and recovers
   expect(await panel.evaluate(node => node.scrollWidth <= node.clientWidth && node.clientWidth <= 400)).toBe(true);
   await page.screenshot({ path: info.outputPath('multi-display-settings.png') });
   await page.getByRole('button', { name: '完成', exact: true }).click();
-  await page.getByRole('button', { name: '鼠标左键', exact: true }).click();
+  await page.locator('.rd-touch').click();
   await expect.poll(() => page.evaluate(() => window.desktopTest.inputDisplays.at(-1))).toBe('display-2');
   await page.getByRole('button', { name: '显示', exact: true }).click();
   await primary.click();

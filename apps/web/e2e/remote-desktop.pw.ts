@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { desktopTest } from './remote-desktop-fixture';
 const MOUSE_IDLE_DELAY = 10_000;
+// Exercise the touch controls here; physical PC input has its own browser regression suite.
+test.use({ isMobile: true, hasTouch: true });
 
 declare global { interface Window { desktopTest: typeof desktopTest } }
 
