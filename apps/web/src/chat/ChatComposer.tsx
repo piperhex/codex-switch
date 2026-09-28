@@ -1,6 +1,7 @@
 import { t, useLanguage } from '../i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowUp, ChevronDown, File, Pause, Play, Plus, SlidersHorizontal, Square, Target, X, Zap } from 'lucide-react';
+import { ArrowUp, ChevronDown, File, MessageSquare, Pause, Play, Plus,
+  SlidersHorizontal, Square, Target, X, Zap } from 'lucide-react';
 import { COMPOSER_ACTION_LABELS } from '../../../../shared/remote-chat/composerAction';
 import { composerLabel } from '../../../../shared/remote-chat/composer';
 import { formatTokens } from '../../../../shared/remote-chat/usage';
@@ -17,6 +18,7 @@ import { ChatQueue } from './ChatQueue';
 import { ComposerQuotes } from './ChatQuotes';
 import { ComposerAddMenu, ComposerPluginMenu, ChatCommandMenu, type ComposerAddAction } from './ComposerMenus';
 import { ComposerProjectFiles } from './ComposerProjectFiles';
+import { ComposerConversationMenu } from './ComposerConversationMenu';
 import { useComposerState } from './useComposerState';
 import type { ComposerProps } from './composerProps';
 import './composer.css';
@@ -76,7 +78,7 @@ export function ChatComposer(props: ComposerProps) {
   const label = composerLabel(models, selection, t);
   const closeMenus = () => { menu.close(); setAdding(false); };
   const showSettings = () => { closeMenus(); setSettings(true); };
-  const placeholder = desktop ? t('描述任务，或输入 / 选择命令和技能…') : t('发消息…');
+  const placeholder = desktop ? t('描述任务，@ 引用对话，/ 选择命令和技能…') : t('发消息，@ 引用对话…');
   return <div className="chat-composer-dock" ref={dock} onKeyDown={event => {
     if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (event.key === 'Escape') { setAdding(false); menu.close(); }
@@ -102,11 +104,17 @@ export function ChatComposer(props: ComposerProps) {
       {(adding || menu.open) && <div className="chat-composer-popover" onKeyDown={event => {
         if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229) return;
         if (event.key === 'Escape') { setAdding(false); menu.close(); menu.input.current?.focus(); }
-      }}>{adding ? <ComposerAddMenu busy={busy} choose={chooseAdd} />
-        : menu.plugins ? <ComposerPluginMenu catalog={catalog} query={menu.query} load={readCatalog}
+      }}>{adding && <ComposerAddMenu busy={busy} choose={chooseAdd} />}
+        {!adding && menu.conversations && props.loadConversations && <ComposerConversationMenu
+          key={threadId} input={menu.input} query={menu.query} threadId={threadId} ready={ready && !busy}
+          load={props.loadConversations} close={menu.close}
+          choose={reference => { if (attachments.add(reference)) menu.consumeTrigger(); }} />}
+        {!adding && menu.plugins && <ComposerPluginMenu catalog={catalog} query={menu.query} load={readCatalog}
           input={menu.input} close={menu.close}
-          chooseSkill={menu.choose} choosePlugin={plugin => { attachments.addPlugin(plugin); menu.consumeTrigger(); }} />
-          : <ChatCommandMenu catalog={catalog} query={menu.query} skillsOnly={menu.skillsOnly} input={menu.input}
+          chooseSkill={menu.choose}
+          choosePlugin={plugin => { attachments.addPlugin(plugin); menu.consumeTrigger(); }} />}
+        {!adding && !menu.plugins && !menu.conversations && <ChatCommandMenu
+            catalog={catalog} query={menu.query} skillsOnly={menu.skillsOnly} input={menu.input}
             compactReason={props.compactReason} choose={menu.choose} compact={() => { void menu.runCompact(); }}
             goal={() => { menu.consumeTrigger(); goalMode.enter(); }} close={menu.close} />}</div>}
       <div className="chat-composer-field" aria-hidden={settings || undefined}>
@@ -115,8 +123,9 @@ export function ChatComposer(props: ComposerProps) {
             upload={sending ? uploadProgress : undefined} reconnecting={!ready}
             add={() => setAdding(true)} edit={id => { menu.input.current?.blur(); setEditingId(id); }} />
           <div className="chat-composer-capsules">{attachments.items.map((item, index) =>
-            <span className="chat-capsule" key={`${item.path}:${index}`}><File size={14} />
-              <span title={item.name}>{item.name}</span>
+            <span className="chat-capsule" key={`${item.path}:${index}`}>
+              {item.kind === 'conversation' ? <MessageSquare size={14} /> : <File size={14} />}
+              <span title={item.name}>{item.kind === 'conversation' ? `@${item.name}` : item.name}</span>
               {item.data && <ChatUploadProgress inline reconnecting={!ready}
                 progress={itemUploadProgress(sending ? uploadProgress : undefined, 'attachment', index)} />}
               <button type="button" aria-label={t("移除{value1}", { value1: item.name })}

@@ -127,6 +127,7 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
       compactReason={compactUnavailableReason(state)} compacting={!!state.compacting
         && state.compacting === state.selected?.id} compact={controller.compact}
       loadCatalog={controller.loadComposerCatalog} loadFiles={controller.loadProjectFiles}
+      loadConversations={controller.searchThreads}
       uploadProgress={state.upload}
       threadId={state.selected?.id ?? null} models={state.models} selection={state.settings}
       readUsage={controller.readUsage} tokenUsage={state.selected?.tokenUsage}

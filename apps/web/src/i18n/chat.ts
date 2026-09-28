@@ -432,5 +432,16 @@ export const chat = {
   "每条消息最多添加 8 个文件或插件。": "Each message can have up to 8 files or plugins.",
   "附件总大小过大，请减少照片或文件后再试。": "Attachments are too large. Remove some photos or files and try again.",
   "文件无法发送，请重新选择。": "Could not send the file. Please choose it again.",
-  "暂时无法删除，请重试。": "Could not delete. Please try again."
+  "暂时无法删除，请重试。": "Could not delete. Please try again.",
+  "描述任务，@ 引用对话，/ 选择命令和技能…": "Describe a task, @ reference a conversation, / commands and skills…",
+  "发消息，@ 引用对话…": "Message, @ reference a conversation…",
+  "对话": "Conversations",
+  "关闭对话列表": "Close conversations",
+  "运行中": "Running",
+  "空闲": "Idle",
+  "连接后即可引用对话": "Connect to reference conversations",
+  "正在加载对话…": "Loading conversations…",
+  "对话加载失败，请重新输入 @ 重试。": "Could not load conversations. Type @ again to retry.",
+  "没有找到可引用的对话": "No conversations found to reference",
+  "每条消息最多添加 8 个附件或对话引用。": "Each message can have up to 8 attachments or conversation references."
 };

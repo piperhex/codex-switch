@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { connect, fixtureUrl, login, operationCount } from './chat-helpers';
+import { connect, fixtureUrl, login, operationCount, state } from './chat-helpers';
 
 test.beforeEach(async ({ page, request }) => {
   await request.post(`${fixtureUrl}/test/reset`);
@@ -99,7 +99,9 @@ test('leaves composition keys and modified arrows to the input', async ({ page, 
 test('uses the keyboard for plugin suggestions after loading', async ({ page, request }) => {
   const input = page.getByRole('textbox', { name: '聊天消息' });
   const active = page.locator('.chat-menu-options [aria-current="true"]');
-  await input.fill('@');
+  await input.fill('');
+  await page.getByRole('button', { name: '添加内容', exact: true }).click();
+  await page.getByRole('menuitem', { name: '插件', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: '使用插件 GitHub' })).toBeAttached();
   await expect(active).toHaveAccessibleName('使用插件 GitHub');
   await input.press('ArrowDown');
@@ -112,6 +114,28 @@ test('uses the keyboard for plugin suggestions after loading', async ({ page, re
   await expect(input).toHaveValue('');
   await expect(input).toBeFocused();
   expect(await operationCount(request, 'send')).toBe(0);
+});
+
+test('references a remote conversation with @ and sends it without losing the message', async ({ page, request }) => {
+  const input = page.getByRole('textbox', { name: '聊天消息' });
+  await input.fill('@移动端');
+  const menu = page.getByRole('menu', { name: '对话', exact: true });
+  await expect(menu.getByRole('menuitem')).toHaveCount(1);
+  await expect(menu).toContainText('移动端聊天体验');
+  await page.screenshot({ path: `../../.codex-tmp/web-conversation-${page.viewportSize()!.width}.png` });
+  expect((await page.locator('.chat-composer-popover').boundingBox())!.width).toBeLessThanOrEqual(400);
+  await expect(page.getByLabel('插件列表')).toHaveCount(0);
+  await input.press('Tab');
+  await expect(page.getByText('@移动端聊天体验', { exact: true })).toBeVisible();
+  await expect(input).toHaveValue('');
+  expect(await operationCount(request, 'send')).toBe(0);
+  await input.fill('参考这个对话继续');
+  await page.getByRole('button', { name: '发送消息', exact: true }).click();
+  await expect.poll(async () => (await state(request)).operations.find(entry => entry.operation === 'send'))
+    .toMatchObject({ text: '参考这个对话继续', attachments: [
+      { kind: 'conversation', name: '移动端聊天体验', path: 'codex-thread://demo-chat' },
+    ] });
+  await expect(page.getByText('@移动端聊天体验', { exact: true })).toHaveCount(0);
 });
 
 for (const target of ['.chat-menu-options', '.chat-command-menu header']) {

@@ -67,6 +67,56 @@ async function accountSummaryRows(page: Page) {
 }
 
 for (const blocked of [false, true]) {
+  test(`@ references the selected computer over ${blocked ? 'Relay' : 'P2P'}`, async ({ context, page }) => {
+    test.setTimeout(90_000);
+    const office = await context.newPage();
+    const home = await context.newPage();
+    for (const [host, device, title] of [[office, 'computer-one', 'Office reference'],
+      [home, 'computer-two', 'Home reference']] as const) {
+      await host.goto(`/e2e/chat-harness.html?role=desktop&demo&device=${device}&blocked=${blocked}`
+        + `&title=${encodeURIComponent(title)}&socket=${encodeURIComponent(endpoint)}`);
+      await expect(host.locator('#status')).toHaveText('registered');
+    }
+    await page.bringToFront();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/e2e/remote-gui-harness.html?socket=${encodeURIComponent(endpoint)}`);
+    await chooseHost(page, 'Office PC');
+    await expect(page.getByRole('button', { name: '选择电脑', exact: true }))
+      .toContainText(blocked ? 'Relay' : 'P2P', { timeout: 20_000 });
+    const input = page.getByRole('textbox', { name: '聊天消息' });
+    const menu = page.getByRole('menu', { name: '对话', exact: true });
+    await expect(input).not.toHaveAttribute('placeholder', '连接后发消息');
+    await input.fill('@');
+    await expect(menu.getByRole('menuitem')).toHaveCount(1);
+    await expect(menu).toContainText('Office reference');
+    await expect(menu).not.toContainText('Home reference');
+    await input.press('Enter');
+    await expect(page.getByText('@Office reference', { exact: true })).toBeVisible();
+    expect(await office.evaluate(() => window.chatTest.demoState().operations
+      .filter(operation => operation.operation === 'send'))).toHaveLength(0);
+    await input.fill('参考远程对话继续');
+    await input.press('Enter');
+    await expect.poll(() => office.evaluate(() => window.chatTest.demoState().operations
+      .find(operation => operation.operation === 'send'))).toMatchObject({ text: '参考远程对话继续',
+      attachments: [{ kind: 'conversation', name: 'Office reference',
+        path: 'codex-thread://demo-chat-computer-one' }] });
+    await chooseComputer(page, 'Home PC');
+    await expect(page.getByRole('button', { name: '选择电脑', exact: true }))
+      .toContainText(blocked ? 'Relay' : 'P2P', { timeout: 20_000 });
+    await expect(input).not.toHaveAttribute('placeholder', '连接后发消息');
+    await input.fill('@');
+    await expect(menu.getByRole('menuitem')).toHaveCount(1);
+    await expect(menu).toContainText('Home reference');
+    await expect(menu).not.toContainText('Office reference');
+    await page.screenshot({ path: `../../.codex-tmp/remote-conversation-${blocked ? 'relay' : 'p2p'}.png` });
+    expect((await page.locator('.chat-composer-popover:visible').boundingBox())!.width).toBeLessThanOrEqual(400);
+    const beats = await page.evaluate(() => window.remoteGuiFixture.beats());
+    await expect.poll(() => page.evaluate(() => window.remoteGuiFixture.beats())).toBeGreaterThan(beats + 5);
+    expect(await page.evaluate(() => window.remoteGuiFixture.commands.includes('codex_gui_request'))).toBe(false);
+  });
+}
+
+for (const blocked of [false, true]) {
   test(`remote desktop tools use the selected computer over ${blocked ? 'Relay' : 'P2P'}`, async ({ context, page }) => {
     test.setTimeout(90_000);
     const office = await context.newPage();

@@ -48,9 +48,11 @@ export function useComposerAttachments({ threadId, sending }: { threadId: string
     } finally { picking.current = false; if (mounted.current) setBusy(false); }
   };
   const add = (item: AttachmentReference) => {
-    if (sending || picking.current) return;
-    try { setItems(remoteAttachments([...items.filter(entry => entry.path !== item.path), item])); setError(''); }
-    catch { setError(t("每条消息最多添加 8 个文件或插件。")); }
+    if (sending || picking.current) return false;
+    try {
+      setItems(remoteAttachments([...items.filter(entry => entry.path !== item.path), item])); setError('');
+      return true;
+    } catch { setError(t('每条消息最多添加 8 个附件或对话引用。')); return false; }
   };
   return { items, busy, error, pick, add,
     addPlugin: (plugin: ComposerPlugin) => add({ kind: 'plugin', name: plugin.interface?.displayName || plugin.name,

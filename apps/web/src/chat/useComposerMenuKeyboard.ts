@@ -3,6 +3,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } f
 export interface ComposerMenuOption { key: string; enabled: boolean; choose: () => void }
 interface Options {
   input: RefObject<HTMLTextAreaElement>; query: string; options: ComposerMenuOption[]; close: () => void;
+  selectWithTab?: boolean;
 }
 
 function revealOption(list: HTMLDivElement | null) {
@@ -17,7 +18,7 @@ function revealOption(list: HTMLDivElement | null) {
   else if (item.bottom > bottom) popup.scrollTop += item.bottom - bottom;
 }
 
-export function useComposerMenuKeyboard({ input, query, options, close }: Options) {
+export function useComposerMenuKeyboard({ input, query, options, close, selectWithTab = false }: Options) {
   const id = useId();
   const list = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<{ query: string; key: string } | null>(null);
@@ -48,10 +49,11 @@ export function useComposerMenuKeyboard({ input, query, options, close }: Option
     const keydown = (event: KeyboardEvent) => {
       if (event.isComposing || event.keyCode === 229) return;
       if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
-      if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(event.key)) return;
+      if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(event.key)
+        && !(selectWithTab && event.key === 'Tab')) return;
       event.preventDefault();
       if (event.key === 'Escape') { close(); return; }
-      if (event.key === 'Enter') { active?.choose(); return; }
+      if (event.key === 'Enter' || event.key === 'Tab') { active?.choose(); return; }
       if (!enabled.length) return;
       const step = event.key === 'ArrowDown' ? 1 : -1;
       setSelection({ query, key: enabled[(index + step + enabled.length) % enabled.length].key });
@@ -59,7 +61,7 @@ export function useComposerMenuKeyboard({ input, query, options, close }: Option
     // Handle menu keys before React receives the event for the composer's send shortcut.
     node.addEventListener('keydown', keydown);
     return () => node.removeEventListener('keydown', keydown);
-  }, [input, query, enabled, index, active, close]);
+  }, [input, query, enabled, index, active, close, selectWithTab]);
 
   return { list, id, optionProps: (key: string) => ({ id: optionId(key), tabIndex: -1,
     'aria-current': key === active?.key ? 'true' as const : undefined }) };

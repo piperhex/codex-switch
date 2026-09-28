@@ -23,6 +23,7 @@ export function useComposerState(props: ComposerProps) {
   const disabled = !ready || settingsBusy || compacting;
   const draft = useChatDraft({ threadId, sending, disabled: disabled || attachments.busy, selection, send });
   const menu = useComposerMenu({ draft, scope: `${threadId ?? ''}:${props.cwd}`, active,
+    conversationMentions: Boolean(props.loadConversations),
     refresh: props.catalog.refresh, compact: props.compact });
   const hasContent = draft.hasContent || attachments.items.length > 0 || Boolean(quotes?.quotes.length);
   const queueEditor = useQueueEditor({ threadId, queue: props.queue,

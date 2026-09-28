@@ -8,24 +8,27 @@ interface Options {
   draft: ReturnType<typeof useChatDraft>;
   scope: string;
   active: boolean;
+  conversationMentions: boolean;
   refresh: () => void;
   compact: () => Promise<boolean>;
 }
 
-export function useComposerMenu({ draft, scope, active, refresh, compact }: Options) {
+export function useComposerMenu({ draft, scope, active, refresh, compact, conversationMentions }: Options) {
   const input = useRef<HTMLTextAreaElement>(null);
   const focusFrame = useRef<number | null>(null);
   const [selection, setSelection] = useState<TextSelection>({ start: 0, end: 0 });
   const [expanded, setExpanded] = useState(false);
+  const [pickingPlugins, setPickingPlugins] = useState(false);
   const [dismissed, setDismissed] = useState('');
   const range = { start: Math.min(selection.start, draft.text.length),
     end: Math.min(selection.end, draft.text.length) };
   const trigger = nativeComposerTrigger(draft.text, range);
   const triggerKey = trigger ? JSON.stringify(trigger) : '';
   const open = active && (expanded || (!!trigger && triggerKey !== dismissed));
-  useEffect(() => { setExpanded(false); setDismissed(triggerKey); }, [scope, active]);
+  const conversations = conversationMentions && Boolean(trigger?.plugins) && !pickingPlugins;
+  useEffect(() => { setExpanded(false); setPickingPlugins(false); setDismissed(triggerKey); }, [scope, active]);
   useEffect(() => { if (!triggerKey) setDismissed(''); }, [triggerKey]);
-  useEffect(() => { if (open) refresh(); }, [open, refresh]);
+  useEffect(() => { if (open && !conversations) refresh(); }, [open, conversations, refresh]);
   useEffect(() => () => {
     if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
   }, [scope, active]);
@@ -35,11 +38,12 @@ export function useComposerMenu({ draft, scope, active, refresh, compact }: Opti
       focusFrame.current = null; input.current?.focus(); input.current?.setSelectionRange(caret, caret);
     });
   };
-  const close = () => { setExpanded(false); setDismissed(triggerKey); };
+  const close = () => { setExpanded(false); setPickingPlugins(false); setDismissed(triggerKey); };
   const restoreCaret = (caret: number) => {
     setSelection({ start: caret, end: caret }); focusAt(caret);
   };
   const openPlugins = () => {
+    if (conversationMentions) { setPickingPlugins(true); setExpanded(true); input.current?.focus(); return; }
     const next = insertPluginTrigger(draft.text, trigger ?? range);
     draft.setText(next.text); setSelection(next.selection); setDismissed(''); setExpanded(false);
     // Restore the caret after React commits the changed draft.
@@ -71,6 +75,7 @@ export function useComposerMenu({ draft, scope, active, refresh, compact }: Opti
     close();
   };
   return { input, selection, setSelection, open, query: trigger?.query ?? '', skillsOnly: trigger?.skillsOnly ?? false,
-    plugins: trigger?.plugins ?? false, openPlugins, consumeTrigger,
+    conversations, plugins: pickingPlugins || (Boolean(trigger?.plugins) && !conversations),
+    openPlugins, consumeTrigger,
     choose, close, runCompact, restoreCaret, toggle: () => { if (open) close(); else setExpanded(true); } };
 }

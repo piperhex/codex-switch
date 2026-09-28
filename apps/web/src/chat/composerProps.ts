@@ -10,6 +10,7 @@ import type { ThreadGoal } from '../../../desktop/src/pages/codexGui/goalTypes';
 import type { SkillCatalogState } from '../../../../shared/chat/skillCatalog';
 import type { RemoteComposerCatalog } from '../../../../shared/remote-chat/composerCatalog';
 import type { ProjectFilesRequest, ProjectFilesResponse } from '../../../../shared/remote-chat/projectFiles';
+import type { ConversationSearch } from '../../../../shared/chat/useConversationCandidates';
 
 export interface ComposerProps {
   connection: ChatConnectionProps;
@@ -42,4 +43,5 @@ export interface ComposerProps {
   compact: () => Promise<boolean>;
   loadCatalog: (cwd: string) => Promise<RemoteComposerCatalog>;
   loadFiles: (options: ProjectFilesRequest) => Promise<ProjectFilesResponse>;
+  loadConversations?: ConversationSearch;
 }
