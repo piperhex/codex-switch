@@ -30,15 +30,26 @@ test('keeps the desktop open when the separate chat connection drops', async ({ 
   expect(await page.locator('video').boundingBox()).toEqual(bounds);
 });
 
-test('fills landscape height, including a screen narrower than the remote desktop', async ({ page }, info) => {
-  await page.setViewportSize({ width: 900, height: 650 });
+test('fits the complete desktop inside the available stage after resizing', async ({ page }, info) => {
   await openDesktop(page);
-  const stage = (await page.locator('.rd-stage').boundingBox())!;
-  const video = (await page.locator('video').boundingBox())!;
-  expect(stage.y).toBe(0); expect(stage.height).toBe(650);
-  expect(video.y).toBe(0); expect(video.height).toBe(650);
-  expect(video.width / video.height).toBeCloseTo(16 / 9);
-  await page.screenshot({ path: info.outputPath('landscape-full-height.png') });
+  const sizes = [page.viewportSize()!, { width: 900, height: 650 },
+    { width: 2048, height: 1122 }, { width: 2560, height: 900 }];
+  for (const size of sizes) {
+    await page.setViewportSize(size);
+    await expect(async () => {
+      const stage = (await page.locator('.rd-stage').boundingBox())!;
+      const video = (await page.locator('video').boundingBox())!;
+      expect(video.x).toBeGreaterThanOrEqual(stage.x);
+      expect(video.y).toBeGreaterThanOrEqual(stage.y);
+      expect(video.x + video.width).toBeLessThanOrEqual(stage.x + stage.width + 1);
+      expect(video.y + video.height).toBeLessThanOrEqual(stage.y + stage.height + 1);
+      expect(video.width / video.height).toBeCloseTo(16 / 9);
+      expect(video.width).toBeCloseTo(Math.min(stage.width, stage.height * 16 / 9), 0);
+      expect(video.x + video.width / 2).toBeCloseTo(stage.x + stage.width / 2, 0);
+      expect(video.y + video.height / 2).toBeCloseTo(stage.y + stage.height / 2, 0);
+    }).toPass();
+    await page.screenshot({ path: info.outputPath(`desktop-fit-${size.width}x${size.height}.png`) });
+  }
 });
 
 test('shows live multiline stats with a close button on the right and can restore them from display settings',

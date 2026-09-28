@@ -11,7 +11,7 @@ let root: Root;
 let pointer: DesktopPointer;
 let zoom: ReturnType<typeof useDesktopZoom>;
 let viewport: DesktopViewport;
-const landscape = desktopViewport({ width: 800, height: 450 }, { width: 1600, height: 900 }, true);
+const landscape = desktopViewport({ width: 800, height: 450 }, { width: 1600, height: 900 });
 const portrait = desktopViewport({ width: 400, height: 800 }, { width: 1600, height: 900 });
 function Harness({ base = landscape, active = true }) {
   zoom = useDesktopZoom(base, active);

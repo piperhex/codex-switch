@@ -39,7 +39,7 @@ export function RemoteDesktop({ client, active, close }: {
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const [source, setSource] = useState({ width: 16, height: 9 });
   const [size, setSize] = useState({ width: 400, height: 600 });
-  const fitted = desktopViewport(size, source, orientation.landscape);
+  const fitted = desktopViewport(size, source);
   const zoom = useDesktopZoom(fitted, active && !!session.stream);
   const viewport = useMouseViewport(session.pointer, zoom.viewport,
     panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined, zoom.modified);

@@ -82,13 +82,17 @@ it('uses native iOS video, forwards ICE configuration and keeps control actions 
   expect(runtime.immersive).not.toHaveBeenCalled();
 });
 
-it.each([false, true])('keeps the iPhone/iPad home indicator clear in landscape=%s', landscape => {
+it.each([false, true])('fits the video and keeps the iPhone/iPad home indicator clear in landscape=%s', landscape => {
   runtime.landscape = landscape;
   const elements = render();
   expect(elements.find(node => node.type === SafeAreaView)!.props.edges)
     .toEqual(landscape ? ['left', 'right', 'bottom'] : ['left', 'right', 'top', 'bottom']);
   expect(elements.find(node => node.type === Modal)!.props).toMatchObject({ presentationStyle: 'fullScreen',
     supportedOrientations: ['portrait', 'landscape-left', 'landscape-right'], visible: true });
+  expect(elements.find(node => node.type === RTCView)!.props).toMatchObject({ style: {
+    width: 400, height: 225,
+    transform: [{ translateX: 0 }, { translateY: 187.5 }, { scale: 1 }],
+  } });
 });
 
 it('retains Android immersive edges and delegates close and foreground state to the session', () => {

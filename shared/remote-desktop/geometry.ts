@@ -11,10 +11,10 @@ const EDGE_GAP = 8;
 const BOTTOM_EDGE_PAN_GAIN = 2;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-/** Landscape can fill the height without stretching the desktop; portrait keeps the complete picture. */
-export function desktopViewport(stage: Size, source: Size, fillHeight = false): DesktopViewport {
+/** Fit the complete desktop inside the available stage, preserving its aspect ratio. */
+export function desktopViewport(stage: Size, source: Size): DesktopViewport {
   const heightScale = stage.height / Math.max(source.height, 1);
-  const scale = fillHeight ? heightScale : Math.min(stage.width / Math.max(source.width, 1), heightScale);
+  const scale = Math.min(stage.width / Math.max(source.width, 1), heightScale);
   const width = source.width * scale; const height = source.height * scale;
   return { stage, content: { width, height, x: (stage.width - width) / 2, y: (stage.height - height) / 2 } };
 }
