@@ -218,6 +218,9 @@ export function changeDemoSidebar(action: string, link: DemoLink) {
   if (action === 'web-parity') seedChatParity(welcome);
   if (action === 'downloads') seedDownloads(welcome);
   if (action === 'async-parity') seedAsyncQuestion(welcome);
+  if (action === 'async-layout') seedAsyncQuestion(welcome, [{ options: null,
+    title: '请描述出现问题的页面、当时的操作以及是否打开了键盘，方便确认抽屉在不同内容高度下的位置是否保持稳定。',
+  }]);
   if (action === 'start' && welcome.turns?.some((turn) => turn.status === 'inProgress')) {
     throw new Error('Wait for the current demo turn before starting a background turn');
   }

@@ -1,4 +1,4 @@
-import type { Thread } from '../src/pages/codexGui/types';
+import type { Item, Thread } from '../src/pages/codexGui/types';
 import type { ThreadGoal } from '../src/pages/codexGui/goalTypes';
 import { demoVideoResponse } from './demo-videos';
 import previewImage from '../src-tauri/icons/32x32.png?inline';
@@ -54,12 +54,12 @@ export function seedChatParity(thread: Thread) {
     ] }];
 }
 
-export function seedAsyncQuestion(thread: Thread) {
+export function seedAsyncQuestion(thread: Thread, questions: NonNullable<Item['questions']> = [
+  { title: '下一步验证什么？', options: ['输入框', '聊天记录'] },
+  { title: '还有哪些细节？', options: null },
+]) {
   thread.turns = [{ id: 'async-parity', status: 'completed', items: [
     { id: 'async-user', type: 'userMessage', text: '测试补充问题。' },
-    { id: 'async-ask', type: 'agentMessage', phase: 'final_answer', delivery: 'async', text: '', questions: [
-      { title: '下一步验证什么？', options: ['输入框', '聊天记录'] },
-      { title: '还有哪些细节？', options: null },
-    ] },
+    { id: 'async-ask', type: 'agentMessage', phase: 'final_answer', delivery: 'async', text: '', questions },
   ] }];
 }

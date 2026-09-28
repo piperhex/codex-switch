@@ -11,7 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { SHEET_HORIZONTAL_PADDING } from './SheetScrollView';
 
 const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView);
@@ -112,6 +112,8 @@ export function BottomSheet({
     statusBarTranslucent
     onRequestClose={() => { if (dismissible) (onBack ?? onClose)(); }}
   >
+    {/* Measure the modal window, not the animated sheet: fractional insets can otherwise feed back into its height. */}
+    <SafeAreaProvider>
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.select({ ios: 'padding', android: undefined })}
@@ -182,6 +184,7 @@ export function BottomSheet({
         </View> : null}
       </AnimatedSafeAreaView>
     </KeyboardAvoidingView>
+    </SafeAreaProvider>
   </Modal>;
 }
 
