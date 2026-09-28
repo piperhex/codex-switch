@@ -82,15 +82,15 @@ export const Composer = forwardRef<ComposerHandle, {
     if (restored) skillInput.current?.focus();
   };
   return <div className={styles.composerWrap}>
-    <RunningChangesSummary value={current} />
-    {state.selected && <QueuedMessages threadId={state.selected} messages={queuedMessages}
-      running={running} connected={state.connection === "ready"} queue={controller.queue}
-      editDisabled={disabled || reading || !active} onEdit={editQueuedMessage} />}
     {running && hostPicker && <div className={styles.projectBar}>{hostPicker}</div>}
     {!running && <ProjectPicker key={key} value={project} projects={state.projects} hostPicker={hostPicker}
       disabled={state.sending || state.archived || workspaceBusy} gitEnabled={!state.selected}
       onBusyChange={controller.setWorkspaceBusy}
       onChange={controller.setProject} onError={controller.report} />}
+    <RunningChangesSummary value={current} />
+    {state.selected && <QueuedMessages threadId={state.selected} messages={queuedMessages}
+      running={running} connected={state.connection === "ready"} queue={controller.queue}
+      editDisabled={disabled || reading || !active} onEdit={editQueuedMessage} />}
     <div ref={composer} className={`${styles.composer} ${attachedQueue ? styles.composerAttached : ""}`}>
       <ImageAttachments key={`images:${key}`} images={draft.images} active={active}
         disabled={state.sending} onRemove={removeImage} />
