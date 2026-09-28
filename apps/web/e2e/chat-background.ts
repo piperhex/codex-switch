@@ -30,7 +30,7 @@ async function completeInBackground(page: Page, request: APIRequestContext) {
 async function browserBackground(page: Page, request: APIRequestContext, connections: number) {
   await request.post(`${fixtureUrl}/test/history-delay`, { data: { milliseconds: 1000 } });
   await openChatList(page);
-  await page.getByRole('button', { name: /移动端聊天体验/ }).click();
+  await page.getByRole('button', { name: '移动端聊天体验', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '正在加载聊天记录' })).toBeVisible();
   await visibility(page, false);
   // The history response already in flight must still arrive on the original session.
