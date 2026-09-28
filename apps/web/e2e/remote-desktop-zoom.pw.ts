@@ -159,18 +159,20 @@ test('keeps text input and its actions inside a short landscape viewport', async
   const input = page.getByRole('textbox', { name: '发送到电脑的文字' });
   await expect(input).toBeVisible(); await expect(page.locator('.rd-stats')).toHaveCount(0);
   const stage = (await page.locator('.rd-stage').boundingBox())!;
-  for (const control of [input, page.getByRole('button', { name: '发送', exact: true }),
-    page.getByRole('button', { name: '收起', exact: true })]) {
+  const keyboard = (await page.getByRole('region', { name: '远程输入' }).boundingBox())!;
+  expect(keyboard.y).toBeGreaterThanOrEqual(stage.y + stage.height);
+  const viewportHeight = await page.evaluate(() => window.innerHeight);
+  for (const control of [input, page.getByRole('tablist', { name: '输入方式' }),
+    page.getByRole('button', { name: '收起键盘', exact: true })]) {
     const bounds = (await control.boundingBox())!;
-    expect(bounds.y).toBeGreaterThanOrEqual(stage.y);
-    expect(bounds.y + bounds.height).toBeLessThanOrEqual(stage.y + stage.height);
+    expect(bounds.y).toBeGreaterThanOrEqual(keyboard.y);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewportHeight);
   }
   await input.fill('compact keyboard');
-  await page.getByRole('button', { name: '发送', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.desktopTest.inputs.at(-1)))
     .toEqual({ kind: 'text', text: 'compact keyboard' });
   await expect(input).toHaveValue('');
-  await page.getByRole('button', { name: '收起', exact: true }).click();
+  await page.getByRole('button', { name: '收起键盘', exact: true }).click();
   await expect(page.locator('.rd-keyboard')).toHaveCount(0);
   await expect(page.locator('.rd-stats')).toBeVisible();
 });

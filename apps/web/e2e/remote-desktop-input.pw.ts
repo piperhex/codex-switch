@@ -2,7 +2,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 const generated = readFileSync(new URL('../../native/src/chat/desktop/desktopImeHtml.generated.ts', import.meta.url), 'utf8');
-const desktopImeHtml = JSON.parse(generated.split('\n')[1].replace('export const desktopImeHtml = ', '').replace(/;$/, ''));
+const desktopImeHtml = JSON.parse(generated.split('\n')[1].trim()
+  .replace('export const desktopImeHtml = ', '').replace(/;$/, ''));
 
 async function openDesktop(page: Page, query = '') {
   await page.goto(`e2e/remote-desktop-harness.html?touch&${query}`);
