@@ -57,6 +57,22 @@ it('acknowledges batches and ignores late frames after a native disconnect', asy
   expect(socket.readyState).toBe(3);
 });
 
+it('keeps multiple computer sockets open and routes each socket independently', async () => {
+  const office = await connect();
+  const home = await connect();
+  expect(vi.mocked(invoke).mock.calls.map(([command]) => command)).toEqual(['gui_remote_open', 'gui_remote_open']);
+  office.send(JSON.stringify({ type: 'signal', sessionId: 'office-session', payload: { kind: 'key', key: 'office' } }));
+  home.send(JSON.stringify({ type: 'signal', sessionId: 'home-session', payload: { kind: 'key', key: 'home' } }));
+  await flush();
+  expect(invoke).toHaveBeenCalledWith('gui_remote_send', { request: { clientId: office.clientId,
+    message: { type: 'signal', sessionId: 'office-session', payload: { kind: 'key', key: 'office' } } } });
+  expect(invoke).toHaveBeenCalledWith('gui_remote_send', { request: { clientId: home.clientId,
+    message: { type: 'signal', sessionId: 'home-session', payload: { kind: 'key', key: 'home' } } } });
+  office.close(); await flush();
+  expect(home.readyState).toBe(1);
+  expect(invoke).not.toHaveBeenCalledWith('gui_remote_close', { request: { clientId: home.clientId } });
+});
+
 it('drains peer-close before replacing a socket so abandoned sessions do not fill the remote computer', async () => {
   const old = await connect();
   old.send(JSON.stringify({ type: 'peer-close', sessionId: 'old-session' }));

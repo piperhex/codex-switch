@@ -50,6 +50,7 @@ async function chooseComputer(page: Page, name: string) {
 async function chooseHost(page: Page, name: string) {
   await page.getByRole('button', { name: /^切换主机：/ }).click();
   await page.getByRole('menu', { name: '主机列表' }).getByRole('menuitemradio', { name: new RegExp(name) }).click();
+  await expect(page.getByRole('menu', { name: '主机列表' })).toBeHidden();
 }
 
 async function accountSummaryRows(page: Page) {
@@ -157,7 +158,8 @@ for (const blocked of [false, true]) {
   });
 }
 
-test('switches desktop GUI conversations and accounts between computers and back to local', async ({ context, page }) => {
+for (const blocked of [false, true]) {
+test(`keeps remote connections across device switches over ${blocked ? 'Relay' : 'P2P'}`, async ({ context, page }) => {
   test.setTimeout(90_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -165,7 +167,7 @@ test('switches desktop GUI conversations and accounts between computers and back
   const home = await context.newPage();
   for (const [host, device, title] of [[office, 'computer-one', 'Office conversation'],
     [home, 'computer-two', 'Home conversation']] as const) {
-    await host.goto(`/e2e/chat-harness.html?role=desktop&demo&device=${device}`
+    await host.goto(`/e2e/chat-harness.html?role=desktop&demo&device=${device}&blocked=${blocked}`
       + `&title=${encodeURIComponent(title)}&socket=${encodeURIComponent(endpoint)}`);
     await expect(host.locator('#status')).toHaveText('registered');
   }
@@ -174,7 +176,7 @@ test('switches desktop GUI conversations and accounts between computers and back
   await page.goto(`/e2e/remote-gui-harness.html?socket=${encodeURIComponent(endpoint)}`);
   const localRows = await accountSummaryRows(page);
   await chooseHost(page, 'Office PC');
-  await expect(page.getByRole('button', { name: 'Office conversation', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Office conversation', exact: true })).toBeVisible({ timeout: 20_000 });
   const quota = page.getByRole('progressbar', { name: '主用量剩余', exact: true });
   await expect(quota).toHaveAttribute('aria-valuenow', '28');
   await expect(quota).toBeVisible();
@@ -186,6 +188,7 @@ test('switches desktop GUI conversations and accounts between computers and back
   await page.getByRole('button', { name: '发送消息', exact: true }).click();
   await expect.poll(() => office.evaluate(() => window.chatTest.demoState().operations
     .some(operation => operation.operation === 'send'))).toBe(true);
+  await page.getByRole('textbox', { name: '聊天消息', exact: true }).fill('Unsent office draft');
   await page.getByRole('button', { name: /^切换 GUI 账户：/ }).click();
   await page.getByRole('button', { name: /演示账户二/ }).click();
   await expect(page.getByRole('button', { name: '切换 GUI 账户：演示账户二', exact: true })).toBeVisible();
@@ -193,7 +196,7 @@ test('switches desktop GUI conversations and accounts between computers and back
   expect(await home.evaluate(() => window.chatTest.demoState().operations
     .some(operation => operation.operation === 'guiAccountSelect'))).toBe(false);
   await chooseHost(page, 'Home PC');
-  await expect(page.getByRole('button', { name: 'Home conversation', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Home conversation', exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('button', { name: 'Office conversation', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '切换 GUI 账户：演示账户一', exact: true })).toBeVisible();
   await expect(quota).toHaveAttribute('aria-valuenow', '28');
@@ -201,11 +204,29 @@ test('switches desktop GUI conversations and accounts between computers and back
     .some(thread => thread.turns?.some(turn => turn.status === 'inProgress')))).toBe(true);
   expect(await office.evaluate(() => window.chatTest.demoState().operations
     .some(operation => operation.operation === 'interrupt'))).toBe(false);
+  const officeProcessing = page.locator('[aria-label="Codex GUI：Office PC"] .chat-processing-status');
+  await expect(officeProcessing).toHaveCount(1);
+  await office.evaluate(() => window.chatTest.setSidebar('complete'));
+  await expect(officeProcessing).toHaveCount(0);
+  await page.getByRole('button', { name: 'Home conversation', exact: true }).click();
+  await page.getByRole('textbox', { name: '聊天消息', exact: true }).fill('Unsent home draft');
   await page.screenshot({ path: '../../.codex-tmp/gui-remote-home.png' });
   await chooseHost(page, '本地');
   await expect(page.getByRole('textbox', { name: '本机草稿' })).toHaveValue('Local unsent draft');
+  for (const [name, title, draft] of [['Office PC', 'Office conversation', 'Unsent office draft'],
+    ['Home PC', 'Home conversation', 'Unsent home draft'], ['Office PC', 'Office conversation', 'Unsent office draft']]) {
+    await chooseHost(page, name);
+    await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: '聊天消息', exact: true })).toHaveValue(draft);
+    await expect(page.locator('.gui-remote-workspace:visible .chat-connection')).toContainText(blocked ? 'Relay' : 'P2P');
+  }
+  const lifecycle = await page.evaluate(() => window.remoteGuiFixture.commands
+    .filter(command => command === 'gui_remote_open' || command === 'gui_remote_close'));
+  expect(lifecycle).toEqual(['gui_remote_open', 'gui_remote_open']);
+  expect(await office.evaluate(() => window.chatTest.demoState().streamErrors)).toEqual([]);
   expect(errors).toEqual([]);
 });
+}
 
 test('searches hosts beside the project picker and stays usable during slow discovery and a failed connection',
   async ({ page }) => {

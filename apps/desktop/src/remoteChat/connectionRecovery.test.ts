@@ -79,6 +79,23 @@ it('updates client transfer allowances before mode notifications and restores th
   expect(getChatPolicy().fileUploadMaxMb).toBe(DEFAULT_CHAT_POLICY.fileUploadMaxMb);
 });
 
+it('keeps background device lifecycle changes from changing the visible device transfer limits', async () => {
+  const background = new ChatConnection({ deviceId: 'background-pc', managePolicyMode: false,
+    mode: vi.fn(), ready: vi.fn(), error: vi.fn(), event: vi.fn(),
+    authorize: async () => ({ baseUrl: 'https://test', accessToken: 'token' }),
+    randomBytes: size => new Uint8Array(size).fill(2), createPeer: () => { throw new Error('unused'); } });
+  try {
+    background.start();
+    expect(getChatPolicy().fileUploadMaxMb).toBe(Number.MAX_SAFE_INTEGER);
+    await vi.advanceTimersByTimeAsync(0);
+    Socket.instances[1].receive({ type: 'paired', sessionId: 'background-session', transportVersion: 2,
+      iceServers: [], expiresAt: Date.now() + 120_000 });
+    state.options!.mode('relay');
+    expect(getChatPolicy().fileUploadMaxMb).toBe(Number.MAX_SAFE_INTEGER);
+  } finally { background.stop(); }
+  expect(getChatPolicy().fileUploadMaxMb).toBe(Number.MAX_SAFE_INTEGER);
+});
+
 it('retains pending requests, readiness and the same session while resuming a failed coordinator socket', async () => {
   const pending = connection.request('request', { operation: 'send', text: 'once' });
   const request = state.send.mock.calls[0][0] as { id: string };

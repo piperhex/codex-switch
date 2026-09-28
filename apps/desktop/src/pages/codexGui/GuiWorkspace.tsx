@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { isDesktopApp } from "../../api/backend";
 import type { Account, Provider } from "../../types";
 import type { SkillsMarketPageProps } from "../skillsMarket/types";
@@ -8,8 +8,7 @@ import { useGuiAccountSelection } from "./useGuiAccountSelection";
 import { useGuiComputers } from "./remote/useGuiComputers";
 import { useGuiLayout } from "./useGuiLayout";
 import { GuiHostPicker } from "./GuiHostPicker";
-
-const RemoteGuiWorkspace = lazy(() => import('./remote/RemoteGuiWorkspace'));
+import { RemoteGuiWorkspaces } from "./remote/RemoteGuiWorkspaces";
 
 export function GuiWorkspace(props: {
   active: boolean; accounts: Account[]; providers: Provider[]; privacyMode: boolean;
@@ -33,10 +32,10 @@ export function GuiWorkspace(props: {
         busy={false} loading={props.loading || selection.loading} selectionError={selection.error}
         onSwitchAccount={selection.switchAccount} onSwitchProvider={selection.switchProvider} />
     } /></div>
-    {remote && computers.identity && <Suspense fallback={<p role="status">正在连接电脑…</p>}>
-      <RemoteGuiWorkspace key={JSON.stringify([computers.identity, remote.deviceId])}
-        active={props.active} device={remote} identity={computers.identity} computers={computers}
+    {isDesktopApp && computers.identity &&
+      <RemoteGuiWorkspaces key={JSON.stringify([computers.identity.baseUrl, computers.identity.userId])}
+        active={props.active} current={remote} identity={computers.identity} computers={computers}
         privacyMode={props.privacyMode} focusMode={focusMode} windowControls={props.windowControls} />
-    </Suspense>}
+    }
   </>;
 }

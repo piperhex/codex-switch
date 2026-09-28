@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ConfigProvider } from 'antd';
 import { ProxyAccountPicker } from '../src/pages/codexGui/ProxyAccountPicker';
 import { useGuiComputers } from '../src/pages/codexGui/remote/useGuiComputers';
-import RemoteGuiWorkspace from '../src/pages/codexGui/remote/RemoteGuiWorkspace';
+import { RemoteGuiWorkspaces } from '../src/pages/codexGui/remote/RemoteGuiWorkspaces';
 import { DEMO_ACCOUNTS } from '../src/demo';
 import styles from '../src/pages/codexGui/styles.module.less';
 import { GuiToolbox } from '../src/pages/codexGui/GuiToolbox';
@@ -21,23 +21,24 @@ function Harness() {
     login: () => {} });
   const device = computers.current;
   return <ConfigProvider><main style={{ height: '100vh' }}>
-    {device && computers.identity ? <RemoteGuiWorkspace key={device.deviceId} active identity={computers.identity}
-      device={device} computers={computers} privacyMode={false} focusMode={{ focused: false, onToggleFocus() {} }} />
-      : <div className={`${styles.page} local-workspace`}><aside className={styles.sidebar}>
+    <div hidden={Boolean(device)} style={{ height: '100%' }}>
+      <div className={`${styles.page} local-workspace`}><aside className={styles.sidebar}>
         <h3>本机会话</h3><div style={{ flex: 1 }} />
-        <ProxyAccountPicker active privacyMode={false} computers={computers}
+        <ProxyAccountPicker active={!device} privacyMode={false} computers={computers}
           accounts={[{ ...DEMO_ACCOUNTS[0], active: true }]} providers={[]} aggregateApis={[]} proxyRunning
           busy={false} loading={false} onSwitchAccount={async () => true} onSwitchProvider={async () => true} />
       </aside><div className={styles.workspace} style={{ flex: 1 }}>
-        <div style={{ alignSelf: 'flex-end', margin: 12 }}><GuiToolbox active connected git={localGit}
+        <div style={{ alignSelf: 'flex-end', margin: 12 }}><GuiToolbox active={!device} connected git={localGit}
           cwd={project} deviceName="本机" /></div>
         <div className={styles.composerWrap} style={{ marginTop: 'auto' }}>
           <ProjectPicker value={project} projects={['/local/workspace']} disabled={false}
             onChange={setProject} onError={error => { throw error; }}
-            hostPicker={<GuiHostPicker navigation={computers} active />} />
+            hostPicker={<GuiHostPicker navigation={computers} active={!device} />} />
           <textarea aria-label="本机草稿" value={localDraft} onChange={event => setLocalDraft(event.target.value)} />
         </div>
-      </div></div>}
+      </div></div></div>
+    {computers.identity && <RemoteGuiWorkspaces active identity={computers.identity}
+      current={device} computers={computers} privacyMode={false} focusMode={{ focused: false, onToggleFocus() {} }} />}
   </main></ConfigProvider>;
 }
 

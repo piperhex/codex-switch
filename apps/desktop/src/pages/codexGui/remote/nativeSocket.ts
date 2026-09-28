@@ -78,6 +78,6 @@ export class NativeGuiSocket implements ChatSocket {
     // Drain peer-close before replacing this socket, otherwise abandoned sessions occupy the host's slots.
     if (this.started) lifecycle = Promise.all([lifecycle, this.outgoing]).then(() => invoke<void>('gui_remote_close', {
       request: { clientId: this.clientId },
-    })).catch(() => { /* Native ownership also closes the old socket when the next computer connects. */ });
+    })).catch(() => { /* The native worker also exits when its event channel or cloud login expires. */ });
   }
 }

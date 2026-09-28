@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use serde::Deserialize;
@@ -70,13 +73,44 @@ pub(super) enum ClientCommand {
 }
 
 struct ConnectionHandle {
-    client_id: String,
     cancelled: Arc<AtomicBool>,
     commands: mpsc::Sender<ClientCommand>,
 }
 
+#[derive(Default)]
+struct ClientConnections(HashMap<String, ConnectionHandle>);
+
+impl ClientConnections {
+    fn insert(&mut self, client_id: String, handle: ConnectionHandle) {
+        if let Some(previous) = self.0.insert(client_id, handle) {
+            previous.cancelled.store(true, Ordering::Release);
+        }
+    }
+
+    fn sender(&self, client_id: &str) -> Option<mpsc::Sender<ClientCommand>> {
+        self.0.get(client_id).map(|handle| handle.commands.clone())
+    }
+
+    fn close(&mut self, client_id: &str) {
+        if let Some(previous) = self.0.remove(client_id) {
+            previous.cancelled.store(true, Ordering::Release);
+        }
+    }
+
+    fn finished(&mut self, client_id: &str, cancelled: &Arc<AtomicBool>) {
+        // An old worker must never remove a replacement with the same client ID.
+        if self
+            .0
+            .get(client_id)
+            .is_some_and(|handle| Arc::ptr_eq(&handle.cancelled, cancelled))
+        {
+            self.0.remove(client_id);
+        }
+    }
+}
+
 struct ClientState {
-    connection: Mutex<Option<ConnectionHandle>>,
+    connections: Arc<Mutex<ClientConnections>>,
     configs: watch::Receiver<Option<Config>>,
 }
 
@@ -102,13 +136,12 @@ pub(crate) async fn gui_remote_open(
     let (commands, receiver) = mpsc::channel(super::protocol::COMMAND_LIMIT);
     let cancelled = Arc::new(AtomicBool::new(false));
     let handle = ConnectionHandle {
-        client_id: request.client_id.clone(),
         cancelled: cancelled.clone(),
         commands,
     };
-    if let Some(previous) = state.connection.lock().await.replace(handle) {
-        previous.cancelled.store(true, Ordering::Release);
-    }
+    let client_id = request.client_id.clone();
+    let connections = state.connections.clone();
+    connections.lock().await.insert(client_id.clone(), handle);
     let configs = state.configs.clone();
     let tcp_authority = app.state::<super::tcp::State>().client_authority.clone();
     std::thread::spawn(move || {
@@ -118,23 +151,18 @@ pub(crate) async fn gui_remote_open(
             receiver,
             super::client_runtime::Lifecycle {
                 configs,
-                cancelled,
+                cancelled: cancelled.clone(),
                 tcp_authority,
             },
-        )
+        );
+        connections.blocking_lock().finished(&client_id, &cancelled);
     });
     Ok(())
 }
 
 async fn submit(app: AppHandle, client_id: String, command: ClientCommand) -> Result<(), String> {
     let state = app.try_state::<ClientState>().ok_or(UNAVAILABLE)?;
-    let sender = state
-        .connection
-        .lock()
-        .await
-        .as_ref()
-        .filter(|connection| connection.client_id == client_id)
-        .map(|connection| connection.commands.clone());
+    let sender = state.connections.lock().await.sender(&client_id);
     if let Some(sender) = sender {
         sender.send(command).await.map_err(|_| UNAVAILABLE)?;
     }
@@ -170,15 +198,7 @@ pub(crate) async fn gui_remote_close(
 ) -> Result<(), String> {
     require_main(&window)?;
     let state = app.try_state::<ClientState>().ok_or(UNAVAILABLE)?;
-    let mut connection = state.connection.lock().await;
-    if connection
-        .as_ref()
-        .is_some_and(|connection| connection.client_id == request.client_id)
-    {
-        if let Some(previous) = connection.take() {
-            previous.cancelled.store(true, Ordering::Release);
-        }
-    }
+    state.connections.lock().await.close(&request.client_id);
     Ok(())
 }
 
@@ -187,7 +207,7 @@ pub(super) fn start<R: tauri::Runtime>(
     configs: watch::Receiver<Option<Config>>,
 ) {
     app.manage(ClientState {
-        connection: Mutex::new(None),
+        connections: Arc::default(),
         configs,
     });
 }

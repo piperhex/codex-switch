@@ -22,6 +22,78 @@ fn request() -> OpenRequest {
     }
 }
 
+fn connection_handle() -> (ConnectionHandle, mpsc::Receiver<ClientCommand>) {
+    let (commands, receiver) = mpsc::channel(8);
+    (
+        ConnectionHandle {
+            commands,
+            cancelled: Arc::new(AtomicBool::new(false)),
+        },
+        receiver,
+    )
+}
+
+#[test]
+fn remote_computers_keep_independent_connections_and_command_queues() {
+    let mut connections = ClientConnections::default();
+    let (office, mut office_commands) = connection_handle();
+    let office_cancelled = office.cancelled.clone();
+    let (home, mut home_commands) = connection_handle();
+    let home_cancelled = home.cancelled.clone();
+    connections.insert("office".into(), office);
+    connections.insert("home".into(), home);
+    assert!(!office_cancelled.load(Ordering::Acquire));
+    assert!(!home_cancelled.load(Ordering::Acquire));
+    connections
+        .sender("office")
+        .unwrap()
+        .try_send(ClientCommand::Ack(7))
+        .unwrap();
+    assert!(matches!(
+        office_commands.try_recv(),
+        Ok(ClientCommand::Ack(7))
+    ));
+    assert!(matches!(
+        home_commands.try_recv(),
+        Err(mpsc::error::TryRecvError::Empty)
+    ));
+
+    connections.close("office");
+    connections.close("unknown");
+    assert!(office_cancelled.load(Ordering::Acquire));
+    assert!(connections.sender("office").is_none());
+    assert!(!home_cancelled.load(Ordering::Acquire));
+    connections
+        .sender("home")
+        .unwrap()
+        .try_send(ClientCommand::Ack(9))
+        .unwrap();
+    assert!(matches!(
+        home_commands.try_recv(),
+        Ok(ClientCommand::Ack(9))
+    ));
+}
+
+#[test]
+fn finished_worker_cannot_remove_its_replacement_or_another_computer() {
+    let mut connections = ClientConnections::default();
+    let (old, _old_commands) = connection_handle();
+    let old_cancelled = old.cancelled.clone();
+    let (replacement, _replacement_commands) = connection_handle();
+    let replacement_cancelled = replacement.cancelled.clone();
+    let (other, _other_commands) = connection_handle();
+    connections.insert("office".into(), old);
+    connections.insert("home".into(), other);
+    connections.insert("office".into(), replacement);
+    assert!(old_cancelled.load(Ordering::Acquire));
+    connections.finished("office", &old_cancelled);
+    assert!(connections.sender("office").is_some());
+    assert!(!replacement_cancelled.load(Ordering::Acquire));
+    connections.finished("office", &replacement_cancelled);
+    assert!(connections.sender("office").is_none());
+    assert!(connections.sender("home").is_some());
+}
+
 #[test]
 fn native_remote_gui_is_bound_to_the_logged_in_owner_and_server() {
     let request = request();

@@ -22,6 +22,8 @@ export interface ConnectionEvents {
 }
 
 interface ConnectionOptions extends ConnectionEvents {
+  /** Multi-device clients publish only the visible connection's transfer mode. */
+  managePolicyMode?: boolean;
   tcpPunch?: boolean;
   clientInfo?: ChatClientInfo;
   createSocket?: (url: string) => ChatSocket;
@@ -56,7 +58,7 @@ export class ChatConnection {
   start() {
     if (this.active) return;
     this.active = true;
-    setChatConnectionMode('connecting');
+    this.publishPolicyMode('connecting');
     void this.connect();
   }
 
@@ -198,7 +200,7 @@ export class ChatConnection {
       message: (message) => this.rpc?.receive(message), error: this.options.error,
       mode: (mode) => {
         if (!this.active) return;
-        setChatConnectionMode(mode);
+        this.publishPolicyMode(mode);
         this.options.mode(mode);
         if (mode === 'offline') { if (this.link) this.disconnected(); return; }
         if (mode !== 'direct' && mode !== 'relay') return;
@@ -253,7 +255,7 @@ export class ChatConnection {
     this.rpc?.close();
     this.rpc = undefined;
     this.options.mode('offline');
-    setChatConnectionMode('offline');
+    this.publishPolicyMode('offline');
     this.schedule();
   }
 
@@ -269,5 +271,9 @@ export class ChatConnection {
   stop() {
     this.active = false;
     this.disconnected();
+  }
+
+  private publishPolicyMode(mode: ConnectionMode) {
+    if (this.options.managePolicyMode !== false) setChatConnectionMode(mode);
   }
 }
