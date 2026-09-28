@@ -46,11 +46,11 @@ function patchCocoaDirectory(directory) {
   }
 }
 
-function patchPods(pods) {
-  const spec = JSON.parse(fs.readFileSync(path.join(pods, 'Local Podspecs/CocoaAsyncSocket.podspec.json'), 'utf8'));
-  if (spec.version !== '7.6.5') throw new Error('Review iOS TCP port reuse before upgrading CocoaAsyncSocket.');
+function patchPods(pods, version) {
+  // Registry pods do not have a Local Podspecs file; use CocoaPods' resolved specification.
+  if (version !== '7.6.5') throw new Error('Review iOS TCP port reuse before upgrading CocoaAsyncSocket.');
   patchCocoaDirectory(path.join(pods, 'CocoaAsyncSocket/Source/GCD'));
 }
 
-if (require.main === module) patchPods(path.resolve(process.argv[2] || 'ios/Pods'));
-module.exports = { patchHeader, patchImplementation, patchCocoaDirectory };
+if (require.main === module) patchPods(path.resolve(process.argv[2] || 'ios/Pods'), process.argv[3]);
+module.exports = { patchHeader, patchImplementation, patchCocoaDirectory, patchPods };

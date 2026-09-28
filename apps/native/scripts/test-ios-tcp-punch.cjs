@@ -1,10 +1,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { patchCocoaDirectory } = require('./patch-cocoa-tcp-punch.cjs');
+const { patchPods } = require('./patch-cocoa-tcp-punch.cjs');
 
 const root = path.resolve(__dirname, '../../..');
 const output = path.join(root, '.codex-tmp/ios-tcp-native-checks');
+const pods = path.join(output, 'Pods');
+const sourceDirectory = path.join(pods, 'CocoaAsyncSocket/Source/GCD');
 const version = '7.6.5';
 function run(command, args) {
   return execFileSync(command, args, { cwd: root, encoding: 'utf8', timeout: 180_000,
@@ -12,14 +14,14 @@ function run(command, args) {
 }
 
 async function sources() {
-  fs.mkdirSync(output, { recursive: true });
+  fs.mkdirSync(sourceDirectory, { recursive: true });
   for (const file of ['GCDAsyncSocket.h', 'GCDAsyncSocket.m']) {
     const url = `https://raw.githubusercontent.com/robbiehanson/CocoaAsyncSocket/${version}/Source/GCD/${file}`;
     const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
     if (!response.ok) throw new Error(`CocoaAsyncSocket download failed (${response.status})`);
-    fs.writeFileSync(path.join(output, file), await response.text());
+    fs.writeFileSync(path.join(sourceDirectory, file), await response.text());
   }
-  patchCocoaDirectory(output);
+  patchPods(pods, version);
 }
 
 function compile(sdk, executable) {
@@ -27,8 +29,8 @@ function compile(sdk, executable) {
   const architecture = process.arch === 'arm64' ? 'arm64' : 'x86_64';
   run('xcrun', ['--sdk', sdk, 'clang', '-fobjc-arc', '-fmodules', '-Werror=implicit-function-declaration',
     '-target', `${architecture}-apple-${platform}`, '-isysroot', run('xcrun', ['--sdk', sdk, '--show-sdk-path']).trim(),
-    '-framework', 'Foundation', '-framework', 'Security', '-framework', 'CFNetwork', '-I', output,
-    path.join(output, 'GCDAsyncSocket.m'), 'apps/native/e2e/tcp/IosTcpPunchChecks.m', '-o', executable]);
+    '-framework', 'Foundation', '-framework', 'Security', '-framework', 'CFNetwork', '-I', sourceDirectory,
+    path.join(sourceDirectory, 'GCDAsyncSocket.m'), 'apps/native/e2e/tcp/IosTcpPunchChecks.m', '-o', executable]);
 }
 
 function simulator() {

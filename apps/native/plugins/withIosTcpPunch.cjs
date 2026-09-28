@@ -7,8 +7,10 @@ function addTcpPunchHook(contents) {
   if (contents.split(anchor).length !== 2) throw new Error('Review iOS TCP patch hook after Podfile changes.');
   return contents.replace(anchor, `${anchor}
     ${marker}
+    socket_pod = installer.pod_targets.find { |pod| pod.pod_name == 'CocoaAsyncSocket' }
+    raise 'CocoaAsyncSocket is missing from the resolved Pods.' unless socket_pod
     system('node', File.join(__dir__, '../scripts/patch-cocoa-tcp-punch.cjs'),
-      installer.sandbox.root.to_s, exception: true)
+      installer.sandbox.root.to_s, socket_pod.root_spec.version.to_s, exception: true)
 `);
 }
 

@@ -10,6 +10,9 @@ const { patchClient, applyIosTcpPunchPatch } = require('./patch-ios-tcp-punch.cj
 const { addTcpPunchHook } = require('../plugins/withIosTcpPunch.cjs') as {
   addTcpPunchHook: (source: string) => string;
 };
+const { patchPods } = require('./patch-cocoa-tcp-punch.cjs') as {
+  patchPods: (directory: string, version?: string) => void;
+};
 const dependency = dirname(require.resolve('react-native-tcp-socket/package.json'));
 
 it('keeps iOS socket patching idempotent and normalizes both wildcard families before binding', () => {
@@ -32,6 +35,14 @@ it('runs the Cocoa source patch within post_install exactly once and propagates 
   const patched = addTcpPunchHook(original);
   expect(addTcpPunchHook(patched)).toBe(patched);
   expect(patched.indexOf('patch-cocoa-tcp-punch.cjs')).toBeGreaterThan(patched.indexOf('post_install'));
-  expect(patched).toContain('installer.sandbox.root.to_s, exception: true)');
+  expect(patched).toContain("pod.pod_name == 'CocoaAsyncSocket'");
+  expect(patched).toContain("raise 'CocoaAsyncSocket is missing from the resolved Pods.' unless socket_pod");
+  expect(patched).toContain('installer.sandbox.root.to_s, socket_pod.root_spec.version.to_s, exception: true)');
   expect(() => addTcpPunchHook('different podfile')).toThrow('Podfile changes');
+});
+
+it('rejects missing or unreviewed Cocoa versions before touching installed sources', () => {
+  for (const version of [undefined, '7.6.4', '7.6.6']) {
+    expect(() => patchPods('unopened-pods-directory', version)).toThrow('Review iOS TCP port reuse');
+  }
 });
