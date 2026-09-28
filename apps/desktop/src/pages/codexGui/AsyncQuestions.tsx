@@ -36,10 +36,11 @@ function QuestionCard({ item, disabled, onAnswer, onClose }: QuestionCardProps) 
   const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const submitting = useRef(false);
+  const canSubmit = !disabled && answers.every((answer) => answer.trim());
   const setAnswer = (index: number, answer: string) =>
     setAnswers((previous) => previous.map((value, position) => position === index ? answer : value));
   const submit = async () => {
-    if (submitting.current || disabled || answers.some((answer) => !answer.trim())) return;
+    if (submitting.current || !canSubmit) return;
     submitting.current = true;
     setBusy(true);
     try { setSubmitted(await onAnswer(item, answers)); }
@@ -63,6 +64,11 @@ function QuestionCard({ item, disabled, onAnswer, onClose }: QuestionCardProps) 
         autoSize={{ minRows: 1, maxRows: 4 }} disabled={disabled || busy}
         value={answers[index] ?? ""} onChange={(event) => setAnswer(index, event.target.value)} />
     </fieldset>)}
-    <small className={styles.hint}>Enter 发送 · Shift + Enter 换行</small>
+    <div className={styles.footer}>
+      <small className={styles.hint}>Enter 发送 · Shift + Enter 换行</small>
+      <Button type="primary" loading={busy} disabled={!canSubmit || busy} onClick={() => void submit()}>
+        确认
+      </Button>
+    </div>
   </section>;
 }
