@@ -223,6 +223,9 @@ func (s *hotSessions) ready(session *hotSession) {
 		return
 	}
 	message := platform.JSON{"type": "resumed", "sessionId": session.id, "expiresAt": session.expires.UnixMilli()}
+	if session.tcp {
+		message["tcpPunch"] = s.tcpConfig
+	}
 	if s.desktopICE != nil {
 		message["desktopIceServers"] = s.desktopICE(session.owner, session.expires)
 	}

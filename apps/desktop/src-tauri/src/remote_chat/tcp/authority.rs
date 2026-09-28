@@ -33,6 +33,7 @@ impl Address {
 
 #[derive(Clone)]
 pub(super) struct Grant {
+    pub owner: Option<String>,
     pub servers: Vec<Address>,
     pub peers: Vec<Address>,
     pub generation: u64,
@@ -41,9 +42,18 @@ pub(super) struct Grant {
 }
 
 #[derive(Default)]
-pub(crate) struct Authority(RwLock<HashMap<String, Grant>>);
+pub(crate) struct Authority(pub(super) RwLock<HashMap<String, Grant>>);
 
 impl Authority {
+    #[cfg(test)]
+    pub(crate) fn has_client_session(&self, id: &str) -> bool {
+        self.0
+            .read()
+            .unwrap()
+            .get(id)
+            .is_some_and(|grant| grant.owner.is_some())
+    }
+
     /// Only the authenticated native signaling worker may grant network destinations.
     pub fn receive(&self, message: &Value) -> Result<()> {
         let Some(id) = message["sessionId"].as_str() else {
@@ -88,7 +98,7 @@ impl Authority {
             .filter(|grant| {
                 grant.expires > super::super::sessions::now_ms()
                     && generation >= grant.generation
-                    && generation <= grant.generation + 1
+                    && (grant.owner.is_some() || generation <= grant.generation.saturating_add(1))
             })
             .ok_or(Error::Denied)?;
         Ok(grant.clone())
@@ -106,7 +116,7 @@ impl Authority {
     }
 }
 
-fn parse_grant(message: &Value) -> Result<Grant> {
+pub(super) fn parse_grant(message: &Value) -> Result<Grant> {
     let servers: Vec<Address> = serde_json::from_value(message["tcpPunch"]["servers"].clone())
         .map_err(|_| Error::Invalid)?;
     if servers.is_empty()
@@ -124,6 +134,7 @@ fn parse_grant(message: &Value) -> Result<Grant> {
         return Err(Error::Invalid);
     }
     Ok(Grant {
+        owner: None,
         servers,
         peers: Vec::new(),
         generation: 0,
@@ -132,7 +143,7 @@ fn parse_grant(message: &Value) -> Result<Grant> {
     })
 }
 
-fn update_peers(grant: &mut Grant, signal: &Value) -> Result<()> {
+pub(super) fn update_peers(grant: &mut Grant, signal: &Value) -> Result<()> {
     let generation = signal["generation"].as_u64().unwrap_or(0);
     if generation < grant.generation {
         return Ok(());

@@ -95,5 +95,23 @@ func TestTCPPathsRequireBothEndpointCapabilities(t *testing.T) {
 		if err := sessions.route(mobile, frame); (err == nil) != enabled {
 			t.Fatal("unnegotiated TCP signal")
 		}
+		if enabled {
+			updateFrame(t, desktop)
+		}
+		reconnected := queuedPeer()
+		// This fixture has a queue but no network socket; model an already closed old connection.
+		mobile.closeOnce.Do(func() { mobile.closed.Store(true) })
+		if err := sessions.join(reconnected, identity, platform.JSON{"transportVersion": float64(2),
+			"tcpPunch": capabilities[1], "resume": platform.JSON{
+				"sessionId": paired["sessionId"], "resumeToken": paired["resumeToken"],
+			}}, nil); err != nil {
+			t.Fatal(err)
+		}
+		for _, endpoint := range []*peer{desktop, reconnected} {
+			resumed := updateFrame(t, endpoint)
+			if resumed["type"] != "resumed" || (resumed["tcpPunch"] != nil) != enabled {
+				t.Fatal("resume lost negotiated TCP discovery configuration")
+			}
+		}
 	}
 }

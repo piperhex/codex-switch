@@ -41,6 +41,7 @@ pub(super) struct Group {
     pub session: String,
     pub generation: u64,
     pub grant: Grant,
+    authority: Arc<super::Authority>,
     pub cancel: watch::Sender<bool>,
     pub events: Channel<Event>,
     pub sockets: Mutex<HashMap<String, mpsc::Sender<SocketCommand>>>,
@@ -55,15 +56,23 @@ impl State {
         events: Channel<Event>,
     ) -> Result<String> {
         let authority = self.authority.clone();
+        let client_authority = self.client_authority.clone();
         let checked_id = session.clone();
-        let grant =
-            tauri::async_runtime::spawn_blocking(move || authority.grant(&checked_id, generation))
-                .await
-                .map_err(|_| Error::Closed)??;
+        let (authority, grant) = tauri::async_runtime::spawn_blocking(move || {
+            if let Ok(grant) = authority.grant(&checked_id, generation) {
+                return Ok((authority, grant));
+            }
+            client_authority
+                .grant(&checked_id, generation)
+                .map(|grant| (client_authority, grant))
+        })
+        .await
+        .map_err(|_| Error::Closed)??;
         let group = Arc::new(Group {
             session,
             generation,
             grant,
+            authority,
             events,
             cancel: watch::channel(false).0,
             sockets: Mutex::default(),
@@ -110,7 +119,7 @@ impl State {
 
     pub(super) async fn connect(&self, id: &str, address: Address, ipv6: bool) -> Result<String> {
         let group = self.group(id).await?;
-        let authority = self.authority.clone();
+        let authority = group.authority.clone();
         let session = group.session.clone();
         let generation = group.generation;
         let checked = address.clone();

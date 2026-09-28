@@ -1,5 +1,8 @@
 //! Bounded TCP hole-punch sockets, restricted to destinations authorized by native chat signaling.
 mod authority;
+mod client;
+#[cfg(test)]
+mod client_tests;
 mod commands;
 mod network;
 mod service;
@@ -7,6 +10,7 @@ mod service;
 mod tests;
 
 pub(crate) use authority::Authority;
+pub(super) use client::ClientSession;
 pub(crate) use commands::*;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
@@ -27,5 +31,6 @@ type Result<T> = std::result::Result<T, Error>;
 #[derive(Default)]
 pub(crate) struct State {
     pub authority: Arc<Authority>,
+    pub client_authority: Arc<Authority>,
     groups: Mutex<HashMap<String, Arc<service::Group>>>,
 }

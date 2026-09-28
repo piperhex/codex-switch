@@ -98,6 +98,7 @@ fn serve_peer(
     assert_eq!(auth["role"], "mobile");
     assert_eq!(auth["publicKey"], "ab".repeat(32));
     assert_eq!(auth["transportVersion"], 2);
+    assert_eq!(auth["tcpPunch"], true);
     assert_eq!(auth.get("resume"), expected_resume.as_ref());
     let event = if expected_resume.is_some() {
         "resumed"
@@ -152,6 +153,7 @@ struct NativePeer {
     commands: mpsc::Sender<ClientCommand>,
     events: sync_mpsc::Receiver<String>,
     worker: thread::JoinHandle<()>,
+    tcp_authority: Arc<super::super::tcp::Authority>,
 }
 
 fn start_peer(address: SocketAddr, resume: Option<ResumeRequest>) -> NativePeer {
@@ -173,12 +175,18 @@ fn start_peer(address: SocketAddr, resume: Option<ResumeRequest>) -> NativePeer 
     let mut request = request();
     request.identity.base_url = format!("http://{address}");
     request.resume = resume;
+    let tcp_authority = Arc::default();
+    let worker_authority = Arc::clone(&tcp_authority);
     let worker = thread::spawn(move || {
         super::super::client_runtime::run(
             request,
             channel,
             command_receiver,
-            (receiver, Arc::new(AtomicBool::new(false))),
+            super::super::client_runtime::Lifecycle {
+                configs: receiver,
+                cancelled: Arc::new(AtomicBool::new(false)),
+                tcp_authority: worker_authority,
+            },
         )
     });
     NativePeer {
@@ -186,7 +194,43 @@ fn start_peer(address: SocketAddr, resume: Option<ResumeRequest>) -> NativePeer 
         commands,
         events,
         worker,
+        tcp_authority,
     }
+}
+
+#[test]
+fn native_peer_installs_tcp_permissions_before_forwarding_and_revokes_on_logout() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let (stop, stopped) = sync_mpsc::channel();
+    let server = thread::spawn(move || {
+        let (stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut socket = tungstenite::accept(stream).unwrap();
+        let auth: Value =
+            serde_json::from_str(&socket.read().unwrap().into_text().unwrap()).unwrap();
+        assert_eq!(auth["tcpPunch"], true);
+        socket
+            .send(Message::Text(
+                json!({"type":"paired","sessionId":"paired-session",
+            "expiresAt":u64::MAX,"tcpPunch":{"servers":[{"host":"discovery.example","port":3478}]}})
+                .to_string()
+                .into(),
+            ))
+            .unwrap();
+        stopped.recv_timeout(Duration::from_secs(5)).unwrap();
+    });
+    let peer = start_peer(address, None);
+    receive_native_frame(&peer, "paired");
+    // Delivery to the frontend must follow authorization; logout must remove the grant.
+    assert!(peer.tcp_authority.has_client_session("paired-session"));
+    peer.configs.send_replace(None);
+    peer.worker.join().unwrap();
+    assert!(!peer.tcp_authority.has_client_session("paired-session"));
+    stop.send(()).unwrap();
+    server.join().unwrap();
 }
 
 #[test]

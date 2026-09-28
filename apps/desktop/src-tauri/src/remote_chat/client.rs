@@ -110,8 +110,18 @@ pub(crate) async fn gui_remote_open(
         previous.cancelled.store(true, Ordering::Release);
     }
     let configs = state.configs.clone();
+    let tcp_authority = app.state::<super::tcp::State>().client_authority.clone();
     std::thread::spawn(move || {
-        super::client_runtime::run(request, events, receiver, (configs, cancelled))
+        super::client_runtime::run(
+            request,
+            events,
+            receiver,
+            super::client_runtime::Lifecycle {
+                configs,
+                cancelled,
+                tcp_authority,
+            },
+        )
     });
     Ok(())
 }

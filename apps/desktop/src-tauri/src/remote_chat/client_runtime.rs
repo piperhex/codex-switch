@@ -16,11 +16,15 @@ use super::{
     bridge::{Batch, Bridge},
     client::{ClientCommand, OpenRequest},
     config::Config,
-    protocol::{ChatError, Envelope, Event, FRAME_LIMIT},
+    protocol::{ChatError, Envelope, Event, Outgoing, FRAME_LIMIT},
 };
 
 type Socket = WebSocket<MaybeTlsStream<TcpStream>>;
-type Lifecycle = (watch::Receiver<Option<Config>>, Arc<AtomicBool>);
+pub(super) struct Lifecycle {
+    pub configs: watch::Receiver<Option<Config>>,
+    pub cancelled: Arc<AtomicBool>,
+    pub tcp_authority: Arc<super::tcp::Authority>,
+}
 const POLL_INTERVAL: Duration = Duration::from_millis(20);
 const PING_INTERVAL: Duration = Duration::from_secs(20);
 const RECEIVE_TIMEOUT: Duration = Duration::from_secs(60);
@@ -54,16 +58,16 @@ fn connect(
     commands: mpsc::Receiver<ClientCommand>,
     life: Lifecycle,
 ) -> Result<u16, ChatError> {
-    let config = life.0.borrow().clone().ok_or(ChatError::Transport)?;
+    let config = life.configs.borrow().clone().ok_or(ChatError::Transport)?;
     if !request.matches(&config) {
         return Ok(4001);
     }
     let mut socket = dial(&config.websocket_url)?;
-    if life.1.load(Ordering::Acquire) {
+    if life.cancelled.load(Ordering::Acquire) {
         return Ok(1000);
     }
     if !life
-        .0
+        .configs
         .borrow()
         .as_ref()
         .is_some_and(|current| config.same_owner(current))
@@ -82,6 +86,7 @@ fn connect(
     let now = Instant::now();
     ClientRuntime {
         socket,
+        tcp: super::tcp::ClientSession::new(life.tcp_authority.clone(), request.client_id.clone()),
         binary_relay: false,
         bridge,
         received: now,
@@ -97,7 +102,8 @@ fn connect(
 fn authentication_message(request: &OpenRequest, config: &Config) -> serde_json::Value {
     let mut message = serde_json::json!({
         "type": "authenticate", "role": "mobile", "accessToken": config.access_token,
-        "deviceId": request.device_id, "publicKey": request.public_key, "transportVersion": 2, "binaryRelay": true,
+        "deviceId": request.device_id, "publicKey": request.public_key,
+        "transportVersion": 2, "binaryRelay": true, "tcpPunch": true,
         "clientInfo": { "name": "Codex Switch PC", "platform": std::env::consts::OS },
     });
     // Both backends treat the presence of resume as a recovery attempt, including null.
@@ -109,6 +115,7 @@ fn authentication_message(request: &OpenRequest, config: &Config) -> serde_json:
 
 struct ClientRuntime {
     socket: Socket,
+    tcp: super::tcp::ClientSession,
     binary_relay: bool,
     bridge: Bridge,
     received: Instant,
@@ -125,7 +132,7 @@ impl ClientRuntime {
     ) -> Result<u16, ChatError> {
         loop {
             if !life
-                .0
+                .configs
                 .borrow()
                 .as_ref()
                 .is_some_and(|current| config.same_owner(current))
@@ -134,7 +141,7 @@ impl ClientRuntime {
             }
             self.commands(&mut commands)?;
             // IPC acknowledges queue admission; finish queued peer-close frames before teardown.
-            if life.1.load(Ordering::Acquire) && commands.is_empty() {
+            if life.cancelled.load(Ordering::Acquire) && commands.is_empty() {
                 return Ok(1000);
             }
             if !self.bridge.flush() || self.received.elapsed() > RECEIVE_TIMEOUT {
@@ -159,6 +166,13 @@ impl ClientRuntime {
                 Ok(ClientCommand::Send(message)) => {
                     if self.session_id.as_deref() != Some(message.session_id()) {
                         return Err(ChatError::InvalidFrame);
+                    }
+                    if let Outgoing::PeerClose { session_id } = &message {
+                        self.tcp
+                            .receive(
+                                &serde_json::json!({"type":"peer-close", "sessionId":session_id}),
+                            )
+                            .map_err(|_| ChatError::InvalidFrame)?;
                     }
                     let frame = super::wire::encode(&message, self.binary_relay)?;
                     self.socket.send(frame).map_err(|_| ChatError::Transport)?;
@@ -209,6 +223,9 @@ impl ClientRuntime {
         if matches!(frame["type"].as_str(), Some("paired" | "resumed")) {
             self.session_id = frame["sessionId"].as_str().map(str::to_owned);
         }
+        self.tcp
+            .receive(&frame)
+            .map_err(|_| ChatError::InvalidFrame)?;
         if !self.bridge.enqueue(Envelope {
             generation: 0,
             event: Event::Message { data },
