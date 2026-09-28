@@ -69,9 +69,9 @@ pub(crate) async fn remote_desktop_permissions(
         return Err(super::safe_error(DesktopError::Denied));
     }
     #[cfg(windows)]
-    if crate::desktop_service::control::running()
+    if crate::desktop_service::control::permission_service(settings.is_some())
         .await
-        .unwrap_or(false)
+        .map_err(|error| error.to_string())?
     {
         if let Some(settings) = settings {
             crate::desktop_service::control::update(settings)

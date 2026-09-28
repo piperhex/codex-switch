@@ -129,18 +129,30 @@ impl Worker {
 async fn run(mut stop: watch::Receiver<bool>) -> Result<()> {
     configuration::read()?;
     RUNNING.store(true, std::sync::atomic::Ordering::SeqCst);
-    let control = tauri::async_runtime::spawn(super::control::serve());
-    while !*stop.borrow() {
-        let result = host(&mut stop).await;
-        if result.is_err() {
-            eprintln!("desktop service host restarting");
+    let mut control = tauri::async_runtime::spawn(super::control::serve());
+    let result = loop {
+        if *stop.borrow() {
+            break Ok(());
         }
-        tokio::select! { _=stop.changed()=>{}, _=tokio::time::sleep(Duration::from_secs(3))=>{} }
-    }
+        tokio::select! {
+            _ = &mut control => break Err(ServiceError::Unavailable),
+            result = host(&mut stop) => {
+                if result.is_err() { eprintln!("desktop service host restarting"); }
+            }
+        }
+        if *stop.borrow() {
+            break Ok(());
+        }
+        tokio::select! {
+            _ = &mut control => break Err(ServiceError::Unavailable),
+            _ = stop.changed() => {},
+            _ = tokio::time::sleep(Duration::from_secs(3)) => {},
+        }
+    };
     RUNNING.store(false, std::sync::atomic::Ordering::SeqCst);
     reset_worker().await;
     control.abort();
-    Ok(())
+    result
 }
 
 fn start_node() -> Result<tokio::process::Child> {

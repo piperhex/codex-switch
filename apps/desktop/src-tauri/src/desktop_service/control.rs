@@ -211,3 +211,44 @@ pub(crate) async fn running() -> Result<bool> {
         status.current_state == windows_service::service::ServiceState::Running
     }))
 }
+
+/// A stopped service retains its saved policy. Never acknowledge a change written only to the user copy.
+pub(crate) async fn permission_service(updating: bool) -> Result<bool> {
+    let status = tauri::async_runtime::spawn_blocking(installer::query)
+        .await
+        .map_err(|_| ServiceError::Unavailable)??;
+    policy_target(status.map(|status| status.current_state), updating)
+}
+
+fn policy_target(
+    state: Option<windows_service::service::ServiceState>,
+    updating: bool,
+) -> Result<bool> {
+    use windows_service::service::ServiceState;
+    match state {
+        Some(ServiceState::Running) => Ok(true),
+        Some(_) if updating => Err(ServiceError::Remote(
+            "请先重新启用或卸载无人值守，再修改权限。".into(),
+        )),
+        _ => Ok(false),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use windows_service::service::ServiceState;
+    #[test]
+    fn service_outages_cannot_acknowledge_user_only_policy_updates() {
+        for state in [
+            ServiceState::Stopped,
+            ServiceState::StartPending,
+            ServiceState::StopPending,
+        ] {
+            assert!(policy_target(Some(state), true).is_err());
+            assert!(!policy_target(Some(state), false).unwrap());
+        }
+        assert!(!policy_target(None, true).unwrap());
+        assert!(policy_target(Some(ServiceState::Running), true).unwrap());
+    }
+}
