@@ -47,6 +47,11 @@ async function chooseComputer(page: Page, name: string) {
   await page.getByRole('region', { name: '设备列表' }).getByRole('button', { name: new RegExp(name) }).click();
 }
 
+async function chooseHost(page: Page, name: string) {
+  await page.getByRole('button', { name: /^切换主机：/ }).click();
+  await page.getByRole('menu', { name: '主机列表' }).getByRole('menuitemradio', { name: new RegExp(name) }).click();
+}
+
 async function accountSummaryRows(page: Page) {
   return page.getByRole('button', { name: /^切换 GUI 账户：/ }).evaluate(button => {
     const body = button.querySelector(':scope > span')!;
@@ -168,7 +173,7 @@ test('switches desktop GUI conversations and accounts between computers and back
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`/e2e/remote-gui-harness.html?socket=${encodeURIComponent(endpoint)}`);
   const localRows = await accountSummaryRows(page);
-  await chooseComputer(page, 'Office PC');
+  await chooseHost(page, 'Office PC');
   await expect(page.getByRole('button', { name: 'Office conversation', exact: true })).toBeVisible();
   const quota = page.getByRole('progressbar', { name: '主用量剩余', exact: true });
   await expect(quota).toHaveAttribute('aria-valuenow', '28');
@@ -187,7 +192,7 @@ test('switches desktop GUI conversations and accounts between computers and back
   await expect(quota).toHaveAttribute('aria-valuenow', '83');
   expect(await home.evaluate(() => window.chatTest.demoState().operations
     .some(operation => operation.operation === 'guiAccountSelect'))).toBe(false);
-  await chooseComputer(page, 'Home PC');
+  await chooseHost(page, 'Home PC');
   await expect(page.getByRole('button', { name: 'Home conversation', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Office conversation', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '切换 GUI 账户：演示账户一', exact: true })).toBeVisible();
@@ -197,10 +202,58 @@ test('switches desktop GUI conversations and accounts between computers and back
   expect(await office.evaluate(() => window.chatTest.demoState().operations
     .some(operation => operation.operation === 'interrupt'))).toBe(false);
   await page.screenshot({ path: '../../.codex-tmp/gui-remote-home.png' });
-  await chooseComputer(page, '本机');
+  await chooseHost(page, '本地');
   await expect(page.getByRole('textbox', { name: '本机草稿' })).toHaveValue('Local unsent draft');
   expect(errors).toEqual([]);
 });
+
+test('searches hosts beside the project picker and stays usable during slow discovery and a failed connection',
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/e2e/remote-gui-harness.html?socket=${encodeURIComponent(endpoint)}`);
+    const trigger = page.getByRole('button', { name: '切换主机：本地', exact: true });
+    await trigger.click();
+    const menu = page.getByRole('menu', { name: '主机列表' });
+    await expect(menu.getByRole('menuitemradio', { name: '本地', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await expect(menu.getByRole('menuitemradio', { name: /Offline PC/ })).toBeDisabled();
+    await page.screenshot({ path: '../../.codex-tmp/gui-host-picker-desktop.png' });
+    const search = page.getByRole('textbox', { name: '搜索主机', exact: true });
+    await search.fill('missing');
+    await expect(page.getByText('没有找到匹配的主机')).toBeVisible();
+    await search.fill('office');
+    await expect(menu.getByRole('menuitemradio')).toHaveCount(1);
+    await search.press('ArrowDown');
+    await expect(menu.getByRole('menuitemradio', { name: /Office PC/ })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await expect(search).toHaveValue('');
+    await page.evaluate(() => window.remoteGuiFixture.pauseDirectory());
+    await page.getByRole('button', { name: '刷新主机列表', exact: true }).click();
+    await expect(page.getByRole('button', { name: '刷新主机列表', exact: true })).toBeDisabled();
+    const beats = await page.evaluate(() => window.remoteGuiFixture.beats());
+    await search.fill('home');
+    await expect(menu.getByRole('menuitemradio')).toHaveCount(1);
+    await expect.poll(() => page.evaluate(() => window.remoteGuiFixture.beats())).toBeGreaterThan(beats + 4);
+    await page.evaluate(() => window.remoteGuiFixture.releaseDirectory());
+    await search.fill('office');
+    await search.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('region', { name: 'Codex GUI：Office PC' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '发送消息', exact: true })).toBeDisabled();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: '切换主机：Office PC', exact: true }).click();
+    await expect(menu.getByRole('menuitemradio', { name: /Office PC/ })).toHaveAttribute('aria-checked', 'true');
+    const bounds = (await page.locator('.ant-popover:visible').boundingBox())!;
+    expect(bounds.width).toBeLessThanOrEqual(400);
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: '../../.codex-tmp/gui-host-picker-narrow.png' });
+    await menu.getByRole('menuitemradio', { name: '本地', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: '本机草稿' })).toHaveValue('Local unsent draft');
+    await expect(page.getByRole('button', { name: '选择项目文件夹：workspace', exact: true })).toBeVisible();
+  });
 
 test('matches local GUI layout and sends pasted images over Relay under the desktop image policy', async ({ context, page }) => {
   test.setTimeout(90_000);

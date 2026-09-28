@@ -8,8 +8,10 @@ import styles from "./WorkspacePicker.module.less";
 const MAX_BRANCH_LENGTH = 200;
 const MENU_ALIGN = { overflow: { adjustX: true, adjustY: true, shiftX: true } };
 
-export function WorkspacePicker({ cwd, disabled, onChange, onBusyChange }: {
+export function WorkspacePicker({ cwd, disabled, onChange, onBusyChange,
+  localLabel = isDesktopApp ? "本地" : "Codex Switch 主机" }: {
   cwd: string; disabled: boolean; onChange: (cwd: string) => void; onBusyChange: (busy: boolean) => void;
+  localLabel?: string;
 }) {
   const git = useGitWorkspace({ cwd, onChange, onBusyChange });
   const [menu, setMenu] = useState<"branch" | "location" | null>(null);
@@ -18,7 +20,6 @@ export function WorkspacePicker({ cwd, disabled, onChange, onBusyChange }: {
   const [branch, setBranch] = useState("");
   const search = useRef<InputRef>(null);
   const locked = disabled || git.busy || git.loading;
-  const localLabel = isDesktopApp ? "本地" : "Codex Switch 主机";
   const locationLabel = git.status?.isWorktree ? "本地工作树" : localLabel;
   const branchLabel = git.status?.branch ?? (git.status ? "分离的 HEAD" : "Git 分支");
   const branches = git.status?.branches.filter((item) => item.name.toLowerCase().includes(query.toLowerCase())) ?? [];

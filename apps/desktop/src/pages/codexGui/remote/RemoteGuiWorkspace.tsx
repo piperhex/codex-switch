@@ -47,7 +47,7 @@ export default function RemoteGuiWorkspace(props: {
         <TerminalPanel panel={terminal} active={active} api={terminalApi} notice={terminal.error} />
       </Suspense>}
       readClipboardImages={readClipboardImages}
-      composerHeader={<RemoteGuiProject state={chat.state} controller={chat.controller} deviceName={device.name}
+      composerHeader={<RemoteGuiProject state={chat.state} controller={chat.controller} computers={computers}
         active={active} />}
       renderSidebar={actions => <RemoteGuiSidebar state={chat.state} controller={chat.controller}
         actions={actions} accountPicker={accountPicker} focusMode={props.focusMode} />} />

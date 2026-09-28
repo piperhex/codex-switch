@@ -7,6 +7,7 @@ import { ProxyAccountPicker } from "./ProxyAccountPicker";
 import { useGuiAccountSelection } from "./useGuiAccountSelection";
 import { useGuiComputers } from "./remote/useGuiComputers";
 import { useGuiLayout } from "./useGuiLayout";
+import { GuiHostPicker } from "./GuiHostPicker";
 
 const RemoteGuiWorkspace = lazy(() => import('./remote/RemoteGuiWorkspace'));
 
@@ -24,6 +25,7 @@ export function GuiWorkspace(props: {
   const selection = useGuiAccountSelection({ ...props, active: localActive });
   return <><div hidden={Boolean(remote)} style={{ height: '100%' }}>
     <CodexGuiPage active={localActive} focusMode={focusMode} providers={selection.providers} aggregateApis={[]}
+    hostPicker={isDesktopApp && <GuiHostPicker navigation={computers} active={localActive} />}
     windowControls={props.windowControls} plugins={props.plugins} accountPicker={
       <ProxyAccountPicker active={localActive} computers={isDesktopApp ? computers : undefined}
         accounts={selection.accounts} providers={selection.providers}

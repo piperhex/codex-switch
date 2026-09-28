@@ -42,6 +42,7 @@ const TerminalPanel = lazy(() => import("./codexGui/terminal/TerminalPanel"));
 type CodexGuiPageProps = {
   active: boolean; accountPicker: ReactNode; providers: Provider[]; aggregateApis: AggregateApi[];
   windowControls?: ReactNode; plugins: Omit<SkillsMarketPageProps, "active">;
+  hostPicker?: ReactNode;
   focusMode?: GuiFocusMode;
 };
 
@@ -58,7 +59,7 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
   return <Workspace {...props} {...(props.focusMode ?? focusMode)} />;
 }
 
-function Workspace({ active, accountPicker, providers, aggregateApis, windowControls, plugins,
+function Workspace({ active, accountPicker, providers, aggregateApis, windowControls, plugins, hostPicker,
   focused, onToggleFocus }: CodexGuiPageProps & GuiFocusMode) {
   const skinStyle = useDreamSkin(active);
   const [controller] = useState(getGuiController);
@@ -164,7 +165,8 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
           <AsyncQuestions value={current} onAnswer={controller.answerAsyncQuestion}
             disabled={state.connection !== "ready" || state.sending || state.archived || Boolean(state.workspaceBusy)
               || Boolean(state.deleting) || state.compacting === state.selected} />
-          <Composer ref={composer} state={state} controller={controller} active={conversationActive} />
+          <Composer ref={composer} state={state} controller={controller} active={conversationActive}
+            hostPicker={hostPicker} />
         </>} />}
       {isDesktopApp && terminal.tabs.length > 0 && <Suspense fallback={null}>
         <TerminalPanel panel={terminal} active={conversationActive} api={terminalApi} />

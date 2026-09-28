@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { Target, X } from "lucide-react";
 import { useGoalMode } from "../../../../../shared/remote-chat/client/useGoalMode";
@@ -38,8 +38,8 @@ function formatConversationTokens(value: number) {
 }
 
 export const Composer = forwardRef<ComposerHandle, {
-  state: GuiState; controller: GuiController; active: boolean;
-}>(function Composer({ state, controller, active }, ref) {
+  state: GuiState; controller: GuiController; active: boolean; hostPicker?: ReactNode;
+}>(function Composer({ state, controller, active, hostPicker }, ref) {
   const fileInput = useRef<HTMLInputElement>(null);
   const composer = useRef<HTMLDivElement>(null);
   const skillInput = useRef<SkillInputHandle>(null);
@@ -86,7 +86,8 @@ export const Composer = forwardRef<ComposerHandle, {
     {state.selected && <QueuedMessages threadId={state.selected} messages={queuedMessages}
       running={running} connected={state.connection === "ready"} queue={controller.queue}
       editDisabled={disabled || reading || !active} onEdit={editQueuedMessage} />}
-    {!running && <ProjectPicker key={key} value={project} projects={state.projects}
+    {running && hostPicker && <div className={styles.projectBar}>{hostPicker}</div>}
+    {!running && <ProjectPicker key={key} value={project} projects={state.projects} hostPicker={hostPicker}
       disabled={state.sending || state.archived || workspaceBusy} gitEnabled={!state.selected}
       onBusyChange={controller.setWorkspaceBusy}
       onChange={controller.setProject} onError={controller.report} />}

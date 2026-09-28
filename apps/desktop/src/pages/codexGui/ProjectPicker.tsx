@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Input, Popover, type InputRef } from "antd";
 import { Folder, Plus, Search, X } from "lucide-react";
 import { isDesktopApp } from "../../api/backend";
@@ -16,10 +16,11 @@ interface ProjectPickerProps {
   onError: (error: unknown) => void;
   gitEnabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
+  hostPicker?: ReactNode;
 }
 
 export function ProjectPicker({ value, projects, disabled, onChange, onError,
-  gitEnabled, onBusyChange }: ProjectPickerProps) {
+  gitEnabled, onBusyChange, hostPicker }: ProjectPickerProps) {
   const [expanded, setExpanded] = useState(false);
   const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState("");
@@ -87,8 +88,9 @@ export function ProjectPicker({ value, projects, disabled, onChange, onError,
       </Popover>
     </span>
     {gitEnabled && onBusyChange ? <WorkspacePicker key={value} cwd={value} disabled={disabled}
-      onChange={onChange} onBusyChange={onBusyChange} />
-      : <span className={layout.localLabel}>{isDesktopApp ? "本地" : "Codex Switch 主机"}</span>}
+      onChange={onChange} onBusyChange={onBusyChange} localLabel={hostPicker ? "工作树" : undefined} />
+      : !hostPicker && <span className={layout.localLabel}>{isDesktopApp ? "本地" : "Codex Switch 主机"}</span>}
+    {hostPicker}
     {creating && <CreateProjectDialog disabled={disabled} onCreate={create} onError={onError}
       onClose={() => { setCreating(false); trigger.current?.focus(); }} />}
   </div>;
