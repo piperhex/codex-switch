@@ -1,6 +1,6 @@
 import { guiApi } from "./api";
 import { conversation } from "./events";
-import { visibleContinuationItems } from "./continuation";
+import { followsStoppedTurn, visibleContinuationItems } from "./continuation";
 import { editedMessageDraft } from "./editedMessageDraft";
 import type { MessageEditContent } from "./messageEditContent";
 import type { Conversation, GuiState, Item, MessageInput, Thread, Turn } from "./types";
@@ -12,7 +12,7 @@ export function lastUserMessage(value?: Conversation): { turnId: string; item: I
   if (!value) return;
   for (let index = value.turns.length - 1; index >= 0; index--) {
     const turn = value.turns[index];
-    const items = value.turns[index - 1]?.status === "interrupted"
+    const items = followsStoppedTurn(value.turns[index - 1])
       ? visibleContinuationItems(turn.items) : turn.items;
     const item = items.filter((entry) => entry.type === "userMessage").at(-1);
     if (item) return { turnId: turn.id, item };

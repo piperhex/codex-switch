@@ -1,6 +1,6 @@
 import type { Item, Turn } from "./types";
 import { groupTurnItems } from "../../../../../shared/chat/turnGroups";
-import { visibleContinuationItems } from "./continuation";
+import { followsStoppedTurn, visibleContinuationItems } from "./continuation";
 
 export const MESSAGE_PAGE_SIZE = 10;
 export interface MessageCursor { turnId: string; itemId: string }
@@ -9,7 +9,7 @@ export interface VisibleTurn { turn: Turn; items: Item[]; followsInterruption: b
 
 function groupStarts(turns: Turn[], index: number): number[] {
   const items = turns[index].items;
-  const visible = turns[index - 1]?.status === "interrupted" ? visibleContinuationItems(items) : items;
+  const visible = followsStoppedTurn(turns[index - 1]) ? visibleContinuationItems(items) : items;
   const starts = new Set(groupTurnItems(visible).map((group) => group.items[0].id));
   return items.flatMap((item, position) => starts.has(item.id) ? [position] : []);
 }
@@ -57,7 +57,7 @@ export function messageWindow(turns: Turn[], options: { start?: MessageCursor; o
     ?? { turn: 0, item: 0 };
   const entries = turns.slice(first.turn).map((turn, index) => ({ turn,
     items: index === 0 && first.item > 0 ? turn.items.slice(first.item) : turn.items,
-    followsInterruption: ["interrupted", "failed"].includes(turns[first.turn + index - 1]?.status),
+    followsInterruption: followsStoppedTurn(turns[first.turn + index - 1]),
   }));
   const firstItem = entries.find((entry) => entry.items.length > 0);
   return { entries, hasMore: hasEarlierItems(turns, first),

@@ -16,7 +16,10 @@ Escape 关闭菜单。引用显示为可移除的标签，切换对话保留草�
 运行概览最多展开 32 个对话，同时保留实际运行总数。临时无法读取名称的运行中对话仍保留 ID。
 所有读取均异步执行，候选菜单每 5 秒刷新一次，未完成的刷新不会重叠，关闭菜单时停止刷新。
 历史消息只显示用户文字和引用标签，自动附加的快照不会进入复制或消息编辑文本。
+正文与快照合并存储时同样隐藏快照，已加载的旧记录也会在显示时过滤。
+中断后继续、失败后重试自动发送的继续指令保持隐藏，不影响上一条用户消息的编辑。
 
-验证入口：桌面 Vitest、Playwright `conversation-mentions.pw.ts`、Rust `conversation_context` 测试。
+验证入口：桌面 Vitest、Playwright `conversation-mentions.pw.ts` 与 `conversation-context-display.pw.ts`、
+Rust `conversation_context` 测试。
 `node scripts/codex-gui-conversation-context-smoke.mjs <codex.exe 路径>` 使用本地 Responses 夹具验证
 已安装 CLI 的上下文传递与历史边界，不消耗模型额度。

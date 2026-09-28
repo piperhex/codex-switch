@@ -1,10 +1,12 @@
 import type { Content, Item, QueuedMessage, Turn } from "./types";
+import { visibleUserMessage } from "../../../../../shared/chat/conversationContext";
 
 /** Replace local echoes in submission order; server IDs handle repeated lifecycle notifications. */
 export function mergeMessageItems(previous: Item[], incoming: Item[]): Item[] {
-  const items = [...previous];
+  const items = previous.map(visibleUserMessage);
   const indices = new Map(items.map((item, index) => [item.id, index]));
-  for (const item of incoming) {
+  for (const source of incoming) {
+    const item = visibleUserMessage(source);
     let index = indices.get(item.id) ?? -1;
     if (index === -1 && item.type === "userMessage" && !item.localEcho) {
       index = items.findIndex((entry) => entry.localEcho);

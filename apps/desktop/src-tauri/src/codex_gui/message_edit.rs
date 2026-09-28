@@ -55,7 +55,10 @@ fn latest_message(turns: &[Value]) -> Option<(&Value, &Value)> {
             .filter(|item| item["type"] == "userMessage");
         let first = users.next()?;
         let hidden = index > 0
-            && turns[index - 1]["status"] == "interrupted"
+            && matches!(
+                turns[index - 1]["status"].as_str(),
+                Some("interrupted" | "failed")
+            )
             && first["content"].as_array().is_some_and(|parts| {
                 parts.len() == 1
                     && parts[0]["type"] == "text"

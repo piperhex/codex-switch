@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "antd";
 import { Pencil } from "lucide-react";
-import type { Content, Item } from "./types";
+import type { Item } from "./types";
+import { visibleUserContent } from "../../../../../shared/chat/conversationContext";
 import { UserMessageEditor } from "./UserMessageEditor";
 import { CopyButton } from "./CopyButton";
 import { MessageImage } from "./MessageImage";
@@ -24,7 +25,7 @@ export function UserMessage({ item, startedAt, onEdit, editDisabled = false }: {
   item: Item; startedAt?: number | null; onEdit?: SubmitMessageEdit; editDisabled?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
-  const parts = (item.content ?? []) as Content[];
+  const parts = visibleUserContent(item.content);
   const images = parts.filter(isMessageImage);
   const mentions = parts.filter((part) => part.type === "mention");
   const text = parts.filter((part) => part.type === "text").map((part) => part.text).join("\n");
@@ -32,6 +33,7 @@ export function UserMessage({ item, startedAt, onEdit, editDisabled = false }: {
   const date = startedAt == null ? null : new Date(startedAt * MILLISECONDS_PER_SECOND);
   const sentAt = date && Number.isFinite(date.getTime()) ? date : null;
   const showBubble = editing || Boolean(message.text || message.quotes.length || mentions.length);
+  if (!showBubble && !images.length) return null;
   return <article className={`${styles.userMessage} ${editing ? userStyles.editingMessage : ""}`}>
     {!editing && images.length > 0 && <div className={userStyles.attachments}>
       {images.map((part, index) =>

@@ -3,12 +3,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::error::{GuiError, Result};
+mod display;
+pub(super) use display::display;
+use display::{visible_part, visible_preview};
 
 pub(super) const REFERENCE_PREFIX: &str = "codex-thread://";
 pub(super) const MAX_REFERENCES: usize = 8;
 pub(super) const MAX_RUNNING: usize = 32;
-const CONTEXT_START: &str = "<codex_gui_conversation_context>\n";
-const CONTEXT_END: &str = "\n</codex_gui_conversation_context>";
+const CONTEXT_START: &str = "<codex_gui_conversation_context>";
+const CONTEXT_END: &str = "</codex_gui_conversation_context>";
 const MAX_MESSAGES: usize = 12;
 const TOTAL_CONTEXT_CHARS: usize = 48_000;
 const MAX_MESSAGE_CHARS: usize = 8_000;
@@ -44,6 +47,7 @@ pub(super) fn reference_id(path: &str) -> Result<&str> {
     Ok(id)
 }
 
+#[cfg(test)]
 fn parse(part: &Value) -> Option<Context> {
     if part["type"] != "text" {
         return None;
@@ -58,51 +62,8 @@ fn parse(part: &Value) -> Option<Context> {
 fn input(context: Context) -> Result<Value> {
     let data = serde_json::to_string(&context).map_err(|_| GuiError::InvalidRequest)?;
     Ok(
-        json!({"type": "text", "text": format!("{CONTEXT_START}{data}{CONTEXT_END}"), "text_elements": []}),
+        json!({"type": "text", "text": format!("{CONTEXT_START}\n{data}\n{CONTEXT_END}"), "text_elements": []}),
     )
-}
-
-/// Convert persisted context to compact references for history, editing and remote clients.
-pub(super) fn display(value: &mut Value) {
-    if let Some(Value::String(preview)) = value.get_mut("preview") {
-        *preview = visible_preview(preview);
-    }
-    if value["type"] == "userMessage" {
-        if let Some(parts) = value["content"].as_array_mut() {
-            *parts = parts
-                .drain(..)
-                .filter_map(|part| match parse(&part) {
-                    Some(Context::Awareness { .. }) => None,
-                    Some(Context::Reference { id, name, .. }) => Some(json!({
-                        "type": "mention", "name": name, "path": format!("{REFERENCE_PREFIX}{id}")
-                    })),
-                    None => Some(part),
-                })
-                .collect();
-        }
-        return;
-    }
-    for key in ["thread", "turn", "item"] {
-        if let Some(child) = value.get_mut(key) {
-            display(child);
-        }
-    }
-    for key in ["data", "turns", "items"] {
-        if let Some(children) = value.get_mut(key).and_then(Value::as_array_mut) {
-            children.iter_mut().for_each(display);
-        }
-    }
-}
-
-fn visible_preview(preview: &str) -> String {
-    let Some((text, _)) = preview.split_once(CONTEXT_START) else {
-        return preview.to_owned();
-    };
-    if text.trim().is_empty() {
-        "对话引用".to_owned()
-    } else {
-        text.trim_end().to_owned()
-    }
 }
 
 pub(super) fn references(params: &Value) -> Result<Vec<String>> {
@@ -152,8 +113,10 @@ fn message_text(item: &Value) -> Option<(&str, String)> {
             let text = item["content"]
                 .as_array()?
                 .iter()
-                .filter(|part| part["type"] == "text" && parse(part).is_none())
-                .filter_map(|part| part["text"].as_str())
+                .cloned()
+                .flat_map(visible_part)
+                .filter(|part| part["type"] == "text")
+                .filter_map(|part| part["text"].as_str().map(str::to_owned))
                 .collect::<Vec<_>>()
                 .join("\n");
             Some(("user", text))
@@ -226,3 +189,7 @@ pub(super) fn append(
 #[cfg(test)]
 #[path = "conversation_context_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "conversation_context_display_tests.rs"]
+mod display_tests;

@@ -1,4 +1,5 @@
-import type { Content, Conversation, MessageInput } from "./types";
+import type { Conversation, MessageInput } from "./types";
+import { visibleUserContent } from "../../../../../shared/chat/conversationContext";
 import type { MessageEdit } from "./editMessage";
 import { retainedMessageParts } from "./messageEditContent";
 import { referenceKind } from "./conversationReferences";
@@ -10,7 +11,7 @@ export function editedMessageDraft(value: Conversation, edit: MessageEdit): Mess
   const text: string[] = [];
   for (const message of messages.filter((item) => item.type === "userMessage")) {
     if (message.id === edit.itemId) text.push(edit.text);
-    const parts = (message.content ?? []).filter((part): part is Content => typeof part !== "string");
+    const parts = visibleUserContent(message.content);
     const retained = retainedMessageParts(parts, message.id === edit.itemId ? edit.removedImageIndexes : []);
     for (const part of retained) {
       if (part.type === "text" && message.id !== edit.itemId && part.text) text.push(part.text);
