@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/codex-switch/admin-go/internal/bandwidth"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -45,6 +46,7 @@ type Dependencies struct {
 	Config            Config
 	Authenticate      func(*gin.Context) (*Principal, error)
 	FlushTraffic      func() error
+	ReadBandwidth     func() bandwidth.Snapshot
 	ChatPolicyChanged func()
 }
 

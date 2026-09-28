@@ -1098,6 +1098,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       return (
         <Suspense fallback={<Skeleton active paragraph={{ rows: 10 }} />}>
           <DashboardPage
+            api={api}
             data={dashboard}
             days={dashboardDays}
             dark={dark}

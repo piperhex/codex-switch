@@ -4,11 +4,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/codex-switch/admin-go/internal/bandwidth"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type trafficCounter struct {
+	bandwidth   *bandwidth.Monitor
 	db          *gorm.DB
 	reporter    string
 	mu, flushMu sync.Mutex
@@ -18,10 +20,11 @@ type trafficCounter struct {
 
 func newTrafficCounter(db *gorm.DB) *trafficCounter {
 	return &trafficCounter{
-		db:       db,
-		reporter: uuid.NewString(),
-		totals:   map[time.Time]int64{},
-		pending:  map[time.Time]bool{},
+		bandwidth: bandwidth.New(),
+		db:        db,
+		reporter:  uuid.NewString(),
+		totals:    map[time.Time]int64{},
+		pending:   map[time.Time]bool{},
 	}
 }
 
@@ -29,6 +32,7 @@ func (counter *trafficCounter) record(bytes int) {
 	if bytes <= 0 {
 		return
 	}
+	counter.bandwidth.Record(bytes)
 	hour := time.Now().UTC().Truncate(time.Hour)
 	counter.mu.Lock()
 	defer counter.mu.Unlock()

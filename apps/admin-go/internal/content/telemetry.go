@@ -16,6 +16,7 @@ func (s *service) analyticsRoutes(r *gin.Engine) {
 	r.GET("/admin/api/telemetry/installations", permission, s.listInstallations)
 	r.GET("/admin/api/telemetry/events", permission, s.listEvents)
 	r.GET("/admin/api/dashboard/overview", s.deps.RequirePermissions("admin.dashboard.read"), s.dashboard)
+	r.GET("/admin/api/dashboard/bandwidth", s.deps.RequirePermissions("admin.dashboard.read"), noStore, s.bandwidth)
 }
 
 type platformCountRow struct {

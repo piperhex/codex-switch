@@ -36,6 +36,7 @@ func TestBinaryRelayRoundTripAndNegotiation(t *testing.T) {
 
 func TestBinarySocketAccountsActualWireBytes(t *testing.T) {
 	charged := make(chan int, 1)
+	traffic := newTrafficCounter(nil)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -46,7 +47,8 @@ func TestBinarySocketAccountsActualWireBytes(t *testing.T) {
 		completed := make(chan struct{})
 		client.binaryRelay.Store(true)
 		client.sendGuarded(platform.JSON{"type": "relay", "sessionId": "id", "payload": strings.Repeat("ab", 1000)},
-			func(n int) { charged <- n; close(completed) }, func(_ int, write func() error) error { return write() })
+			func(n int) { traffic.record(n); charged <- n; close(completed) },
+			func(_ int, write func() error) error { return write() })
 		select {
 		case <-completed:
 		case <-client.done:
@@ -67,6 +69,9 @@ func TestBinarySocketAccountsActualWireBytes(t *testing.T) {
 	}
 	if count := <-charged; count != len(data) {
 		t.Fatalf("charged %d, sent %d", count, len(data))
+	}
+	if count := traffic.bandwidth.Snapshot().TotalBytes; count != int64(len(data)) {
+		t.Fatalf("bandwidth counted %d, sent %d", count, len(data))
 	}
 }
 

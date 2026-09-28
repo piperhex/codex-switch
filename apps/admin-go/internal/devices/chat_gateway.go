@@ -54,6 +54,7 @@ func newChatGateway(service *Service) (*ChatGateway, error) {
 				-1,
 			)}, ice: ice, done: make(chan struct{}), stopped: make(chan struct{}), stun: stun}
 	service.deps.FlushTraffic = traffic.flush
+	service.deps.ReadBandwidth = traffic.bandwidth.Snapshot
 	gateway.sessions.deliver = gateway.deliverRelay
 	gateway.sessions.hot.deliver = gateway.deliverRelay
 	service.deps.ChatPolicyChanged = gateway.refreshPolicy
