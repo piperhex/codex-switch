@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { MAX_FPS, type DesktopSettings } from '../../../../../shared/remote-desktop/protocol';
+import { MAX_FPS, type DesktopDisplay, type DesktopSettings } from '../../../../../shared/remote-desktop/protocol';
+import { displayLabel } from '../../../../../shared/remote-desktop/displays';
 import { t } from '../../i18n';
 
-export function DisplaySettings({ settings, update, saving, close, stats }: {
+export function DisplaySettings({ settings, displays, update, saving, close, stats }: {
+  displays: DesktopDisplay[];
   settings: DesktopSettings; update: (settings: DesktopSettings) => Promise<void>; saving: boolean; close: () => void;
   stats: { visible: boolean; toggle: () => void };
 }) {
@@ -14,6 +16,11 @@ export function DisplaySettings({ settings, update, saving, close, stats }: {
   };
   return <aside className="rd-settings" aria-label={t('显示设置')}>
     <header><strong>{t('显示')}</strong><button onClick={close}>{t('完成')}</button></header>
+    {displays.length > 0 && <><p>{t('显示器')}</p>
+      <div className="rd-options rd-displays" role="group" aria-label={t('显示器')}>
+        {displays.map(item => <button key={item.id} disabled={saving} aria-pressed={settings.displayId === item.id}
+          onClick={() => { void update({ ...settings, displayId: item.id }); }}>{displayLabel(item, t)}</button>)}
+      </div></>}
     <p><button role="switch" aria-label={t('连接状态')} aria-checked={stats.visible} onClick={stats.toggle}>
       {t(stats.visible ? '隐藏连接状态' : '显示连接状态')}</button></p>
     <p>{t('帧率')}</p><div className="rd-options" role="group" aria-label={t('帧率')}>

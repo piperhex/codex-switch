@@ -13,7 +13,7 @@ export class HostSession {
   async open() {
     try { return await this.session.open(); }
     catch {
-      this.session.close();
+      await this.session.close();
       if (this.stopped) throw new Error('桌面连接已结束。');
       this.session = new DesktopHostSession(this.settings, this.iceServers);
       return this.session.open();
@@ -22,5 +22,5 @@ export class HostSession {
   signal(signal: DesktopSignal) { return this.session.signal(signal); }
   async update(settings: DesktopSettings) { await this.session.update(settings); this.settings = settings; }
   get closed() { return this.stopped || this.session.closed; }
-  close() { this.stopped = true; this.session.close(); }
+  close() { this.stopped = true; return this.session.close(); }
 }

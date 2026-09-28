@@ -52,6 +52,7 @@ class GdiCapture {
     uint8_t* pixels = nullptr;
     int width = 0, height = 0;
     HWND window = nullptr;
+    HMONITOR monitor = nullptr;
     std::vector<uint8_t> previous;
 public:
     explicit GdiCapture(const Config& config);

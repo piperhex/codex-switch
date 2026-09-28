@@ -62,3 +62,24 @@ it('passes authenticated TURN credentials and polls without overlap', async () =
   await vi.advanceTimersByTimeAsync(20_000);
   expect(call.mock.calls.filter(([command]) => command === 'remote_desktop_stream_status')).toHaveLength(1);
 });
+
+it('opens the selected screen, returns discovery and waits for native close before another screen opens', async () => {
+  const original = call.getMockImplementation()!;
+  const display = { id: 'second', name: 'DISPLAY2', width: 1080, height: 1920, primary: false };
+  let release!: () => void;
+  call.mockImplementation(async (command, args) => {
+    if (command === 'remote_desktop_open') return { id: 'lease-2', displays: [display], displayId: display.id };
+    if (command === 'remote_desktop_stream_close') return new Promise<void>(resolve => { release = resolve; });
+    return original(command, args);
+  });
+  const session = new NativeDesktopSession({ ...DEFAULT_SETTINGS, displayId: display.id }, []);
+  expect(await session.open()).toMatchObject({ displays: [display], displayId: display.id });
+  expect(call).toHaveBeenCalledWith('remote_desktop_open', { displayId: display.id });
+  let closed = false;
+  const closing = session.close().then(() => { closed = true; });
+  await Promise.resolve(); expect(closed).toBe(false);
+  const repeatedClose = session.close();
+  release(); await closing; await repeatedClose;
+  expect(closed).toBe(true);
+  expect(call.mock.calls.filter(([command]) => command === 'remote_desktop_stream_close')).toHaveLength(1);
+});

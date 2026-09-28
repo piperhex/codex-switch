@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { MAX_FPS, type DesktopSettings } from '../../../../../shared/remote-desktop/protocol';
+import { MAX_FPS, type DesktopDisplay, type DesktopSettings } from '../../../../../shared/remote-desktop/protocol';
+import { displayLabel } from '../../../../../shared/remote-desktop/displays';
 import { desktopStyles as s } from './styles';
 
-export function DisplaySettings({ settings, update, saving, close, stats }: {
+export function DisplaySettings({ settings, displays, update, saving, close, stats }: {
+  displays: DesktopDisplay[];
   settings: DesktopSettings; update: (next: DesktopSettings) => Promise<void>; saving: boolean; close: () => void;
   stats: { visible: boolean; toggle: () => void };
 }) {
@@ -19,6 +21,14 @@ export function DisplaySettings({ settings, update, saving, close, stats }: {
       <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="关闭显示设置">
         <Text style={s.text}>完成</Text></Pressable></View>
     <ScrollView contentContainerStyle={s.panelContent} keyboardShouldPersistTaps="handled">
+    {displays.length > 0 && <View style={{ gap: 8 }}><Text style={s.text}>显示器</Text>
+      {displays.map(item => <Pressable key={item.id} disabled={saving} accessibilityRole="radio"
+        accessibilityLabel={displayLabel(item)}
+        accessibilityState={{ checked: settings.displayId === item.id, disabled: saving }}
+        style={[s.choice, settings.displayId === item.id && s.selected]}
+        onPress={() => { void update({ ...settings, displayId: item.id }); }}>
+        <Text style={s.text}>{displayLabel(item)}</Text></Pressable>)}
+    </View>}
     <Pressable style={s.choice} accessibilityRole="switch" accessibilityLabel="连接状态"
       accessibilityState={{ checked: stats.visible }} onPress={stats.toggle}>
       <Text style={s.text}>{stats.visible ? '隐藏连接状态' : '显示连接状态'}</Text></Pressable>

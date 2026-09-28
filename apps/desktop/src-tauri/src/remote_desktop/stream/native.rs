@@ -18,6 +18,7 @@ use webrtc::{
 
 pub(super) struct Stream {
     pub id: String,
+    pub display: super::super::monitors::Monitor,
     pub peer: Peer,
     pub candidates: Mutex<Vec<serde_json::Value>>,
     pub profile: watch::Sender<Profile>,
@@ -39,7 +40,13 @@ impl Stream {
         for server in &request.ice_servers {
             server.validate()?;
         }
-        let (mut encoder, _) = Encoder::open(&path, profile).await?;
+        let id = request.id.clone();
+        let display = tauri::async_runtime::spawn_blocking(move || {
+            super::super::with_session(&id, |session| session.display.refresh())
+        })
+        .await
+        .map_err(|_| DesktopError::Platform)??;
+        let (mut encoder, _) = Encoder::open(&path, profile, &display).await?;
         let peer = match peer::create(request.ice_servers).await {
             Ok(peer) => peer,
             Err(error) => {
@@ -49,6 +56,7 @@ impl Stream {
         };
         let stream = Arc::new(Self {
             id: request.id,
+            display,
             peer,
             candidates: Mutex::new(Vec::new()),
             profile: watch::channel(profile).0,
@@ -139,7 +147,7 @@ impl Stream {
             return Err(DesktopError::Expired);
         }
         let id = self.id.clone();
-        tauri::async_runtime::spawn_blocking(move || super::super::with_session(&id, || Ok(())))
+        tauri::async_runtime::spawn_blocking(move || super::super::with_session(&id, |_| Ok(())))
             .await
             .map_err(|_| DesktopError::Platform)?
     }

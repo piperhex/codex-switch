@@ -1,7 +1,14 @@
 # Remote desktop
 
-The phone and Web chat toolbox opens the selected computer's remote desktop. The first host implementation
-supports the primary Windows display. macOS/Linux hosts return an explicit unsupported-platform message.
+The phone and Web chat toolbox opens the selected computer's remote desktop. Windows hosts support choosing
+any connected display under **Display → Monitor**, with its Windows display number, resolution and primary marker.
+Switching releases held mouse buttons and reconnects video and sound to the chosen screen, retaining quality,
+frame rate and mute settings. Zoom resets to fit the new screen. Capture and input share the selected display's
+physical pixel bounds, including negative coordinates, portrait screens and mixed DPI. Native GPU, GDI,
+FFmpeg and WebView compatibility capture all honor the selection. Reconnection refreshes the display list;
+if the selected display was removed, it returns to the primary display and updates the selection.
+Older hosts without display discovery keep their existing single-screen controls.
+macOS/Linux hosts return an explicit unsupported-platform message.
 The viewer works on Android/iOS through `react-native-webrtc` and on Web through the browser's WebRTC engine.
 
 ## iPhone and iPad
@@ -137,8 +144,7 @@ Only one remote desktop may own a host at a time. Control queues are bounded and
 preserving button ordering. Closing the viewer, hiding the app/page, losing its chat session or missing the
 control heartbeat stops capture. A separate native 15-second lease releases mouse buttons if the desktop
 WebView disappears. Input validation rejects nonfinite/out-of-range coordinates and oversized text/wheel data.
-The current implementation does not capture audio, elevate input into protected Windows prompts, select
-additional monitors or change the host's display resolution.
+The current implementation does not elevate input into protected Windows prompts or change the host's display resolution.
 
 ## Verification
 
@@ -163,6 +169,15 @@ $env:CSW_NATIVE_TEST_REQUIRE_DAMAGE = '1'
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch_lib_tests native_capture_reaches_a_real_browser_decoder -- --ignored --nocapture
 Remove-Item Env:CSW_NATIVE_TEST_REQUIRE_DAMAGE
 ```
+
+To exercise a particular Windows display, set `CSW_NATIVE_TEST_DISPLAY` to its device name (for example
+`\\.\DISPLAY2`) before the native decoder test. The test rejects a missing requested display and checks the
+decoded aspect ratio. The ignored `captures_each_connected_display_with_its_own_aspect_ratio` test checks
+the JPEG compatibility path on every connected display. On 2026-09-28, both tests passed with a 2560 × 1440
+primary display and a 2560 × 1600 secondary display using different Windows scaling settings. Native WebRTC
+delivered 1920 × 1080 and 1920 × 1200 video respectively, with decoded system sound on both connections.
+Browser regression tests cover monitor switching in portrait, landscape and desktop layouts; native component
+tests cover selected/disabled controls. These checks do not replace Android/iOS physical-device validation.
 
 The native test renders a quiet 440 Hz tone and checks decoded audio samples alongside video frames. It needs
 an active default Windows output device. It also checks Opus packet/sample counts; waveform analysis avoids

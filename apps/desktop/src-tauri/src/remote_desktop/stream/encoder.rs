@@ -29,6 +29,8 @@ struct Display {
     height: u32,
     source_width: u32,
     source_height: u32,
+    x: i32,
+    y: i32,
     monitor: usize,
 }
 
@@ -43,8 +45,12 @@ pub(super) struct Encoder {
 }
 
 impl Encoder {
-    pub async fn open(path: &Path, profile: Profile) -> Result<(Self, Vec<u8>)> {
-        let dimensions = dimensions(profile.width)?;
+    pub async fn open(
+        path: &Path,
+        profile: Profile,
+        display: &super::super::monitors::Monitor,
+    ) -> Result<(Self, Vec<u8>)> {
+        let dimensions = dimensions(profile.width, display)?;
         for backend in [
             Backend::DirtyGpu,
             Backend::Nvenc,
@@ -130,33 +136,23 @@ impl Encoder {
     }
 }
 
-fn dimensions(limit: u32) -> Result<Display> {
-    use windows_sys::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN};
-    use windows_sys::Win32::{
-        Foundation::POINT,
-        Graphics::Gdi::{MonitorFromPoint, MONITOR_DEFAULTTOPRIMARY},
-    };
-    // SAFETY: GetSystemMetrics reads the interactive primary display and takes no pointers.
-    let (width, height) = unsafe { (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)) };
-    if width <= 0 || height <= 0 {
-        return Err(DesktopError::Platform);
-    }
-    let target = limit.min(width as u32) & !1;
-    let scaled = ((u64::from(target) * height as u64 / width as u64) as u32) & !1;
+fn dimensions(limit: u32, display: &super::super::monitors::Monitor) -> Result<Display> {
+    let display = display.refresh()?;
+    let bounds = display.bounds;
+    let target = limit.min(bounds.width) & !1;
+    let scaled =
+        ((u64::from(target) * u64::from(bounds.height) / u64::from(bounds.width)) as u32) & !1;
     if target == 0 || scaled == 0 {
-        return Err(DesktopError::Platform);
-    }
-    // SAFETY: (0, 0) is on the primary display; HMONITOR is a system display identifier, not an owned resource.
-    let monitor = unsafe { MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY) };
-    if monitor.is_null() {
         return Err(DesktopError::Platform);
     }
     Ok(Display {
         width: target,
         height: scaled,
-        source_width: width as u32,
-        source_height: height as u32,
-        monitor: monitor as usize,
+        source_width: bounds.width,
+        source_height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        monitor: display.handle,
     })
 }
 
@@ -209,9 +205,9 @@ fn capture_arguments(profile: Profile, size: Display, backend: Backend) -> Vec<S
             "-draw_mouse".into(),
             "0".into(),
             "-offset_x".into(),
-            "0".into(),
+            size.x.to_string(),
             "-offset_y".into(),
-            "0".into(),
+            size.y.to_string(),
             "-video_size".into(),
             format!("{}x{}", size.source_width, size.source_height),
             "-framerate".into(),
@@ -345,6 +341,8 @@ mod tests {
             height: 1080,
             source_width: 1920,
             source_height: 1080,
+            x: -1920,
+            y: -200,
             monitor: 1,
         };
         for backend in [Backend::Nvenc, Backend::MediaFoundation, Backend::Software] {
@@ -353,5 +351,10 @@ mod tests {
         }
         let args = capture_arguments(profile, size, Backend::GdiSoftware);
         assert!(args.windows(2).any(|pair| pair == ["-draw_mouse", "0"]));
+        assert!(args.windows(2).any(|pair| pair == ["-offset_x", "-1920"]));
+        assert!(args.windows(2).any(|pair| pair == ["-offset_y", "-200"]));
+        for backend in [Backend::DirtyGpu, Backend::DirtyGdi] {
+            assert_eq!(arguments(profile, size, backend)[4], "1");
+        }
     }
 }

@@ -51,7 +51,7 @@ export class DesktopHostSession {
   }
 
   async open() {
-    const stream = await this.capture.open(this.adaptation.profile(this.settings).width);
+    const stream = await this.capture.open(this.adaptation.profile(this.settings).width, this.settings.displayId);
     if (this.stopped) throw new Error('桌面连接已结束。');
     this.sender = this.pc.addTrack(stream.getVideoTracks()[0], stream);
     // Android's bundled decoder factory offers native H.264 hardware decoding with native software fallback.
@@ -66,7 +66,7 @@ export class DesktopHostSession {
     await this.pc.setLocalDescription(offer);
     this.lastStats = performance.now();
     void this.tick();
-    return { sdp: offer.sdp ?? '', iceServers: this.iceServers };
+    return { sdp: offer.sdp ?? '', iceServers: this.iceServers, ...this.capture.displays };
   }
 
   async signal(signal: DesktopSignal) {
@@ -150,8 +150,8 @@ export class DesktopHostSession {
   }
   get closed() { return this.stopped; }
   close() {
-    if (this.stopped) return;
+    if (this.stopped) return this.capture.close();
     this.stopped = true; clearTimeout(this.timer); clearTimeout(this.expires);
-    this.controls.close(); this.channel.close(); this.pc.close(); this.capture.close();
+    this.controls.close(); this.channel.close(); this.pc.close(); return this.capture.close();
   }
 }

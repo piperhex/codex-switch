@@ -21,7 +21,10 @@ export class RemoteDesktopHost {
       throw new Error('桌面连接已结束，请重新连接。');
     }
     switch (body.action) {
-      case 'close': active.session.close(); this.active = undefined; return;
+      case 'close':
+        await active.session.close();
+        if (this.active === active) this.active = undefined;
+        return;
       case 'settings': await active.session.update(validateSettings(body.settings)); return;
       case 'signal': return active.session.signal(body as unknown as DesktopSignal);
       default: throw new Error('不支持的远程桌面操作。');

@@ -1,4 +1,4 @@
-import type { DesktopInput, DesktopSettings } from '../../../shared/remote-desktop/protocol';
+import type { DesktopDisplay, DesktopInput, DesktopSettings } from '../../../shared/remote-desktop/protocol';
 import { RemoteDesktopHost } from '../../desktop/src/remoteDesktop/host';
 import { createGuiToolsClient } from '../../../shared/remote-chat/guiTools';
 import type { IceServer } from '../../../shared/remote-chat/protocol';
@@ -24,7 +24,15 @@ if (new URLSearchParams(location.search).has('audio')) {
   };
 }
 let opened = 0;
+const displays: DesktopDisplay[] = [
+  { id: 'display-1', name: 'DISPLAY1', width: 1600, height: 900, primary: true },
+  { id: 'display-2', name: 'DISPLAY2', width: 900, height: 1600, primary: false },
+];
+let selected = displays[0];
+const multiDisplay = new URLSearchParams(location.search).has('displays');
 export const desktopTest = { inputs: [] as DesktopInput[], settings: [] as DesktopSettings[],
+  selectedDisplays: [] as string[], inputDisplays: [] as string[],
+  displays,
   peers: [] as RTCPeerConnection[],
   iceErrors: [] as string[],
   frames: 0, captures: 0, closed: 0, concurrent: 0, maxConcurrent: 0, errors: [] as string[] };
@@ -32,7 +40,7 @@ export const desktopTest = { inputs: [] as DesktopInput[], settings: [] as Deskt
 async function frame(width: number) {
   desktopTest.concurrent += 1;
   desktopTest.maxConcurrent = Math.max(desktopTest.maxConcurrent, desktopTest.concurrent);
-  canvas.width = width; canvas.height = Math.round(width * 9 / 16);
+  canvas.width = width; canvas.height = Math.round(width * selected.height / selected.width);
   const context = canvas.getContext('2d')!;
   context.scale(width / 1600, width / 1600);
   context.fillStyle = '#12344e'; context.fillRect(0, 0, 1600, 900);
@@ -56,10 +64,18 @@ async function frame(width: number) {
 
 // Only native IPC is substituted. Host capture pacing, WebRTC/SRTP, receiver and controls are production code.
 Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {
-  invoke: async (command: string, args: { width?: number; input?: DesktopInput }) => {
-    if (command === 'remote_desktop_open') { desktopTest.captures += 1; return `capture-${++opened}`; }
+  invoke: async (command: string, args: { width?: number; input?: DesktopInput; displayId?: string }) => {
+    if (command === 'remote_desktop_open') {
+      desktopTest.captures += 1;
+      selected = desktopTest.displays.find(item => item.id === args.displayId) ?? desktopTest.displays[0];
+      desktopTest.selectedDisplays.push(selected.id);
+      const id = `capture-${++opened}`;
+      return multiDisplay ? { id, displays: desktopTest.displays, displayId: selected.id } : id;
+    }
     if (command === 'remote_desktop_frame') return frame(args.width!);
-    if (command === 'remote_desktop_input') { desktopTest.inputs.push(args.input!); return; }
+    if (command === 'remote_desktop_input') {
+      desktopTest.inputs.push(args.input!); desktopTest.inputDisplays.push(selected.id); return;
+    }
     if (command === 'remote_desktop_close') { desktopTest.closed += 1; return; }
     throw new Error(`Unexpected native call: ${command}`);
   },

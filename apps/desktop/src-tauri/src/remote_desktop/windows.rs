@@ -39,13 +39,9 @@ impl Drop for Capture {
 }
 
 impl Capture {
-    fn new(width: u32) -> Result<Self> {
-        // SAFETY: GetSystemMetrics has no pointer arguments and returns the current primary display dimensions.
-        let (source_width, source_height) =
-            unsafe { (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)) };
-        if source_width <= 0 || source_height <= 0 {
-            return Err(DesktopError::Platform);
-        }
+    fn new(width: u32, display: &super::monitors::Monitor) -> Result<Self> {
+        let bounds = display.refresh()?.bounds;
+        let (source_width, source_height) = (bounds.width as i32, bounds.height as i32);
         let width = (width as i32).min(source_width);
         let height =
             ((i64::from(source_height) * i64::from(width)) / i64::from(source_width)) as i32;
@@ -62,7 +58,7 @@ impl Capture {
             height,
         };
         capture.allocate()?;
-        capture.copy(source_width, source_height)?;
+        capture.copy(bounds)?;
         Ok(capture)
     }
 
@@ -107,7 +103,7 @@ impl Capture {
         Ok(())
     }
 
-    fn copy(&self, width: i32, height: i32) -> Result<()> {
+    fn copy(&self, bounds: super::displays::Bounds) -> Result<()> {
         // SAFETY: both DCs and the selected DIB are live; source and destination dimensions are validated.
         unsafe {
             SetStretchBltMode(self.memory, HALFTONE);
@@ -118,10 +114,10 @@ impl Capture {
                 self.width,
                 self.height,
                 self.screen,
-                0,
-                0,
-                width,
-                height,
+                bounds.x,
+                bounds.y,
+                bounds.width as i32,
+                bounds.height as i32,
                 SRCCOPY | CAPTUREBLT,
             ) == 0
             {
@@ -134,8 +130,9 @@ impl Capture {
     }
 }
 
-pub(super) fn capture(width: u32) -> Result<Vec<u8>> {
-    let capture = Capture::new(width)?;
+pub(super) fn capture(width: u32, display: &super::monitors::Monitor) -> Result<Vec<u8>> {
+    let _dpi = super::monitors::PhysicalPixels::enter()?;
+    let capture = Capture::new(width, display)?;
     let length = capture.width as usize * capture.height as usize * 4;
     // SAFETY: CreateDIBSection allocated width * height BGRA pixels; the owner stays live for this slice.
     let pixels = unsafe { std::slice::from_raw_parts(capture.pixels, length) };
@@ -196,16 +193,14 @@ fn send(inputs: &[INPUT]) -> Result<()> {
 pub(super) fn release_buttons() -> Result<()> {
     send(&[mouse(MOUSEEVENTF_LEFTUP, 0), mouse(MOUSEEVENTF_RIGHTUP, 0)])
 }
-pub(super) fn input(input: DesktopInput) -> Result<()> {
+pub(super) fn input(input: DesktopInput, display: &super::monitors::Monitor) -> Result<()> {
+    let _dpi = super::monitors::PhysicalPixels::enter()?;
+    let bounds = display.refresh()?.bounds;
     match input {
         DesktopInput::Move { x, y } => {
-            // SAFETY: system dimensions are read without pointers and coordinates were validated at the boundary.
-            let moved = unsafe {
-                SetCursorPos(
-                    (x * f64::from(GetSystemMetrics(SM_CXSCREEN) - 1)).round() as i32,
-                    (y * f64::from(GetSystemMetrics(SM_CYSCREEN) - 1)).round() as i32,
-                )
-            };
+            let (x, y) = bounds.point(x, y);
+            // SAFETY: coordinates map validated normalized input to the selected live display.
+            let moved = unsafe { SetCursorPos(x, y) };
             if moved == 0 {
                 return Err(DesktopError::Platform);
             }
@@ -271,9 +266,31 @@ mod tests {
     #[test]
     #[ignore = "requires an unlocked interactive Windows desktop"]
     fn captures_a_valid_primary_display_frame() {
-        let encoded = super::capture(640).expect("capture primary display");
+        let monitors = super::super::monitors::list().expect("enumerate displays");
+        let display = super::super::monitors::select(&monitors, None).expect("primary display");
+        let encoded = super::capture(640, &display).expect("capture primary display");
         let frame = image::load_from_memory(&encoded).expect("decode captured JPEG");
         assert!(frame.width() > 0 && frame.width() <= 640);
         assert!(frame.height() > 0);
+    }
+
+    #[test]
+    #[ignore = "requires an unlocked interactive Windows desktop"]
+    fn captures_each_connected_display_with_its_own_aspect_ratio() {
+        let monitors = super::super::monitors::list().expect("enumerate displays");
+        for display in monitors {
+            let encoded = super::capture(640, &display).expect("capture selected display");
+            let frame = image::load_from_memory(&encoded).expect("decode selected display");
+            let expected_height = u64::from(display.bounds.height) * u64::from(frame.width())
+                / u64::from(display.bounds.width);
+            assert_eq!(u64::from(frame.height()), expected_height);
+            println!(
+                "{}: {:?} -> {}x{}",
+                display.info.name,
+                display.bounds,
+                frame.width(),
+                frame.height()
+            );
+        }
     }
 }

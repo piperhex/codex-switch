@@ -3,6 +3,9 @@ use serde::Deserialize;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+mod displays;
+#[cfg(windows)]
+mod monitors;
 pub(crate) mod stream;
 mod validation;
 #[cfg(windows)]
@@ -16,6 +19,8 @@ pub(super) enum DesktopError {
     Expired,
     #[error("desktop capture or input failed")]
     Platform,
+    #[error("selected desktop display disconnected")]
+    DisplayGone,
     #[error("desktop platform unsupported")]
     #[cfg(not(windows))]
     Unsupported,
@@ -25,6 +30,8 @@ const LEASE: Duration = Duration::from_secs(15);
 struct Session {
     id: String,
     touched: Instant,
+    #[cfg(windows)]
+    display: monitors::Monitor,
 }
 static SESSION: OnceLock<Mutex<Option<Session>>> = OnceLock::new();
 
@@ -61,11 +68,12 @@ fn safe_error(error: DesktopError) -> String {
         DesktopError::Expired => "桌面连接已结束，请重新连接。",
         DesktopError::Invalid => "远程操作无效，请重试。",
         DesktopError::Platform => "无法访问桌面，请确认电脑已解锁后重试。",
+        DesktopError::DisplayGone => "显示器已断开，请重新连接桌面。",
     }
     .into()
 }
 
-fn with_session<T>(id: &str, operation: impl FnOnce() -> Result<T>) -> Result<T> {
+fn with_session<T>(id: &str, operation: impl FnOnce(&Session) -> Result<T>) -> Result<T> {
     let mut guard = SESSION
         .get_or_init(|| Mutex::new(None))
         .lock()
@@ -78,14 +86,23 @@ fn with_session<T>(id: &str, operation: impl FnOnce() -> Result<T>) -> Result<T>
         return Err(DesktopError::Expired);
     }
     session.touched = Instant::now();
-    operation()
+    operation(session)
 }
 
-fn open() -> Result<String> {
+fn open(display_id: Option<String>) -> Result<displays::Opened> {
     #[cfg(not(windows))]
     return Err(DesktopError::Unsupported);
     #[cfg(windows)]
     {
+        if display_id
+            .as_ref()
+            .is_some_and(|id| id.is_empty() || id.len() > 128)
+        {
+            return Err(DesktopError::Invalid);
+        }
+        let monitors = monitors::list()?;
+        let display = monitors::select(&monitors, display_id.as_deref())?;
+        let display_id = display.info.id.clone();
         let mut guard = SESSION
             .get_or_init(|| Mutex::new(None))
             .lock()
@@ -97,10 +114,15 @@ fn open() -> Result<String> {
         *guard = Some(Session {
             id: id.clone(),
             touched: Instant::now(),
+            display,
         });
         let watched = id.clone();
         std::thread::spawn(move || expire(watched));
-        Ok(id)
+        Ok(displays::Opened {
+            id,
+            display_id,
+            displays: monitors.into_iter().map(|monitor| monitor.info).collect(),
+        })
     }
 }
 
@@ -139,8 +161,10 @@ fn close(id: &str) -> Result<()> {
 }
 
 #[tauri::command]
-pub(crate) async fn remote_desktop_open() -> std::result::Result<String, String> {
-    tauri::async_runtime::spawn_blocking(open)
+pub(crate) async fn remote_desktop_open(
+    display_id: Option<String>,
+) -> std::result::Result<displays::Opened, String> {
+    tauri::async_runtime::spawn_blocking(move || open(display_id))
         .await
         .map_err(|_| safe_error(DesktopError::Platform))?
         .map_err(safe_error)
@@ -153,9 +177,9 @@ pub(crate) async fn remote_desktop_frame(
 ) -> std::result::Result<tauri::ipc::Response, String> {
     tauri::async_runtime::spawn_blocking(move || {
         validation::width(width)?;
-        with_session(&id, || Ok(()))?;
         #[cfg(windows)]
-        return windows::capture(width).map(tauri::ipc::Response::new);
+        return with_session(&id, |session| windows::capture(width, &session.display))
+            .map(tauri::ipc::Response::new);
         #[cfg(not(windows))]
         Err(DesktopError::Unsupported)
     })
@@ -171,9 +195,9 @@ pub(crate) async fn remote_desktop_input(
 ) -> std::result::Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         validation::input(&input)?;
-        with_session(&id, || {
+        with_session(&id, |session| {
             #[cfg(windows)]
-            return windows::input(input);
+            return windows::input(input, &session.display);
             #[cfg(not(windows))]
             Err(DesktopError::Unsupported)
         })

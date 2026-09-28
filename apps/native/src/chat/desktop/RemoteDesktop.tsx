@@ -40,7 +40,7 @@ export function RemoteDesktop({ client, active, close }: {
   const [source, setSource] = useState({ width: 16, height: 9 });
   const [size, setSize] = useState({ width: 400, height: 600 });
   const fitted = desktopViewport(size, source, orientation.landscape);
-  const zoom = useDesktopZoom(fitted, active);
+  const zoom = useDesktopZoom(fitted, active && !!session.stream);
   const viewport = useMouseViewport(session.pointer, zoom.viewport,
     panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined, zoom.modified);
   const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage', zoom: zoom.gestures });
@@ -97,7 +97,8 @@ export function RemoteDesktop({ client, active, close }: {
           {!!(session.status || orientation.error) && <View style={s.message}>
             <Text accessibilityRole="alert" style={s.text}>{session.status || orientation.error}</Text>
             <Pressable onPress={session.retry}><Text style={s.text}>重新连接</Text></Pressable></View>}
-          {display && <DisplaySettings settings={session.settings} update={session.update} saving={session.saving}
+          {display && <DisplaySettings settings={session.settings} displays={session.displays} update={session.update}
+            saving={session.saving || !session.stream}
             stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}
             close={() => setDisplay(false)} />}
           {keyboard && <DesktopKeyboard input={session.input} compact={orientation.landscape}

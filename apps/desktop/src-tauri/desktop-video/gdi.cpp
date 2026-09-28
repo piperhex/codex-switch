@@ -1,7 +1,8 @@
 #include "video.hpp"
 
 namespace desktop {
-GdiCapture::GdiCapture(const Config& config) : width(config.width), height(config.height), window(config.window) {}
+GdiCapture::GdiCapture(const Config& config)
+    : width(config.width), height(config.height), window(config.window), monitor(config.monitor) {}
 
 void GdiCapture::open() {
     screen = GetDC(window);
@@ -29,12 +30,20 @@ GdiCapture::~GdiCapture() {
 }
 
 bool GdiCapture::poll(DamageGate& gate) {
-    RECT source{0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)};
-    if (window && !GetClientRect(window, &source)) throw std::runtime_error("fixture closed");
-    const int source_width = source.right, source_height = source.bottom;
+    MONITORINFO info{};
+    info.cbSize = sizeof(info);
+    RECT source{};
+    if (window) {
+        if (!GetClientRect(window, &source)) throw std::runtime_error("fixture closed");
+    } else {
+        if (!GetMonitorInfoW(monitor, &info)) throw std::runtime_error("display disconnected");
+        source = info.rcMonitor;
+    }
+    const int source_width = source.right - source.left, source_height = source.bottom - source.top;
     if (source_width <= 0 || source_height <= 0) throw std::runtime_error("desktop unavailable");
     SetStretchBltMode(memory, HALFTONE);
-    if (!StretchBlt(memory, 0, 0, width, height, screen, 0, 0, source_width, source_height, SRCCOPY | CAPTUREBLT))
+    if (!StretchBlt(memory, 0, 0, width, height, screen, source.left, source.top,
+        source_width, source_height, SRCCOPY | CAPTUREBLT))
         throw std::runtime_error("desktop copy failed");
     GdiFlush();
     const std::span<const uint8_t> current(pixels, static_cast<size_t>(width) * height * 4);

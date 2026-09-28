@@ -43,7 +43,7 @@ export function RemoteDesktop({ client, active, close }: {
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const fitted = useVideoViewport(stage, video, active);
-  const zoom = useDesktopZoom(fitted, active);
+  const zoom = useDesktopZoom(fitted, active && !!session.stream);
   const viewport = useMouseViewport(session.pointer, zoom.viewport,
     panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined, zoom.modified);
   const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage', zoom: zoom.gestures });
@@ -76,7 +76,8 @@ export function RemoteDesktop({ client, active, close }: {
         visible={panelVisible} zoomed={zoom.modified} wheel={wheel} />}
       {session.status && <div className="rd-status" role="status"><span>{t(session.status)}</span>
         <button onClick={session.retry}>{t('重新连接')}</button></div>}
-      {display && <DisplaySettings settings={session.settings} update={session.update} saving={session.saving}
+      {display && <DisplaySettings settings={session.settings} displays={session.displays} update={session.update}
+        saving={session.saving || !session.stream}
         stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}
         close={() => setDisplay(false)} />}
       {keyboard && <form className="rd-keyboard" onSubmit={event => { event.preventDefault(); send(); }}>

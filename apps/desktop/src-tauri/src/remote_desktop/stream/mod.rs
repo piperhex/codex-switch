@@ -77,7 +77,7 @@ pub(crate) async fn remote_desktop_stream_open(
             .map_err(|_| safe_error(DesktopError::Platform))?;
         let id = request.id.clone();
         let path = tauri::async_runtime::spawn_blocking(move || {
-            super::with_session(&id, || encoder::runtime_path(directory))
+            super::with_session(&id, |_| encoder::runtime_path(directory))
         })
         .await
         .map_err(|_| safe_error(DesktopError::Platform))?

@@ -1,4 +1,7 @@
 export const remoteDesktopMessages: Record<string, string> = {
+  '显示器': 'Monitor', '主屏': 'Primary', '正在切换显示器…': 'Switching display…',
+  '请选择有效的显示器。': 'Choose a valid display.',
+  '显示器已断开，请重新连接桌面。': 'The display was disconnected. Please reconnect.',
   '声音': 'Sound', '开启声音': 'Enable sound', '静音': 'Mute', '声音暂不可用': 'Sound unavailable',
   '远程桌面': 'Remote desktop', '远程桌面操作': 'Remote desktop controls',
   '远程桌面触控区域': 'Remote desktop touchpad', '显示设置': 'Display settings',

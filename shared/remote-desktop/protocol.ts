@@ -4,8 +4,10 @@ export const DESKTOP_OPERATION = 'remoteDesktop';
 export const MAX_FPS = 144;
 export const DEFAULT_SETTINGS: DesktopSettings = { fps: 'auto', quality: 'auto' };
 export type DesktopQuality = 'auto' | 'smooth' | 'clear' | 'original';
-export interface DesktopSettings { fps: 'auto' | number; quality: DesktopQuality }
-export interface DesktopOffer { sdp: string; iceServers: IceServer[] }
+export interface DesktopSettings { fps: 'auto' | number; quality: DesktopQuality; displayId?: string }
+export interface DesktopDisplay { id: string; name: string; width: number; height: number; primary: boolean }
+export interface DesktopDisplays { displays?: DesktopDisplay[]; displayId?: string }
+export interface DesktopOffer extends DesktopDisplays { sdp: string; iceServers: IceServer[] }
 export interface DesktopSignal { answer?: string; candidates: RTCIceCandidateInit[] }
 export interface DesktopStats {
   audio?: 'starting' | 'playing' | 'unavailable';
@@ -45,5 +47,10 @@ export function validateSettings(value: unknown): DesktopSettings {
   if (input.fps !== 'auto' && (!Number.isInteger(input.fps) || Number(input.fps) < 1 || Number(input.fps) > MAX_FPS)) {
     throw new Error(`帧率应为 1–${MAX_FPS} 的整数。`);
   }
-  return { fps: input.fps!, quality: input.quality! };
+  if (input.displayId !== undefined && (typeof input.displayId !== 'string'
+    || !input.displayId.length || input.displayId.length > 128)) {
+    throw new Error('请选择有效的显示器。');
+  }
+  return { fps: input.fps!, quality: input.quality!,
+    ...(input.displayId === undefined ? {} : { displayId: input.displayId }) };
 }

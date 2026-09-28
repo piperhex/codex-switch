@@ -105,7 +105,7 @@ async fn reconfigure(
     profile: super::model::Profile,
 ) -> Result<()> {
     encoder.stop().await;
-    let (next, first) = Encoder::open(path, profile).await?;
+    let (next, first) = Encoder::open(path, profile, &stream.display).await?;
     *encoder = next;
     send_frame(stream, first).await
 }
@@ -205,5 +205,7 @@ pub(super) async fn inputs(stream: Arc<Stream>, mut inputs: mpsc::Receiver<bytes
 fn apply_input(id: &str, data: &[u8]) -> Result<()> {
     let input: DesktopInput = serde_json::from_slice(data).map_err(|_| DesktopError::Invalid)?;
     super::super::validation::input(&input)?;
-    super::super::with_session(id, || super::super::windows::input(input))
+    super::super::with_session(id, |session| {
+        super::super::windows::input(input, &session.display)
+    })
 }

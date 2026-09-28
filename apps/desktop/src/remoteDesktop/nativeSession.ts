@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { IceServer } from '../../../../shared/remote-chat/protocol';
-import type { DesktopSettings, DesktopSignal } from '../../../../shared/remote-desktop/protocol';
+import type { DesktopDisplays, DesktopSettings, DesktopSignal } from '../../../../shared/remote-desktop/protocol';
+import { openDesktopCapture } from './displays';
 
 const STATUS_INTERVAL = 2000;
 
@@ -14,18 +15,21 @@ function profile(settings: DesktopSettings) {
 export class NativeDesktopSession {
   private id?: string;
   private stopped = false;
+  private closing?: Promise<void>;
+  private displays: DesktopDisplays = {};
   private timer?: ReturnType<typeof setTimeout>;
   constructor(private settings: DesktopSettings, private readonly iceServers: IceServer[]) {}
 
   async open() {
     if (!await invoke<boolean>('remote_desktop_stream_available')) throw new Error('当前电脑暂不可用。');
     if (this.stopped) throw new Error('桌面连接已结束。');
-    this.id = await invoke<string>('remote_desktop_open');
+    const { id, ...displays } = await openDesktopCapture(this.settings.displayId);
+    this.id = id; this.displays = displays;
     if (this.stopped) { await this.closeNative(); throw new Error('桌面连接已结束。'); }
     const offer = await this.openStream();
     if (this.stopped) { await this.closeNative(); throw new Error('桌面连接已结束。'); }
     this.schedule();
-    return { ...offer, iceServers: this.iceServers };
+    return { ...offer, ...this.displays, iceServers: this.iceServers };
   }
 
   private async openStream() {
@@ -66,16 +70,16 @@ export class NativeDesktopSession {
 
   get closed() { return this.stopped; }
   close() {
-    if (this.stopped) return;
-    this.stopped = true; clearTimeout(this.timer); void this.closeNative();
+    this.stopped = true; clearTimeout(this.timer); return this.closeNative();
   }
   private async closeNative() {
     const id = this.id;
-    if (!id) return;
+    if (!id) return this.closing;
     this.id = undefined;
-    await invoke('remote_desktop_stream_close', { id }).catch(async () => {
+    this.closing = invoke<void>('remote_desktop_stream_close', { id }).catch(async () => {
       // Old hosts lack the stream command. The native input lease still needs explicit release.
       await invoke('remote_desktop_close', { id }).catch(() => { /* The native lease also expires. */ });
     });
+    return this.closing;
   }
 }

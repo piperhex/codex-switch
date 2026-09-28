@@ -95,6 +95,10 @@ try {
   if (audioError) throw audioError;
   // Idle desktops only send periodic recovery frames; a high frame count requires a moving source.
   if (result.connected !== 'connected' || result.width === 0 || result.frames < 1) throw new Error('Native video failed');
+  if (process.env.CSW_NATIVE_TEST_ASPECT
+    && Math.abs(result.width / result.height - Number(process.env.CSW_NATIVE_TEST_ASPECT)) > 0.01) {
+    throw new Error('Native video did not use the selected display dimensions');
+  }
   if (result.audioPackets < 100 || result.audioSamples < 48_000 || result.audioPeak <= 0.00001) {
     throw new Error('Native system sound did not reach the browser decoder');
   }

@@ -13,7 +13,22 @@ use std::{
 async fn native_capture_reaches_a_real_browser_decoder() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("resources/remote-desktop/runtime/ffmpeg.exe");
-    let id = super::super::open().expect("native input lease");
+    let requested = std::env::var("CSW_NATIVE_TEST_DISPLAY").ok();
+    let opened = super::super::open(requested.clone()).expect("native input lease");
+    if let Some(requested) = requested {
+        assert_eq!(opened.display_id, requested);
+    }
+    let display = opened
+        .displays
+        .iter()
+        .find(|display| display.id == opened.display_id)
+        .unwrap();
+    let aspect = f64::from(display.width) / f64::from(display.height);
+    println!(
+        "native display: {} {}x{}",
+        display.name, display.width, display.height
+    );
+    let id = opened.id;
     let request = OpenRequest {
         id: id.clone(),
         profile: Profile {
@@ -45,6 +60,7 @@ async fn native_capture_reaches_a_real_browser_decoder() {
         .arg(root.join("apps/desktop/e2e/native-desktop-stream.mjs"))
         .env("CSW_NATIVE_TEST_ENDPOINT", endpoint)
         .env("CSW_NATIVE_TEST_TOKEN", token)
+        .env("CSW_NATIVE_TEST_ASPECT", aspect.to_string())
         .output()
         .await;
     let connection = stream.stats.lock().await.connection;

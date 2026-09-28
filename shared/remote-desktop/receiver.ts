@@ -1,4 +1,4 @@
-import type { DesktopClient, DesktopInput, DesktopSettings, DesktopStats } from './protocol';
+import type { DesktopClient, DesktopDisplays, DesktopInput, DesktopSettings, DesktopStats } from './protocol';
 import { sendDesktopInput } from './input';
 import { monitorDesktopStats } from './statsMonitor';
 
@@ -9,6 +9,7 @@ interface ReceiverOptions {
   status: (status: string) => void;
   stats: (stats: DesktopStats) => void;
   audio?: (available: boolean) => void;
+  displays?: (value: DesktopDisplays) => void;
 }
 const SIGNAL_INTERVAL = 400;
 const HEARTBEAT_INTERVAL = 2000;
@@ -21,6 +22,7 @@ export class DesktopReceiver {
   private channel?: RTCDataChannel;
   private candidates: RTCIceCandidateInit[] = [];
   private stopped = false;
+  private closing?: Promise<void>;
   private poll?: ReturnType<typeof setTimeout>;
   private heartbeat?: ReturnType<typeof setInterval>;
   private timeout?: ReturnType<typeof setTimeout>;
@@ -38,6 +40,7 @@ export class DesktopReceiver {
     try {
       const offer = await this.options.client.open(this.id, settings);
       if (this.stopped) { await this.closeRemote(); return; }
+      this.options.displays?.(offer);
       const pc = this.options.createPeer({ iceServers: offer.iceServers });
       this.pc = pc;
       this.bindPeer(pc);
@@ -120,7 +123,7 @@ export class DesktopReceiver {
     } catch { this.fail('桌面连接未能建立，请检查网络后重试。'); }
   }
 
-  input(input: DesktopInput) { sendDesktopInput(this.channel, input); }
+  input(input: DesktopInput) { if (!this.stopped) sendDesktopInput(this.channel, input); }
   mute(muted: boolean) {
     this.muted = muted;
     for (const track of this.audioTracks) track.enabled = !muted;
@@ -137,7 +140,7 @@ export class DesktopReceiver {
     catch { /* The host also expires disconnected sessions and releases held buttons. */ }
   }
   stop() {
-    if (this.stopped) return;
+    if (this.stopped) return this.closing ?? Promise.resolve();
     this.stopped = true;
     clearTimeout(this.poll); clearTimeout(this.timeout); clearInterval(this.heartbeat);
     this.stopStats?.();
@@ -146,6 +149,8 @@ export class DesktopReceiver {
     this.options.audio?.(false);
     this.candidates.length = 0;
     this.channel?.close(); this.pc?.close();
-    void this.closeRemote();
+    this.options.stream(undefined);
+    this.closing = this.closeRemote();
+    return this.closing;
   }
 }

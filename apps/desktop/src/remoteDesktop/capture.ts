@@ -1,13 +1,18 @@
 import { invoke } from '@tauri-apps/api/core';
+import type { DesktopDisplays } from '../../../../shared/remote-desktop/protocol';
+import { openDesktopCapture } from './displays';
 
 /** Binary IPC avoids JSON/base64 copies; capture, resize and JPEG encoding run in Rust workers. */
 export class DesktopCapture {
   readonly canvas = document.createElement('canvas');
   private id?: string;
   private stopped = false;
+  private closing?: Promise<void>;
+  displays: DesktopDisplays = {};
   private stream?: MediaStream;
-  async open(width: number) {
-    this.id = await invoke<string>('remote_desktop_open');
+  async open(width: number, displayId?: string) {
+    const { id, ...displays } = await openDesktopCapture(displayId);
+    this.id = id; this.displays = displays;
     if (this.stopped) { await this.release(); throw new Error('桌面连接已结束。'); }
     await this.frame(width);
     if (this.stopped) throw new Error('桌面连接已结束。');
@@ -35,13 +40,15 @@ export class DesktopCapture {
     if (!this.stopped && this.id) await invoke('remote_desktop_input', { id: this.id, input });
   }
   private async release() {
-    if (!this.id) return;
-    try { await invoke('remote_desktop_close', { id: this.id }); }
-    catch { /* The native lease releases held buttons even if the WebView is torn down. */ }
+    if (!this.id) return this.closing;
+    const id = this.id; this.id = undefined;
+    this.closing = invoke<void>('remote_desktop_close', { id })
+      .catch(() => { /* The native lease also releases held buttons after the WebView exits. */ });
+    return this.closing;
   }
   close() {
     this.stopped = true;
     this.stream?.getTracks().forEach(track => track.stop());
-    void this.release();
+    return this.release();
   }
 }
