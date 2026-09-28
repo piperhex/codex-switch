@@ -94,7 +94,7 @@ test('copies remote text with Ctrl+C and Ctrl+X, and pastes local text through t
   await expect.poll(() => page.evaluate(() => window.desktopTest.clipboard.requests
     .filter(message => message.request.action === 'read').map(message => message.request)))
     .toEqual([{ action: 'read', shortcut: 'copy' }, { action: 'read', shortcut: 'cut' }]);
-  await expect(page.getByText('已复制到本机。')).toBeVisible();
+  await expect(page.getByText('已复制到本机，可直接粘贴。')).toBeVisible();
   await page.locator('.rd-key-capture').evaluate(element => {
     const data = new DataTransfer(); data.setData('text/plain', '本机 → 远程\nclipboard');
     element.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));

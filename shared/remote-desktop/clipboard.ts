@@ -5,6 +5,12 @@ export const MAX_CLIPBOARD_FILES = 32;
 export const MAX_CONTROL_MESSAGE_BYTES = 64 * 1024;
 export type ClipboardContent = { format: 'text'; text: string } | { format: 'image'; data: string }
   | { format: 'files'; files: { name: string; data: string }[] };
+/** Platform clipboard access, invoked only in response to a copy or paste gesture. */
+export interface LocalDesktopClipboard {
+  files: boolean;
+  read: () => Promise<ClipboardContent>;
+  write: (content: ClipboardContent) => Promise<void>;
+}
 export type ClipboardRequest = { action: 'read'; shortcut?: 'copy' | 'cut' }
   | { action: 'begin'; length: number } | { action: 'append'; offset: number; data: string }
   | { action: 'commit'; paste: boolean } | { action: 'chunk'; offset: number } | { action: 'clear' };

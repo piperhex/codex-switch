@@ -16,7 +16,8 @@ interface Props {
 export function DesktopInputSurface({ pointer, viewport, input, trackpad, hardware, active, clipboard, wheel }: Props) {
   const capture = useRef<HTMLTextAreaElement>(null);
   const mouse = useDesktopMouse({ pointer, viewport, input, focus: () => capture.current?.focus({ preventScroll: true }) });
-  const keyboard = useDesktopKeyboard({ active, input, copy: clipboard.copy, paste: clipboard.paste });
+  const keyboard = useDesktopKeyboard({ active, input, copy: clipboard.copy, paste: clipboard.paste,
+    pasteShortcut: clipboard.pasteShortcut });
   const route = (name: keyof typeof trackpad) => (event: PointerEvent<HTMLDivElement>) => {
     if (!active) return;
     if (hardware && event.pointerType === 'mouse') mouse[name](event);

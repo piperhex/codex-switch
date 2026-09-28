@@ -6,6 +6,7 @@ import type { DesktopInput } from '../../../../../shared/remote-desktop/protocol
 interface Options {
   active: boolean; input: (input: DesktopInput) => void;
   copy: (shortcut: 'copy' | 'cut') => void; paste: (data: DataTransfer) => void;
+  pasteShortcut?: () => void;
 }
 export function useDesktopKeyboard(options: Options) {
   const current = useRef(options); current.current = options;
@@ -30,7 +31,12 @@ export function useDesktopKeyboard(options: Options) {
         if (!options.active || event.nativeEvent.isComposing || composing.current || event.key === 'Process') return;
         const command = event.ctrlKey || event.metaKey;
         if ((command && event.code === 'KeyV') || (event.shiftKey && event.code === 'Insert')) {
-          keyboard.release(); return; // The trusted paste event provides files as well as text and images.
+          keyboard.release();
+          if (options.pasteShortcut) {
+            event.preventDefault();
+            if (!event.repeat) options.pasteShortcut();
+          }
+          return; // Browsers use the trusted paste event; desktop viewers read the OS clipboard.
         }
         if (command && !event.shiftKey && !event.altKey && ['KeyC', 'KeyX', 'Insert'].includes(event.code)) {
           event.preventDefault(); keyboard.release();

@@ -1,5 +1,5 @@
 import { decodeClipboardBytes, encodeClipboardBytes, MAX_CLIPBOARD_BYTES, MAX_CLIPBOARD_FILES,
-  type ClipboardContent } from '../../../../../shared/remote-desktop/clipboard';
+  type ClipboardContent, type LocalDesktopClipboard } from '../../../../../shared/remote-desktop/clipboard';
 import { downloadBlob } from '../fileDownloadTarget';
 
 export async function filesContent(files: File[], image = false): Promise<ClipboardContent> {
@@ -55,3 +55,7 @@ export function downloadClipboardFile(file: { name: string; data: string }) {
   const name = file.name.split(/[\\/]/).at(-1)?.replace(/[\u0000-\u001f]/g, '') || 'clipboard-file';
   downloadBlob(new Blob([decodeClipboardBytes(file.data)], { type: 'application/octet-stream' }), name);
 }
+
+export const browserDesktopClipboard: LocalDesktopClipboard = {
+  files: false, read: readBrowserClipboard, write: writeBrowserClipboard,
+};

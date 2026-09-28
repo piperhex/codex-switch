@@ -109,6 +109,13 @@ scrolling. Tap the center or outside the cross to dismiss. The cross stays withi
 interrupted gestures, backgrounding, mode changes and disconnects stop scrolling. Horizontal scrolling
 requires an updated Windows host; older hosts retain vertical scrolling with an update hint.
 
+The desktop viewer uses the system clipboard for text, PNG images and files in both directions.
+Copy locally, then press Ctrl+V (or Shift+Insert) over the remote desktop to transfer and paste.
+Ctrl+C/Ctrl+X in the remote desktop copies the selection into the local system clipboard; files can then
+be pasted directly into Explorer without downloading or opening the Clipboard panel. File entries survive
+closing the viewer. Clipboard I/O runs on blocking workers, and gestures queue in order so an immediate
+paste waits for an earlier copy to finish. Queued work is discarded when the viewer disconnects or closes.
+
 The Web clipboard supports bidirectional text and PNG images, plus copying files into the remote Windows
 clipboard and downloading remote clipboard files. Ctrl+C/Ctrl+X copy the remote selection; Ctrl+V consumes
 the browser's trusted paste event, including available files. The **Clipboard** panel also offers local

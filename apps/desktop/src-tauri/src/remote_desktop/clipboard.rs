@@ -67,13 +67,13 @@ pub(crate) struct ClipboardReply {
 
 #[derive(Deserialize, Serialize)]
 #[serde(tag = "format", rename_all = "camelCase")]
-pub(super) enum Content {
+pub(crate) enum Content {
     Text { text: String },
     Image { data: String },
     Files { files: Vec<ClipboardFile> },
 }
 #[derive(Deserialize, Serialize)]
-pub(super) struct ClipboardFile {
+pub(crate) struct ClipboardFile {
     pub name: String,
     pub data: String,
 }

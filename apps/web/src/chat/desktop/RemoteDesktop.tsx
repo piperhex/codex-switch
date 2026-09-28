@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Clipboard, Grid2X2, Hand, Keyboard, Maximize, Monitor, Mouse, Settings2, Volume2, VolumeX, X } from 'lucide-react';
 import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
+import type { LocalDesktopClipboard } from '../../../../../shared/remote-desktop/clipboard';
 import { useDesktopSession } from '../../../../../shared/remote-desktop/useDesktopSession';
 import { DisplaySettings } from './DisplaySettings';
 import { DesktopStats } from './DesktopStats';
@@ -28,8 +29,8 @@ import './desktop.css';
 
 const createPeer = (configuration: RTCConfiguration) => new RTCPeerConnection(configuration);
 
-export function RemoteDesktop({ client, active, close }: {
-  client: DesktopClient; active: boolean; close: () => void;
+export function RemoteDesktop({ client, active, close, localClipboard }: {
+  client: DesktopClient; active: boolean; close: () => void; localClipboard?: LocalDesktopClipboard;
 }) {
   const visible = usePageVisibility();
   const session = useDesktopSession({ client, active: active && visible, createPeer });
@@ -40,7 +41,8 @@ export function RemoteDesktop({ client, active, close }: {
   const [scrolling, setScrolling] = useState(false);
   const [statsVisible, setStatsVisible] = useState(true);
   const hardware = useHardwarePointer();
-  const clipboard = useDesktopClipboard({ active: active && !!session.stream, clipboard: session.clipboard });
+  const clipboard = useDesktopClipboard({ active: active && !!session.stream,
+    clipboard: session.clipboard, localClipboard });
   const panelVisible = !hardware && !direct && !display && !keyboard && !clipboard.open;
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const video = useRef<HTMLVideoElement>(null);

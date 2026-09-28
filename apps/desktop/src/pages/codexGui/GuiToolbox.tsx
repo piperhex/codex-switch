@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Button, Popover } from 'antd';
 import { GitBranch, Monitor, Wrench } from 'lucide-react';
+import { isTauri } from '@tauri-apps/api/core';
 import type { GitClient } from '../../../../../shared/remote-chat/gitTypes';
 import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
+import { localDesktopClipboard } from '../../remoteDesktop/localClipboard';
 import styles from './GuiToolbox.module.less';
 import '../../../../web/src/chat/terminal.css';
 import '../../../../web/src/chat/git/git.css';
@@ -39,6 +41,7 @@ export function GuiToolbox(props: Props) {
         connected={props.connected} active={props.active} deviceName={props.deviceName}
         onClose={() => setPanel(null)} />}
       {panel === 'desktop' && props.desktop && <RemoteDesktop client={props.desktop}
+        localClipboard={isTauri() ? localDesktopClipboard : undefined}
         active={props.active && props.connected} close={() => setPanel(null)} />}
     </Suspense>
   </>;

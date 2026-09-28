@@ -12,6 +12,10 @@ pub(super) fn read(
     if let Some(shortcut) = shortcut {
         copy_selection(session, shortcut)?;
     }
+    read_local()
+}
+
+pub(super) fn read_local() -> ClipboardResult<Content> {
     let mut clipboard = arboard::Clipboard::new().map_err(|_| ClipboardError::Access)?;
     if let Ok(paths) = clipboard.get().file_list() {
         if !paths.is_empty() {
@@ -81,6 +85,14 @@ pub(super) fn write(
     content: Content,
     paste: bool,
 ) -> ClipboardResult<()> {
+    write_local(content)?;
+    if paste {
+        paste_selection(session)?;
+    }
+    Ok(())
+}
+
+pub(super) fn write_local(content: Content) -> ClipboardResult<()> {
     let mut clipboard = arboard::Clipboard::new().map_err(|_| ClipboardError::Access)?;
     match content {
         Content::Text { text } => {
@@ -101,10 +113,6 @@ pub(super) fn write(
                 .file_list(&paths)
                 .map_err(|_| ClipboardError::Access)?;
         }
-    }
-    drop(clipboard);
-    if paste {
-        paste_selection(session)?;
     }
     Ok(())
 }

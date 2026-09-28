@@ -3,7 +3,7 @@ import { RemoteDesktopHost } from '../../desktop/src/remoteDesktop/host';
 import { createGuiToolsClient } from '../../../shared/remote-chat/guiTools';
 import type { IceServer } from '../../../shared/remote-chat/protocol';
 import { clipboardFixture, desktopClipboard } from './remote-desktop-clipboard-fixture';
-import type { ClipboardMessage } from '../../../shared/remote-desktop/clipboard';
+import type { ClipboardContent, ClipboardMessage } from '../../../shared/remote-desktop/clipboard';
 
 declare global { interface Window { desktopRelayFixture?: { iceServers: IceServer[] } } }
 
@@ -34,6 +34,8 @@ let selected = displays[0];
 const multiDisplay = new URLSearchParams(location.search).has('displays');
 export const desktopTest = { inputs: [] as DesktopInput[], settings: [] as DesktopSettings[],
   clipboard: clipboardFixture,
+  localClipboard: { content: { format: 'text', text: 'Local clipboard' } as ClipboardContent,
+    calls: [] as string[], delay: 0 },
   selectedDisplays: [] as string[], inputDisplays: [] as string[],
   displays,
   peers: [] as RTCPeerConnection[],
@@ -66,10 +68,22 @@ async function frame(width: number) {
 }
 
 // Only native IPC is substituted. Host capture pacing, WebRTC/SRTP, receiver and controls are production code.
+if (new URLSearchParams(location.search).has('native-clipboard')) {
+  Object.defineProperty(window, 'isTauri', { value: true, configurable: true });
+}
 Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {
   invoke: async (command: string, args: {
-    width?: number; input?: DesktopInput; displayId?: string; message?: ClipboardMessage;
-  }) => {
+    width?: number; input?: DesktopInput; displayId?: string; message?: ClipboardMessage; content?: ClipboardContent;
+  } = {}) => {
+    if (command === 'remote_desktop_read_local_clipboard') {
+      desktopTest.localClipboard.calls.push('read');
+      return structuredClone(desktopTest.localClipboard.content);
+    }
+    if (command === 'remote_desktop_write_local_clipboard') {
+      desktopTest.localClipboard.calls.push('write');
+      await new Promise(resolve => setTimeout(resolve, desktopTest.localClipboard.delay));
+      desktopTest.localClipboard.content = structuredClone(args.content!); return;
+    }
     if (command === 'remote_desktop_clipboard') return desktopClipboard(args.message!);
     if (command === 'remote_desktop_open') {
       desktopTest.captures += 1;

@@ -1,4 +1,8 @@
 export const remoteDesktopMessages: Record<string, string> = {
+  '已复制到本机，可直接粘贴。': 'Copied to this device. Ready to paste.',
+  '复制后，在另一台电脑上粘贴即可。支持文本、图片和文件。':
+    'Copy on one computer and paste on the other. Supports text, images and files.',
+  '每次最多 64 MB、32 个文件，文件夹请先压缩。': 'Up to 64 MB and 32 files at a time. Zip folders first.',
   '输入法': 'Input method', '快捷键': 'Shortcuts', '电脑键盘': 'Computer keyboard', '远程输入': 'Remote input',
   '输入方式': 'Input mode', '收起键盘': 'Hide keyboard', '组合键模式': 'Key combinations',
   '字母键盘': 'Letter keys', '符号和功能键': 'Symbols and function keys',

@@ -8,6 +8,7 @@ mod clipboard_files;
 mod clipboard_platform;
 mod displays;
 mod keyboard;
+pub(crate) mod local_clipboard;
 #[cfg(windows)]
 mod monitors;
 pub(crate) mod stream;
