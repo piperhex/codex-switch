@@ -9,6 +9,26 @@ fn thread() -> Value {
     ]})
 }
 
+#[test]
+fn list_previews_and_running_titles_never_expand_hidden_context() {
+    let snapshot = reference(&thread(), 1).unwrap();
+    let context = snapshot["text"].as_str().unwrap();
+    let mut list = json!({"data": [
+        {"id": "one", "preview": format!("参考方案{context}")},
+        {"id": "two", "preview": context},
+        {"id": "three", "preview": "普通消息"},
+        {"id": "four", "preview": ""},
+    ]});
+    assert_eq!(summary("one", &list["data"][0])["name"], "参考方案");
+    assert_eq!(summary("four", &list["data"][3])["name"], "未命名对话");
+    display(&mut list);
+    assert_eq!(list["data"][0]["preview"], "参考方案");
+    assert_eq!(list["data"][1]["preview"], "对话引用");
+    assert_eq!(list["data"][2]["preview"], "普通消息");
+    assert_eq!(list["data"][3]["preview"], "");
+    assert!(!list.to_string().contains(CONTEXT_START));
+}
+
 fn params() -> Value {
     json!({"threadId": "current", "input": [{"type": "text", "text": "参考方案"},
         {"type": "mention", "name": "设计讨论", "path": "codex-thread://source"}]})

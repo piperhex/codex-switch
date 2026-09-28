@@ -64,6 +64,9 @@ fn input(context: Context) -> Result<Value> {
 
 /// Convert persisted context to compact references for history, editing and remote clients.
 pub(super) fn display(value: &mut Value) {
+    if let Some(Value::String(preview)) = value.get_mut("preview") {
+        *preview = visible_preview(preview);
+    }
     if value["type"] == "userMessage" {
         if let Some(parts) = value["content"].as_array_mut() {
             *parts = parts
@@ -88,6 +91,17 @@ pub(super) fn display(value: &mut Value) {
         if let Some(children) = value.get_mut(key).and_then(Value::as_array_mut) {
             children.iter_mut().for_each(display);
         }
+    }
+}
+
+fn visible_preview(preview: &str) -> String {
+    let Some((text, _)) = preview.split_once(CONTEXT_START) else {
+        return preview.to_owned();
+    };
+    if text.trim().is_empty() {
+        "对话引用".to_owned()
+    } else {
+        text.trim_end().to_owned()
     }
 }
 
@@ -122,10 +136,11 @@ pub(super) fn references(params: &Value) -> Result<Vec<String>> {
 }
 
 pub(super) fn summary(id: &str, thread: &Value) -> Value {
+    let preview = visible_preview(thread["preview"].as_str().unwrap_or_default());
     let name = thread["name"]
         .as_str()
         .filter(|name| !name.trim().is_empty())
-        .or_else(|| thread["preview"].as_str())
+        .or_else(|| (!preview.trim().is_empty()).then_some(preview.as_str()))
         .unwrap_or("未命名对话");
     json!({"id": id, "name": clip(name, MAX_TITLE_CHARS), "cwd": thread["cwd"], "status": "running"})
 }

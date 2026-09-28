@@ -66,6 +66,9 @@ try {
   const history = await client.rpc("thread/read", { threadId: thread.id, includeTurns: true });
   const user = history.thread.turns.flatMap((turn) => turn.items).find((item) => item.type === "userMessage");
   assert.deepEqual(user.content.map((part) => part.text), input.map((part) => part.text));
+  // The CLI concatenates text inputs in previews; the host must remove generated context there too.
+  assert.ok(history.thread.preview.startsWith("参考这个对话的方案"));
+  assert.ok(history.thread.preview.includes("<codex_gui_conversation_context>"));
   const modelInput = JSON.stringify(requests[0].input);
   assert.ok(modelInput.includes("使用蓝色按钮"));
   assert.ok(modelInput.includes("running-source"));
