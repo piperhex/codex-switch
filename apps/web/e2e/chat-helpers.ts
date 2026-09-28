@@ -13,7 +13,8 @@ interface FixtureState {
   connectedMobiles: number;
   relayFrames: number;
 }
-export const fixtureUrl = process.env.CHAT_TEST_FIXTURE_URL ?? 'http://127.0.0.1:1490';
+export const fixtureUrl = process.env.CHAT_TEST_FIXTURE_URL
+  ?? `http://127.0.0.1:${process.env.CHAT_TEST_API_PORT ?? '1490'}`;
 export async function state(request: APIRequestContext): Promise<FixtureState> {
   return (await request.get(`${fixtureUrl}/test/state`)).json();
 }
@@ -40,8 +41,9 @@ export async function send(page: Page, text: string) {
   await click(page.getByRole('button', { name: '发送消息', exact: true }));
 }
 export async function settled(page: Page) {
-  await expect(page.getByRole('button', { name: '暂停生成' })).toHaveCount(0);
+  // The draft hides Pause until the send is acknowledged and the input clears.
   await expect(page.getByRole('textbox', { name: '聊天消息' })).toHaveValue('');
+  await expect(page.getByRole('button', { name: '暂停生成' })).toHaveCount(0);
 }
 export async function openChatSettings(page: Page) {
   if ((page.viewportSize()?.width ?? 0) > 860) return;

@@ -17,6 +17,12 @@ const blocked = query.get('blocked') === 'true';
 const keys = keyPair((size) => crypto.getRandomValues(new Uint8Array(size)));
 let socket: WebSocket;
 let link: ChatLink;
+const links = new Map<string, ChatLink>();
+// The real host broadcasts events to every phone; a reconnect must not redirect another phone's stream.
+const broadcastLink: Pick<ChatLink, 'send'> = { send: async (message) => {
+  await Promise.all([...links.values()].filter(activeLink => activeLink.connectionMode !== 'offline')
+    .map(activeLink => activeLink.send(message)));
+} };
 const events: unknown[] = [];
 const modes: string[] = [];
 const errors: string[] = [];
@@ -28,14 +34,16 @@ let legacyHistory = false;
 let heartbeats = 0;
 setInterval(() => { heartbeats += 1; }, 20);
 const requests = new Map<string, RpcMessage>();
-const rpc = new ChatRpc({ prefix: 'browser', send: (request) => link.send(request), event: (event) => events.push(event) });
+const rpc = new ChatRpc({ prefix: `browser:${keys.publicKey}`,
+  send: (request) => link.send(request), event: (event) => events.push(event) });
 function connectSocket() {
   socket = new WebSocket(query.get('socket')!);
   socket.onopen = () => socket.send(JSON.stringify({ type: 'authenticate', role: desktop ? 'desktop' : 'mobile',
   deviceId: query.get('device') || 'computer', publicKey: keys.publicKey }));
   socket.onmessage = receive;
   socket.onclose = () => {
-    link?.close();
+    for (const activeLink of links.values()) activeLink.close();
+    links.clear();
     // The PC stays running when a phone leaves; preserve demo history across coordinator reconnections.
     if (desktop && query.has('demo')) setTimeout(connectSocket, 200);
   };
@@ -46,7 +54,7 @@ async function receive({ data }: MessageEvent<string>) {
   const frame = parseMessage(data);
   if (frame.type === 'registered') { document.querySelector('#status')!.textContent = 'registered'; return; }
   if (frame.type === 'paired' || frame.type === 'peer-open') {
-    link = new ChatLink({ sessionId: String(frame.sessionId), desktop, secret: keys.secret,
+    const sessionLink: ChatLink = new ChatLink({ sessionId: String(frame.sessionId), desktop, secret: keys.secret,
       publicKey: desktop ? String(frame.publicKey) : undefined, iceServers: frame.iceServers as IceServer[],
       createPeer: (options) => blocked ? { offer: async () => undefined, accept: async () => undefined, close() {} }
         : new RtcPeer(options, () => new RTCPeerConnection({ iceServers: options.iceServers })),
@@ -58,7 +66,7 @@ async function receive({ data }: MessageEvent<string>) {
         if (!desktop) { rpc.receive(message); return; }
         if (message.kind !== 'request') return;
         if (desktopFixture && (message.body as { operation?: string })?.operation === 'remoteDesktop') {
-          const target = link;
+          const target = sessionLink;
           let task = desktopRequests.get(message.id);
           if (!task) {
             task = desktopFixture.then(fixture => fixture.desktopRequest(message.body as object))
@@ -77,14 +85,14 @@ async function receive({ data }: MessageEvent<string>) {
               ? { kind: 'response', id: message.id, error: '当前手机端暂不支持此操作。' }
               : { kind: 'response', id: message.id,
                 data: query.has('download') ? fileDownloadResponse(message.body)
-                  : query.has('demo') ? structuredClone(demoResponse(message, link)) : message.body };
+                  : query.has('demo') ? structuredClone(demoResponse(message, broadcastLink)) : message.body };
           } catch {
             // Match the desktop boundary: a failed operation must not tear down the encrypted connection.
             response = { kind: 'response', id: message.id, error: '暂时无法完成此操作，请重试。' };
           }
           if ((message.body as { operation?: string })?.operation !== 'fileRead') requests.set(message.id, response);
         }
-        const target = link;
+        const target = sessionLink;
         const isSettings = (message.body as { operation?: string } | undefined)?.operation === 'composerSet';
         const isHistory = (message.body as { operation?: string } | undefined)?.operation === 'syncHistory';
         const isSkills = (message.body as { operation?: string } | undefined)?.operation === 'skills';
@@ -100,15 +108,20 @@ async function receive({ data }: MessageEvent<string>) {
         else send();
       },
     });
+    link = sessionLink;
+    links.set(String(frame.sessionId), sessionLink);
     if (desktop) socket.send(JSON.stringify({ type: 'signal', sessionId: frame.sessionId,
       payload: { kind: 'key', key: keys.publicKey } }));
     else await link.offer();
     return;
   }
-  if (frame.type === 'signal') await link.acceptSignal(frame.payload as Signal);
-  if (frame.type === 'relay-ready') link.enableRelay();
-  if (frame.type === 'relay') link.receive(String(frame.payload));
-  if (frame.type === 'peer-close') link.close();
+  // Reconnecting clients can overlap with an old socket that is still closing.
+  const target = links.get(String(frame.sessionId));
+  if (!target) return;
+  if (frame.type === 'signal') await target.acceptSignal(frame.payload as Signal);
+  if (frame.type === 'relay-ready') target.enableRelay();
+  if (frame.type === 'relay') target.receive(String(frame.payload));
+  if (frame.type === 'peer-close') { links.delete(String(frame.sessionId)); target.close(); }
 }
 
 declare global {
@@ -124,13 +137,13 @@ declare global {
   }
 }
 window.chatTest = { modes, errors, events, request: (text) => rpc.request('request', { text }),
-  fallback: () => link.fallback(), stream: (text) => link.send({ kind: 'event', event: { text } }),
+  fallback: () => link.fallback(), stream: (text) => broadcastLink.send({ kind: 'event', event: { text } }),
   executions: () => executions, beats: () => heartbeats, demoState,
-  setComposer: (input) => { changeDemoComposer(input, link); },
+  setComposer: (input) => { changeDemoComposer(input, broadcastLink); },
   setSkills: setDemoSkills,
   setTokenSummaryDelay: (milliseconds) => { tokenSummaryDelay = Math.max(0, Math.min(20000, milliseconds)); },
   setSettingsDelay: (milliseconds) => { settingsDelay = Math.max(0, Math.min(5000, milliseconds)); },
   setHistoryDelay: (milliseconds) => { historyDelay = Math.max(0, Math.min(5000, milliseconds)); },
   setLegacyHistory: (enabled) => { legacyHistory = enabled; },
-  setSidebar: (action) => { changeDemoSidebar(action, link); } };
+  setSidebar: (action) => { changeDemoSidebar(action, broadcastLink); } };
 window.downloadFixture = (path) => downloadFixture(rpc, path);

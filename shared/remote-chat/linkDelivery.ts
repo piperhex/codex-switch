@@ -1,5 +1,5 @@
 import { Acknowledgements } from './acknowledgements';
-import { ReliableDelivery } from './delivery';
+import { ReliableDelivery, type DeliveryData } from './delivery';
 import { Assembler } from './framing';
 import { SendQueue } from './sendQueue';
 import type { ConnectionMode, RpcMessage } from './protocol';
@@ -9,7 +9,7 @@ type Lane = 'ordered' | 'responses';
 interface Stream {
   delivery: ReliableDelivery;
   outgoing: SendQueue;
-  acknowledgements: Acknowledgements;
+  acknowledgements: Map<ConnectionMode, Acknowledgements>;
   waiters: Set<() => void>;
 }
 
@@ -21,7 +21,7 @@ export class LinkDelivery {
   private closed = false;
 
   constructor(private readonly options: {
-    send: (frame: object) => boolean;
+    send: (frame: DeliveryData, retry: boolean) => boolean;
     message: (message: RpcMessage) => void;
     mode: () => ConnectionMode;
   }) {
@@ -33,7 +33,7 @@ export class LinkDelivery {
   private create(lane: Lane): Stream {
     const delivery = new ReliableDelivery({
       unordered: lane === 'responses',
-      send: (frame) => this.options.send(this.envelope(lane, frame)),
+      send: (frame, retry) => this.options.send(this.envelope(lane, frame), retry),
       accept: (text, mode) => {
         const message = this.assembler.accept(text, mode);
         if (message && lane === 'responses' && message.kind !== 'response') throw new Error('Invalid response lane');
@@ -45,10 +45,10 @@ export class LinkDelivery {
       prefix: `${lane}:`,
       send: (part, delivered) => delivery.enqueue(part, delivered),
     });
-    return { delivery, outgoing, acknowledgements: new Acknowledgements(), waiters: new Set() };
+    return { delivery, outgoing, acknowledgements: new Map(), waiters: new Set() };
   }
 
-  private envelope(lane: Lane, frame: object) {
+  private envelope<T extends object>(lane: Lane, frame: T) {
     return lane === 'responses' ? { ...frame, lane } : frame;
   }
 
@@ -61,7 +61,13 @@ export class LinkDelivery {
     if (frame.lane !== undefined && frame.lane !== 'responses') throw new Error('Invalid delivery lane');
     const lane = frame.lane === 'responses' ? 'responses' : 'ordered';
     const stream = this.streams[lane];
-    stream.delivery.accept(frame, (ack) => stream.acknowledgements.schedule(ack,
+    let acknowledgements = stream.acknowledgements.get(mode);
+    if (!acknowledgements) {
+      acknowledgements = new Acknowledgements();
+      stream.acknowledgements.set(mode, acknowledgements);
+    }
+    // A duplicate on one path must not replace a pending acknowledgement on the other path.
+    stream.delivery.accept(frame, (ack) => acknowledgements.schedule(ack,
       (latest) => reply(this.envelope(lane, latest))), mode);
     if (!stream.delivery.full) this.release(stream);
   }
@@ -88,6 +94,7 @@ export class LinkDelivery {
     for (const stream of Object.values(this.streams)) {
       stream.outgoing.close();
       stream.delivery.clear();
+      for (const acknowledgements of stream.acknowledgements.values()) acknowledgements.clear();
       stream.acknowledgements.clear();
       this.release(stream);
     }

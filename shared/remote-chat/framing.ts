@@ -24,6 +24,12 @@ export function* chunks(message: RpcMessage, id: string, mode?: ConnectionMode, 
   }
 }
 
+/** Use a conservative size bound so a direct-only message cannot start assembly over the backup relay. */
+export function fitsRelayChunkLimit(text: string) {
+  const { total } = parseMessage(text);
+  return typeof total === 'number' && total * CHUNK_CHARS <= chatMessageCharLimit('relay');
+}
+
 export class Assembler {
   private readonly pending = new Map<string, Assembly>();
 

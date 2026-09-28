@@ -132,7 +132,13 @@ export class ChatController {
 
   private changeMode(mode: ConnectionMode) {
     // A path outage keeps the logical session, pending requests and loaded history intact.
-    if (mode !== 'offline' && this.transportConnected) { this.update({ mode }); return; }
+    if (mode !== 'offline' && this.transportConnected) {
+      this.update({ mode });
+      // A failed initialization cannot schedule a retry while all paths are down.
+      // Resuming transport v2 preserves the session and does not emit ready again.
+      if (!this.state.ready && this.synchronizing !== this.synchronization) this.scheduleSynchronization();
+      return;
+    }
     this.transportConnected = mode === 'direct' || mode === 'relay';
     this.historyReader.reset();
     this.queueConnection.reset();

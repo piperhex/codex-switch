@@ -1,5 +1,6 @@
 import { SessionCipher } from './cipher';
-import { deliveryFrame } from './delivery';
+import { deliveryFrame, type DeliveryData } from './delivery';
+import { fitsRelayChunkLimit } from './framing';
 import { LinkDelivery } from './linkDelivery';
 import type { TransferProgress } from './uploadProgress';
 import { HotPeer } from './hotPeer';
@@ -49,7 +50,7 @@ export class HotLink {
   constructor(private readonly options: LinkOptions) {
     this.diagnostic = connectionDiagnostic(options.sessionId, options.desktop);
     this.delivery = new LinkDelivery({
-      send: (frame) => this.selected ? this.transmit(this.selected, frame) : false,
+      send: (frame, retry) => this.sendData(frame, retry),
       message: options.message, mode: () => this.mode,
     });
     if (options.publicKey) this.setKey(options.publicKey);
@@ -109,6 +110,19 @@ export class HotLink {
       this.directPackets.send(payload, 'kind' in frame && frame.kind === 'data');
       return true;
     } catch { this.lastPong[path] = 0; return false; }
+  }
+
+  private sendData(frame: DeliveryData, retry: boolean): boolean {
+    if (!this.selected) return false;
+    const alternative = this.selected === 'direct' ? 'relay' : 'direct';
+    const sent = this.transmit(this.selected, frame);
+    // A successful heartbeat does not prove data or acknowledgements are getting through.
+    // Keep retrying the selected path and let the other healthy path recover the same sequence.
+    if ((retry || !sent) && this.healthy(alternative)
+      && (alternative !== 'relay' || fitsRelayChunkLimit(frame.text))) {
+      return this.transmit(alternative, frame) || sent;
+    }
+    return sent;
   }
 
   private probe(path: Path) {

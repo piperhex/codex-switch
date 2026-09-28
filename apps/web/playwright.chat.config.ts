@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
+const fixturePort = process.env.CHAT_TEST_API_PORT ?? '1490';
+const fixtureUrl = process.env.CHAT_TEST_FIXTURE_URL ?? `http://127.0.0.1:${fixturePort}`;
+
 export default defineConfig({
   testDir: './e2e', testMatch: ['**/chat.pw.ts', '**/queue.pw.ts', '**/chat-parity.pw.ts',
     '**/chat-swipe.pw.ts', '**/chat-display.pw.ts', '**/thread-pagination.pw.ts', '**/project-collapse.pw.ts',
@@ -18,10 +21,10 @@ export default defineConfig({
     { name: 'desktop', use: { viewport: { width: 1280, height: 900 } } },
   ],
   webServer: [
-    { command: 'node e2e/mobile-fixture.mjs', cwd: '../desktop', url: 'http://127.0.0.1:1490/test/state',
+    { command: 'node e2e/mobile-fixture.mjs', cwd: '../desktop', url: `${fixtureUrl}/test/state`,
       timeout: 120_000, reuseExistingServer: process.env.CHAT_TEST_REUSE_FIXTURE === '1' },
     { command: 'npx vite --host 127.0.0.1 --strictPort', url: 'http://127.0.0.1:1422/web/',
       reuseExistingServer: process.env.CHAT_TEST_REUSE_FIXTURE === '1',
-      env: { VITE_DEV_API_URL: 'http://127.0.0.1:1490' } },
+      env: { VITE_DEV_API_URL: fixtureUrl } },
   ],
 });

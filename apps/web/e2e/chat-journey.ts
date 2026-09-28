@@ -18,7 +18,7 @@ async function initialChat({ page, request, info, transport }: Journey) {
   await screenshot(page, info, '00-new-chat');
   await openChatList(page);
   await expect(page.getByRole('region', { name: '演示项目', exact: true })).toBeVisible();
-  await click(page.getByRole('button', { name: /移动端聊天体验/ }));
+  await click(page.getByRole('button', { name: '移动端聊天体验', exact: true }));
   await expect(page.getByText('帮我整理今天的工作计划。')).toBeVisible();
   await send(page, 'H5 regression message');
   await expect(page.locator('.chat-markdown pre')).toHaveText('const connected = true;');
@@ -85,7 +85,7 @@ async function manageHistory({ page, request }: Journey) {
   await openChatList(page);
   await expect(page.getByRole('region', { name: '演示项目', exact: true })
     .getByRole('button', { name: '手机新聊天', exact: true })).toBeVisible();
-  await click(page.getByRole('button', { name: /移动端聊天体验/ }));
+  await click(page.getByRole('button', { name: '移动端聊天体验', exact: true }));
 }
 
 async function imagePreview({ page, request, info }: Journey) {

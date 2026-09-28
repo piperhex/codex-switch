@@ -5,6 +5,7 @@ const RETRY_MS = 800;
 const DELIVERY_TIMEOUT_MS = 60_000;
 const MAX_FRAME_CHARS = 16_000;
 interface Pending { text: string; created: number; sent: number; delivered?: () => void }
+export interface DeliveryData { kind: 'data'; sequence: number; text: string }
 
 /** A bounded delivery window independent of the path; response fragments may enter assembly out of order. */
 export class ReliableDelivery {
@@ -14,7 +15,7 @@ export class ReliableDelivery {
   private readonly incoming = new Map<number, { text: string; mode?: ConnectionMode }>();
 
   constructor(private readonly options: {
-    send: (frame: object) => boolean;
+    send: (frame: DeliveryData, retry: boolean) => boolean;
     accept: (text: string, mode?: ConnectionMode) => void;
     unordered?: boolean;
   }) {}
@@ -61,7 +62,7 @@ export class ReliableDelivery {
     for (const [sequence, entry] of this.pending) {
       if (now - entry.created > DELIVERY_TIMEOUT_MS) throw new Error('连接暂时中断，请重新连接。');
       if (!force && entry.sent && now - entry.sent < RETRY_MS) continue;
-      if (!this.options.send({ kind: 'data', sequence, text: entry.text })) break;
+      if (!this.options.send({ kind: 'data', sequence, text: entry.text }, entry.sent !== 0)) break;
       entry.sent = now;
     }
   }

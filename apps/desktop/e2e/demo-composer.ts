@@ -13,7 +13,7 @@ let snapshot: ComposerSnapshot = { revision: 1,
 export const composerErrors: string[] = [];
 export const demoComposer = () => snapshot;
 
-export function changeDemoComposer(input: unknown, link: ChatLink) {
+export function changeDemoComposer(input: unknown, link: Pick<ChatLink, 'send'>) {
   const patch = composerPatch(input);
   const selection = { ...snapshot.settings, ...patch };
   snapshot = { ...snapshot, revision: snapshot.revision + 1,

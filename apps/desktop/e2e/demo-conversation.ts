@@ -25,11 +25,13 @@ import { demoVideoResponse, seedDemoVideo } from './demo-videos';
 import { demoChatParityOperation, seedChatParity, seedAsyncQuestion } from './demo-chat-parity';
 import { configureDownloadFixture, demoDownloads, seedDownloads } from './demo-downloads';
 
+type DemoLink = Pick<ChatLink, 'send'>;
+
 const images = new RemoteImages();
 const synchronization: { bytes: number; changedItems: number; text: string }[] = [];
 
 saveProject({ path: 'F:/projects/demo', name: '演示项目' });
-let sidebarLink: ChatLink | undefined;
+let sidebarLink: DemoLink | undefined;
 guiSidebar.subscribe((snapshot) => {
   if (sidebarLink) void sidebarLink.send({ kind: 'event', event: { method: SIDEBAR_EVENT, params: snapshot } })
     .catch((error: unknown) => streamErrors.push(String(error)));
@@ -48,7 +50,7 @@ if (fixtureDevice) {
 }
 const threads = new Map([[welcome.id, welcome]]);
 const archived = new Set<string>();
-const approvals = new Map<string, { event: GuiEvent; thread: Thread; turn: Turn; link: ChatLink }>();
+const approvals = new Map<string, { event: GuiEvent; thread: Thread; turn: Turn; link: DemoLink }>();
 const operations: Record<string, unknown>[] = [];
 const streamErrors: string[] = [];
 let sequence = 0;
@@ -61,7 +63,7 @@ export function demoState() {
     sidebar: guiSidebar.snapshot(), queue: demoQueueSnapshot() };
 }
 
-export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
+export function demoResponse(request: RpcRequest, link: DemoLink): unknown {
   sidebarLink = link;
   if (request.method === 'connect') return [...approvals.values()].map(({ event }) => event);
   const input = (request.body ?? {}) as Record<string, unknown>;
@@ -98,7 +100,7 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
   return threadOperation(thread, input, link);
 }
 
-function threadOperation(thread: Thread, input: Record<string, unknown>, link: ChatLink) {
+function threadOperation(thread: Thread, input: Record<string, unknown>, link: DemoLink) {
   const parity = demoChatParityOperation(thread, input);
   if (parity) return parity.value;
   if (['videoOpen', 'videoRead', 'videoClose'].includes(String(input.operation))) return demoVideoResponse(input);
@@ -140,7 +142,7 @@ function threadOperation(thread: Thread, input: Record<string, unknown>, link: C
   return {};
 }
 
-function notify(link: ChatLink, event: GuiEvent) {
+function notify(link: DemoLink, event: GuiEvent) {
   guiSidebar.receive(event);
   const prepared = images.prepare(historyNotification(event), event.params.threadId ?? event.params.thread?.id ?? '');
   void (sidebarLink ?? link).send({ kind: 'event', event: structuredClone(prepared) }).catch((error: unknown) => {
@@ -148,7 +150,7 @@ function notify(link: ChatLink, event: GuiEvent) {
   });
 }
 
-function startTurn(thread: Thread, text: string, link: ChatLink) {
+function startTurn(thread: Thread, text: string, link: DemoLink) {
   const turn: Turn = { id: uniqueId('turn'), status: 'inProgress', startedAt: Date.now() / 1000, items: [
     { id: uniqueId('user'), type: 'userMessage', content: [{ type: 'text', text }] },
   ] };
@@ -162,12 +164,14 @@ function startTurn(thread: Thread, text: string, link: ChatLink) {
   return turn;
 }
 
-interface Context { thread: Thread; turn: Turn; link: ChatLink }
+interface Context { thread: Thread; turn: Turn; link: DemoLink }
 
 function previewTurn(context: Context, text: string) {
+  const endpoint = new URL(new URLSearchParams(location.search).get('socket') ?? 'ws://127.0.0.1:1490');
+  endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:';
   const local = text.includes('remote image preview') ? '' : '![本地图片](./preview.png)\n\n';
   const remote = text.includes('local image preview') ? ''
-    : '![网络图片](http://127.0.0.1:1490/test/preview.png)\n\n';
+    : `![网络图片](${endpoint.origin}/test/preview.png)\n\n`;
   const item: Item = { id: uniqueId('image'), type: 'agentMessage', text: '图片前的文字。\n\n'
     + local + remote + '图片后的文字。' };
   context.turn.items.push(item);
@@ -183,7 +187,7 @@ function finish(context: Context, status = 'completed') {
   flushDemoQueue(queueHost(context.thread, context.link));
 }
 
-function queueHost(thread: Thread, link: ChatLink) {
+function queueHost(thread: Thread, link: DemoLink) {
   const execute = (input: Record<string, unknown>) => {
     operations.push(input);
     threadOperation(thread, input, link);
@@ -193,7 +197,7 @@ function queueHost(thread: Thread, link: ChatLink) {
     steer: (input: Record<string, unknown>) => execute({ ...input, operation: 'steer' }) };
 }
 
-export function changeDemoSidebar(action: string, link: ChatLink) {
+export function changeDemoSidebar(action: string, link: DemoLink) {
   configureDownloadFixture(action);
   sidebarLink = link;
   if (action === 'context-usage') {
@@ -224,7 +228,7 @@ export function changeDemoSidebar(action: string, link: ChatLink) {
   return guiSidebar.observe([...threads.values()]);
 }
 
-function seedThreadGroups(link: ChatLink) {
+function seedThreadGroups(link: DemoLink) {
   saveProject({ path: 'F:/projects/five', name: '五条项目' });
   for (const group of [
     { cwd: welcome.cwd, title: '项目聊天' }, { cwd: '', title: '最近聊天' },

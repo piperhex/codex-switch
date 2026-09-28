@@ -81,6 +81,33 @@ test('waits for unsuccessful direct discovery before using encrypted admin relay
   expect(await phone.evaluate(() => window.chatTest.modes)).not.toContain('direct');
 });
 
+test('isolates overlapping sessions when an older client falls back and disconnects', async ({ context }) => {
+  const pc = await context.newPage();
+  await pc.goto(`/e2e/chat-harness.html?role=desktop&socket=${encodeURIComponent(endpoint)}`);
+  await expect(pc.locator('#status')).toHaveText('registered');
+  const phones = [await context.newPage(), await context.newPage()];
+  for (const phone of phones) {
+    await phone.goto(`/e2e/chat-harness.html?role=mobile&socket=${encodeURIComponent(endpoint)}`);
+    await expect(phone.locator('#status')).toHaveText('direct', { timeout: 12_000 });
+  }
+  await pc.evaluate(() => window.chatTest.stream('shared update'));
+  for (const phone of phones) {
+    await expect.poll(() => phone.evaluate(() => window.chatTest.events)).toEqual([{ text: 'shared update' }]);
+  }
+  await phones[0].evaluate(() => window.chatTest.fallback());
+  await expect(phones[0].locator('#status')).toHaveText('relay');
+  expect(await phones[0].evaluate(() => window.chatTest.request('older session')))
+    .toEqual({ text: 'older session' });
+  await phones[0].close();
+  expect(await phones[1].evaluate(() => window.chatTest.request('remaining session')))
+    .toEqual({ text: 'remaining session' });
+  await pc.evaluate(() => window.chatTest.stream('still running'));
+  await expect.poll(() => phones[1].evaluate(() => window.chatTest.events))
+    .toEqual([{ text: 'shared update' }, { text: 'still running' }]);
+  expect(await pc.evaluate(() => window.chatTest.errors)).toEqual([]);
+  expect(await phones[1].evaluate(() => window.chatTest.errors)).toEqual([]);
+});
+
 test('downloads binary files above relay limits over real P2P and keeps relay downloads compatible', async ({ context }) => {
   test.setTimeout(120_000);
   const pc = await context.newPage();

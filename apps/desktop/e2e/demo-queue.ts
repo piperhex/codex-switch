@@ -5,7 +5,7 @@ import type { ChatLink } from '../../../shared/remote-chat/link';
 interface Pending { id: string; input: Record<string, unknown> }
 interface QueueHost {
   thread: Thread;
-  link: ChatLink;
+  link: Pick<ChatLink, 'send'>;
   send: (input: Record<string, unknown>) => void;
   steer: (input: Record<string, unknown>) => void;
 }
@@ -18,7 +18,7 @@ export function demoQueueSnapshot(): QueueSnapshot {
       imageCount: Array.isArray(input.images) ? input.images.length : 0, attachmentCount: 0, busy: false }))])) };
 }
 
-function publish(link: ChatLink) {
+function publish(link: Pick<ChatLink, 'send'>) {
   revision++;
   void link.send({ kind: 'event', event: { method: QUEUE_EVENT, params: demoQueueSnapshot() } })
     .catch(() => { /* A disconnected phone fetches the authoritative snapshot on reconnect. */ });
