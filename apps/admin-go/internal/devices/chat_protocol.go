@@ -61,7 +61,23 @@ func chatSignal(value interface{}) (platform.JSON, error) {
 	}
 	if message["kind"] == "key" {
 		key, err := publicKey(message["key"])
-		return platform.JSON{"kind": "key", "key": key}, err
+		if err != nil {
+			return nil, err
+		}
+		frame := platform.JSON{"kind": "key", "key": key}
+		if identity, exists := message["identity"]; exists {
+			proof, ok := identity.(map[string]interface{})
+			if !ok {
+				return nil, errors.New("invalid identity")
+			}
+			hostKey, keyErr := publicKey(proof["key"])
+			signature, ok := proof["signature"].(string)
+			if keyErr != nil || !ok || len(signature) != 128 || !relayPattern.MatchString(signature) {
+				return nil, errors.New("invalid identity")
+			}
+			frame["identity"] = platform.JSON{"key": hostKey, "signature": signature}
+		}
+		return frame, nil
 	}
 	if message["kind"] == "sdp" && (message["type"] == "offer" || message["type"] == "answer") {
 		if sdp, ok := message["sdp"].(string); ok && javascriptLength(sdp) <= 24000 {

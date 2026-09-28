@@ -3,9 +3,11 @@ import { AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import type { AuthSession } from '../types';
 import { prepareChatNotifications } from './chatNotifications';
+import { useChatPush } from './useChatPush';
 import { chatAccountKey, notificationId, parseChatNotification, type ChatNotificationTarget } from './notificationTarget';
 
 export function useChatNotificationNavigation(session: AuthSession | null, openChat: () => void) {
+  useChatPush(session);
   const [target, setTarget] = useState<ChatNotificationTarget | null>(null);
   const [error, setError] = useState('');
   const opened = useRef<string | null>(null);

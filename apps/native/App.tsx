@@ -67,6 +67,7 @@ import { AddAccountSheet } from './src/components/AddAccountSheet';
 import { AppToastHost, Toast } from './src/components/AppToast';
 import { BottomSheet } from './src/components/BottomSheet';
 import { DeviceManagementList } from './src/devices/DeviceManagementList';
+import { useRevokeDesktopService } from './src/devices/useRevokeDesktopService';
 import { RemoteModelSwitchSheet } from './src/components/RemoteModelSwitchSheet';
 import { QuotaConsumptionSheet } from './src/components/QuotaConsumptionSheet';
 import { TotpPage } from './src/totp/TotpPage';
@@ -452,6 +453,7 @@ function OpenAiAuthAccountDrawer({
 }
 
 function DeviceManagementPage({
+  session,
   accounts,
   providers,
   devices,
@@ -467,6 +469,7 @@ function DeviceManagementPage({
   onSwitchProviderGroup,
   onSetOpenAiAuthAccount,
 }: {
+  session: AuthSession;
   accounts: AccountSummary[];
   providers: RemoteProviderSummary[];
   devices: RemoteDevice[];
@@ -482,6 +485,7 @@ function DeviceManagementPage({
   onSwitchProviderGroup: (deviceId: string, group: string) => Promise<boolean>;
   onSetOpenAiAuthAccount: (deviceId: string, accountId: string) => Promise<boolean>;
 }) {
+  const revokeService = useRevokeDesktopService(session);
   const [openAiAuthDeviceId, setOpenAiAuthDeviceId] = useState<string | null>(null);
   const [modelDeviceId, setModelDeviceId] = useState<string | null>(null);
   const sortedDevices = useMemo(() => [...devices].sort((left, right) => {
@@ -520,6 +524,7 @@ function DeviceManagementPage({
       switchingAuthDeviceId={switchingOpenAiAuth?.deviceId ?? null}
       onRefresh={onRefresh}
       onDelete={confirmDelete}
+      onRevokeService={revokeService}
       onSwitchModel={setModelDeviceId}
       onSelectAuthAccount={setOpenAiAuthDeviceId}
     />
@@ -1267,7 +1272,7 @@ function AppContent() {
           account.id === updated.id ? { ...account, ...updated } : account
         )))} />
       : activePage === 'devices'
-        ? <DeviceManagementPage accounts={accounts} providers={providers} devices={devices}
+        ? <DeviceManagementPage session={session} accounts={accounts} providers={providers} devices={devices}
           refreshing={syncingServer} deletingDeviceId={deletingDeviceId}
           switchingAccountId={switchingAccountId} switchingProvider={switchingProvider}
           switchingOpenAiAuth={switchingOpenAiAuth} onRefresh={refreshServerData}

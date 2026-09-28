@@ -16,6 +16,23 @@ beforeEach(() => {
 });
 afterEach(() => { vi.useRealTimers(); });
 
+it('renews only the authenticated expiry and closes when renewal is refused', async () => {
+  const expiresAt = Date.now() + 30_000;
+  const session = new NativeDesktopSession(DEFAULT_SETTINGS, [], expiresAt);
+  await session.open();
+  expect(call).toHaveBeenCalledWith('remote_desktop_open', { displayId: undefined, expiresAt });
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(call).toHaveBeenCalledWith('remote_desktop_renew', { id: 'native-lease', expiresAt });
+  const original = call.getMockImplementation()!;
+  call.mockImplementation(async (command, args) => {
+    if (command === 'remote_desktop_renew') throw new Error('expired');
+    return original(command, args);
+  });
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(session.closed).toBe(true);
+  expect(call).toHaveBeenCalledWith('remote_desktop_stream_close', { id: 'native-lease' });
+});
+
 it('releases a lease returned after cancellation without starting capture', async () => {
   let resolveLease!: (value: string) => void;
   call.mockImplementation(async command => command === 'remote_desktop_stream_available'

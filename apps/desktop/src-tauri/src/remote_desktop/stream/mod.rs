@@ -63,11 +63,30 @@ pub(crate) async fn remote_desktop_stream_available(app: tauri::AppHandle) -> bo
     }
 }
 
+pub(super) async fn revoke() {
+    #[cfg(windows)]
+    {
+        let active = STREAM.lock().await.take();
+        if let Some(stream) = active {
+            stream.close().await;
+        }
+    }
+}
+
 #[tauri::command]
 pub(crate) async fn remote_desktop_stream_open(
     app: tauri::AppHandle,
     request: OpenRequest,
 ) -> std::result::Result<Offer, String> {
+    #[cfg(windows)]
+    if crate::desktop_service::delegation::delegated(&request.id) {
+        return crate::desktop_service::delegation::call(
+            "remote_desktop_stream_open",
+            &request.id,
+            serde_json::json!({"request":&request}),
+        )
+        .await;
+    }
     #[cfg(windows)]
     {
         use tauri::Manager;
@@ -75,25 +94,7 @@ pub(crate) async fn remote_desktop_stream_open(
             .path()
             .resource_dir()
             .map_err(|_| safe_error(DesktopError::Platform))?;
-        let id = request.id.clone();
-        let path = tauri::async_runtime::spawn_blocking(move || {
-            super::with_session(&id, |_| encoder::runtime_path(directory))
-        })
-        .await
-        .map_err(|_| safe_error(DesktopError::Platform))?
-        .map_err(safe_error)?;
-        let mut active = STREAM.lock().await;
-        if active
-            .as_ref()
-            .is_some_and(|stream| !*stream.cancel.borrow())
-        {
-            return Err(safe_error(DesktopError::Invalid));
-        }
-        let (stream, offer) = native::Stream::open(path, request)
-            .await
-            .map_err(safe_error)?;
-        *active = Some(stream);
-        Ok(offer)
+        open_at(directory, request).await
     }
     #[cfg(not(windows))]
     {
@@ -102,10 +103,45 @@ pub(crate) async fn remote_desktop_stream_open(
     }
 }
 
+#[cfg(windows)]
+pub(super) async fn open_at(
+    directory: std::path::PathBuf,
+    request: OpenRequest,
+) -> std::result::Result<Offer, String> {
+    let id = request.id.clone();
+    let path = tauri::async_runtime::spawn_blocking(move || {
+        super::with_session(&id, |_| encoder::runtime_path(directory))
+    })
+    .await
+    .map_err(|_| safe_error(DesktopError::Platform))?
+    .map_err(safe_error)?;
+    let mut active = STREAM.lock().await;
+    if active
+        .as_ref()
+        .is_some_and(|stream| !*stream.cancel.borrow())
+    {
+        return Err(safe_error(DesktopError::Invalid));
+    }
+    let (stream, offer) = native::Stream::open(path, request)
+        .await
+        .map_err(safe_error)?;
+    *active = Some(stream);
+    Ok(offer)
+}
+
 #[tauri::command]
 pub(crate) async fn remote_desktop_stream_signal(
     request: SignalRequest,
 ) -> std::result::Result<SignalReply, String> {
+    #[cfg(windows)]
+    if crate::desktop_service::delegation::delegated(&request.id) {
+        return crate::desktop_service::delegation::call(
+            "remote_desktop_stream_signal",
+            &request.id,
+            serde_json::json!({"request":&request}),
+        )
+        .await;
+    }
     #[cfg(windows)]
     {
         current(&request.id)
@@ -128,6 +164,15 @@ pub(crate) async fn remote_desktop_stream_update(
     profile: Profile,
 ) -> std::result::Result<(), String> {
     #[cfg(windows)]
+    if crate::desktop_service::delegation::delegated(&id) {
+        return crate::desktop_service::delegation::call(
+            "remote_desktop_stream_update",
+            &id,
+            serde_json::json!({"profile":profile}),
+        )
+        .await;
+    }
+    #[cfg(windows)]
     {
         let profile = profile.validate().map_err(safe_error)?;
         let stream = current(&id).await.map_err(safe_error)?;
@@ -148,6 +193,15 @@ pub(crate) async fn remote_desktop_stream_status(
     id: String,
 ) -> std::result::Result<StreamStats, String> {
     #[cfg(windows)]
+    if crate::desktop_service::delegation::delegated(&id) {
+        return crate::desktop_service::delegation::call(
+            "remote_desktop_stream_status",
+            &id,
+            serde_json::json!({}),
+        )
+        .await;
+    }
+    #[cfg(windows)]
     {
         Ok(current(&id)
             .await
@@ -166,6 +220,15 @@ pub(crate) async fn remote_desktop_stream_status(
 
 #[tauri::command]
 pub(crate) async fn remote_desktop_stream_close(id: String) -> std::result::Result<(), String> {
+    #[cfg(windows)]
+    if crate::desktop_service::delegation::delegated(&id) {
+        return crate::desktop_service::delegation::call(
+            "remote_desktop_stream_close",
+            &id,
+            serde_json::json!({}),
+        )
+        .await;
+    }
     #[cfg(windows)]
     {
         let stream = {

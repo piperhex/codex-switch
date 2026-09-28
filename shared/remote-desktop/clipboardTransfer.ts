@@ -3,9 +3,10 @@ import { CLIPBOARD_CHUNK_BYTES, MAX_CLIPBOARD_WIRE_BYTES, decodeClipboardBytes, 
   type ClipboardReply, type ClipboardRequest } from './clipboard';
 
 const REQUEST_TIMEOUT = 15_000;
+const TRANSFER_WINDOW = 4;
 type Result = NonNullable<ClipboardReply['result']>;
 
-/** One bounded transfer per viewer. Chunks share the ordered control channel with keyboard releases. */
+/** Keep a bounded window in flight. Old hosts still process the requests in their original order. */
 export class DesktopClipboard {
   private nextId = 0;
   private busy = false;
@@ -45,6 +46,30 @@ export class DesktopClipboard {
       this.busy = false;
     }
   }
+  private async chunks(length: number, run: (offset: number) => Promise<Result>,
+    accept: (offset: number, result: Result) => void) {
+    const pending: { offset: number; result: Promise<{ data: Result } | { error: unknown }> }[] = [];
+    let next = 0;
+    const fill = () => {
+      while (!this.stopped && pending.length < TRANSFER_WINDOW && next < length) {
+        const offset = next; next += CLIPBOARD_CHUNK_BYTES;
+        pending.push({ offset, result: run(offset).then(data => ({ data }), error => ({ error })) });
+      }
+    };
+    try {
+      fill();
+      while (pending.length) {
+        const item = pending.shift()!;
+        const result = await item.result;
+        if ('error' in result) throw result.error;
+        accept(item.offset, result.data); fill();
+      }
+      if (this.stopped) throw new Error('桌面连接已结束，请重新连接。');
+    } finally {
+      // Never clear or reuse a transfer while its already queued chunks are still being processed.
+      await Promise.all(pending.map(item => item.result));
+    }
+  }
   read(shortcut?: 'copy' | 'cut', progress?: ClipboardProgress) {
     return this.transfer(async id => {
       const { length } = await this.request(id, { action: 'read', shortcut });
@@ -52,14 +77,13 @@ export class DesktopClipboard {
         throw new Error('剪贴板内容过大，请分批复制。');
       }
       const bytes = new Uint8Array(length);
-      for (let offset = 0; offset < length;) {
-        const { data } = await this.request(id, { action: 'chunk', offset });
+      await this.chunks(length, offset => this.request(id, { action: 'chunk', offset }), (offset, { data }) => {
         const chunk = decodeClipboardBytes(data ?? '');
-        if (!chunk.length || chunk.length > CLIPBOARD_CHUNK_BYTES || offset + chunk.length > length) {
+        if (chunk.length !== Math.min(CLIPBOARD_CHUNK_BYTES, length - offset)) {
           throw new Error('剪贴板内容无效，请重新复制。');
         }
-        bytes.set(chunk, offset); offset += chunk.length; progress?.(offset, length);
-      }
+        bytes.set(chunk, offset); progress?.(offset + chunk.length, length);
+      });
       return validateClipboardContent(JSON.parse(new TextDecoder().decode(bytes)) as unknown);
     });
   }
@@ -68,16 +92,18 @@ export class DesktopClipboard {
       const bytes = new TextEncoder().encode(JSON.stringify(content));
       if (bytes.length > MAX_CLIPBOARD_WIRE_BYTES) throw new Error('剪贴板内容过大，请分批复制。');
       await this.request(id, { action: 'begin', length: bytes.length });
-      for (let offset = 0; offset < bytes.length; offset += CLIPBOARD_CHUNK_BYTES) {
+      await this.chunks(bytes.length, offset => {
         const chunk = bytes.subarray(offset, offset + CLIPBOARD_CHUNK_BYTES);
-        await this.request(id, { action: 'append', offset, data: encodeClipboardBytes(chunk) });
-        progress?.(offset + chunk.length, bytes.length);
-      }
+        return this.request(id, { action: 'append', offset, data: encodeClipboardBytes(chunk) });
+      }, offset => progress?.(Math.min(offset + CLIPBOARD_CHUNK_BYTES, bytes.length), bytes.length));
       await this.request(id, { action: 'commit', paste });
     });
   }
   stop() {
     this.stopped = true;
+    this.cancel();
+  }
+  cancel() {
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer); pending.reject(new Error('桌面连接已结束，请重新连接。'));
     }

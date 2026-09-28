@@ -13,7 +13,7 @@
     "test:chat:android:search": "node e2e/android-search-regression.mjs",
     "test:chat:android:skills": "node e2e/android-skills-regression.mjs",
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && tsc --noEmit -p service/tsconfig.json && vite build",
     "check": "npm run build",
     "test": "vitest run --exclude src/pages/codexConfig/schema.test.mjs && node --test src/pages/codexConfig/schema.test.mjs",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo test --manifest-path src-tauri/Cargo.toml && node ../../scripts/check-installer-helper.mjs && node ../../scripts/check-installer-fixture.mjs",

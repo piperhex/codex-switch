@@ -43,6 +43,7 @@ function QueueItem({ item, context, canMoveUp, canMoveDown }: QueueItemProps) {
           disabled={item.busy || editDisabled} />
       </Dropdown>
     </div>
+    {item.error && <div role="status" style={{ maxWidth: 400, whiteSpace: 'normal' }}>{item.error}</div>}
   </li>;
 }
 
@@ -52,7 +53,7 @@ export function QueuedMessages({ messages, ...context }: QueueProps) {
     <div className={styles.heading}>待发送 · {messages.length}
       {!context.running && <Button type="text" size="small"
         disabled={!context.connected || messages.some((item) => item.busy)}
-        onClick={() => void context.queue.flush(context.threadId)}>发送全部</Button>}</div>
+        onClick={() => void context.queue.flush(context.threadId, true)}>发送全部</Button>}</div>
     <ul aria-label="待发送消息">{messages.map((item, index) =>
       <QueueItem key={item.id} item={item} context={context}
         canMoveUp={!item.busy && index > 0 && !messages[index - 1].busy}

@@ -5,6 +5,7 @@ import type { GuiState, MessageInput, QueuedMessage, Settings, Thread, Turn } fr
 
 const MAX_QUEUED_MESSAGES = 100;
 interface QueueHost {
+  saved: () => Promise<void>;
   active: () => boolean;
   getSnapshot: () => GuiState;
   patch: (patch: Partial<GuiState>) => void;
@@ -34,6 +35,10 @@ export class MessageQueue {
     this.update(threadId, this.list(threadId).filter((item) => item.id !== id || item.busy));
     void this.flush(threadId);
   };
+  hold = (threadId: string) => {
+    this.update(threadId, this.list(threadId).map(item => item.busy ? item : { ...item,
+      needsReview: true, error: '保存结果尚未确认，请先检查待发送消息。' }));
+  };
   move = (threadId: string, id: string, direction: "up" | "down") => {
     const messages = this.list(threadId);
     const index = messages.findIndex((item) => item.id === id);
@@ -61,10 +66,11 @@ export class MessageQueue {
     this.update(threadId, this.list(threadId).map((item) => ids.has(item.id)
       ? { ...item, busy, ...(busy ? { error: undefined } : {}) } : item));
   };
-  private fail = (threadId: string, ids: Set<string>, error: unknown) => {
+  private fail = (threadId: string, ids: Set<string>, error: unknown, dispatched = true) => {
     this.host.report(error);
     this.update(threadId, this.list(threadId).map((item) => ids.has(item.id)
-      ? { ...item, error: "发送失败，请重试。" } : item));
+      ? { ...item, needsReview: dispatched,
+        error: dispatched ? "发送结果尚未确认，请查看聊天后重试。" : "发送失败，请重试。" } : item));
   };
   private completeSend = (threadId: string, turnId: string, messages: QueuedMessage[], userMessageIndex: number) => {
     const state = this.host.getSnapshot();
@@ -87,20 +93,24 @@ export class MessageQueue {
     this.host.patch({ conversations: { ...state.conversations, [threadId]: current } });
     return !current.activeTurn;
   };
-  flush = async (threadId: string): Promise<void> => {
+  flush = async (threadId: string, retry = false): Promise<void> => {
     const state = this.host.getSnapshot();
     const messages = this.list(threadId);
     if (!this.host.active() || state.workspaceBusy || state.connection !== "ready" || state.sending
       || state.compacting === threadId
       || this.pending.has(threadId)
-      || state.conversations[threadId]?.activeTurn || !messages.length) return;
+      || state.conversations[threadId]?.activeTurn || !messages.length
+      || (!retry && messages.some(item => item.needsReview))) return;
     this.pending.add(threadId);
     const ids = new Set(messages.map((item) => item.id));
     this.markBusy(threadId, ids, true);
     let sent = false;
+    let dispatched = false;
     try {
+      await this.host.saved();
       if (!await this.resume(threadId, messages[0])) return;
       const thread = this.host.getSnapshot().conversations[threadId]?.thread;
+      dispatched = true;
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "sendBatch", threadId,
         messages: messages.map(({ text, images, skills, attachments, transferMode }) => ({ text, images, skills,
           ...(transferMode ? { transferMode } : {}),
@@ -110,7 +120,7 @@ export class MessageQueue {
       this.completeSend(threadId, turn.id, messages, 0);
       if (thread) void this.host.generateTitle?.(thread, messages.map((message) => message.text).join('\n'));
       sent = true;
-    } catch (error) { this.fail(threadId, ids, error); }
+    } catch (error) { this.fail(threadId, ids, error, dispatched); }
     finally { this.pending.delete(threadId); this.markBusy(threadId, ids, false); }
     if (sent) void this.flush(threadId);
   };
@@ -126,6 +136,7 @@ export class MessageQueue {
       ?.items.filter((entry) => entry.type === "userMessage").length ?? 0;
     this.markBusy(threadId, ids, true);
     try {
+      await this.host.saved();
       await guiApi.request({ operation: "steer", threadId, turnId,
         ...(item.transferMode ? { transferMode: item.transferMode } : {}),
         text: item.text, images: item.images, skills: item.skills,

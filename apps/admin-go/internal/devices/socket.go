@@ -26,6 +26,7 @@ type outputFrame struct {
 	guard func(int, func() error) error
 }
 type peer struct {
+	serviceHost atomic.Bool
 	binaryRelay atomic.Bool
 	diagnostics *chatDiagnostics
 	conn        *websocket.Conn

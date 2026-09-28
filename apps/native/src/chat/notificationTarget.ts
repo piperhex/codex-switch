@@ -35,3 +35,14 @@ export function completedChatTarget(event: GuiEvent, context: { account: string;
   return parseChatNotification({ kind: 'chat-completed', ...context,
     threadId: event.params.threadId, turnId: event.params.turn?.id });
 }
+
+export function attentionChatTarget(event: GuiEvent, context: { account: string; deviceId: string }) {
+  let eventId: string | undefined;
+  if (event.method.endsWith('/requestApproval') || event.method === 'item/tool/requestUserInput') {
+    if (event.id !== undefined && event.id !== null) eventId = `request-${event.id}`;
+  } else if (event.method === 'item/completed' && event.params.item?.delivery === 'async'
+    && event.params.item.questions?.length) eventId = `question-${event.params.item.id}`;
+  if (!eventId) return null;
+  return parseChatNotification({ kind: 'chat-completed', ...context,
+    threadId: event.params.threadId, turnId: eventId });
+}

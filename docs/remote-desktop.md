@@ -1,5 +1,8 @@
 # Remote desktop
 
+See [reliability, host permissions and notification setup](remote-reliability.md) for the latest recovery,
+live encoder control, clipboard channel negotiation and host identity behavior.
+
 The phone and Web chat toolbox opens the selected computer's remote desktop. Windows hosts support choosing
 any connected display under **Display → Monitor**, with its Windows display number, resolution and primary marker.
 Switching releases held mouse buttons and reconnects video and sound to the chosen screen, retaining quality,

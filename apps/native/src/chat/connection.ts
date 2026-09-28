@@ -1,4 +1,6 @@
 import { getRandomBytes } from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
+import { trustedHost, trustScope } from '../../../../shared/remote-chat/trustedHost';
 import { Platform } from 'react-native';
 import { RTCPeerConnection as NativePeerConnection } from 'react-native-webrtc';
 import { fetchUserProfile } from '../api/client';
@@ -17,6 +19,8 @@ const rtc: PeerFactory = peer => new RtcPeer(peer, () => (
 export class MobileChatConnection extends ChatConnection {
   constructor({ session, ...options }: Options) {
     super({ ...options, randomBytes: getRandomBytes,
+      verifyHostKey: trustedHost({ read: SecureStore.getItemAsync, save: SecureStore.setItemAsync },
+        trustScope(session.baseUrl, options.deviceId)),
       tcpPunch: Platform.OS === 'android' || Platform.OS === 'ios',
       createPacketCipher: createNativePacketCipher,
       clientInfo: { name: Platform.OS === 'android' ? Platform.constants.Model : 'iPhone / iPad',

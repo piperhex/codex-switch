@@ -47,6 +47,7 @@ beforeEach(async () => {
   Socket.instances[0].onopen?.();
   Socket.instances[0].receive({ type: 'paired', sessionId: 'session', resumeToken: 'ab'.repeat(32),
     transportVersion: 2, iceServers: [], expiresAt: Date.now() + 120_000 });
+  await vi.advanceTimersByTimeAsync(0);
   state.options!.mode('direct');
 });
 afterEach(() => { connection.stop(); vi.useRealTimers(); vi.unstubAllGlobals(); });
@@ -90,6 +91,7 @@ it('keeps background device lifecycle changes from changing the visible device t
     await vi.advanceTimersByTimeAsync(0);
     Socket.instances[1].receive({ type: 'paired', sessionId: 'background-session', transportVersion: 2,
       iceServers: [], expiresAt: Date.now() + 120_000 });
+    await vi.advanceTimersByTimeAsync(0);
     state.options!.mode('relay');
     expect(getChatPolicy().fileUploadMaxMb).toBe(Number.MAX_SAFE_INTEGER);
   } finally { background.stop(); }

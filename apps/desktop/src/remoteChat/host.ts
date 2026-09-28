@@ -141,7 +141,7 @@ export class ChatHost {
     if (message.type === 'resumed') {
       this.lease(sessionId, message.expiresAt);
       if (Array.isArray(message.desktopIceServers)) {
-        this.operations.desktop.register(sessionId, message.desktopIceServers as IceServer[]);
+        this.operations.desktop.register(sessionId, message.desktopIceServers as IceServer[], Number(message.expiresAt));
       }
       link.setRelayAvailable(true);
     }
@@ -155,7 +155,8 @@ export class ChatHost {
   private open(sessionId: string, message: Record<string, unknown>) {
     // The authenticated coordinator applies the configured limit before sending peer-open.
     if (this.links.has(sessionId)) return;
-    this.operations.desktop.register(sessionId, (message.desktopIceServers ?? message.iceServers) as IceServer[]);
+    this.operations.desktop.register(sessionId, (message.desktopIceServers ?? message.iceServers) as IceServer[],
+      typeof message.expiresAt === 'number' ? message.expiresAt : undefined);
     if (message.transportVersion === 2 && typeof message.resumeToken === 'string') {
       this.lease(sessionId, message.expiresAt);
     }

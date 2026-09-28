@@ -30,6 +30,7 @@ export function RemoteDesktop({ client, active, close }: {
   client: DesktopClient; active: boolean; close: () => void;
 }) {
   const session = useDesktopSession({ client, active, createPeer });
+  const viewOnly = session.capabilities.control === false;
   const audioUnavailable = !session.hasAudio || session.stats?.audio === 'unavailable';
   const orientation = useTerminalOrientation(active, { initialLandscape: true });
   const window = useDesktopWindow(orientation.landscape);
@@ -38,7 +39,7 @@ export function RemoteDesktop({ client, active, close }: {
   const [direct, setDirect] = useState(false);
   const [scrolling, setScrolling] = useState(false);
   const [statsVisible, setStatsVisible] = useState(true);
-  const panelVisible = !direct && !display && !keyboard;
+  const panelVisible = !viewOnly && !direct && !display && !keyboard;
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const [source, setSource] = useState({ width: 16, height: 9 });
   const [size, setSize] = useState({ width: 400, height: 600 });
@@ -61,14 +62,15 @@ export function RemoteDesktop({ client, active, close }: {
   const tools: { label: string; action?: string; icon: keyof typeof Ionicons.glyphMap | 'mouse';
     run: () => void; selected?: boolean; disabled?: boolean }[] = [
     { label: direct ? '触屏' : '鼠标', action: direct ? '切换为鼠标模式' : '切换为触屏模式',
-      icon: direct ? 'hand-left-outline' : 'mouse', run: () => switchMode(!direct), selected: true },
-    { label: '键盘', icon: 'keypad-outline', run: () => { setKeyboard(!keyboard); setDisplay(false); }, selected: keyboard },
+      icon: direct ? 'hand-left-outline' : 'mouse', run: () => switchMode(!direct), selected: true, disabled: viewOnly },
+    { label: '键盘', icon: 'keypad-outline', run: () => { setKeyboard(!keyboard); setDisplay(false); },
+      selected: keyboard, disabled: viewOnly },
     { label: session.muted ? '开启声音' : '声音',
       action: audioUnavailable ? '声音暂不可用' : session.muted ? '开启声音' : '静音',
       icon: session.muted || audioUnavailable ? 'volume-mute-outline' : 'volume-high-outline',
       run: () => session.mute(!session.muted), selected: !session.muted && !audioUnavailable, disabled: audioUnavailable },
-    { label: '显示桌面', icon: 'desktop-outline', run: () => session.input({ kind: 'key', key: 'desktop' }) },
-    { label: '所有窗口', icon: 'grid-outline', run: () => session.input({ kind: 'key', key: 'windows' }) },
+    { label: '显示桌面', icon: 'desktop-outline', run: () => session.input({ kind: 'key', key: 'desktop' }), disabled: viewOnly },
+    { label: '所有窗口', icon: 'grid-outline', run: () => session.input({ kind: 'key', key: 'windows' }), disabled: viewOnly },
     { label: '显示', icon: 'options-outline', run: () => { setDisplay(!display); setKeyboard(false); }, selected: display },
     { label: '旋转', icon: 'phone-landscape-outline', run: orientation.rotate },
     { label: '关闭', icon: 'close', run: close },
@@ -111,6 +113,8 @@ export function RemoteDesktop({ client, active, close }: {
             {!!(session.status || orientation.error) && <View style={s.message}>
               <Text accessibilityRole="alert" style={s.text}>{session.status || orientation.error}</Text>
               <Pressable onPress={session.retry}><Text style={s.text}>重新连接</Text></Pressable></View>}
+            {viewOnly && !session.status && <View pointerEvents="none" style={s.message}>
+              <Text style={s.text}>仅观看</Text></View>}
             {display && <DisplaySettings settings={session.settings} displays={session.displays} update={session.update}
               saving={session.saving || !session.stream}
               stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}

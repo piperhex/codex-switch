@@ -18,6 +18,10 @@ export class DesktopHostSession {
     if (this.channel.readyState === 'open') this.channel.send(JSON.stringify(message));
   });
   private readonly channel: RTCDataChannel;
+  private readonly clipboardChannel: RTCDataChannel;
+  private readonly clipboardControls = new DesktopControls(this.capture, () => this.clipboardChannel.close(), message => {
+    if (this.clipboardChannel.readyState === 'open') this.clipboardChannel.send(JSON.stringify(message));
+  });
   private sender?: RTCRtpSender;
   private candidates: RTCIceCandidateInit[] = [];
   private receivedCandidates = 0;
@@ -28,15 +32,24 @@ export class DesktopHostSession {
   private frames = 0;
   private settings: DesktopSettings;
 
-  constructor(settings: DesktopSettings, private readonly iceServers: IceServer[]) {
+  constructor(settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number) {
     this.settings = settings;
     this.pc = new RTCPeerConnection({ iceServers });
     this.channel = this.pc.createDataChannel('remote-desktop-controls', { ordered: true });
+    this.clipboardChannel = settings.clipboardChannel
+      ? this.pc.createDataChannel('remote-desktop-clipboard', { ordered: true }) : this.channel;
     this.expires = setTimeout(() => this.close(), SETUP_TIMEOUT);
     this.bind();
   }
 
   private bind() {
+    if (this.clipboardChannel !== this.channel) this.clipboardChannel.addEventListener('message', ({ data }) => {
+      if (this.stopped || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
+      try {
+        if ((JSON.parse(data) as { kind?: string }).kind !== 'clipboard') return;
+        this.clipboardControls.receive(data);
+      } catch { this.clipboardChannel.close(); }
+    });
     this.pc.addEventListener('icecandidate', ({ candidate }) => {
       if (candidate && this.candidates.length < MAX_CANDIDATES) this.candidates.push(candidate.toJSON());
     });
@@ -56,7 +69,7 @@ export class DesktopHostSession {
   }
 
   async open() {
-    const stream = await this.capture.open(this.adaptation.profile(this.settings).width, this.settings.displayId);
+    const stream = await this.capture.open(this.adaptation.profile(this.settings).width, this.settings.displayId, this.expiresAt);
     if (this.stopped) throw new Error('桌面连接已结束。');
     this.sender = this.pc.addTrack(stream.getVideoTracks()[0], stream);
     // Android's bundled decoder factory offers native H.264 hardware decoding with native software fallback.
@@ -95,6 +108,7 @@ export class DesktopHostSession {
   }
 
   update(settings: DesktopSettings) { this.settings = settings; }
+  async renew(expiresAt: number) { this.expiresAt = expiresAt; await this.capture.renew(expiresAt); }
 
   private async tick() {
     if (this.stopped) return;
@@ -157,6 +171,7 @@ export class DesktopHostSession {
   close() {
     if (this.stopped) return this.capture.close();
     this.stopped = true; clearTimeout(this.timer); clearTimeout(this.expires);
+    this.clipboardControls.close(); this.clipboardChannel.close();
     this.controls.close(); this.channel.close(); this.pc.close(); return this.capture.close();
   }
 }

@@ -1,4 +1,8 @@
+#[path = "build_support/service_manifest.rs"]
+mod service_manifest;
+
 fn main() {
+    service_manifest::generate();
     tauri_build::build();
 
     #[cfg(windows)]

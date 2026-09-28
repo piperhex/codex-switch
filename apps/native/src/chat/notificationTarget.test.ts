@@ -1,8 +1,20 @@
 import { expect, it } from 'vitest';
-import { chatAccountKey, completedChatTarget, notificationId, parseChatNotification } from './notificationTarget';
+import { attentionChatTarget, chatAccountKey, completedChatTarget, notificationId, parseChatNotification }
+  from './notificationTarget';
 
 const account = chatAccountKey({ baseUrl: 'https://example.test', email: 'user@example.test' });
 const target = { kind: 'chat-completed' as const, account, deviceId: 'pc', threadId: 'chat', turnId: 'turn' };
+
+it('routes approval and question alerts to the correct chat without including their content', () => {
+  for (const method of ['item/commandExecution/requestApproval', 'item/tool/requestUserInput']) {
+    const notice = attentionChatTarget({ method, id: 42, params: { threadId: 'chat', command: 'private-command' } },
+      { account, deviceId: 'pc' });
+    expect(notice).toEqual({ ...target, turnId: 'request-42' });
+    expect(JSON.stringify(notice)).not.toContain('private-command');
+  }
+  expect(attentionChatTarget({ method: 'item/agentMessage/delta', params: { threadId: 'chat', delta: 'text' } },
+    { account, deviceId: 'pc' })).toBeNull();
+});
 
 it('scopes notifications to the server and signed-in account without storing credentials', () => {
   expect(account).toBe(chatAccountKey({ baseUrl: 'https://EXAMPLE.test/', email: 'USER@example.test' }));

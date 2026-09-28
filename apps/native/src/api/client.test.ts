@@ -12,6 +12,7 @@ import {
   completeEmbeddedAccountOAuth,
   consumeResetCredit,
   deleteRemoteDevice,
+  revokeDesktopService,
   fetchAccountSummary,
   fetchAccountUsage,
   fetchAccountUsageSummaries,
@@ -229,6 +230,16 @@ describe('mobile Codex API client', () => {
     expect(apiFetch.mock.calls[0]?.[0]).toBe(
       'https://switch.example.com/devices/device%2F1',
     );
+    expect(apiFetch.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ method: 'DELETE' }));
+    const headers = new Headers((apiFetch.mock.calls[0]?.[1] as RequestInit).headers);
+    expect(headers.get('Authorization')).toBe('Bearer switch-access');
+  });
+
+  it('revokes only the selected desktop service grant using account authentication', async () => {
+    const apiFetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', apiFetch);
+    await expect(revokeDesktopService(session, 'device/1')).resolves.toBeUndefined();
+    expect(apiFetch.mock.calls[0]?.[0]).toBe('https://switch.example.com/devices/device%2F1/service-credential');
     expect(apiFetch.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ method: 'DELETE' }));
     const headers = new Headers((apiFetch.mock.calls[0]?.[1] as RequestInit).headers);
     expect(headers.get('Authorization')).toBe('Bearer switch-access');

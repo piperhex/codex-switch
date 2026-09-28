@@ -5,6 +5,8 @@ mod bridge;
 mod client;
 mod client_runtime;
 mod config;
+pub(crate) mod host_health;
+pub(crate) mod identity;
 mod protocol;
 mod runtime;
 mod sessions;
@@ -91,12 +93,31 @@ pub(crate) async fn remote_chat_attach(
 pub(crate) async fn remote_chat_send(
     app: AppHandle,
     window: WebviewWindow,
-    request: SendRequest,
+    mut request: SendRequest,
 ) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("请在主窗口连接手机聊天。".into());
+    }
     request
         .message
         .validate()
         .map_err(|_| "聊天消息无法发送，请重新连接后重试。")?;
+    if let Outgoing::Signal {
+        session_id,
+        payload,
+    } = &mut request.message
+    {
+        if payload["kind"] == "key" {
+            let id = session_id.clone();
+            let mut signed = payload.clone();
+            *payload = tauri::async_runtime::spawn_blocking(move || {
+                identity::sign(&id, &mut signed)?;
+                Ok::<_, String>(signed)
+            })
+            .await
+            .map_err(|_| "电脑身份未能读取，请重试。".to_string())??;
+        }
+    }
     submit(app, window, Command::Send(request)).await
 }
 

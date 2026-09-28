@@ -43,6 +43,11 @@ func (s *chatSessions) join(client *peer, identity chatIdentity, message platfor
 	key := identity.owner + ":" + identity.device
 	version := desktopTransportVersion(message["transportVersion"])
 	if identity.role == "desktop" {
+		if previous := s.desktops[key]; client.serviceHost.Load() && previous != nil &&
+			!previous.closed.Load() && !previous.serviceHost.Load() {
+			client.close(4008, "Interactive host is active")
+			return nil
+		}
 		var descriptors interface{}
 		if message["transportVersion"] == float64(2) {
 			var present bool
@@ -102,7 +107,12 @@ func (s *chatSessions) joinMobile(
 	}
 	id := uuid.NewString()
 	s.sessions[id] = &chatSession{id: id, owner: identity.owner, desktop: desktop, mobile: client, started: time.Now()}
-	frame := platform.JSON{"type": "peer-open", "sessionId": id, "publicKey": key, "iceServers": ice}
+	expires := identity.expires
+	if info.expires.Before(expires) {
+		expires = info.expires
+	}
+	frame := platform.JSON{"type": "peer-open", "sessionId": id, "publicKey": key, "iceServers": ice,
+		"expiresAt": expires.UnixMilli()}
 	if s.desktopICE != nil {
 		frame["desktopIceServers"] = s.desktopICE(identity.owner, identity.expires)
 	}

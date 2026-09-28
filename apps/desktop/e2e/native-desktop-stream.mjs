@@ -4,9 +4,13 @@ import { fileURLToPath } from 'node:url';
 
 const { CSW_NATIVE_TEST_ENDPOINT: endpoint, CSW_NATIVE_TEST_TOKEN: token } = process.env;
 if (!endpoint?.startsWith('http://127.0.0.1:') || !token) throw new Error('Local native test harness required');
+const durationSeconds = Number(process.env.CSW_NATIVE_TEST_SECONDS || 5);
+if (!Number.isInteger(durationSeconds) || durationSeconds < 5 || durationSeconds > 3600) {
+  throw new Error('CSW_NATIVE_TEST_SECONDS must be an integer from 5 to 3600');
+}
 const animation = process.env.CSW_NATIVE_TEST_MOVING ? spawn(fileURLToPath(new URL(
   '../../../.codex-tmp/remote-desktop-runtime/native-build/Release/desktop-video-fixture.exe', import.meta.url)),
-['--animate'], { windowsHide: true, stdio: 'ignore', env: { ...process.env,
+['--animate', String(durationSeconds + 30)], { windowsHide: true, stdio: 'ignore', env: { ...process.env,
   PATH: `${fileURLToPath(new URL('../src-tauri/resources/remote-desktop/runtime', import.meta.url))};${process.env.PATH}`,
 } }) : undefined;
 let animationError;
@@ -32,7 +36,7 @@ try {
     return response.json();
   });
   const iceServers = JSON.parse(process.env.CSW_NATIVE_TEST_ICE || '[]');
-  const result = await page.evaluate(async iceServers => {
+  const result = await page.evaluate(async ({ iceServers, durationSeconds }) => {
     const sound = new AudioContext();
     await sound.resume();
     const offer = await window.nativeRequest('/offer');
@@ -72,8 +76,16 @@ try {
     }
     const first = video.getVideoPlaybackQuality().totalVideoFrames;
     const sampleStart = performance.now();
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    const sample = { connected: peer.connectionState, width: video.videoWidth, height: video.videoHeight,
+    let lastFrames = first;
+    const intervals = [];
+    for (let elapsed = 0; elapsed < durationSeconds; elapsed += 5) {
+      await new Promise(resolve => setTimeout(resolve, Math.min(5, durationSeconds - elapsed) * 1000));
+      const frames = video.getVideoPlaybackQuality().totalVideoFrames;
+      intervals.push({ seconds: elapsed + 5, frames: frames - lastFrames, state: peer.connectionState });
+      if (peer.connectionState !== 'connected' || frames === lastFrames) throw new Error('Native stream stalled');
+      lastFrames = frames;
+    }
+    const sample = { connected: peer.connectionState, intervals, width: video.videoWidth, height: video.videoHeight,
       frames: video.getVideoPlaybackQuality().totalVideoFrames - first,
       fps: (video.getVideoPlaybackQuality().totalVideoFrames - first) * 1000 / (performance.now() - sampleStart) };
     const stats = await peer.getStats();
@@ -90,7 +102,7 @@ try {
     const pair = transport && stats.get(transport.selectedCandidatePairId);
     sample.candidateType = pair && stats.get(pair.localCandidateId)?.candidateType;
     clearInterval(timer); peer.close(); await sound.close(); return sample;
-  }, iceServers);
+  }, { iceServers, durationSeconds });
   console.log(JSON.stringify(result));
   if (audioError) throw audioError;
   // Idle desktops only send periodic recovery frames; a high frame count requires a moving source.

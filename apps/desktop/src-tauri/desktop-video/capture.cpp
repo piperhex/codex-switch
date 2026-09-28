@@ -66,4 +66,9 @@ Com<ID3D11Texture2D> Capture::texture() const {
     check_hresult(access->GetInterface(__uuidof(ID3D11Texture2D), texture.put_void()));
     return texture;
 }
+
+void Capture::frame_rate(int fps) {
+    session.MinUpdateInterval(std::chrono::duration_cast<winrt::Windows::Foundation::TimeSpan>(
+        std::chrono::duration<double>(1.0 / (fps * 2))));
+}
 }

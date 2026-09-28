@@ -26,6 +26,8 @@ mod codex_usage_summary;
 mod commands;
 mod computer_use;
 mod conversation_hub;
+#[cfg(windows)]
+mod desktop_service;
 mod dream_skin;
 mod dream_skin_community;
 mod dream_skin_market;
@@ -77,6 +79,10 @@ use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(windows)]
+    if desktop_service::run_helper() {
+        return;
+    }
     #[cfg(windows)]
     if let Err(error) = installer_lifecycle::wait_before_startup() {
         eprintln!("failed to wait for the Windows installer: {error}");
@@ -270,6 +276,14 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             remote_desktop::remote_desktop_open,
+            remote_desktop::remote_desktop_renew,
+            #[cfg(windows)]
+            desktop_service::remote_desktop_service_status,
+            #[cfg(windows)]
+            desktop_service::remote_desktop_service_install,
+            #[cfg(windows)]
+            desktop_service::remote_desktop_service_uninstall,
+            remote_desktop::permissions::remote_desktop_permissions,
             remote_desktop::remote_desktop_frame,
             remote_desktop::remote_desktop_input,
             remote_desktop::clipboard::remote_desktop_clipboard,
@@ -299,6 +313,8 @@ pub fn run() {
             codex_gui::account_selection::codex_gui_account_selection,
             codex_gui::account_selection::codex_gui_switch_account,
             codex_gui::model_settings::codex_gui_model_settings,
+            codex_gui::queue_store::codex_gui_queue_read,
+            codex_gui::queue_store::codex_gui_queue_save,
             codex_gui::context_settings::codex_gui_context_settings,
             codex_gui::context_settings::codex_gui_set_context_settings,
             codex_gui::model_settings::codex_gui_set_model_settings,
@@ -308,6 +324,8 @@ pub fn run() {
             gui_terminal::codex_gui_terminal_command,
             remote_chat::remote_chat_attach,
             remote_chat::remote_chat_send,
+            remote_chat::identity::remote_chat_identity,
+            remote_chat::host_health::remote_chat_host_alive,
             remote_chat::remote_chat_ack,
             remote_chat::remote_chat_reconnect,
             remote_chat::remote_chat_detach,

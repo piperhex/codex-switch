@@ -18,7 +18,7 @@ it('requires a registered chat session and derives ICE servers from its authenti
   await expect(host.request(opening, 'unknown')).rejects.toThrow('连接电脑');
   host.register('alice', [{ urls: 'stun:example.test' }]);
   await host.request({ ...opening, owner: 'forged', iceServers: [{ urls: 'stun:forged.test' }] }, 'alice');
-  expect(DesktopHostSession).toHaveBeenCalledWith(DEFAULT_SETTINGS, [{ urls: 'stun:example.test' }]);
+  expect(DesktopHostSession).toHaveBeenCalledWith(DEFAULT_SETTINGS, [{ urls: 'stun:example.test' }], undefined);
 });
 it('isolates controls between sessions and releases media when its owner disconnects', async () => {
   const host = new RemoteDesktopHost();

@@ -71,6 +71,24 @@ func TestSignalsDoNotForwardKeyMetadata(t *testing.T) {
 	}
 }
 
+func TestSignedHostKeyPreservesOnlyValidatedProof(t *testing.T) {
+	key := strings.Repeat("a", 64)
+	proof := platform.JSON{"key": key, "signature": strings.Repeat("b", 128), "extra": "never-forward"}
+	signal, err := chatSignal(platform.JSON{"kind": "key", "key": key, "identity": proof})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(signal["identity"], platform.JSON{"key": key, "signature": strings.Repeat("b", 128)}) {
+		t.Fatalf("invalid proof forwarding: %#v", signal)
+	}
+	for _, signature := range []string{"", strings.Repeat("g", 128), strings.Repeat("b", 129)} {
+		proof["signature"] = signature
+		if _, err := chatSignal(platform.JSON{"kind": "key", "key": key, "identity": proof}); err == nil {
+			t.Fatal("accepted malformed host identity")
+		}
+	}
+}
+
 func TestRelayRateWindowAndUnlimitedPolicy(t *testing.T) {
 	gateway := &ChatGateway{
 		policy: platform.JSON{"relayMaxMbPerSecond": float64(-1), "relayMaxFramesPerSecond": float64(2)},

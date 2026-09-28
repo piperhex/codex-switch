@@ -4,8 +4,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codex-switch/admin-go/internal/chatpush"
 	"github.com/codex-switch/admin-go/internal/platform"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type commandSpec struct{ path, kind, field, capability string }
@@ -28,8 +30,19 @@ func Register(router *gin.Engine, deps *platform.Dependencies) (*Runtime, error)
 		return nil, err
 	}
 	runtime := &Runtime{control: gateway, chat: chat}
+	gateway.revokeDesktopService = func(owner, id string) {
+		chat.mu.Lock()
+		defer chat.mu.Unlock()
+		for client, state := range chat.connections {
+			if client.serviceHost.Load() && state.identity != nil && state.identity.owner == owner && state.identity.device == id {
+				client.close(4001, "Service access revoked")
+			}
+		}
+	}
+	runtime.stopPush = chatpush.Register(router, deps)
 	router.GET("/device-switch", gateway.serve)
 	router.GET("/device-chat", chat.serve)
+	router.POST("/desktop-service/revoke", gateway.selfRevokeServiceCredential)
 	group := router.Group("/devices", deps.RequireAuth())
 	group.GET("", func(c *gin.Context) {
 		devices, err := gateway.statuses(platform.User(c).ID)
@@ -40,6 +53,8 @@ func Register(router *gin.Engine, deps *platform.Dependencies) (*Runtime, error)
 		platform.Respond(c, gin.H{"providers": providers}, err)
 	})
 	group.DELETE("/:deviceId", gateway.remove)
+	group.POST("/:deviceId/service-credential", gateway.createServiceCredential)
+	group.DELETE("/:deviceId/service-credential", gateway.revokeServiceCredential)
 	for _, spec := range deviceCommands {
 		group.POST("/:deviceId/"+spec.path, gateway.execute(spec))
 	}
@@ -56,13 +71,18 @@ func (g *ControlGateway) remove(c *gin.Context) {
 		platform.Fail(c, 409, "Online devices cannot be removed")
 		return
 	}
-	result := g.service.deps.DB.Where(`"ownerId" = ? AND "deviceId" = ?`, owner, id).Delete(&Device{})
-	if result.Error != nil {
-		platform.Respond(c, nil, result.Error)
-		return
-	}
-	if result.RowsAffected != 1 {
-		platform.Fail(c, 404, "Device was not found")
+	err := g.service.deps.DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Where(`"ownerId" = ? AND "deviceId" = ?`, owner, id).Delete(&Device{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return platform.NewError(404, "Device was not found")
+		}
+		return tx.Where("owner_id = ? AND device_id = ?", owner, id).Delete(&serviceCredential{}).Error
+	})
+	if err != nil {
+		platform.Respond(c, nil, err)
 		return
 	}
 	g.broadcast(owner, platform.JSON{"type": "device-removed", "deviceId": id})

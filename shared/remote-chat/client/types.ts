@@ -23,6 +23,7 @@ export interface SendInput {
 export interface ChatProject { cwd: string; label: string }
 
 export interface ChatState {
+  desktopOnly?: boolean;
   upload?: import('../uploadProgress').UploadProgress;
   processing?: import('../../../apps/desktop/src/pages/codexGui/processing').ProcessingState;
   cachedThreadIds?: string[];

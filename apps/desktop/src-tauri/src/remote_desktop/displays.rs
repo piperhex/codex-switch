@@ -1,7 +1,7 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Display identifiers are Windows device names, never caller-provided native handles.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct DisplayInfo {
     pub id: String,
     pub name: String,
@@ -10,9 +10,10 @@ pub(crate) struct DisplayInfo {
     pub primary: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Opened {
+    pub permissions: super::permissions::Permissions,
     pub id: String,
     pub displays: Vec<DisplayInfo>,
     pub display_id: String,

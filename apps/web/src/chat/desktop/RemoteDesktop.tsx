@@ -34,6 +34,7 @@ export function RemoteDesktop({ client, active, close, localClipboard }: {
 }) {
   const visible = usePageVisibility();
   const session = useDesktopSession({ client, active: active && visible, createPeer });
+  const viewOnly = session.capabilities.control === false;
   const [display, setDisplay] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
   const keyboardViewport = useKeyboardViewport(keyboard || display);
@@ -43,7 +44,7 @@ export function RemoteDesktop({ client, active, close, localClipboard }: {
   const hardware = useHardwarePointer();
   const clipboard = useDesktopClipboard({ active: active && !!session.stream,
     clipboard: session.clipboard, localClipboard });
-  const panelVisible = !hardware && !direct && !display && !keyboard && !clipboard.open;
+  const panelVisible = !viewOnly && !hardware && !direct && !display && !keyboard && !clipboard.open;
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const video = useRef<HTMLVideoElement>(null);
   const playback = useDesktopPlayback(video, session.stream, session.muted);
@@ -106,14 +107,15 @@ export function RemoteDesktop({ client, active, close, localClipboard }: {
       {clipboard.open && <DesktopClipboardPanel clipboard={clipboard} />}
       {!clipboard.open && clipboard.status && <div className="rd-clipboard-notice" role="status">
         {t(clipboard.status)}{clipboard.progress !== undefined && ` ${clipboard.progress}%`}</div>}
-      {hardware && session.stream && !session.capabilities.keyboard && !clipboard.status
+      {viewOnly && session.stream && <div className="rd-clipboard-notice" role="status">{t('仅观看')}</div>}
+      {!viewOnly && hardware && session.stream && !session.capabilities.keyboard && !clipboard.status
         && <div className="rd-clipboard-notice" role="status">
           {t('请更新远程电脑上的应用，启用实体键盘和剪贴板。')}</div>}
     </div>
     <nav className="rd-toolbar" aria-label={t('远程桌面操作')}>
-      {!hardware && <button aria-label={t(direct ? '切换为鼠标模式' : '切换为触屏模式')} className="rd-mode"
+      {!hardware && <button disabled={viewOnly} aria-label={t(direct ? '切换为鼠标模式' : '切换为触屏模式')} className="rd-mode"
         onClick={() => switchMode(!direct)}>{direct ? <Hand /> : <Mouse />}<span>{t(direct ? '触屏' : '鼠标')}</span></button>}
-      <button aria-pressed={keyboard} onClick={() => {
+      <button disabled={viewOnly} aria-pressed={keyboard} onClick={() => {
         setKeyboard(!keyboard); setDisplay(false); clipboard.setOpen(false);
       }}>
         <Keyboard /><span>{t('键盘')}</span></button>
@@ -123,8 +125,10 @@ export function RemoteDesktop({ client, active, close, localClipboard }: {
       <button aria-label={t(audioUnavailable ? '声音暂不可用' : silent ? '开启声音' : '静音')}
         aria-pressed={!silent && !audioUnavailable} disabled={audioUnavailable} onClick={toggleAudio}>
         {silent || audioUnavailable ? <VolumeX /> : <Volume2 />}<span>{t(silent ? '开启声音' : '声音')}</span></button>
-      <button onClick={() => session.input({ kind: 'key', key: 'desktop' })}><Monitor /><span>{t('显示桌面')}</span></button>
-      <button onClick={() => session.input({ kind: 'key', key: 'windows' })}><Grid2X2 /><span>{t('所有窗口')}</span></button>
+      <button disabled={viewOnly} onClick={() => session.input({ kind: 'key', key: 'desktop' })}>
+        <Monitor /><span>{t('显示桌面')}</span></button>
+      <button disabled={viewOnly} onClick={() => session.input({ kind: 'key', key: 'windows' })}>
+        <Grid2X2 /><span>{t('所有窗口')}</span></button>
       <button aria-pressed={display} onClick={() => {
         setDisplay(!display); setKeyboard(false); clipboard.setOpen(false);
       }}>

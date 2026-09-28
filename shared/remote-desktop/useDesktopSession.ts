@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DesktopReceiver } from './receiver';
 import { DesktopPointer } from './input';
+import { DesktopRecovery } from './recovery';
 import type { ClipboardContent, ClipboardProgress } from './clipboard';
 import { DEFAULT_SETTINGS, validateSettings, type DesktopCapabilities, type DesktopClient, type DesktopDisplay,
   type DesktopSettings, type DesktopStats }
@@ -28,11 +29,21 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
   const [hasAudio, setHasAudio] = useState(false);
   const [capabilities, setCapabilities] = useState<DesktopCapabilities>({});
   const pointer = useMemo(() => new DesktopPointer(input => receiver.current?.input(input)), []);
+  const recovery = useRef<DesktopRecovery>();
+
+  useEffect(() => {
+    if (!active) return;
+    const controller = new DesktopRecovery(() => setAttempt(value => value + 1), setStatus);
+    recovery.current = controller;
+    return () => { recovery.current?.stop(); recovery.current = undefined; };
+  }, [client, active, createPeer]);
 
   useEffect(() => {
     setStream(undefined); setStats(undefined); setHasAudio(false); setCapabilities({});
     if (!active) return;
     const session = new DesktopReceiver({ client, createPeer, stream: setStream, status: setStatus,
+      connected: () => recovery.current?.connected(),
+      failed: message => { pointer.release(); recovery.current?.failed(message); },
       stats: setStats, audio: setHasAudio, capabilities: setCapabilities, displays: value => {
         setDisplays(value.displays ?? []);
         settingsRef.current = { ...settingsRef.current, displayId: value.displayId };
@@ -69,7 +80,8 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
     mutedRef.current = value; setMuted(value); receiver.current?.mute(value);
   };
   const currentClipboard = () => {
-    if (!capabilities.clipboard) throw new Error('请更新远程电脑上的应用，启用实体键盘和剪贴板。');
+    if (!capabilities.clipboard) throw new Error(capabilities.control === undefined
+      ? '请更新远程电脑上的应用，启用实体键盘和剪贴板。' : '电脑未允许剪贴板操作，请在电脑的设置中调整。');
     if (!receiver.current) throw new Error('请等待桌面连接后重试。');
     return receiver.current.clipboard;
   };
@@ -81,5 +93,9 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
   };
   return { stream, status, stats, settings, displays, update, saving, pointer, muted, mute, hasAudio, clipboard, capabilities,
     input: (input: Parameters<DesktopReceiver['input']>[0]) => receiver.current?.input(input),
-    retry: () => setAttempt(value => value + 1) };
+    retry: () => {
+      recovery.current?.stop();
+      recovery.current = new DesktopRecovery(() => setAttempt(value => value + 1), setStatus);
+      setAttempt(value => value + 1);
+    } };
 }

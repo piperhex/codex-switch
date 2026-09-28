@@ -5,11 +5,13 @@ import { ChatConnection } from '../../../../shared/remote-chat/client/connection
 import { ChatController } from '../../../../shared/remote-chat/client/controller';
 import { RtcPeer } from '../../../../shared/remote-chat/rtcPeer';
 import { saveLastConnectedDevice } from './lastConnectedDevice';
+import { browserTrustStore, trustedHost, trustScope } from '../../../../shared/remote-chat/trustedHost';
 
 const HISTORY_REFRESH_MS = 15_000;
 
 function createController(session: AuthSession, deviceId: string) {
   return new ChatController((events) => new ChatConnection({ ...events, deviceId,
+    verifyHostKey: trustedHost(browserTrustStore, trustScope(session.baseUrl, deviceId)),
     randomBytes: (length) => crypto.getRandomValues(new Uint8Array(length)),
     authorize: async () => {
       await apiJson('/auth/me');

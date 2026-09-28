@@ -6,7 +6,7 @@ import { RTCView } from 'react-native-webrtc';
 import { RemoteDesktop } from './RemoteDesktop';
 import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
 
-const runtime = vi.hoisted(() => ({ landscape: false, input: vi.fn(), rotate: vi.fn(),
+const runtime = vi.hoisted(() => ({ landscape: false, viewOnly: false, input: vi.fn(), rotate: vi.fn(),
   session: vi.fn(), dimensions: vi.fn(), createPeer: vi.fn(), immersive: vi.fn(), mute: vi.fn(),
   stream: { toURL: vi.fn(() => 'native-ios-stream') } }));
 vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
@@ -29,7 +29,8 @@ vi.mock('../terminal/useTerminalOrientation', () => ({ useTerminalOrientation: (
 }) }));
 vi.mock('../../../../../shared/remote-desktop/useDesktopSession', () => ({ useDesktopSession: (options: unknown) => {
   runtime.session(options);
-  return { stream: runtime.stream, pointer: {}, input: runtime.input, hasAudio: true, muted: false, mute: runtime.mute };
+  return { stream: runtime.stream, pointer: {}, input: runtime.input, hasAudio: true, muted: false, mute: runtime.mute,
+    capabilities: { control: !runtime.viewOnly, keyboard: !runtime.viewOnly } };
 } }));
 vi.mock('../../../../../shared/remote-desktop/useMousePanel', () => ({ useMousePanel: () => ({ expanded: true }) }));
 vi.mock('../../../../../shared/remote-desktop/useMouseViewport', () => ({
@@ -45,6 +46,7 @@ vi.mock('./DisplaySettings', () => ({ DisplaySettings: 'DisplaySettings' }));
 vi.mock('./DesktopKeyboard', () => ({ DesktopKeyboard: 'DesktopKeyboard' }));
 
 interface Props {
+  disabled?: boolean;
   children?: ReactNode; edges?: string[]; streamURL?: string;
   presentationStyle?: string; supportedOrientations?: string[];
   visible?: boolean; onRequestClose?: () => void; accessibilityLabel?: string; onPress?: () => void;
@@ -57,9 +59,18 @@ function nodes(tree: ReactNode): ReactElement<Props>[] {
 const client: DesktopClient = { open: vi.fn(), signal: vi.fn(), settings: vi.fn(), close: vi.fn() };
 const render = (active = true, close = vi.fn()) => nodes(RemoteDesktop({ client, active, close }));
 beforeEach(() => {
-  vi.clearAllMocks(); vi.stubGlobal('React', React); runtime.landscape = false; Platform.OS = 'ios';
+  vi.clearAllMocks(); vi.stubGlobal('React', React); runtime.landscape = false; runtime.viewOnly = false; Platform.OS = 'ios';
 });
 afterEach(() => vi.unstubAllGlobals());
+
+it('keeps display controls available but disables remote input in view-only mode', () => {
+  runtime.viewOnly = true;
+  const elements = render();
+  for (const label of ['键盘', '显示桌面', '所有窗口']) {
+    expect(elements.find(node => node.props.accessibilityLabel === label)?.props.disabled).toBe(true);
+  }
+  expect(elements.find(node => node.props.accessibilityLabel === '显示')?.props.disabled).not.toBe(true);
+});
 
 it('uses native iOS video, forwards ICE configuration and keeps control actions available', () => {
   const elements = render();

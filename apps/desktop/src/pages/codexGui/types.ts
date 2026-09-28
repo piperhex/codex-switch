@@ -235,6 +235,7 @@ export interface MessageInput {
 }
 export interface QueuedMessage extends MessageInput {
   id: string;
+  needsReview?: boolean;
   busy?: boolean;
   error?: string;
   model: string;

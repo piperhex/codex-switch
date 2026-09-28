@@ -1,4 +1,16 @@
 export const remoteDesktopMessages: Record<string, string> = {
+  '仅观看': 'View only',
+  '桌面已就绪。打开远程桌面，登录电脑后即可继续聊天。':
+    'The desktop is ready. Open remote desktop and sign in to the computer to continue chatting.',
+  '请先登录电脑并打开聊天，再发送消息。': 'Sign in to the computer and open chat before sending a message.',
+  '桌面连接中断，正在自动重连…': 'Desktop connection lost. Reconnecting…',
+  '核对电脑身份': 'Verify computer identity',
+  '设备指纹': 'Device fingerprint',
+  '核对并重新连接': 'Verify and reconnect',
+  '请在电脑的设置中找到“远程桌面”，复制设备指纹并粘贴到下方。':
+    'Open Remote desktop in the computer’s settings, copy its device fingerprint and paste it below.',
+  '指纹不一致，请重新核对电脑上的设备指纹。': 'The fingerprint does not match. Check the computer’s fingerprint again.',
+  '电脑身份已变化，请先核对电脑上的设备指纹。': 'The computer’s identity changed. Verify its device fingerprint first.',
   '已复制到本机，可直接粘贴。': 'Copied to this device. Ready to paste.',
   '复制后，在另一台电脑上粘贴即可。支持文本、图片和文件。':
     'Copy on one computer and paste on the other. Supports text, images and files.',

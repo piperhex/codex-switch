@@ -2,20 +2,22 @@ import { useEffect, useRef } from 'react';
 import { Toast } from '../components/AppToast';
 import type { AuthSession } from '../types';
 import type { ChatController } from './controller';
-import { notifyChatCompleted } from './chatNotifications';
+import { notifyChatActivity } from './chatNotifications';
 import { chatAccountKey, completedChatTarget, notificationId, type ChatNotificationTarget } from './notificationTarget';
+import { attentionChatTarget } from './notificationTarget';
 
 export function useChatCompletionNotifications(controller: ChatController, session: AuthSession, deviceId: string) {
   const account = chatAccountKey(session);
   useEffect(() => controller.subscribeEvents((event) => {
-    const target = completedChatTarget(event, { account, deviceId });
+    const attention = attentionChatTarget(event, { account, deviceId });
+    const target = attention ?? completedChatTarget(event, { account, deviceId });
     if (!target) return;
     const state = controller.snapshot();
     const thread = state.selected?.id === target.threadId
       ? state.selected : state.threads.find((entry) => entry.id === target.threadId);
     const title = state.sidebar.threads[target.threadId]?.title || thread?.name || '点击查看对话';
-    void notifyChatCompleted(target, title, event.params.turn?.status === 'failed')
-      .catch(() => Toast.fail('回复已完成，但通知未能显示。'));
+    const kind = attention ? 'attention' : event.params.turn?.status === 'failed' ? 'failed' : 'completed';
+    void notifyChatActivity(target, title, kind).catch(() => Toast.fail('通知未能显示，请在聊天中查看。'));
   }), [controller, account, deviceId]);
 }
 

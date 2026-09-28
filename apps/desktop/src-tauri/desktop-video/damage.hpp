@@ -18,6 +18,7 @@ class DamageGate {
     bool started = false;
 public:
     explicit DamageGate(int fps) : interval(std::chrono::nanoseconds(1'000'000'000 / fps)) {}
+    void set_fps(int fps) { interval = std::chrono::nanoseconds(1'000'000'000 / fps); }
     void observe(bool changed) { pending |= changed; }
     bool due(Clock::time_point now) const {
         return !started || now - sent >= refresh_interval || (pending && now >= next);

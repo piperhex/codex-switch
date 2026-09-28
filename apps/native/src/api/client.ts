@@ -510,6 +510,13 @@ export async function fetchRemoteProviders(
   }));
 }
 
+export async function revokeDesktopService(session: AuthSession, deviceId: string): Promise<void> {
+  const response = await authorizedRequest(session, `/devices/${encodeURIComponent(deviceId)}/service-credential`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+}
+
 export async function deleteRemoteDevice(session: AuthSession, deviceId: string): Promise<void> {
   const response = await authorizedRequest(session, `/devices/${encodeURIComponent(deviceId)}`, {
     method: 'DELETE',

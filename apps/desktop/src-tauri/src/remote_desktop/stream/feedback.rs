@@ -5,6 +5,9 @@ use webrtc::{
     rtcp::{
         packet::Packet,
         payload_feedbacks::receiver_estimated_maximum_bitrate::ReceiverEstimatedMaximumBitrate,
+        payload_feedbacks::{
+            full_intra_request::FullIntraRequest, picture_loss_indication::PictureLossIndication,
+        },
         receiver_report::ReceiverReport,
     },
     rtp_transceiver::rtp_sender::RTCRtpSender,
@@ -12,6 +15,7 @@ use webrtc::{
 
 #[derive(Clone, Copy, Default)]
 pub(super) struct Feedback {
+    pub keyframes: u64,
     loss: f64,
     capacity: Option<u32>,
 }
@@ -31,6 +35,9 @@ pub(super) fn listen(sender: Arc<RTCRtpSender>) -> watch::Receiver<Feedback> {
 }
 
 fn update(feedback: &mut Feedback, packet: &(dyn Packet + Send + Sync)) {
+    if packet.as_any().is::<PictureLossIndication>() || packet.as_any().is::<FullIntraRequest>() {
+        feedback.keyframes = feedback.keyframes.wrapping_add(1);
+    }
     if let Some(report) = packet.as_any().downcast_ref::<ReceiverReport>() {
         feedback.loss = report
             .reports
@@ -98,6 +105,12 @@ impl RateController {
             return None;
         }
         self.current.bitrate = bitrate;
+        if self.requested.adaptive_fps {
+            self.current.fps = ((u64::from(self.requested.fps) * u64::from(bitrate)
+                / u64::from(self.requested.bitrate)) as u32)
+                .max(15)
+                .min(self.requested.fps);
+        }
         self.cooldown = 2;
         Some(self.current)
     }
@@ -108,6 +121,7 @@ mod tests {
     use super::*;
     fn profile() -> Profile {
         Profile {
+            adaptive_fps: false,
             width: 1920,
             fps: 60,
             bitrate: 6_000_000,
@@ -120,6 +134,7 @@ mod tests {
             assert!(rate
                 .sample(
                     Feedback {
+                        keyframes: 0,
                         loss: 0.0,
                         capacity: Some(100_000)
                     },
@@ -129,9 +144,26 @@ mod tests {
         }
     }
     #[test]
+    fn automatic_frame_rate_follows_capacity_without_overriding_manual_limits() {
+        let mut requested = profile();
+        requested.adaptive_fps = true;
+        let mut rate = RateController::new(requested);
+        let reduced = rate
+            .sample(
+                Feedback {
+                    loss: 0.1,
+                    ..Default::default()
+                },
+                requested.bitrate,
+            )
+            .unwrap();
+        assert!(reduced.fps < requested.fps && reduced.fps >= 15);
+    }
+    #[test]
     fn reduces_congestion_then_probes_recovery_with_hysteresis() {
         let mut rate = RateController::new(profile());
         let busy = Feedback {
+            keyframes: 0,
             loss: 0.1,
             capacity: Some(3_000_000),
         };

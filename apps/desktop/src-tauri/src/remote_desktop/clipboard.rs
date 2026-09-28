@@ -10,6 +10,8 @@ const TRANSFER_LEASE: Duration = Duration::from_secs(60);
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum ClipboardError {
+    #[error("电脑未允许此剪贴板操作，请在电脑的设置中调整。")]
+    Denied,
     #[error("剪贴板内容无效，请重新复制。")]
     Invalid,
     #[error("剪贴板内容过大，请分批复制（每次最多 64 MB）。")]
@@ -131,6 +133,7 @@ pub(super) fn handle(id: &str, message: ClipboardMessage) -> ClipboardReply {
 }
 
 fn apply(session: &mut super::Session, message: ClipboardMessage) -> ClipboardResult<ReplyData> {
+    authorize(&session.permissions, &message.request)?;
     if message.transfer_id.is_empty() || message.transfer_id.len() > 100 {
         return Err(ClipboardError::Invalid);
     }
@@ -138,6 +141,7 @@ fn apply(session: &mut super::Session, message: ClipboardMessage) -> ClipboardRe
     match message.request {
         Request::Read { shortcut } => {
             let content = super::clipboard_platform::read(session, shortcut)?;
+            allow_content(&session.permissions, &content)?;
             let bytes = serde_json::to_vec(&content).map_err(|_| ClipboardError::Invalid)?;
             let length = bytes.len();
             session.clipboard = Some(Transfer::new(id, bytes, None)?);
@@ -164,6 +168,36 @@ fn apply(session: &mut super::Session, message: ClipboardMessage) -> ClipboardRe
             Ok(ReplyData::default())
         }
         request => continue_transfer(session, &id, request),
+    }
+}
+
+fn allow_content(
+    permissions: &super::permissions::Permissions,
+    content: &Content,
+) -> ClipboardResult<()> {
+    if matches!(content, Content::Files { .. }) && !permissions.files {
+        return Err(ClipboardError::Denied);
+    }
+    Ok(())
+}
+
+fn authorize(
+    permissions: &super::permissions::Permissions,
+    request: &Request,
+) -> ClipboardResult<()> {
+    let allowed = match request {
+        Request::Read { shortcut } => {
+            permissions.clipboard_read && (shortcut.is_none() || permissions.control)
+        }
+        Request::Chunk { .. } => permissions.clipboard_read,
+        Request::Begin { .. } | Request::Append { .. } => permissions.clipboard_write,
+        Request::Commit { paste } => permissions.clipboard_write && (!paste || permissions.control),
+        Request::Clear => true,
+    };
+    if allowed {
+        Ok(())
+    } else {
+        Err(ClipboardError::Denied)
     }
 }
 
@@ -200,6 +234,7 @@ fn continue_transfer(
             let content =
                 serde_json::from_slice(&transfer.bytes).map_err(|_| ClipboardError::Invalid)?;
             session.clipboard = None;
+            allow_content(&session.permissions, &content)?;
             super::clipboard_platform::write(session, content, paste)?;
             Ok(ReplyData::default())
         }
@@ -226,6 +261,33 @@ pub(crate) async fn remote_desktop_clipboard(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn enforces_direction_control_and_file_permissions() {
+        let policy = super::super::permissions::Permissions {
+            control: false,
+            clipboard_write: false,
+            files: false,
+            ..Default::default()
+        };
+        assert!(authorize(&policy, &Request::Read { shortcut: None }).is_ok());
+        assert!(authorize(
+            &policy,
+            &Request::Read {
+                shortcut: Some(Shortcut::Copy)
+            }
+        )
+        .is_err());
+        assert!(authorize(&policy, &Request::Begin { length: 5 }).is_err());
+        assert!(authorize(&policy, &Request::Commit { paste: true }).is_err());
+        assert!(allow_content(&policy, &Content::Files { files: Vec::new() }).is_err());
+        assert!(allow_content(
+            &policy,
+            &Content::Text {
+                text: "test".into()
+            }
+        )
+        .is_ok());
+    }
     #[test]
     fn rejects_oversize_reordered_and_excess_chunks() {
         assert!(Transfer::new("test".into(), vec![], Some(MAX_WIRE_BYTES + 1)).is_err());

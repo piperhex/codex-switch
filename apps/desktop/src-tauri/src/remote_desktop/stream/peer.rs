@@ -21,13 +21,14 @@ use webrtc::{
 pub(super) struct Peer {
     pub connection: Arc<RTCPeerConnection>,
     pub controls: Arc<RTCDataChannel>,
+    pub clipboard: Arc<RTCDataChannel>,
     pub video: Arc<TrackLocalStaticSample>,
     pub audio: Arc<TrackLocalStaticSample>,
     pub feedback: tokio::sync::watch::Receiver<super::feedback::Feedback>,
     pub transports: super::turn_transport::Transports,
 }
 
-pub(super) async fn create(mut servers: Vec<IceServer>) -> Result<Peer> {
+pub(super) async fn create(mut servers: Vec<IceServer>, separate_clipboard: bool) -> Result<Peer> {
     let transports = super::turn_transport::prepare(&mut servers).await?;
     let mut media = MediaEngine::default();
     media
@@ -86,9 +87,18 @@ pub(super) async fn create(mut servers: Vec<IceServer>) -> Result<Peer> {
         .create_data_channel("remote-desktop-controls", None)
         .await
         .map_err(|_| DesktopError::Platform)?;
+    let clipboard = if separate_clipboard {
+        connection
+            .create_data_channel("remote-desktop-clipboard", None)
+            .await
+            .map_err(|_| DesktopError::Platform)?
+    } else {
+        Arc::clone(&controls)
+    };
     Ok(Peer {
         connection,
         controls,
+        clipboard,
         video,
         audio,
         feedback,
@@ -96,7 +106,18 @@ pub(super) async fn create(mut servers: Vec<IceServer>) -> Result<Peer> {
     })
 }
 
-pub(super) fn bind(stream: &Arc<Stream>, inputs: tokio::sync::mpsc::Sender<bytes::Bytes>) {
+pub(super) fn bind(
+    stream: &Arc<Stream>,
+    inputs: tokio::sync::mpsc::Sender<bytes::Bytes>,
+    clipboard: tokio::sync::mpsc::Sender<bytes::Bytes>,
+) {
+    let weak = Arc::downgrade(stream);
+    if !Arc::ptr_eq(&stream.peer.clipboard, &stream.peer.controls) {
+        stream.peer.clipboard.on_message(Box::new(move |message| {
+            receive(&weak, &clipboard, message);
+            Box::pin(async {})
+        }));
+    }
     let weak = Arc::downgrade(stream);
     stream
         .peer

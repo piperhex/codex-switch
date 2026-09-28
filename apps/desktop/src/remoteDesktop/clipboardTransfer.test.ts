@@ -39,3 +39,22 @@ it('preserves host clipboard errors and does not commit partial uploads', async 
   await expect(clipboard.write({ format: 'text', text: 'test' })).rejects.toThrow('无法访问剪贴板');
   expect(requests.some(message => message.request.action === 'commit')).toBe(false);
 });
+
+it('keeps four chunks in flight and waits for every acknowledgement before committing', async () => {
+  const requests: ClipboardMessage[] = [];
+  const clipboard = new DesktopClipboard(message => { requests.push(message); return true; });
+  const sending = clipboard.write({ format: 'text', text: 'x'.repeat(CLIPBOARD_CHUNK_BYTES * 6) });
+  const acknowledge = (message: ClipboardMessage) => clipboard.receive({
+    kind: 'clipboard', requestId: message.requestId, result: {},
+  });
+  await Promise.resolve(); acknowledge(requests[0]);
+  await vi.waitFor(() => expect(requests.filter(item => item.request.action === 'append')).toHaveLength(4));
+  for (let index = 1; index <= 7; index++) {
+    await vi.waitFor(() => expect(requests[index]?.request.action).toBe('append'));
+    acknowledge(requests[index]);
+  }
+  await vi.waitFor(() => expect(requests.at(-1)?.request.action).toBe('commit'));
+  acknowledge(requests.at(-1)!);
+  await vi.waitFor(() => expect(requests.at(-1)?.request.action).toBe('clear'));
+  acknowledge(requests.at(-1)!); await sending;
+});

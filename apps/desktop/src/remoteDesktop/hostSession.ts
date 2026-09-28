@@ -7,21 +7,27 @@ import { NativeDesktopSession } from './nativeSession';
 export class HostSession {
   private session: DesktopHostSession | NativeDesktopSession;
   private stopped = false;
-  constructor(private settings: DesktopSettings, private readonly iceServers: IceServer[]) {
-    this.session = new NativeDesktopSession(settings, iceServers);
+  constructor(private settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number) {
+    this.session = new NativeDesktopSession(settings, iceServers, expiresAt);
   }
   async open() {
     try {
-      return { ...await this.session.open(), capabilities: { keyboard: true, clipboard: true, horizontalScroll: true } };
+      return this.offer(await this.session.open());
     }
     catch {
       await this.session.close();
       if (this.stopped) throw new Error('桌面连接已结束。');
-      this.session = new DesktopHostSession(this.settings, this.iceServers);
-      return { ...await this.session.open(), capabilities: { keyboard: true, clipboard: true, horizontalScroll: true } };
+      this.session = new DesktopHostSession(this.settings, this.iceServers, this.expiresAt);
+      return this.offer(await this.session.open());
     }
   }
+  private offer(offer: Awaited<ReturnType<NativeDesktopSession['open']>>) {
+    const policy = offer.permissions;
+    return { ...offer, capabilities: { keyboard: policy?.control ?? true, control: policy?.control ?? true,
+      clipboard: !policy || policy.clipboardRead || policy.clipboardWrite, horizontalScroll: policy?.control ?? true } };
+  }
   signal(signal: DesktopSignal) { return this.session.signal(signal); }
+  async renew(expiresAt: number) { this.expiresAt = expiresAt; await this.session.renew(expiresAt); }
   async update(settings: DesktopSettings) { await this.session.update(settings); this.settings = settings; }
   get closed() { return this.stopped || this.session.closed; }
   close() { this.stopped = true; return this.session.close(); }

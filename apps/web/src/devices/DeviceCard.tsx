@@ -14,6 +14,7 @@ interface DeviceCardProps {
   onSwitchModel: (deviceId: string) => void;
   onSelectAuthAccount: (deviceId: string) => void;
   onDelete: (device: RemoteDevice) => void;
+  onRevokeService: (device: RemoteDevice) => void;
 }
 
 function platformLabel(platform: string) {
@@ -82,6 +83,8 @@ export function DeviceCard(props: DeviceCardProps) {
     { key: 'auth', icon: <ExternalLink size={18} />, label: t("代理登录态账号"),
       disabled: !device.online || Boolean(switchingAuthDeviceId),
       onClick: () => props.onSelectAuthAccount(device.deviceId) },
+    ...(device.platform.toLowerCase() === 'windows' ? [{ key: 'revoke-service', icon: <KeyRound size={18} />,
+      label: '撤销无人值守授权', danger: true, onClick: () => props.onRevokeService(device) }] : []),
     { key: 'delete', icon: <Trash2 size={18} />, label: device.online ? t("在线不可删除") : t("删除设备"),
       danger: true, disabled: device.online || Boolean(deletingDeviceId), onClick: () => props.onDelete(device) },
   ];

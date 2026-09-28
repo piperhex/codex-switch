@@ -1,6 +1,7 @@
 #include "video.hpp"
 #include "audio.hpp"
 #include "pacing.hpp"
+#include "desktop_context.hpp"
 #include <charconv>
 #include <cstdio>
 #include <fcntl.h>
@@ -35,6 +36,9 @@ void stream_gpu(const Config& config, Encoder& encoder) {
     DamageGate gate(config.fps);
     FrameWait wait;
     for (;;) {
+        if (encoder.poll_controls()) {
+            gate.set_fps(encoder.fps()); gate.observe(true); capture.frame_rate(encoder.fps());
+        }
         const bool captured = capture.poll(gate);
         const auto now = Clock::now();
         if (captured && gate.due(now)) {
@@ -51,9 +55,10 @@ void stream_gdi(const Config& config, Encoder& encoder) {
     capture.open();
     DamageGate gate(config.fps);
     FrameWait wait;
-    const auto interval = std::chrono::nanoseconds(1'000'000'000 / config.fps);
     auto next = Clock::now();
     for (;;) {
+        if (encoder.poll_controls()) { gate.set_fps(encoder.fps()); gate.observe(true); }
+        const auto interval = std::chrono::nanoseconds(1'000'000'000 / encoder.fps());
         capture.poll(gate);
         const auto now = Clock::now();
         if (gate.due(now)) {
@@ -72,12 +77,16 @@ void stream_gdi(const Config& config, Encoder& encoder) {
 int main(int argc, char** argv) {
     try {
         _setmode(_fileno(stdout), _O_BINARY);
+        desktop::bind_service_desktop();
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
         av_log_set_level(AV_LOG_ERROR);
         if (argc == 2 && std::string_view(argv[1]) == "audio") { desktop::audio::stream(); return 0; }
         const auto config = desktop::parse(argc, argv);
         desktop::Encoder encoder(config);
+        const unsigned char capabilities[] = {4, 0, 0, 0, 'C', 'S', 'W', '2'};
+        if (std::fwrite(capabilities, 1, sizeof(capabilities), stdout) != sizeof(capabilities)
+            || std::fflush(stdout) != 0) throw std::runtime_error("video output closed");
         if (config.gdi) desktop::stream_gdi(config, encoder);
         else desktop::stream_gpu(config, encoder);
         return 0;

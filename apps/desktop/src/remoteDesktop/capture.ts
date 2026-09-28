@@ -11,8 +11,8 @@ export class DesktopCapture {
   private closing?: Promise<void>;
   displays: DesktopDisplays = {};
   private stream?: MediaStream;
-  async open(width: number, displayId?: string) {
-    const { id, ...displays } = await openDesktopCapture(displayId);
+  async open(width: number, displayId?: string, expiresAt?: number) {
+    const { id, ...displays } = await openDesktopCapture(displayId, expiresAt);
     this.id = id; this.displays = displays;
     if (this.stopped) { await this.release(); throw new Error('桌面连接已结束。'); }
     await this.frame(width);
@@ -39,6 +39,9 @@ export class DesktopCapture {
   }
   async input(input: unknown) {
     if (!this.stopped && this.id) await invoke('remote_desktop_input', { id: this.id, input });
+  }
+  async renew(expiresAt: number) {
+    if (this.id && !this.stopped) await invoke('remote_desktop_renew', { id: this.id, expiresAt });
   }
   async clipboard(message: object) {
     if (this.stopped || !this.id) throw new Error('桌面连接已结束。');

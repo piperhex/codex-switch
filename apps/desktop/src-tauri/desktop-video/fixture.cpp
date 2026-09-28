@@ -7,6 +7,7 @@
 #include <thread>
 #include <dwmapi.h>
 #include <future>
+#include <charconv>
 
 namespace desktop {
 namespace {
@@ -68,13 +69,13 @@ void update(double seconds, HWND window, bool rate) {
     UpdateWindow(window);
 }
 
-void animate() {
+void animate(int seconds) {
     Window window;
     SetWindowPos(window.handle, HWND_TOPMOST, 0, 0, 0, 0,
         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     const auto start = Clock::now();
     FrameWait wait;
-    while (Clock::now() - start < std::chrono::seconds(30)) {
+    while (Clock::now() - start < std::chrono::seconds(seconds)) {
         MSG message{};
         while (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) DispatchMessage(&message);
         update(std::chrono::duration<double>(Clock::now() - start).count(), window.handle, true);
@@ -113,11 +114,16 @@ void run(bool gdi, bool baseline, bool rate) {
     FrameWait wait;
     const auto start = Clock::now();
     auto next = start;
-    const auto interval = std::chrono::nanoseconds(1'000'000'000 / config.fps);
     int iterations = 0, submissions = 0;
     double encode_seconds = 0;
     std::fprintf(stderr, "phase=0\n");
     while (Clock::now() - start < std::chrono::seconds(rate ? 8 : 18)) {
+        if (encoder.poll_controls()) {
+            gate.set_fps(encoder.fps()); gate.observe(true);
+            if (capture) capture->frame_rate(encoder.fps());
+            std::fprintf(stderr, "controlApplied fps=%d\n", encoder.fps());
+        }
+        const auto interval = std::chrono::nanoseconds(1'000'000'000 / encoder.fps());
         const bool captured = gdi ? software->poll(gate) : capture->poll(gate);
         if (baseline) gate.observe(true);
         const auto now = Clock::now();
@@ -148,7 +154,14 @@ int main(int argc, char** argv) {
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
         av_log_set_level(AV_LOG_ERROR);
         if (argc > 1 && std::strcmp(argv[1], "--animate") == 0) {
-            desktop::animate();
+            int seconds = 30;
+            if (argc > 2) {
+                const auto end = argv[2] + std::strlen(argv[2]);
+                const auto parsed = std::from_chars(argv[2], end, seconds);
+                if (parsed.ec != std::errc{} || parsed.ptr != end || seconds < 1 || seconds > 3630)
+                    throw std::runtime_error("invalid animation duration");
+            }
+            desktop::animate(seconds);
             return 0;
         }
         desktop::run(argc > 1 && std::strcmp(argv[1], "gdi") == 0,

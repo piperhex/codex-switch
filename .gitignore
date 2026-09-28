@@ -22,3 +22,5 @@ apps/desktop/src-tauri/.updater/
 /.codex-tmp-*
 .worktrees/
 apps/desktop/src-tauri/resources/remote-desktop/runtime/
+apps/desktop/src-tauri/resources/desktop-service/*
+!apps/desktop/src-tauri/resources/desktop-service/README.md

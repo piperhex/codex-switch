@@ -47,7 +47,7 @@ impl Stream {
         .await
         .map_err(|_| DesktopError::Platform)??;
         let (mut encoder, _) = Encoder::open(&path, profile, &display).await?;
-        let peer = match peer::create(request.ice_servers).await {
+        let peer = match peer::create(request.ice_servers, request.clipboard_channel).await {
             Ok(peer) => peer,
             Err(error) => {
                 encoder.stop().await;
@@ -69,7 +69,8 @@ impl Stream {
             received_candidates: Mutex::new(0),
         });
         let (inputs, receiver) = mpsc::channel(64);
-        peer::bind(&stream, inputs);
+        let (clipboard, clipboard_receiver) = mpsc::channel(8);
+        peer::bind(&stream, inputs, clipboard);
         let offer = stream.offer().await;
         if offer.is_err() {
             encoder.stop().await;
@@ -78,7 +79,8 @@ impl Stream {
         let offer = offer?;
         tokio::spawn(super::audio::run(Arc::clone(&stream), path.clone()));
         tokio::spawn(pump::run(Arc::clone(&stream), path, encoder));
-        tokio::spawn(pump::inputs(Arc::clone(&stream), receiver));
+        tokio::spawn(pump::inputs(Arc::clone(&stream), receiver, false));
+        tokio::spawn(pump::inputs(Arc::clone(&stream), clipboard_receiver, true));
         Ok((stream, offer))
     }
 

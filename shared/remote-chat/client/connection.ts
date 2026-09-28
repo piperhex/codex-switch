@@ -3,6 +3,7 @@ import { keyPair } from '../cipher';
 import type { PacketCipherFactory } from '../packetCipher';
 import { ChatLink } from '../link';
 import { ChatRpc } from '../rpc';
+import { HostIdentityError, type HostKeyVerifier } from '../trustedHost';
 import { browserChatSocket, type ChatSocket } from './socket';
 import { browserClientInfo, type ChatClientInfo } from './clientInfo';
 import { RelayQuota, RELAY_QUOTA_MESSAGE } from '../relayUsage';
@@ -22,6 +23,7 @@ export interface ConnectionEvents {
 }
 
 interface ConnectionOptions extends ConnectionEvents {
+  verifyHostKey?: HostKeyVerifier;
   /** Multi-device clients publish only the visible connection's transfer mode. */
   managePolicyMode?: boolean;
   tcpPunch?: boolean;
@@ -96,10 +98,15 @@ export class ChatConnection {
         transportVersion: 2, binaryRelay: true, tcpPunch: this.options.tcpPunch === true, resume: this.resume,
         clientInfo: this.options.clientInfo ?? browserClientInfo() }));
     };
+    let incoming = Promise.resolve();
     socket.onmessage = ({ data }: { data: unknown }) => {
       if (generation !== this.generation || typeof data !== 'string') return;
-      void this.receive(data, keys).catch(() => {
-        if (generation === this.generation) this.fail(CONNECTION_ERRORS.invalid);
+      incoming = incoming.then(() => {
+        if (generation === this.generation) return this.receive(data, keys);
+      }).catch((error: unknown) => {
+        if (generation !== this.generation) return;
+        if (error instanceof HostIdentityError) { this.active = false; this.fail(error.message); }
+        else this.fail(CONNECTION_ERRORS.invalid);
       });
     };
     socket.onclose = (event) => {
@@ -174,7 +181,12 @@ export class ChatConnection {
       return;
     }
     if (message.type === 'peer-offline') this.link?.setRelayAvailable(false);
-    if (message.type === 'signal') await this.link?.acceptSignal(message.payload as Signal);
+    if (message.type === 'signal') {
+      const signal = message.payload as Signal;
+      const link = this.link;
+      if (signal.kind === 'key') await this.options.verifyHostKey?.(String(message.sessionId), signal);
+      if (link === this.link) await link?.acceptSignal(signal);
+    }
     if (message.type === 'relay-ready') this.link?.enableRelay();
     if (message.type === 'relay' && typeof message.payload === 'string') this.link?.receive(message.payload);
     if (message.type === 'peer-close') this.fail(CONNECTION_ERRORS.interrupted);
@@ -271,6 +283,11 @@ export class ChatConnection {
   stop() {
     this.active = false;
     this.disconnected();
+  }
+
+  async confirmHostIdentity(fingerprint: string) {
+    if (!this.options.verifyHostKey?.confirm) throw new Error('当前连接无法更新电脑身份。');
+    await this.options.verifyHostKey.confirm(fingerprint);
   }
 
   private publishPolicyMode(mode: ConnectionMode) {

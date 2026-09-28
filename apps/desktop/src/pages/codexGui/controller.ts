@@ -11,6 +11,7 @@ import { deleteGuiThread } from "./deleteThread";
 import { conversation, reduceEvent } from "./events";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { MessageQueue } from "./messageQueue";
+import { QueueJournal, type QueueStorage } from './queueJournal';
 import { mergeMessageItems } from "./sentMessages";
 import { asyncAnswerText, pendingAsyncQuestions, withAsyncAnswer } from "./asyncQuestionState";
 import { compactUnavailableReason } from "./composerOptions";
@@ -26,6 +27,10 @@ import type { Item, SkillReference } from "./types";
 const STREAM_FRAME_MS = 32;
 
 export class GuiController {
+  readonly queueJournal: QueueJournal;
+  constructor(storage?: QueueStorage) {
+    this.queueJournal = new QueueJournal(storage, queued => this.patch({ queued }), this.report);
+  }
   private state = initialState();
   private listeners = new Set<() => void>();
   private listGeneration = 0;
@@ -49,6 +54,7 @@ export class GuiController {
     if (this.disposed) return;
     const previous = this.state;
     this.state = { ...this.state, ...patch };
+    if (previous.queued !== this.state.queued) this.queueJournal.remember(this.state.queued);
     this.capacityRetry.sync(previous, this.state);
     if (previous.selected !== this.state.selected) savePreferences(this.state);
     if (notify) this.listeners.forEach((listener) => listener());
@@ -71,6 +77,7 @@ export class GuiController {
   readonly projectActions = new GuiProjects({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report });
   readonly readState = new GuiReadState({ getSnapshot: this.getSnapshot, patch: this.patch });
   readonly queue = new MessageQueue({ getSnapshot: this.getSnapshot, patch: this.patch,
+    saved: () => this.queueJournal.saved(),
     active: () => !this.disposed, report: this.report,
     generateTitle: (thread, prompt) => this.titles.generate(thread, prompt),
     acceptTurn: (threadId, turn) => this.acceptTurn(threadId, turn) });
@@ -143,6 +150,7 @@ export class GuiController {
   private async initialize(options?: { reuseExisting: boolean }) {
     this.patch({ connection: "connecting", error: "" });
     try {
+      await this.queueJournal.restore();
       if (!this.unlisten) {
         const stop = await guiApi.subscribe(this.receive);
         if (this.disposed) { stop(); return; }
@@ -342,7 +350,11 @@ export class GuiController {
       || (!text.trim() && !images.length && !skills.length && !attachments.length)) return false;
     if (selected && (conversations[selected]?.activeTurn || this.state.queued[selected]?.length)) {
       const accepted = this.queue.enqueue(selected, { text, images, skills, ...(attachments.length ? { attachments } : {}) });
-      if (accepted) void this.queue.flush(selected);
+      if (accepted) {
+        try { await this.queueJournal.saved(); }
+        catch (error) { this.queue.hold(selected); this.report(error); return false; }
+        void this.queue.flush(selected);
+      }
       return accepted;
     }
     const startedAtMs = Date.now();

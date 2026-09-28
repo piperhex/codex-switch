@@ -21,6 +21,8 @@ name = "codex_switch_lib_tests"
 path = "src/test_main.rs"
 
 [build-dependencies]
+sha2 = "0.10"
+serde_json = "1"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
@@ -87,6 +89,7 @@ hyper-util = { path = "vendor/hyper-util" }
 core-foundation = "0.10"
 
 [target.'cfg(windows)'.dependencies]
+windows-service = "0.8"
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Graphics_Dwm",
@@ -94,6 +97,12 @@ windows-sys = { version = "0.61", features = [
   "Win32_Networking_WinHttp",
   "Win32_Storage_FileSystem",
   "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Security_Cryptography",
+  "Win32_System_StationsAndDesktops",
+  "Win32_System_RemoteDesktop",
+  "Win32_System_Pipes",
+  "Win32_System_SystemInformation",
   "Win32_System_Threading",
   "Win32_System_JobObjects",
   "Win32_System_DataExchange",

@@ -12,7 +12,7 @@ import { guiApi } from '../pages/codexGui/api';
 import { ChatSettings } from '../../../web/src/chat/ChatSettings';
 
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { request: vi.fn() } }));
-vi.mock('../api/backend', () => ({ invoke: vi.fn() }));
+vi.mock('../api/backend', () => ({ invoke: vi.fn(), hasLocalBackend: false }));
 vi.mock('../../../web/src/components/AdaptiveSheet', () => ({
   AdaptiveSheet: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));

@@ -7,6 +7,7 @@ vi.mock('react-native', () => ({ Platform: platform, NativeModules: {} }));
 vi.mock('react-native-webrtc', () => ({ RTCPeerConnection: class {} }));
 vi.mock('react-native-tcp-socket', () => ({ default: {} }));
 vi.mock('expo-crypto', () => ({ getRandomBytes: (length: number) => new Uint8Array(length).fill(7) }));
+vi.mock('expo-secure-store', () => ({ getItemAsync: vi.fn(async () => null), setItemAsync: vi.fn(async () => {}) }));
 vi.mock('../api/client', () => ({ fetchUserProfile: vi.fn(async () => ({})) }));
 
 class Socket {

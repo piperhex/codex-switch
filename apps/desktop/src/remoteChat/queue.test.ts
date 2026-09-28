@@ -155,7 +155,8 @@ it('retains failed messages for retry and never transmits image data in queue pr
   const id = queue.read().threads.phone[0].id;
   vi.mocked(guiApi.request).mockRejectedValueOnce(new Error('private transport failure'));
   await queue.request({ operation: 'queueSendNow', threadId: 'phone', id });
-  expect(queue.read().threads.phone).toMatchObject([{ id, busy: false, imageCount: 1, error: '发送失败，请重试。' }]);
+  expect(queue.read().threads.phone).toMatchObject([{ id, busy: false, imageCount: 1,
+    error: '发送结果尚未确认，请查看聊天后重试。' }]);
   expect(JSON.stringify(queue.read())).not.toContain(images[0]);
   await queue.request({ operation: 'queueSendNow', threadId: 'phone', id });
   expect(queue.read().threads.phone).toBeUndefined();

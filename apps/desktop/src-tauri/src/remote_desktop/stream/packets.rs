@@ -6,6 +6,7 @@ const MAX_PACKET: usize = 8 * 1024 * 1024;
 #[derive(Default)]
 pub(super) struct Packets {
     buffer: Vec<u8>,
+    pub controllable: bool,
 }
 
 impl Packets {
@@ -30,6 +31,13 @@ impl Packets {
         }
         let packet = self.buffer[4..length + 4].to_vec();
         self.buffer.drain(..length + 4);
+        if packet == b"CSW2" {
+            if self.controllable {
+                return Err(DesktopError::Platform);
+            }
+            self.controllable = true;
+            return self.next();
+        }
         Ok(Some(packet))
     }
 }
@@ -37,6 +45,18 @@ impl Packets {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn negotiates_live_control_without_delivering_capabilities_as_video() {
+        let mut packets = Packets::default();
+        packets.push(&[4, 0, 0, 0, b'C', b'S']).unwrap();
+        assert!(packets.next().unwrap().is_none());
+        assert!(!packets.controllable);
+        packets.push(&[b'W', b'2', 1, 0, 0, 0, 9]).unwrap();
+        assert_eq!(packets.next().unwrap().unwrap(), [9]);
+        assert!(packets.controllable);
+        packets.push(&[4, 0, 0, 0, b'C', b'S', b'W', b'2']).unwrap();
+        assert!(packets.next().is_err());
+    }
 
     #[test]
     fn split_reads_deliver_last_frame_without_a_following_frame() {

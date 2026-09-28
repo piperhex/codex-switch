@@ -21,14 +21,15 @@ type pendingCommand struct {
 	result        chan error
 }
 type ControlGateway struct {
-	service     *Service
-	mu          sync.Mutex
-	sessions    map[*peer]controlSession
-	sockets     map[string]*peer
-	subscribers map[string]map[*peer]bool
-	pending     map[string]pendingCommand
-	updates     map[string]pendingAppUpdate
-	commands    map[string]pendingRemoteCommand
+	revokeDesktopService func(string, string)
+	service              *Service
+	mu                   sync.Mutex
+	sessions             map[*peer]controlSession
+	sockets              map[string]*peer
+	subscribers          map[string]map[*peer]bool
+	pending              map[string]pendingCommand
+	updates              map[string]pendingAppUpdate
+	commands             map[string]pendingRemoteCommand
 }
 
 func newControlGateway(service *Service) *ControlGateway {
@@ -144,15 +145,21 @@ var deviceIDPattern = regexp.MustCompile(
 
 func (g *ControlGateway) authenticateDevice(client *peer, message platform.JSON, timer *time.Timer) error {
 	token, _ := message["accessToken"].(string)
-	owner, _, err := socketIdentity(g.service.deps, token)
+	id, _ := message["deviceId"].(string)
+	owner, expires, err := g.service.deviceIdentity(token, id)
 	if err != nil {
 		return err
 	}
-	id, _ := message["deviceId"].(string)
+	client.serviceHost.Store(isServiceCredential(token))
 	if !deviceIDPattern.MatchString(id) {
 		return errors.New("invalid device id")
 	}
-	device, err := g.service.register(owner, message)
+	var device *Device
+	if client.serviceHost.Load() {
+		device, err = g.service.owned(owner, id)
+	} else {
+		device, err = g.service.register(owner, message)
+	}
 	if err != nil {
 		return err
 	}
@@ -162,9 +169,17 @@ func (g *ControlGateway) authenticateDevice(client *peer, message platform.JSON,
 	timer.Stop()
 	g.mu.Lock()
 	previous := g.sockets[owner+":"+id]
+	if client.serviceHost.Load() && previous != nil && !previous.closed.Load() && !previous.serviceHost.Load() {
+		g.mu.Unlock()
+		client.close(4008, "Interactive host is active")
+		return nil
+	}
 	g.sessions[client] = controlSession{owner: owner, device: id, kind: "device"}
 	g.sockets[owner+":"+id] = client
 	g.mu.Unlock()
+	if client.serviceHost.Load() {
+		time.AfterFunc(time.Until(expires), func() { client.close(4001, "Service session expired") })
+	}
 	if previous != nil && previous != client {
 		previous.close(4000, "Replaced by a newer connection")
 	}

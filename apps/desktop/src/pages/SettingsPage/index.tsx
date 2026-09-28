@@ -14,6 +14,7 @@ import type { SettingsPageProps } from "../settings/types";
 import { UsageSettingsCards } from "../settings/UsageSettingsCards";
 import { TotpSyncSettingsCard } from "../settings/TotpSyncSettingsCard";
 import { NetworkProxySettingsCard } from "../settings/NetworkProxySettings";
+import { RemoteDesktopSettingsCard } from '../settings/RemoteDesktopSettingsCard';
 import styles from "./index.module.less";
 
 interface SettingsSectionProps {
@@ -80,6 +81,7 @@ export function SettingsPage(settings: SettingsPageProps) {
         title={settings.t("settings.sections.connection.title")}
         description={settings.t("settings.sections.connection.description")}>
         <WebProxySettingsCard settings={settings} />
+        <RemoteDesktopSettingsCard />
         <NetworkProxySettingsCard loading={settings.networkProxyLoading}
           onSave={settings.onNetworkProxySave} t={settings.t} value={settings.networkProxy} />
         {settings.showCustomCloudServer && <CloudSettingsCard settings={settings} />}

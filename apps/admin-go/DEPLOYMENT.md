@@ -4,6 +4,31 @@
 `apps/admin` 的 NestJS 源码已冻结，仅用于本地兼容对照测试。
 以下命令从仓库根目录执行，不包含任何具体生产主机或凭据。
 
+## 手机推送与 Windows 无人值守（2026-09-28）
+
+已有数据库先备份，再执行 `sql/20260928-chat-push.sql` 和
+`sql/20260928-desktop-service.sql`，然后更新 Go 镜像。两项功能默认关闭。
+推送使用 Expo 转发 APNs；服务器设置 `CHAT_PUSH_ENABLED=true`，按项目配置
+`EXPO_PUSH_ACCESS_TOKEN`。移动构建设置和真机验收步骤见
+[远程可靠性说明](../../docs/remote-reliability.md)。禁止将访问令牌放进客户端构建变量。
+
+Windows 无人值守设置 `DESKTOP_SERVICE_ENABLED=true`，并更新桌面、手机和 Web。
+普通账号认证的 `/devices/:deviceId/service-credential` 用于颁发和撤销设备授权；
+`/desktop-service/revoke` 只接受服务自己的设备凭据，不能套用 Kong 的账号 JWT 插件。
+Kong 新增受保护路径 `/chat-push`，新增直达 Go 的 `/desktop-service/revoke`；
+已有 `/device-chat`、`/device-switch` 的 WebSocket 升级和超时设置继续保留。
+参考 `kong/existing-kong.example.yml` 增量调整现有路由，不覆盖整份生产配置。
+
+凭据只允许指定账号的指定电脑作为远程宿主上线，不授权账号 HTTP 接口或手机查看端。
+轮换、设备菜单撤销或服务主动注销会拒绝旧凭据的新连接，并关闭该实例上的旧服务连接。
+多实例部署尚未加入跨实例撤销广播，其他实例上的已有连接最多保留到一小时授权到期；
+配置即时撤销要求时先使用单个协调实例。断网时媒体访问也受到本地授权截止时间约束。
+删除离线设备时同时删除其服务凭据，重新登记同一设备不会恢复旧授权。
+
+回滚仅使用已验证的 Go 镜像并保留新增表。先关闭以上开关、撤销服务授权并在电脑上停用服务。
+服务端推送队列会保留未完成记录，回滚期间不发送；不要删除队列来模拟成功投递。
+Windows 安装、锁屏/登录验收与限制见 [无人值守说明](../../docs/windows-unattended.md)。
+
 ## 设备上报防刷（2026-09-24）
 
 本次更新无需 SQL 迁移。部署前将 `TRUSTED_PROXY_CIDRS` 配置为实际入口代理地址的

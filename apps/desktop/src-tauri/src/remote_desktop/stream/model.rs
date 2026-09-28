@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 
 /// Validated capture/encoder limits; no caller-supplied paths or process arguments cross IPC.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct Profile {
+    #[serde(default)]
+    pub adaptive_fps: bool,
     pub width: u32,
     pub fps: u32,
     pub bitrate: u32,
@@ -46,32 +49,34 @@ impl IceServer {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct OpenRequest {
+    #[serde(default)]
+    pub clipboard_channel: bool,
     pub id: String,
     pub profile: Profile,
     pub ice_servers: Vec<IceServer>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct SignalRequest {
     pub id: String,
     pub answer: Option<String>,
     pub candidates: Vec<serde_json::Value>,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct Offer {
     pub sdp: String,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct SignalReply {
     pub candidates: Vec<serde_json::Value>,
 }
 
-#[derive(Clone, Default, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub(crate) struct StreamStats {
     pub fps: f64,
     pub width: u32,
@@ -82,7 +87,7 @@ pub(crate) struct StreamStats {
     pub audio: Option<AudioState>,
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum AudioState {
     Starting,
@@ -90,7 +95,7 @@ pub(crate) enum AudioState {
     Unavailable,
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum Connection {
     Direct,

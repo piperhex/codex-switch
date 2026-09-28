@@ -5,6 +5,8 @@ import type { ChatState } from './types';
 import type { ChatController } from '../../../../shared/remote-chat/client/controller';
 import { ChatProjectPicker } from './ChatProjectPicker';
 import { ChatReconnectButton } from './ChatReconnectButton';
+import { HOST_IDENTITY_CHANGED } from '../../../../shared/remote-chat/trustedHost';
+import { HostIdentityVerification } from './HostIdentityVerification';
 import { styles } from './styles';
 
 const modeLabels = { connecting: '正在连接…', direct: 'P2P', relay: 'Relay', offline: '等待重新连接' };
@@ -13,6 +15,7 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
   state: ChatState; controller: ChatController; device?: RemoteDevice; active: boolean;
 }) {
   const [picking, setPicking] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const canChoose = active && state.ready && !state.selected && !state.sending;
   const canReconnect = active && device && !state.ready && !state.connecting && state.mode !== 'connecting';
   let status = modeLabels[state.mode];
@@ -25,6 +28,8 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
         canReconnect && connectionStyles.reconnectingStatus]}>
         {device ? `${device.name} · ${canReconnect ? '' : status}` : '选择电脑，开始聊天'}</Text>
       {canReconnect && <ChatReconnectButton retryAt={state.retryAt} onPress={controller.connectNow} />}
+      {state.error === HOST_IDENTITY_CHANGED && <Pressable onPress={() => setVerifying(true)} accessibilityRole="button">
+        <Text>核对电脑身份</Text></Pressable>}
       {!state.selected && !canReconnect && <>
         <Text style={styles.headerMeta}> · </Text>
         <Pressable accessibilityRole="button" accessibilityLabel="选择项目" disabled={!canChoose}
@@ -37,6 +42,7 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
     {picking && canChoose && <ChatProjectPicker cwd={state.draftProject?.cwd}
       load={controller.loadProjectDirectories} close={() => setPicking(false)}
       choose={(project) => { controller.chooseDraftProject(project); setPicking(false); }} />}
+    {verifying && <HostIdentityVerification confirm={controller.confirmHostIdentity} close={() => setVerifying(false)} />}
   </>;
 }
 

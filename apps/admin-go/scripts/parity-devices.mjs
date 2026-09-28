@@ -69,6 +69,12 @@ async function seedDevices() {
 
 function connect(pair, side, path) { return new Socket(pair.urls[side].replace(/^http/, 'ws') + path); }
 function checkedFrames(pair, label, frames, normalize) {
+  if (frames.modern.body.type === 'peer-open' && frames.modern.body.expiresAt !== undefined) {
+    const { expiresAt, ...legacyFields } = frames.modern.body;
+    assert.ok(Number.isSafeInteger(expiresAt) && expiresAt > Date.now() && expiresAt <= Date.now() + 3600_000,
+      'Go desktop grant must have a bounded authentication expiry');
+    frames = { ...frames, modern: { ...frames.modern, body: legacyFields } };
+  }
   return pair.check(label, Object.fromEntries(sides.map((side) => [side, { status: 200, body: frames[side].body }])), normalize);
 }
 async function bothNext(sockets, type) {

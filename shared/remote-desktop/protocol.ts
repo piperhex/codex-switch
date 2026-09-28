@@ -4,10 +4,17 @@ export const DESKTOP_OPERATION = 'remoteDesktop';
 export const MAX_FPS = 144;
 export const DEFAULT_SETTINGS: DesktopSettings = { fps: 'auto', quality: 'auto' };
 export type DesktopQuality = 'auto' | 'smooth' | 'clear' | 'original';
-export interface DesktopSettings { fps: 'auto' | number; quality: DesktopQuality; displayId?: string }
+export interface DesktopSettings {
+  fps: 'auto' | number; quality: DesktopQuality; displayId?: string; clipboardChannel?: boolean;
+}
 export interface DesktopDisplay { id: string; name: string; width: number; height: number; primary: boolean }
-export interface DesktopDisplays { displays?: DesktopDisplay[]; displayId?: string }
-export interface DesktopCapabilities { keyboard?: boolean; clipboard?: boolean; horizontalScroll?: boolean }
+export interface DesktopPermissions {
+  enabled: boolean; control: boolean; clipboardRead: boolean; clipboardWrite: boolean; files: boolean; audio: boolean;
+}
+export interface DesktopDisplays { displays?: DesktopDisplay[]; displayId?: string; permissions?: DesktopPermissions }
+export interface DesktopCapabilities {
+  keyboard?: boolean; clipboard?: boolean; horizontalScroll?: boolean; control?: boolean;
+}
 export interface DesktopOffer extends DesktopDisplays {
   sdp: string; iceServers: IceServer[]; capabilities?: DesktopCapabilities;
 }
@@ -56,5 +63,6 @@ export function validateSettings(value: unknown): DesktopSettings {
     throw new Error('请选择有效的显示器。');
   }
   return { fps: input.fps!, quality: input.quality!,
+    ...(input.clipboardChannel === true ? { clipboardChannel: true } : {}),
     ...(input.displayId === undefined ? {} : { displayId: input.displayId }) };
 }

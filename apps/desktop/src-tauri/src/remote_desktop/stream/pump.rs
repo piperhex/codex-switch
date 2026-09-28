@@ -64,6 +64,9 @@ async fn video(stream: &Arc<Stream>, path: PathBuf, encoder: &mut Encoder) -> Re
     wait_connected(stream).await?;
     let mut cancel = stream.cancel.subscribe();
     let mut settings = stream.profile.subscribe();
+    let mut feedback = stream.peer.feedback.clone();
+    let mut keyframe_version = 0;
+    let mut keyframe_at = Instant::now() - Duration::from_secs(1);
     let mut interval = tokio::time::interval(Duration::from_secs(2));
     interval.tick().await;
     let mut progress = Progress {
@@ -80,6 +83,14 @@ async fn video(stream: &Arc<Stream>, path: PathBuf, encoder: &mut Encoder) -> Re
         }
         tokio::select! {
             _ = cancel.changed() => return Ok(()),
+            changed = feedback.changed() => {
+                if changed.is_err() { return Err(DesktopError::Platform); }
+                let requested = feedback.borrow_and_update().keyframes;
+                if requested != keyframe_version && keyframe_at.elapsed() >= Duration::from_millis(250) {
+                    encoder.request_keyframe().await?;
+                    keyframe_version = requested; keyframe_at = Instant::now();
+                }
+            },
             _ = settings.changed() => {
                 let profile = *settings.borrow_and_update();
                 reconfigure(stream, &path, encoder, profile).await?;
@@ -104,6 +115,9 @@ async fn reconfigure(
     encoder: &mut Encoder,
     profile: super::model::Profile,
 ) -> Result<()> {
+    if encoder.update(profile).await? {
+        return Ok(());
+    }
     encoder.stop().await;
     let (next, first) = Encoder::open(path, profile, &stream.display).await?;
     *encoder = next;
@@ -183,7 +197,11 @@ async fn report(stream: &Stream, encoder: &Encoder, frames: u32, started: Instan
     Ok(())
 }
 
-pub(super) async fn inputs(stream: Arc<Stream>, mut inputs: mpsc::Receiver<bytes::Bytes>) {
+pub(super) async fn inputs(
+    stream: Arc<Stream>,
+    mut inputs: mpsc::Receiver<bytes::Bytes>,
+    clipboard: bool,
+) {
     let mut cancel = stream.cancel.subscribe();
     loop {
         if *cancel.borrow() {
@@ -200,7 +218,12 @@ pub(super) async fn inputs(stream: Arc<Stream>, mut inputs: mpsc::Receiver<bytes
             return;
         };
         if let Some(reply) = reply {
-            if stream.peer.controls.send_text(reply).await.is_err() {
+            let channel = if clipboard {
+                &stream.peer.clipboard
+            } else {
+                &stream.peer.controls
+            };
+            if channel.send_text(reply).await.is_err() {
                 stream.cancel.send_replace(true);
                 return;
             }
@@ -220,6 +243,11 @@ fn apply_input(id: &str, data: &[u8]) -> Result<Option<String>> {
     }
     let input: DesktopInput = serde_json::from_value(value).map_err(|_| DesktopError::Invalid)?;
     super::super::validation::input(&input)?;
-    super::super::with_session(id, |session| session.input.apply(input, &session.display))
-        .map(|()| None)
+    super::super::with_session(id, |session| {
+        if !session.permissions.control {
+            return Err(DesktopError::Denied);
+        }
+        session.input.apply(input, &session.display)
+    })
+    .map(|()| None)
 }

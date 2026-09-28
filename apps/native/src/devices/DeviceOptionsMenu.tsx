@@ -9,6 +9,7 @@ interface DeviceOptionsMenuProps {
   switchingAuthDeviceId: string | null;
   onClose: () => void;
   onDelete: (device: RemoteDevice) => void;
+  onRevokeService: (device: RemoteDevice) => void;
   onSelectAuthAccount: (deviceId: string) => void;
 }
 
@@ -35,6 +36,11 @@ export function DeviceOptionsMenu(props: DeviceOptionsMenuProps) {
           <Text style={styles.optionLabel}>代理登录态账号</Text>
           {switchingAuthDeviceId === device.deviceId && <ActivityIndicator color={deviceColors.green} />}
         </Pressable>
+        {device.platform.toLowerCase() === 'windows' && <Pressable accessibilityRole="button"
+          onPress={() => { onClose(); props.onRevokeService(device); }} style={styles.option}>
+          <Ionicons name="lock-closed-outline" size={21} color={deviceColors.danger} />
+          <Text style={[styles.optionLabel, styles.danger]}>撤销无人值守授权</Text>
+        </Pressable>}
         <Pressable accessibilityRole="button"
           accessibilityState={{ disabled: deleteDisabled }} disabled={deleteDisabled}
           onPress={() => { onClose(); onDelete(device); }}

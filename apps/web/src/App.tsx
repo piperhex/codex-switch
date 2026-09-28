@@ -16,6 +16,7 @@ import { AdaptiveSheet } from "./components/AdaptiveSheet";
 import { BrandMark } from "./components/BrandMark";
 import { RegistrationSheet } from "./components/RegistrationSheet";
 import { DeviceManagementList } from "./devices/DeviceManagementList";
+import { useRevokeDesktopService } from './devices/useRevokeDesktopService';
 import { useRemoteModelRestartPrompt } from "./devices/useRemoteModelRestartPrompt";
 import { RemoteModelSwitchSheet } from "./components/RemoteModelSwitchSheet";
 import { TotpPage } from "./components/TotpPage";
@@ -124,6 +125,7 @@ function LoginView() {
 }
 
 function DevicesPage() {
+  const revokeService = useRevokeDesktopService();
   useLanguage();
   const dispatch = useAppDispatch();
   const {
@@ -210,7 +212,7 @@ function DevicesPage() {
         switchingModelDeviceId={switchingProvider?.deviceId ?? (switchingAccountId ? modelDeviceId : null)}
         switchingAuthDeviceId={switchingOpenAiAuth?.deviceId ?? null}
         onSwitchModel={setModelDeviceId} onSelectAuthAccount={setAuthDeviceId}
-        onDelete={(device) => void deleteDevice(device)} />
+        onDelete={(device) => void deleteDevice(device)} onRevokeService={device => void revokeService(device)} />
     </PullToRefresh>
     <RemoteModelSwitchSheet
       key={modelDeviceId ?? 'closed'}

@@ -33,7 +33,7 @@ describe("Codex GUI controller", () => {
     const connection = controller.connect();
     await Promise.resolve();
     expect(controller.connect()).toBe(connection);
-    expect(controller.getSnapshot().computerUseSetup).toBe("installing");
+    await vi.waitFor(() => expect(controller.getSnapshot().computerUseSetup).toBe("installing"));
     expect(await controller.send("wait", [])).toBe(false);
     receive({ method: "computerUse/setup", params: { computerUseSetup: "failed" } });
     finish([]);

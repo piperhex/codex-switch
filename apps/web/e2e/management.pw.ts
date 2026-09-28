@@ -28,6 +28,33 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.getByText('欢迎回来', { exact: true })).toBeHidden();
 });
 
+test('revokes unattended access only after confirmation and keeps the prompt compact', async ({ page }, info) => {
+  let requests = 0;
+  await page.route('**/devices/sample-pc/service-credential', async route => {
+    expect(route.request().method()).toBe('DELETE');
+    requests += 1;
+    await route.fulfill({ status: 204 });
+  });
+  await navigate(page, '设备');
+  const openPrompt = async () => {
+    await page.getByRole('button', { name: '我的工作电脑 的更多操作' }).click();
+    await page.getByRole('menuitem', { name: '撤销无人值守授权' }).click();
+    await expect(page.getByText('撤销无人值守授权？', { exact: true })).toBeVisible();
+    await expect(page.getByRole('menu')).toBeHidden();
+  };
+  await openPrompt();
+  const width = await page.locator('.adm-dialog-body').evaluate(element => element.getBoundingClientRect().width);
+  expect(width).toBeLessThanOrEqual(400);
+  await noOverflow(page);
+  await page.screenshot({ path: info.outputPath('revoke-unattended.png') });
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  expect(requests).toBe(0);
+  await openPrompt();
+  await page.getByRole('button', { name: '撤销授权', exact: true }).click();
+  await expect(page.getByText('无人值守授权已撤销', { exact: true })).toBeVisible();
+  expect(requests).toBe(1);
+});
+
 test('account overview, private details, 2FA, and nested sheets', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

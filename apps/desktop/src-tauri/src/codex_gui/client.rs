@@ -291,6 +291,7 @@ impl Client {
     }
 
     fn emit(&self, mut event: GuiEvent) {
+        super::push_notifications::receive(&self.app, &event);
         super::conversation_context::display(&mut event.params);
         super::web::publish(&self.app, "codex-gui-event", event);
     }

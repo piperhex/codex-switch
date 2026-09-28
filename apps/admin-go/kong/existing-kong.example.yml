@@ -29,6 +29,8 @@ services:
           - /telemetry
           - /device-switch
           - /device-chat
+          # Opaque device credential; authenticated by Go, not the account JWT plugin.
+          - /desktop-service/revoke
           - /prompt-plugins
           - /skills
           - /codex-home-presets
@@ -39,6 +41,7 @@ services:
           - /sync
           - /admin/api
           - /devices
+          - /chat-push
         strip_path: false
         plugins:
           - name: jwt

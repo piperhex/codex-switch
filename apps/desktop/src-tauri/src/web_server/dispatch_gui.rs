@@ -3,6 +3,10 @@ fn dispatch_gui_command(app: AppHandle, command: &str, args: Value) -> Result<Va
     use tauri::Manager;
 
     match command {
+        "codex_gui_queue_read" => serialize(block_on(codex_gui::queue_store::codex_gui_queue_read(app))),
+        "codex_gui_queue_save" => serialize(block_on(codex_gui::queue_store::codex_gui_queue_save(
+            app, argument(&args, "snapshot")?,
+        ))),
         "codex_gui_request_settings" => serialize(block_on(
             crate::local_proxy::gui_runtime::codex_gui_request_settings(app),
         )),

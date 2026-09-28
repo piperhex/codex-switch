@@ -21,6 +21,7 @@
         "minHeight": 680,
         "center": true,
         "backgroundThrottling": "disabled",
+        "additionalBrowserArgs": "--disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows",
         "resizable": true,
         "fullscreen": false
       }
@@ -52,7 +53,8 @@
       "resources/dream-skin/assets/**/*",
       "resources/dream-skin/LICENSE",
       "resources/dream-skin/NOTICE.md",
-      "resources/remote-desktop/**/*"
+      "resources/remote-desktop/**/*",
+      "resources/desktop-service/**/*"
     ],
     "icon": [
       "icons/32x32.png",

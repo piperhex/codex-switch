@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    io::{AsyncReadExt, BufReader},
+    io::{AsyncReadExt, AsyncWriteExt, BufReader},
     process::{Child, ChildStdout, Command},
 };
 
@@ -42,6 +42,7 @@ pub(super) struct Encoder {
     pub width: u32,
     pub height: u32,
     pub bitrate: u32,
+    profile: Profile,
 }
 
 impl Encoder {
@@ -59,6 +60,12 @@ impl Encoder {
             Backend::Software,
             Backend::GdiSoftware,
         ] {
+            // Legacy FFmpeg capture does not bind the secure input desktop. Never use it in the SYSTEM worker.
+            if super::super::input_desktop::is_worker()
+                && !matches!(backend, Backend::DirtyGpu | Backend::DirtyGdi)
+            {
+                continue;
+            }
             // Opt-in device tests must prove the new path rather than silently passing via compatibility capture.
             #[cfg(test)]
             if std::env::var_os("CSW_NATIVE_TEST_REQUIRE_DAMAGE").is_some()
@@ -83,7 +90,7 @@ impl Encoder {
         let mut command = Command::new(if dirty { &helper } else { path });
         command
             .args(arguments(profile, size, backend))
-            .stdin(Stdio::null())
+            .stdin(if dirty { Stdio::piped() } else { Stdio::null() })
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .kill_on_drop(true)
@@ -98,6 +105,7 @@ impl Encoder {
             width: size.width,
             height: size.height,
             bitrate: profile.bitrate,
+            profile,
         })
     }
 
@@ -127,12 +135,50 @@ impl Encoder {
     }
 
     pub async fn stop(&mut self) {
+        self.child.stdin.take();
         // The process may have exited by itself. kill_on_drop is the final cancellation fallback.
         if let Err(error) = self.child.kill().await {
             if error.kind() != std::io::ErrorKind::InvalidInput {
                 eprintln!("desktop encoder cleanup: {error}");
             }
         }
+    }
+
+    pub async fn update(&mut self, profile: Profile) -> Result<bool> {
+        if profile.width != self.profile.width || !self.controllable() {
+            return Ok(false);
+        }
+        self.control(profile.bitrate, profile.fps).await?;
+        self.profile = profile;
+        self.bitrate = profile.bitrate;
+        Ok(true)
+    }
+
+    pub async fn request_keyframe(&mut self) -> Result<()> {
+        if self.controllable() {
+            self.control(0, 0).await?;
+        }
+        Ok(())
+    }
+
+    fn controllable(&self) -> bool {
+        self.child.stdin.is_some()
+            && self
+                .packets
+                .as_ref()
+                .is_some_and(|packets| packets.controllable)
+    }
+
+    async fn control(&mut self, bitrate: u32, fps: u32) -> Result<()> {
+        let input = self.child.stdin.as_mut().ok_or(DesktopError::Platform)?;
+        let mut message = Vec::with_capacity(12);
+        message.extend(0x3257_5343_u32.to_le_bytes());
+        message.extend(bitrate.to_le_bytes());
+        message.extend(fps.to_le_bytes());
+        tokio::time::timeout(Duration::from_millis(250), input.write_all(&message))
+            .await
+            .map_err(|_| DesktopError::Platform)?
+            .map_err(|_| DesktopError::Platform)
     }
 }
 
@@ -332,6 +378,7 @@ mod tests {
     #[test]
     fn every_capture_backend_excludes_the_host_cursor() {
         let profile = Profile {
+            adaptive_fps: false,
             width: 1920,
             fps: 60,
             bitrate: 6_000_000,

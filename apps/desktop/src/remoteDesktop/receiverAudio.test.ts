@@ -27,7 +27,7 @@ it('merges audio arriving first, preserves mute on late tracks and releases soun
   expect(options.stream).toHaveBeenLastCalledWith(stream);
   expect(tracks).toEqual([audio, video]);
   receiver.mute(false); expect(audio.enabled).toBe(true);
-  receiver.stop(); expect(audio.enabled).toBe(false); expect(audio.stop).toHaveBeenCalledOnce();
+  await receiver.stop(); expect(audio.enabled).toBe(false); expect(audio.stop).toHaveBeenCalledOnce();
   expect(video.stop).not.toHaveBeenCalled();
   expect(options.audio).toHaveBeenLastCalledWith(false);
   expect(peer.close).toHaveBeenCalledOnce();

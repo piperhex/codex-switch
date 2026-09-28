@@ -8,7 +8,8 @@ const STATUS_INTERVAL = 2000;
 function profile(settings: DesktopSettings) {
   const profiles = { auto: { width: 1920, bitrate: 6_000_000 }, smooth: { width: 854, bitrate: 1_500_000 },
     clear: { width: 1920, bitrate: 8_000_000 }, original: { width: 2560, bitrate: 12_000_000 } };
-  return { ...profiles[settings.quality], fps: settings.fps === 'auto' ? 60 : settings.fps };
+  return { ...profiles[settings.quality], fps: settings.fps === 'auto' ? 60 : settings.fps,
+    adaptiveFps: settings.fps === 'auto' };
 }
 
 /** The WebView holds signaling handles; native capture/encoding never returns pixels through IPC. */
@@ -18,12 +19,12 @@ export class NativeDesktopSession {
   private closing?: Promise<void>;
   private displays: DesktopDisplays = {};
   private timer?: ReturnType<typeof setTimeout>;
-  constructor(private settings: DesktopSettings, private readonly iceServers: IceServer[]) {}
+  constructor(private settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number) {}
 
   async open() {
     if (!await invoke<boolean>('remote_desktop_stream_available')) throw new Error('当前电脑暂不可用。');
     if (this.stopped) throw new Error('桌面连接已结束。');
-    const { id, ...displays } = await openDesktopCapture(this.settings.displayId);
+    const { id, ...displays } = await openDesktopCapture(this.settings.displayId, this.expiresAt);
     this.id = id; this.displays = displays;
     if (this.stopped) { await this.closeNative(); throw new Error('桌面连接已结束。'); }
     const offer = await this.openStream();
@@ -35,7 +36,8 @@ export class NativeDesktopSession {
   private async openStream() {
     try {
       return await invoke<{ sdp: string }>('remote_desktop_stream_open', { request: {
-        id: this.id, profile: profile(this.settings), iceServers: this.iceServers.map(server => ({ ...server,
+        id: this.id, profile: profile(this.settings), clipboardChannel: this.settings.clipboardChannel === true,
+        iceServers: this.iceServers.map(server => ({ ...server,
           urls: Array.isArray(server.urls) ? server.urls : [server.urls] })),
       } });
     } catch (error) {
@@ -54,6 +56,10 @@ export class NativeDesktopSession {
     await invoke('remote_desktop_stream_update', { id: this.id, profile: profile(settings) });
     this.settings = settings;
   }
+  async renew(expiresAt: number) {
+    this.expiresAt = expiresAt;
+    if (this.id && !this.stopped) await invoke('remote_desktop_renew', { id: this.id, expiresAt });
+  }
 
   private schedule() {
     this.timer = setTimeout(() => { void this.refresh(); }, STATUS_INTERVAL);
@@ -62,6 +68,7 @@ export class NativeDesktopSession {
   private async refresh() {
     if (this.stopped) return;
     try {
+      if (this.expiresAt !== undefined) await this.renew(this.expiresAt);
       const status = await invoke<{ closed: boolean }>('remote_desktop_stream_status', { id: this.id });
       if (status.closed) this.close();
     } catch { this.close(); }

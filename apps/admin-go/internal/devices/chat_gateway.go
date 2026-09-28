@@ -127,6 +127,8 @@ func (g *ChatGateway) receive(client *peer, state *chatConnection, message platf
 		return err
 	}
 	client.diagnostics.authenticated(identity, message)
+	token, _ := message["accessToken"].(string)
+	client.serviceHost.Store(isServiceCredential(token))
 	client.binaryRelay.Store(message["binaryRelay"] == true)
 	// Serialize handshake snapshots with saved-policy broadcasts so stale reads cannot follow a new policy.
 	g.policyMu.Lock()
@@ -164,13 +166,16 @@ func (g *ChatGateway) authenticate(message platform.JSON) (chatIdentity, error) 
 	if role != "desktop" && role != "mobile" {
 		return identity, errors.New("invalid role")
 	}
-	owner, expires, err := socketIdentity(g.service.deps, token)
-	if err != nil || !expires.After(time.Now()) {
-		return identity, errors.New("expired token")
-	}
 	id, err := identifier(message["deviceId"])
 	if err != nil {
 		return identity, err
+	}
+	if role == "mobile" && isServiceCredential(token) {
+		return identity, errors.New("service cannot act as viewer")
+	}
+	owner, expires, err := g.service.deviceIdentity(token, id)
+	if err != nil || !expires.After(time.Now()) {
+		return identity, errors.New("expired token")
 	}
 	if _, err := g.service.owned(owner, id); err != nil {
 		return identity, err
@@ -277,11 +282,15 @@ func (g *ChatGateway) refreshPolicy() {
 }
 
 type Runtime struct {
-	control *ControlGateway
-	chat    *ChatGateway
+	stopPush func()
+	control  *ControlGateway
+	chat     *ChatGateway
 }
 
 func (runtime *Runtime) Close() error {
+	if runtime.stopPush != nil {
+		runtime.stopPush()
+	}
 	runtime.control.mu.Lock()
 	for client := range runtime.control.sessions {
 		client.close(1001, "Server shutting down")

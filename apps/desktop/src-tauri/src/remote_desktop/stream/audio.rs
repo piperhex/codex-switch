@@ -41,6 +41,15 @@ pub(super) async fn track(connection: &RTCPeerConnection) -> Result<Arc<TrackLoc
 }
 
 pub(super) async fn run(stream: Arc<Stream>, path: std::path::PathBuf) {
+    let id = stream.id.clone();
+    let allowed = tauri::async_runtime::spawn_blocking(move || {
+        super::super::with_session(&id, |session| Ok(session.permissions.audio))
+    })
+    .await;
+    if !matches!(allowed, Ok(Ok(true))) {
+        *stream.audio.lock().await = super::model::AudioState::Unavailable;
+        return;
+    }
     if super::pump::wait_connected(&stream).await.is_err() {
         return;
     }

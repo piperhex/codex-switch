@@ -42,6 +42,7 @@ public:
     Capture& operator=(const Capture&) = delete;
     ~Capture();
     bool poll(DamageGate& gate);
+    void frame_rate(int fps);
     Com<ID3D11Texture2D> texture() const;
 };
 
@@ -92,6 +93,7 @@ class Encoder {
     void open_hardware();
     void open_codec(const char* name);
     void emit(AVFrame* frame);
+    void reconfigure(int bitrate, int fps);
 public:
     explicit Encoder(const Config& config);
     ~Encoder();
@@ -99,5 +101,7 @@ public:
     void submit(ID3D11Texture2D* texture);
     void submit(const GdiCapture& capture);
     void receive();
+    bool poll_controls();
+    int fps() const { return config.fps; }
 };
 }

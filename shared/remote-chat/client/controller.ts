@@ -47,7 +47,8 @@ export class ChatController {
   private state = initialChatState();
   private readonly listeners = new Set<() => void>();
   private readonly eventListeners = new Set<(event: GuiEvent) => void>();
-  private readonly connection: Pick<ChatConnection, 'request' | 'start' | 'stop'>;
+  private readonly connection: Pick<ChatConnection, 'request' | 'start' | 'stop'>
+    & Partial<Pick<ChatConnection, 'confirmHostIdentity'>>;
   private readonly queueConnection = new QueueConnection((body) => this.connection.request('request', body));
   private readonly asyncAnswers = new AsyncAnswers({ snapshot: () => this.state,
     request: (body) => this.connection.request('request', body), update: (patch) => this.update(patch),
@@ -86,7 +87,8 @@ export class ChatController {
     if (!this.state.cacheError) this.update({ cacheError: '部分内容未能缓存，连接电脑后可继续查看。' });
   };
 
-  constructor(createConnection: (events: ConnectionEvents) => Pick<ChatConnection, 'request' | 'start' | 'stop'>,
+  constructor(createConnection: (events: ConnectionEvents) => Pick<ChatConnection, 'request' | 'start' | 'stop'>
+    & Partial<Pick<ChatConnection, 'confirmHostIdentity'>>,
     private readonly offline?: OfflineHistoryStore, versions?: HistoryVersionSource) {
     this.historyReader = new HistoryReader((body) => this.connection.request('request', body), versions);
     if (offline) this.offlineWriter = new OfflineWriter(offline, this.cacheFailure);
@@ -233,6 +235,12 @@ export class ChatController {
     } catch { this.cacheFailure(); }
   }
 
+  confirmHostIdentity = async (fingerprint: string) => {
+    if (!this.connection.confirmHostIdentity) throw new Error('当前连接无法更新电脑身份。');
+    await this.connection.confirmHostIdentity(fingerprint);
+    this.connectNow();
+  };
+
   connectNow = () => {
     if (this.state.ready || this.state.connecting) return;
     this.active = true;
@@ -272,6 +280,12 @@ export class ChatController {
       const response = await this.connection.request<unknown>('connect', chatHandshake);
       if (!this.active || generation !== this.synchronization) return;
       const approvals = chatApprovals(response);
+      if (response && typeof response === 'object' && 'desktopOnly' in response && response.desktopOnly === true) {
+        this.update({ desktopOnly: true, approvals: [], selected: null, threads: [], queue: emptyQueue(),
+          ready: true, connecting: false, retryAt: null, error: '' });
+        return;
+      }
+      this.update({ desktopOnly: false });
       this.update({ approvals, error: '' });
       // A disk read begun during connection must not delay or replace the authoritative refresh.
       if (this.offline && this.state.historyLoading) {
@@ -510,6 +524,7 @@ export class ChatController {
   }
 
   async send(input: SendInput) {
+    if (this.state.desktopOnly) { this.update({ error: '请先登录电脑并打开聊天，再发送消息。' }); return false; }
     if (this.state.threadActionBusy) return false;
     if (input.goalMode) return this.goals.start(input);
     const images = input.images ?? [];

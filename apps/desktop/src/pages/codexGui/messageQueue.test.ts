@@ -187,6 +187,9 @@ it("keeps failed batches available for retry and does not loop", async () => {
   expect(vi.mocked(guiApi.request).mock.calls.filter(([request]) => request.operation === "sendBatch")).toHaveLength(1);
   vi.mocked(guiApi.request).mockImplementation(original);
   await controller.queue.flush("one");
+  expect(messages()[0].needsReview).toBe(true);
+  expect(vi.mocked(guiApi.request).mock.calls.filter(([request]) => request.operation === "sendBatch")).toHaveLength(1);
+  await controller.queue.flush("one", true);
   expect(messages()).toEqual([]);
 });
 

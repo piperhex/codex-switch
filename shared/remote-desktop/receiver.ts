@@ -14,22 +14,28 @@ interface ReceiverOptions {
   audio?: (available: boolean) => void;
   displays?: (value: DesktopDisplays) => void;
   capabilities?: (value: DesktopCapabilities) => void;
+  connected?: () => void;
+  failed?: (message: string) => void;
 }
 const SIGNAL_INTERVAL = 400;
 const HEARTBEAT_INTERVAL = 2000;
 const CONNECT_TIMEOUT = 25_000;
+const RECOVERY_GRACE_MS = 8000;
+const CLOSE_TIMEOUT_MS = 4000;
 
 /** Only signaling and small controls cross JS. Media stays in each platform's WebRTC engine. */
 export class DesktopReceiver {
   private readonly id = `desktop-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   private pc?: RTCPeerConnection;
   private channel?: RTCDataChannel;
+  private clipboardChannel?: RTCDataChannel;
   private candidates: RTCIceCandidateInit[] = [];
   private stopped = false;
   private closing?: Promise<void>;
   private poll?: ReturnType<typeof setTimeout>;
   private heartbeat?: ReturnType<typeof setInterval>;
   private timeout?: ReturnType<typeof setTimeout>;
+  private recoveryTimeout?: ReturnType<typeof setTimeout>;
   private stopStats?: () => void;
   private hostStats: DesktopStats = { width: 0, height: 0, fps: 0, bitrate: 0 };
   private measured: Partial<DesktopStats> = {};
@@ -38,10 +44,11 @@ export class DesktopReceiver {
   private capabilities: DesktopCapabilities = {};
   private audioTracks = new Set<MediaStreamTrack>();
   readonly clipboard = new DesktopClipboard(message => {
-    if (this.stopped || this.channel?.readyState !== 'open' || this.channel.bufferedAmount > MAX_BUFFERED_INPUT) {
+    const channel = this.clipboardChannel?.readyState === 'open' ? this.clipboardChannel : this.channel;
+    if (this.stopped || channel?.readyState !== 'open' || channel.bufferedAmount > MAX_BUFFERED_INPUT) {
       return false;
     }
-    this.channel.send(JSON.stringify(message)); return true;
+    channel.send(JSON.stringify(message)); return true;
   });
   constructor(private readonly options: ReceiverOptions) {}
 
@@ -49,7 +56,7 @@ export class DesktopReceiver {
     this.options.status('正在连接桌面…');
     this.timeout = setTimeout(() => this.fail('桌面连接超时，请检查两端网络后重试。'), CONNECT_TIMEOUT);
     try {
-      const offer = await this.options.client.open(this.id, settings);
+      const offer = await this.options.client.open(this.id, { ...settings, clipboardChannel: true });
       if (this.stopped) { await this.closeRemote(); return; }
       this.capabilities = offer.capabilities ?? {}; this.options.capabilities?.(this.capabilities);
       this.options.displays?.(offer);
@@ -86,7 +93,9 @@ export class DesktopReceiver {
     pc.addEventListener('datachannel', event => this.bindChannel(event.channel));
     pc.addEventListener('connectionstatechange', () => {
       if (pc.connectionState === 'connected') {
-        clearTimeout(this.timeout); this.options.status('');
+        clearTimeout(this.timeout); clearTimeout(this.recoveryTimeout);
+        this.recoveryTimeout = undefined;
+        this.options.status(''); this.options.connected?.();
         this.stopStats ??= monitorDesktopStats(pc, stats => {
           this.measured = stats; this.options.stats({ ...this.hostStats, ...stats });
         });
@@ -94,12 +103,23 @@ export class DesktopReceiver {
         this.fail('桌面连接已断开，请重新连接。');
       } else if (pc.connectionState === 'disconnected') {
         this.options.status('网络中断，正在等待恢复…');
+        this.recoveryTimeout ??= setTimeout(() => this.fail('桌面连接已断开，请重新连接。'), RECOVERY_GRACE_MS);
       }
     });
   }
 
   private bindChannel(channel: RTCDataChannel) {
     if (this.stopped) { channel.close(); return; }
+    if (channel.label === 'remote-desktop-clipboard') {
+      this.clipboardChannel = channel;
+      channel.addEventListener('close', () => { this.clipboardChannel = undefined; this.clipboard.cancel(); });
+      channel.addEventListener('message', ({ data }) => {
+        if (this.stopped || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
+        try { this.clipboard.receive(JSON.parse(data) as ClipboardReply); }
+        catch { this.clipboard.cancel(); }
+      });
+      return;
+    }
     this.channel = channel;
     channel.addEventListener('open', () => {
       if (this.stopped) return;
@@ -137,6 +157,7 @@ export class DesktopReceiver {
   }
 
   input(input: DesktopInput) {
+    if (this.capabilities.control === false) return;
     if (input.kind === 'wheel' && input.horizontal && !this.capabilities.horizontalScroll) return;
     if (input.kind === 'keyboard' && !this.capabilities.keyboard) return;
     if (input.kind === 'button' && input.button === 'middle' && !this.capabilities.keyboard) return;
@@ -152,22 +173,30 @@ export class DesktopReceiver {
   private fail(message: string) {
     if (this.stopped) return;
     this.options.stream(undefined); this.options.status(message); this.stop();
+    // Permission and platform refusals require a host-side change, not repeated connection attempts.
+    if (!/未允许|不支持远程桌面/.test(message)) this.options.failed?.(message);
   }
   private async closeRemote() {
-    try { await this.options.client.close(this.id); }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([this.options.client.close(this.id),
+        new Promise<void>(resolve => { timer = setTimeout(resolve, CLOSE_TIMEOUT_MS); })]);
+    }
     catch { /* The host also expires disconnected sessions and releases held buttons. */ }
+    finally { clearTimeout(timer); }
   }
   stop() {
     if (this.stopped) return this.closing ?? Promise.resolve();
     this.stopped = true;
     this.clipboard.stop();
     clearTimeout(this.poll); clearTimeout(this.timeout); clearInterval(this.heartbeat);
+    clearTimeout(this.recoveryTimeout);
     this.stopStats?.();
     for (const track of this.audioTracks) { track.enabled = false; track.stop(); }
     this.audioTracks.clear(); this.media = undefined;
     this.options.audio?.(false);
     this.candidates.length = 0;
-    this.channel?.close(); this.pc?.close();
+    this.clipboardChannel?.close(); this.channel?.close(); this.pc?.close();
     this.options.stream(undefined);
     this.closing = this.closeRemote();
     return this.closing;

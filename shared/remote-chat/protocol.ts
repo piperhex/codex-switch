@@ -6,7 +6,7 @@ export const MAX_MESSAGE_CHARS = 8 * 1024 * 1024;
 export const MAX_BUFFER_BYTES = 512 * 1024;
 export type ConnectionMode = 'connecting' | 'direct' | 'relay' | 'offline';
 export type Signal = import('./tcp/types').TcpSignal
-  | { kind: 'key'; key: string }
+  | { kind: 'key'; key: string; identity?: { key: string; signature: string } }
   | { kind: 'sdp'; type: 'offer' | 'answer'; sdp: string }
   | { kind: 'ice'; candidate: string; sdpMid: string | null; sdpMLineIndex: number | null };
 export interface IceServer { urls: string | string[]; username?: string; credential?: string }
