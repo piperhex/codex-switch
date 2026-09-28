@@ -1345,5 +1345,15 @@ const styles = StyleSheet.create({
   switchDeviceEmptyTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '800' },
   switchDeviceEmptyText: { color: COLORS.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
   settingsTitle: { color: COLORS.ink, fontSize: 28, fontWeight: '800' }, settingsSubtitle: { color: COLORS.muted, fontSize: 13, marginTop: 4 }, sectionLabel: { color: COLORS.muted, fontSize: 13, fontWeight: '700', marginLeft: 3, marginBottom: 9, marginTop: 2 },
-  bottomNavigation: { flexDirection: 'row', backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, shadowColor: '#314c3d', shadowOpacity: 0.08, shadowRadius: 8, elevation: 10 }, navItem: { flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 2 }, navText: { color: '#7b8c82', fontSize: 11, fontWeight: '700' }, navTextActive: { color: COLORS.green },
+  bottomNavigation: {
+    flexDirection: 'row', backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border,
+    shadowColor: '#314c3d', shadowOpacity: 0.08, shadowRadius: 8, elevation: 10,
+  },
+  navItem: { flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  // Give Android room to draw every glyph instead of using the exact intrinsic text width.
+  navText: {
+    alignSelf: 'stretch', textAlign: 'center', paddingHorizontal: 4, includeFontPadding: true,
+    color: '#7b8c82', fontSize: 11, lineHeight: 18, fontWeight: '700',
+  },
+  navTextActive: { color: COLORS.green },
 });

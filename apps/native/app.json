@@ -83,6 +83,7 @@
       "./plugins/withAppUpdate.cjs",
       "./plugins/withDownloads.cjs",
       "./plugins/withSharedBundleInputs.cjs",
+      "./plugins/withFontScaleRefresh.cjs",
       [
         "expo-screen-orientation",
         {

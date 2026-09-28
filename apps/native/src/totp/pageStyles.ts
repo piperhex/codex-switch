@@ -14,7 +14,7 @@ export const pageStyles = StyleSheet.create({
     minWidth: 58, paddingHorizontal: 13, paddingVertical: 6, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: '#e6f6ee',
   },
-  tab: { alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tab: { alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', gap: 2 },
   list: { flex: 1 },
   listContent: { flexGrow: 1, paddingHorizontal: 18, paddingBottom: 28 },
   header: { paddingTop: 22, paddingBottom: 16 },

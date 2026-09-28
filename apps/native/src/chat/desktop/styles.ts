@@ -16,7 +16,7 @@ export const desktopStyles = StyleSheet.create({
     gap: 4, borderRadius: 10 },
   railTool: { flex: 0, minHeight: 56, paddingVertical: 8 },
   selected: { backgroundColor: '#304b78' },
-  label: { color: '#e7edf8', fontSize: 10 },
+  label: { alignSelf: 'stretch', textAlign: 'center', color: '#e7edf8', fontSize: 10, lineHeight: 16 },
   message: { position: 'absolute', top: 12, alignSelf: 'center', maxWidth: 400, backgroundColor: '#222b3aee',
     borderRadius: 12, padding: 12, gap: 8 },
   text: { color: '#e7edf8', fontSize: 14 },
