@@ -18,6 +18,7 @@ import {
 } from "../api/backend";
 import type { Translate } from "../i18n";
 import type { CloudAuthState } from "../types";
+import { cloudLoginErrorMessage } from "../utils/cloudLoginError";
 
 const DISABLED_STATE: CloudAuthState = {
   enabled: false,
@@ -91,7 +92,7 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
       await syncAfterAuthentication();
       return true;
     } catch (error) {
-      notify(String(error));
+      notify(cloudLoginErrorMessage(error, t));
       return false;
     } finally {
       setLoading(false);
