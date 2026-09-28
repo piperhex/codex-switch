@@ -41,7 +41,7 @@
 .rd-toolbar button[aria-pressed=true], .rd-toolbar .rd-mode,
 .rd-options button[aria-pressed=true] { background: #355987; }
 .rd-stats { position: absolute; left: 10px; top: 10px; display: flex; align-items: flex-start;
-  max-width: 240px; border-radius: 6px; color: #cbd5e1; background: #080b1299; pointer-events: none; }
+  max-width: 240px; border-radius: 6px; color: #cbd5e1; background: #080b1273; pointer-events: none; }
 .rd-stats span { padding: 8px; white-space: pre-line; font: 12px/19px ui-monospace, monospace;
   font-variant-numeric: tabular-nums; }
 .rd-stats button { width: 32px; height: 32px; display: grid; place-items: center;

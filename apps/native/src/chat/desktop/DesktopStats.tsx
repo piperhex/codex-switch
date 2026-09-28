@@ -14,7 +14,7 @@ export function DesktopStats({ stats, close }: { stats: Stats; close: () => void
 }
 const s = StyleSheet.create({
   panel: { position: 'absolute', left: 10, top: 10, flexDirection: 'row', alignItems: 'flex-start', maxWidth: 240,
-    borderRadius: 6, backgroundColor: '#080b1299' },
+    borderRadius: 6, backgroundColor: '#080b1273' },
   text: { padding: 8, color: '#cbd5e1', fontSize: 12, lineHeight: 19,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontVariant: ['tabular-nums'] },
   close: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
