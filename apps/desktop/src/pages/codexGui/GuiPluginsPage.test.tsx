@@ -79,6 +79,7 @@ it("keeps navigation local and pins community and built-in plugin operations to 
   expect(backend.fetchSkillMarket).toHaveBeenCalledWith(GUI_CODEX_HOME_ID);
   expect(backend.invoke).toHaveBeenCalledWith("chrome_plugin_status", { homeId: GUI_CODEX_HOME_ID });
   expect(backend.invoke).toHaveBeenCalledWith("computer_use_status", { homeId: GUI_CODEX_HOME_ID });
+  expect(backend.invoke).toHaveBeenCalledWith("remote_command_status", { homeId: GUI_CODEX_HOME_ID });
   await act(async () => card(community.title).querySelector<HTMLButtonElement>(".skill-install-button")!.click());
   expect(backend.installMarketSkill).toHaveBeenCalledWith(community, GUI_CODEX_HOME_ID);
   expect(backend.invoke).toHaveBeenCalledWith("chrome_plugin_action", {
@@ -90,6 +91,10 @@ it("keeps navigation local and pins community and built-in plugin operations to 
     .querySelector<HTMLButtonElement>(".skill-install-button")!.click());
   expect(backend.invoke).toHaveBeenCalledWith("chrome_plugin_action", { homeId: GUI_CODEX_HOME_ID, action: "enable" });
   expect(backend.invoke).toHaveBeenCalledWith("computer_use_action", { homeId: GUI_CODEX_HOME_ID, action: "install" });
+  await act(async () => card("远程命令")
+    .querySelector<HTMLButtonElement>(".skill-install-button")!.click());
+  expect(backend.invoke).toHaveBeenCalledWith("remote_command_action", { homeId: GUI_CODEX_HOME_ID, action: "install" });
+  expect(card("远程命令").querySelector('input[type="checkbox"]')).toBeNull();
 });
 
 it("keeps community toggle and removal in the GUI home", async () => {

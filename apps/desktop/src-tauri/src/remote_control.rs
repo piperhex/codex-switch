@@ -19,6 +19,15 @@ mod app_update;
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 enum ServerMessage {
+    RemoteCommand {
+        #[serde(rename = "commandId")]
+        command_id: String,
+        request: crate::remote_command::CommandRequest,
+    },
+    RemoteCommandCancel {
+        #[serde(rename = "commandId")]
+        command_id: String,
+    },
     AppUpdate {
         #[serde(rename = "commandId")]
         command_id: String,
@@ -91,6 +100,17 @@ fn run_connection<R: Runtime>(
 ) -> Result<(), String> {
     let (mut socket, _) = connect_remote_websocket(&config.websocket_url)?;
     set_read_timeout(socket.get_mut(), Some(Duration::from_secs(2)))?;
+    let remote_commands_enabled = crate::remote_command::host::enabled();
+    let mut capabilities = vec![
+        "provider-switch",
+        "provider-group-switch",
+        "restart-codex",
+        "gui-model-switch",
+        "app-update",
+    ];
+    if remote_commands_enabled {
+        capabilities.push("remote-command");
+    }
     socket
         .send(Message::Text(
             json!({
@@ -111,7 +131,7 @@ fn run_connection<R: Runtime>(
                 "guiProviderId": match &config.gui_selection {
                     GuiAccountSelection::Provider(id) => Some(id), _ => None,
                 },
-                "capabilities": ["provider-switch", "provider-group-switch", "restart-codex", "gui-model-switch", "app-update"],
+                "capabilities": capabilities,
             })
             .to_string()
             .into(),
@@ -120,8 +140,9 @@ fn run_connection<R: Runtime>(
 
     let mut last_ping = Instant::now();
     let mut updates = app_update::UpdateBridge::new(app);
+    let mut commands = crate::remote_command::host::CommandHost::new();
     loop {
-        for response in updates.responses() {
+        for response in updates.responses().into_iter().chain(commands.responses()) {
             socket
                 .send(Message::Text(response.to_string().into()))
                 .map_err(|error| format!("Could not send update status: {error}"))?;
@@ -131,6 +152,13 @@ fn run_connection<R: Runtime>(
                 let message = serde_json::from_str::<ServerMessage>(&text)
                     .map_err(|error| format!("Invalid remote control message: {error}"))?;
                 match message {
+                    ServerMessage::RemoteCommand {
+                        command_id,
+                        request,
+                    } => commands.request(command_id, request),
+                    ServerMessage::RemoteCommandCancel { command_id } => {
+                        commands.cancel(&command_id)
+                    }
                     ServerMessage::AppUpdate {
                         command_id,
                         action,
@@ -197,16 +225,18 @@ fn run_connection<R: Runtime>(
         }
 
         let next = crate::cloud::remote_control_config(app)?;
-        if next.as_ref().is_none_or(|next| {
-            next.websocket_url != config.websocket_url
-                || next.access_token != config.access_token
-                || next.active_account_id != config.active_account_id
-                || next.openai_auth_account_id != config.openai_auth_account_id
-                || next.active_provider_id != config.active_provider_id
-                || next.active_provider_group != config.active_provider_group
-                || next.local_proxy_running != config.local_proxy_running
-                || next.gui_selection != config.gui_selection
-        }) {
+        if remote_commands_enabled != crate::remote_command::host::enabled()
+            || next.as_ref().is_none_or(|next| {
+                next.websocket_url != config.websocket_url
+                    || next.access_token != config.access_token
+                    || next.active_account_id != config.active_account_id
+                    || next.openai_auth_account_id != config.openai_auth_account_id
+                    || next.active_provider_id != config.active_provider_id
+                    || next.active_provider_group != config.active_provider_group
+                    || next.local_proxy_running != config.local_proxy_running
+                    || next.gui_selection != config.gui_selection
+            })
+        {
             let _ = socket.close(None);
             return Ok(());
         }

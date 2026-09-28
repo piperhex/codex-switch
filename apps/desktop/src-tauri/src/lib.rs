@@ -56,6 +56,7 @@ mod provider_models;
 mod provider_platform;
 mod providers;
 mod remote_chat;
+mod remote_command;
 mod remote_control;
 mod remote_desktop;
 mod remote_websocket;
@@ -85,6 +86,9 @@ pub fn run() {
         return;
     }
     if computer_use::run_helper() {
+        return;
+    }
+    if remote_command::run_helper() {
         return;
     }
     if std::env::args_os().any(|argument| argument == "--print-local-proxy-token") {
@@ -213,6 +217,7 @@ pub fn run() {
             }
             codex_gui::scheduled_tasks::start(app.handle());
             remote_control::start(app.handle().clone());
+            remote_command::start(app.handle().clone());
             if !launch_options.headless {
                 remote_chat::start(app.handle().clone());
             }
@@ -556,6 +561,8 @@ pub fn run() {
             computer_use::commands::computer_use_status,
             computer_use::commands::computer_use_action,
             computer_use::commands::computer_use_request_permission,
+            remote_command::commands::remote_command_status,
+            remote_command::commands::remote_command_action,
             skills_market::upload_market_skill,
             skills_market::install_market_skill,
             skills_market::remove_market_skill,

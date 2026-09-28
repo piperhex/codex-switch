@@ -1,0 +1,27 @@
+{
+  "tools": [
+    {
+      "name": "remote_list_computers",
+      "description": "List other PCs signed into the current Codex Switch account, including platform, online status, and whether the Remote Command plugin is enabled. Use this before choosing a target.",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": false }
+    },
+    {
+      "name": "remote_execute",
+      "description": "Run a noninteractive command on a user-selected online PC with the Remote Command plugin installed and enabled. Returns stdout, stderr, exitCode, timedOut, truncated, and durationMs. Runs as the logged-in desktop user. Default to read-only diagnosis; changes require user authorization. Shell state is not retained. Never automatically retry after connection errors.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "deviceId": { "type": "string", "description": "Exact deviceId from remote_list_computers." },
+          "command": { "type": "string", "minLength": 1, "maxLength": 16384 },
+          "cwd": { "type": "string", "description": "Absolute directory on the target PC. Defaults to that user's home." },
+          "shell": { "type": "string", "enum": ["auto", "powershell", "sh"], "default": "auto" },
+          "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 60, "default": 30 }
+        },
+        "required": ["deviceId", "command"],
+        "additionalProperties": false
+      },
+      "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": false, "openWorldHint": true }
+    }
+  ]
+}

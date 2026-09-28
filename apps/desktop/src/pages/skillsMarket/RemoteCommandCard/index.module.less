@@ -1,0 +1,11 @@
+.card { min-width: 0; }
+.card .preview { display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(145deg, #d6efed, #9bcfc9); }
+.icon { display: grid; place-items: center; width: 72px; height: 72px; color: #267d73;
+  background: #f7fffe; border-radius: 20px; box-shadow: 0 12px 25px #42695726; }
+.card .hint, .status { font-size: 12px; color: var(--muted); }
+.error { max-width: 400px; overflow-wrap: anywhere; color: #b6473e; font-size: 12px; }
+.retry { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px;
+  width: 100%; background: transparent; border: 0; color: var(--muted); cursor: pointer; }
+.confirm { max-width: min(400px, calc(100vw - 32px)); overflow-wrap: anywhere; }
+:global(:root[data-theme="dark"]) .preview { background: linear-gradient(145deg, #23443f, #347d72); }

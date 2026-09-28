@@ -142,7 +142,7 @@ func normalizeCapabilities(value interface{}) []string {
 
 func supportedCapability(name string) bool {
 	switch name {
-	case "provider-switch", "provider-group-switch", "restart-codex", "gui-model-switch", "app-update":
+	case "provider-switch", "provider-group-switch", "restart-codex", "gui-model-switch", "app-update", "remote-command":
 		return true
 	default:
 		return false

@@ -28,12 +28,13 @@ type ControlGateway struct {
 	subscribers map[string]map[*peer]bool
 	pending     map[string]pendingCommand
 	updates     map[string]pendingAppUpdate
+	commands    map[string]pendingRemoteCommand
 }
 
 func newControlGateway(service *Service) *ControlGateway {
 	return &ControlGateway{service: service, sessions: map[*peer]controlSession{}, sockets: map[string]*peer{},
 		subscribers: map[string]map[*peer]bool{}, pending: map[string]pendingCommand{},
-		updates: map[string]pendingAppUpdate{}}
+		updates: map[string]pendingAppUpdate{}, commands: map[string]pendingRemoteCommand{}}
 }
 
 func (g *ControlGateway) serve(c *gin.Context) {
@@ -85,6 +86,17 @@ func (g *ControlGateway) receive(client *peer, message platform.JSON, timer *tim
 	}
 	if session.kind == "device" && message["type"] == "app-update-result" {
 		g.receiveAppUpdate(client, session, message)
+		return nil
+	}
+	if session.kind == "subscriber" && message["type"] == "remote-command" {
+		if !session.expires.IsZero() && !time.Now().Before(session.expires) {
+			return errors.New("authentication expired")
+		}
+		g.requestRemoteCommand(client, session, message)
+		return nil
+	}
+	if session.kind == "device" && message["type"] == "remote-command-result" {
+		g.receiveRemoteCommand(client, session, message)
 		return nil
 	}
 	if session.kind != "device" || message["type"] != "switch-result" {
@@ -225,6 +237,7 @@ func (g *ControlGateway) command(owner, id string, command platform.JSON) error 
 func (g *ControlGateway) disconnect(client *peer) {
 	g.mu.Lock()
 	g.disconnectAppUpdates(client)
+	g.disconnectRemoteCommands(client)
 	session, exists := g.sessions[client]
 	delete(g.sessions, client)
 	if !exists {
