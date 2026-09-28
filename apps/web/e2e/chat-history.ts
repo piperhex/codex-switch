@@ -15,7 +15,7 @@ export async function historyJourney({ page, request, info, relay }: {
   await request.post(`${fixtureUrl}/test/sidebar`, { data: { action: 'history-pages' } });
   await request.post(`${fixtureUrl}/test/history-delay`, { data: { milliseconds: 600 } });
   await openChatList(page);
-  await page.getByRole('button', { name: /移动端聊天体验/ }).click();
+  await page.getByRole('button', { name: '移动端聊天体验', exact: true }).click();
   const items = page.locator('[data-message-id]');
   await expect(items).toHaveCount(10);
   await expect(items.first()).toHaveAttribute('data-message-id', 'history-26');
