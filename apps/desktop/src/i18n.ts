@@ -869,9 +869,7 @@ const translations = {
     "settings.launchAtStartup.label": "Start automatically",
     "settings.autoUpdate.title": "Automatic updates",
     "settings.autoUpdate.description":
-      "On by default: install downloaded updates on the next launch. "
-      + "When off, updates are still checked and downloaded, but will not install automatically after a restart. "
-      + "You can install them manually.",
+      "On by default: install downloaded updates on the next launch.",
     "settings.autoUpdate.label": "Install updates automatically",
     "settings.autoUpdate.saveError": "Could not save update installation settings. Please try again.",
     "settings.closeToTray.title": "Close window behavior",
@@ -3442,7 +3440,7 @@ const translations = {
     "settings.launchAtStartup.label": "自动启动",
     "settings.autoUpdate.title": "自动更新",
     "settings.autoUpdate.description":
-      "默认开启，下次启动时自动安装已下载的更新。关闭后仍会检查并下载更新，但重启后不会自动安装，可随时手动安装。",
+      "默认开启，下次启动时自动安装已下载的更新。",
     "settings.autoUpdate.label": "自动安装更新",
     "settings.autoUpdate.saveError": "更新安装设置保存失败，请重试。",
     "settings.closeToTray.title": "关闭窗口行为",
