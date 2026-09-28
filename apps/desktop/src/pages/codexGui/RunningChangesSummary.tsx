@@ -1,4 +1,5 @@
 import { useId, useMemo } from "react";
+import { ChevronRight, FileText } from "lucide-react";
 import { useDetailsEntry } from "./detailsContext";
 import { useTurnChangedFiles } from "./useTurnChangedFiles";
 import type { Conversation, Turn } from "./types";
@@ -15,11 +16,13 @@ function TurnChangesBadge({ turn }: { turn: Turn }) {
   const removed = files.reduce((sum, file) => sum + file.removed, 0);
   return <div className={styles.wrap}>
     <button type="button" className={styles.badge} onClick={() => panel?.open(entry)}
-      aria-label={`查看本轮修改：${count} 个文件已更改，新增 ${added} 行，删除 ${removed} 行`}>
-      <span>{count} 个文件已更改</span>
+      aria-label={`查看本轮修改：已编辑 ${count} 个文件，新增 ${added} 行，删除 ${removed} 行`}>
+      <FileText size={15} aria-hidden="true" />
+      <span>已编辑 {count} 个文件</span>
       <span className={styles.counts}>
         <span className={styles.added}>+{added}</span><span className={styles.removed}>−{removed}</span>
       </span>
+      <ChevronRight size={14} aria-hidden="true" />
     </button>
   </div>;
 }

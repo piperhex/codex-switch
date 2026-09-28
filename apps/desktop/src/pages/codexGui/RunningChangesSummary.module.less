@@ -1,10 +1,13 @@
 .wrap { display: flex; justify-content: center; margin-bottom: 10px; }
 .badge {
   display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 8px;
-  max-width: min(100%, 400px); padding: 7px 12px; border: 1px solid var(--gui-border); border-radius: 16px;
-  background: color-mix(in srgb, var(--ink) 5%, var(--panel)); color: var(--gui-muted);
+  max-width: min(100%, 400px); box-sizing: border-box; padding: 7px 12px;
+  border: 1px solid var(--gui-border); border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 28%, transparent); color: var(--gui-muted);
+  -webkit-backdrop-filter: var(--gui-chat-backdrop); backdrop-filter: var(--gui-chat-backdrop);
   font: inherit; font-size: var(--gui-font-size, 14px); line-height: 1.5; cursor: pointer;
-  &:hover { background: color-mix(in srgb, var(--ink) 9%, var(--panel)); }
+  > svg { flex-shrink: 0; }
+  &:hover { background: color-mix(in srgb, var(--panel) 42%, transparent); }
   &:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 }
 .counts { display: inline-flex; gap: 5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
