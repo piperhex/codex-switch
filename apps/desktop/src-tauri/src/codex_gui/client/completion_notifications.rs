@@ -1,10 +1,13 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, sync::Arc};
 
-use tauri_plugin_notification::NotificationExt;
+use serde_json::{json, Value};
+use tokio::time::{timeout, Duration};
 
 use super::{Client, GuiEvent};
 
 const RECENT_COMPLETION_LIMIT: usize = 256;
+const TITLE_TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_TITLE_CHARS: usize = 100;
 
 /// Deduplicate terminal events without retaining an unbounded conversation history.
 #[derive(Default)]
@@ -42,25 +45,51 @@ impl CompletionNotifications {
 }
 
 impl Client {
-    pub(super) async fn notify_completion(&self, event: &GuiEvent) {
+    pub(super) async fn notify_completion(self: &Arc<Self>, event: &GuiEvent) {
         if !self.completion_notifications.lock().await.accept(event) {
             return;
         }
-        let app = self.app.clone();
-        // OS notification delivery may block; it must not delay the event reader or UI.
-        tauri::async_runtime::spawn_blocking(move || {
-            if app
-                .notification()
-                .builder()
-                .title("Codex GUI · 对话已完成")
-                .body("本轮回复已完成，可以查看结果了。")
-                .show()
-                .is_err()
-            {
-                eprintln!("Codex GUI could not show a completion notification");
-            }
+        let thread_id = event.params["threadId"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
+        let client = self.clone();
+        // The reader must remain free to dispatch the metadata response and other turns.
+        tokio::spawn(async move {
+            let response = timeout(
+                TITLE_TIMEOUT,
+                client.request(
+                    "thread/read",
+                    json!({"threadId": thread_id, "includeTurns": false}),
+                ),
+            )
+            .await;
+            let thread = match response {
+                Ok(Ok(response)) => response["thread"].clone(),
+                _ => Value::Null,
+            };
+            let title = notification_title(&thread);
+            let app = client.app.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                super::super::notifications::show(&app, &thread_id, &title);
+            });
         });
     }
+}
+
+fn notification_title(thread: &Value) -> String {
+    let title = ["name", "preview"]
+        .into_iter()
+        .filter_map(|key| thread[key].as_str())
+        .find(|text| !text.trim().is_empty())
+        .unwrap_or("新对话");
+    let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut chars = title.chars().filter(|character| !character.is_control());
+    let mut title: String = chars.by_ref().take(MAX_TITLE_CHARS).collect();
+    if chars.next().is_some() {
+        title.push('…');
+    }
+    title
 }
 
 #[cfg(test)]
@@ -108,5 +137,22 @@ mod tests {
             assert!(notifications.accept(&event("thread", &index.to_string(), "completed")));
         }
         assert_eq!(notifications.delivered.len(), RECENT_COMPLETION_LIMIT);
+    }
+
+    #[test]
+    fn title_matches_the_conversation_name_with_preview_and_default_fallbacks() {
+        assert_eq!(
+            notification_title(&json!({"name": " 修复通知 ", "preview": "原始问题"})),
+            "修复通知"
+        );
+        assert_eq!(
+            notification_title(&json!({"name": " ", "preview": "第一行\n第二行"})),
+            "第一行 第二行"
+        );
+        assert_eq!(notification_title(&Value::Null), "新对话");
+        assert_eq!(
+            notification_title(&json!({"name": "中".repeat(MAX_TITLE_CHARS + 1)})),
+            format!("{}…", "中".repeat(MAX_TITLE_CHARS))
+        );
     }
 }

@@ -105,6 +105,8 @@ windows-sys = { version = "0.61", features = [
 ] }
 winreg = "0.55"
 windows = { version = "0.61", features = [
+  "Data_Xml_Dom",
+  "UI_Notifications",
   "ApplicationModel",
   "ApplicationModel_Core",
   "Foundation",

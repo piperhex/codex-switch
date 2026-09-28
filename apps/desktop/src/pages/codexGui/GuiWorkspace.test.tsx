@@ -4,14 +4,17 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { GuiWorkspace } from './GuiWorkspace';
 import type { GuiCloudIdentity, GuiComputer } from './remote/types';
+import type { ThreadNavigation } from './useNotificationNavigation';
 
 const fixture = vi.hoisted(() => ({ current: null as GuiComputer | null, mounts: 0, stops: 0,
   identity: null as GuiCloudIdentity | null, active: true,
+  notificationTarget: undefined as ThreadNavigation | undefined, choose: vi.fn(),
   remoteMounts: vi.fn(), remoteStops: vi.fn(), replies: new Map<string, (reply: string) => void>(),
   notify: (_message: string) => {} }));
 vi.mock('../../api/backend', () => ({ isDesktopApp: true }));
 vi.mock('./remote/useGuiComputers', () => ({ useGuiComputers: () => ({
   current: fixture.current, identity: fixture.identity, devices: [],
+  choose: fixture.choose,
 }) }));
 vi.mock('./useGuiLayout', () => ({ useGuiLayout: () => ({ focused: false, onToggleFocus() {} }) }));
 vi.mock('./useGuiAccountSelection', () => ({ useGuiAccountSelection: () => ({ accounts: [], providers: [] }) }));
@@ -43,6 +46,7 @@ vi.mock('../CodexGuiPage', () => ({ CodexGuiPage: function LocalConversation({ a
 let root: Root;
 let host: HTMLDivElement;
 const render = () => act(async () => root.render(<GuiWorkspace active={fixture.active} accounts={[]} providers={[]}
+  notificationTarget={fixture.notificationTarget}
   privacyMode={false} loading={false} plugins={{ authenticated: true, baseUrl: 'https://fixture.test',
     currentUserId: 'owner', onLogin() {}, notify() {}, t: text => text }} />));
 const office: GuiComputer = { deviceId: 'one', name: 'Office', platform: 'windows', online: true };
@@ -50,11 +54,24 @@ const home: GuiComputer = { ...office, deviceId: 'two', name: 'Home' };
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   fixture.current = null; fixture.mounts = 0; fixture.stops = 0; fixture.active = true;
+  fixture.notificationTarget = undefined;
+  fixture.choose.mockReset().mockImplementation((device: GuiComputer | null) => { fixture.current = device; });
   fixture.identity = { baseUrl: 'https://fixture.test', userId: 'owner' };
   fixture.remoteMounts.mockClear(); fixture.remoteStops.mockClear(); fixture.replies.clear();
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals(); });
+
+it('returns to the local host for a notification without preventing later remote host selection', async () => {
+  fixture.current = office; await render();
+  fixture.notificationTarget = { requestId: 'click', threadId: 'local-thread' };
+  await render(); await render();
+  expect(fixture.choose).toHaveBeenCalledExactlyOnceWith(null);
+  expect(host.querySelector('[data-local-active="true"]')).not.toBeNull();
+  fixture.current = home; await render();
+  expect(fixture.choose).toHaveBeenCalledOnce();
+  expect(host.querySelector('[data-local-active="false"]')).not.toBeNull();
+});
 
 it('keeps the local conversation mounted, receiving replies and preserving its draft across remote switches', async () => {
   await render();

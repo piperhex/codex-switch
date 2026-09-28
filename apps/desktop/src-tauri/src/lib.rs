@@ -124,6 +124,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
         .manage(codex_gui::GuiState::default())
+        .manage(codex_gui::notification_navigation::NavigationState::default())
         .manage(codex_gui::releases::CliUpdateState::default())
         .manage(codex_gui::scheduled_tasks::ScheduledTasksState::default())
         .manage(std::sync::Arc::new(gui_terminal::TerminalState::default()))
@@ -178,7 +179,7 @@ pub fn run() {
             match app.deep_link().get_current() {
                 Ok(Some(urls)) => {
                     for url in urls {
-                        ccs_import::handle_url(app.handle(), &url);
+                        codex_gui::notification_navigation::handle_url(app.handle(), &url);
                     }
                 }
                 Ok(None) => {}
@@ -187,7 +188,7 @@ pub fn run() {
             let import_app = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 for url in event.urls() {
-                    ccs_import::handle_url(&import_app, &url);
+                    codex_gui::notification_navigation::handle_url(&import_app, &url);
                 }
             });
             if !launch_options.headless {
@@ -290,6 +291,7 @@ pub fn run() {
             #[cfg(windows)]
             system_tray::quick_menu::quick_menu_activate,
             codex_gui::codex_gui_connect,
+            codex_gui::notification_navigation::codex_gui_take_notification_navigation,
             codex_gui::scheduled_tasks::codex_gui_scheduled_tasks,
             codex_gui::clipboard::codex_gui_clipboard_files,
             codex_gui::attachment_preview::codex_gui_attachment_preview,

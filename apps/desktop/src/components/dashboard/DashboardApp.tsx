@@ -109,6 +109,7 @@ import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { WindowControls } from "../WindowControls";
 import { GuiWorkspace } from "../../pages/codexGui/GuiWorkspace";
+import { useNotificationNavigation } from "../../pages/codexGui/useNotificationNavigation";
 import { useGuiTheme } from "../../pages/codexGui/guiTheme";
 import codexGuiStyles from "../../pages/codexGui/styles.module.less";
 import { CODEX_CONFIG_TOPBAR_ID, CodexConfigPage } from "../../pages/CodexConfigPage";
@@ -250,6 +251,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
 export function DashboardApp() {
   const [page, setPage] = useState<DashboardPage>(() =>
     new URLSearchParams(window.location.search).get("page") === "codexGui" ? "codexGui" : "accounts");
+  const notificationTarget = useNotificationNavigation(() => setPage("codexGui"));
   const [diagnosticsTab, setDiagnosticsTab] = useState<LogDiagnosticsTab>("errorLogs");
   const openProxySessions = () => {
     setDiagnosticsTab("proxySessions");
@@ -1500,7 +1502,7 @@ export function DashboardApp() {
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className={codexGuiStyles.panel} hidden={page !== "codexGui"}>
-            <GuiWorkspace active={page === "codexGui"}
+            <GuiWorkspace active={page === "codexGui"} notificationTarget={notificationTarget}
               plugins={{ baseUrl: cloud.state.baseUrl, authenticated: cloud.state.authenticated,
                 currentUserId: cloud.state.userId, onLogin: openCloudLogin, notify, t }}
               windowControls={NATIVE_WINDOW_CONTROLS_ENABLED && <WindowControls onError={notify} t={t} />}

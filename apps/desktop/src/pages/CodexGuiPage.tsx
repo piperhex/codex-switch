@@ -32,6 +32,7 @@ import type { SkillsMarketPageProps } from "./skillsMarket/types";
 import paneStyles from "./codexGui/workspacePanes.module.less";
 import { GuiToolbox } from "./codexGui/GuiToolbox";
 import { localGitClient } from "./codexGui/localGitClient";
+import { useOpenNotifiedThread, type ThreadNavigation } from "./codexGui/useNotificationNavigation";
 
 const GuiPluginsPage = lazy(() => import("./codexGui/GuiPluginsPage"));
 const GuiMigrationPage = lazy(() => import("./codexGui/GuiMigrationPage"));
@@ -44,6 +45,7 @@ type CodexGuiPageProps = {
   windowControls?: ReactNode; plugins: Omit<SkillsMarketPageProps, "active">;
   hostPicker?: ReactNode;
   focusMode?: GuiFocusMode;
+  notificationTarget?: ThreadNavigation;
 };
 
 export function CodexGuiPage(props: CodexGuiPageProps) {
@@ -59,7 +61,7 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
   return <Workspace {...props} {...(props.focusMode ?? focusMode)} />;
 }
 
-function Workspace({ active, accountPicker, providers, aggregateApis, windowControls, plugins, hostPicker,
+function Workspace({ active, accountPicker, providers, aggregateApis, windowControls, plugins, hostPicker, notificationTarget,
   focused, onToggleFocus }: CodexGuiPageProps & GuiFocusMode) {
   const skinStyle = useDreamSkin(active);
   const [controller] = useState(getGuiController);
@@ -73,6 +75,8 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
   };
   const composer = useRef<ComposerHandle>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  useOpenNotifiedThread({ target: notificationTarget, ready: active && state.connection === "ready", controller,
+    showConversation: () => setView("conversation") });
   useEffect(() => {
     controller.capacityRetry.setActive(conversationActive);
     return () => controller.capacityRetry.setActive(false);

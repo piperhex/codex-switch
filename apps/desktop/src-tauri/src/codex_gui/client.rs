@@ -190,7 +190,7 @@ impl Client {
         self.disconnect(true).await;
     }
 
-    async fn dispatch(&self, value: Value) {
+    async fn dispatch(self: &Arc<Self>, value: Value) {
         if let Some(method) = value["method"].as_str() {
             // Legacy codex/event messages duplicate v2 events and can contain raw internal data.
             if method.starts_with("codex/event/") {

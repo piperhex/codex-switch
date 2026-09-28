@@ -34,6 +34,8 @@ mod images;
 mod mcp_approval;
 mod message_edit;
 pub(crate) mod model_settings;
+pub(crate) mod notification_navigation;
+mod notifications;
 mod platform;
 pub(crate) mod plugin_client;
 mod project_directories;
