@@ -17,8 +17,7 @@ const rtc: PeerFactory = peer => new RtcPeer(peer, () => (
 export class MobileChatConnection extends ChatConnection {
   constructor({ session, ...options }: Options) {
     super({ ...options, randomBytes: getRandomBytes,
-      // Android uses an OS socket adapter; iOS keeps WebRTC until its port reuse is verified.
-      tcpPunch: Platform.OS === 'android',
+      tcpPunch: Platform.OS === 'android' || Platform.OS === 'ios',
       createPacketCipher: createNativePacketCipher,
       clientInfo: { name: Platform.OS === 'android' ? Platform.constants.Model : 'iPhone / iPad',
         platform: Platform.OS === 'android' ? 'Android' : 'iOS' },

@@ -36,7 +36,7 @@ it('links the native iOS WebRTC renderer and safe-area pods into the generated a
   const config = JSON.parse(output) as {
     dependencies: Record<string, { platforms: { ios?: { podspecPath: string } } }>;
   };
-  for (const name of ['react-native-webrtc', 'react-native-safe-area-context']) {
+  for (const name of ['react-native-webrtc', 'react-native-safe-area-context', 'react-native-tcp-socket']) {
     const podspec = config.dependencies[name]?.platforms.ios?.podspecPath;
     expect(podspec).toBeTruthy();
     expect(existsSync(podspec!)).toBe(true);

@@ -34,6 +34,22 @@ test.beforeEach(async ({ page, request }, info) => {
 
 
 test('keeps composer icons below single and multiline drafts', async ({ page }) => composerLayout(page));
+test('connects independently over WebRTC without advertising native TCP', async ({ page }) => {
+  const capabilities: boolean[] = [];
+  page.on('websocket', socket => {
+    if (!socket.url().endsWith('/device-chat')) return;
+    socket.on('framesent', ({ payload }) => {
+      if (typeof payload !== 'string') return;
+      const frame = JSON.parse(payload) as { type?: string; tcpPunch?: boolean };
+      if (frame.type === 'authenticate') capabilities.push(frame.tcpPunch === true);
+    });
+  });
+  await page.reload();
+  await connect(page);
+  await expect(page.getByRole('status').filter({ hasText: 'P2P' })).toBeVisible({ timeout: 15_000 });
+  expect(capabilities.length).toBeGreaterThan(0);
+  expect(capabilities.every(enabled => !enabled)).toBe(true);
+});
 test('uses the PC model picker and keeps the mobile settings unchanged', async ({ page, request }, info) => {
   test.skip(info.project.name !== 'desktop', 'Desktop model picker interaction');
   await modelPickerJourney(page, request, info);
