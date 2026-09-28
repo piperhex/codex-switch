@@ -1,9 +1,13 @@
 package com.codexswitch.desktop
 
+import android.content.Context
 import android.os.Build
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.view.inputmethod.InputMethodManager
+import android.webkit.WebView
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -28,6 +32,35 @@ class DesktopWindowModule(private val context: ReactApplicationContext) : ReactC
         promise.resolve(null)
       }
     }
+  }
+
+  @ReactMethod
+  fun showKeyboard(tag: Int, promise: Promise) {
+    UiThreadUtil.runOnUiThread {
+      try {
+        val container = UIManagerHelper.getUIManagerForReactTag(context, tag)?.resolveView(tag)
+        val input = container?.let { findWebView(it) }
+        if (input != null && input.isAttachedToWindow) {
+          // DOM focus alone does not request Android's IME when the editor is created inside a Modal.
+          input.requestFocus()
+          val keyboard = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+          keyboard.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+        }
+        promise.resolve(null)
+      } catch (_: IllegalViewOperationException) {
+        // The user may switch tabs before the input document finishes loading.
+        promise.resolve(null)
+      }
+    }
+  }
+
+  private fun findWebView(view: View): WebView? {
+    if (view is WebView) return view
+    if (view !is ViewGroup) return null
+    for (index in 0 until view.childCount) {
+      findWebView(view.getChildAt(index))?.let { return it }
+    }
+    return null
   }
 
   private fun applyImmersive(root: View, enabled: Boolean) {

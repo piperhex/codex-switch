@@ -13,6 +13,7 @@ import { desktopViewport, MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE } from '../../../../
 import { useMousePanel } from '../../../../../shared/remote-desktop/useMousePanel';
 import { useMouseViewport } from '../../../../../shared/remote-desktop/useMouseViewport';
 import { useDesktopZoom } from '../../../../../shared/remote-desktop/useDesktopZoom';
+import { useInputViewport } from '../../../../../shared/remote-desktop/useInputViewport';
 import { DisplaySettings } from './DisplaySettings';
 import { DesktopKeyboard } from './DesktopKeyboard';
 import { DesktopScrollPad } from './DesktopScrollPad';
@@ -30,7 +31,7 @@ export function RemoteDesktop({ client, active, close }: {
 }) {
   const session = useDesktopSession({ client, active, createPeer });
   const audioUnavailable = !session.hasAudio || session.stats?.audio === 'unavailable';
-  const orientation = useTerminalOrientation(active);
+  const orientation = useTerminalOrientation(active, { initialLandscape: true });
   const window = useDesktopWindow(orientation.landscape);
   const [display, setDisplay] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
@@ -41,7 +42,7 @@ export function RemoteDesktop({ client, active, close }: {
   const panel = useMousePanel(active && panelVisible && !!session.stream);
   const [source, setSource] = useState({ width: 16, height: 9 });
   const [size, setSize] = useState({ width: 400, height: 600 });
-  const fitted = desktopViewport(size, source);
+  const fitted = useInputViewport(desktopViewport(size, source), keyboard);
   const zoom = useDesktopZoom(fitted, active && !!session.stream);
   const viewport = useMouseViewport(session.pointer, zoom.viewport,
     panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined, zoom.modified);
@@ -83,41 +84,45 @@ export function RemoteDesktop({ client, active, close }: {
     presentationStyle="fullScreen" supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
     <SafeAreaProvider><SafeAreaView style={s.root} edges={safeEdges}>
       <StatusBar style="light" hidden={orientation.landscape} />
-      <KeyboardAvoidingView style={[s.workspace, orientation.landscape && s.landscape]} behavior="padding"
+      <KeyboardAvoidingView style={s.workspace} behavior="padding"
         enabled={keyboard || display}>
-        <View ref={window.stage} collapsable={false} style={s.stage}
-          onLayout={({ nativeEvent }) => { setSize(nativeEvent.layout); window.update(); }}>
-          {/* Keep the video surface size stable; changing layout during a pinch can lag behind its position. */}
-          {session.stream && <RTCView style={{ position: 'absolute', left: 0, top: 0,
-            width: fitted.content.width, height: fitted.content.height, transformOrigin: 'top left',
-            transform: [{ translateX: viewport.content.x }, { translateY: viewport.content.y },
-              { scale: viewport.content.width / fitted.content.width }] }} objectFit="contain" zOrder={0}
-            streamURL={(session.stream as unknown as NativeMediaStream).toURL()}
-            onDimensionsChange={({ nativeEvent }) => {
-              if (nativeEvent.width > 0 && nativeEvent.height > 0) setSource(nativeEvent);
-            }} />}
-          <View key={direct ? 'direct' : 'trackpad'} style={s.fill} {...trackpad.panHandlers} accessibilityLabel="远程桌面触控区域" />
-          {session.stats && statsVisible && !keyboard
-            && <DesktopStats stats={session.stats} close={() => setStatsVisible(false)} />}
-          {session.stream && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
-            visible={panelVisible && !scrolling} zoomed={zoom.modified} scroll={() => setScrolling(true)} />}
-          {scrolling && panelVisible && session.stream && <DesktopScrollPad pointer={session.pointer} viewport={viewport}
-            panel={panel} wheel={wheel} horizontal={!!session.capabilities.horizontalScroll}
-            close={() => setScrolling(false)} />}
-          {!!(session.status || orientation.error) && <View style={s.message}>
-            <Text accessibilityRole="alert" style={s.text}>{session.status || orientation.error}</Text>
-            <Pressable onPress={session.retry}><Text style={s.text}>重新连接</Text></Pressable></View>}
-          {display && <DisplaySettings settings={session.settings} displays={session.displays} update={session.update}
-            saving={session.saving || !session.stream}
-            stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}
-            close={() => setDisplay(false)} />}
-          {keyboard && <DesktopKeyboard input={session.input} compact={orientation.landscape}
-            close={() => setKeyboard(false)} />}
+        <View style={[s.workspace, orientation.landscape && s.landscape]}>
+          <View ref={window.stage} collapsable={false} style={s.stage}
+            onLayout={({ nativeEvent }) => { setSize(nativeEvent.layout); window.update(); }}>
+            {/* Keep the video surface size stable; changing layout during a pinch can lag behind its position. */}
+            {session.stream && <RTCView style={{ position: 'absolute', left: 0, top: 0,
+              width: fitted.content.width, height: fitted.content.height, transformOrigin: 'top left',
+              transform: [{ translateX: viewport.content.x }, { translateY: viewport.content.y },
+                { scale: viewport.content.width / fitted.content.width }] }} objectFit="contain" zOrder={0}
+              streamURL={(session.stream as unknown as NativeMediaStream).toURL()}
+              onDimensionsChange={({ nativeEvent }) => {
+                if (nativeEvent.width > 0 && nativeEvent.height > 0) setSource(nativeEvent);
+              }} />}
+            <View key={direct ? 'direct' : 'trackpad'} style={s.fill} {...trackpad.panHandlers}
+              accessibilityLabel="远程桌面触控区域" />
+            {session.stats && statsVisible && !keyboard
+              && <DesktopStats stats={session.stats} close={() => setStatsVisible(false)} />}
+            {session.stream && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
+              visible={panelVisible && !scrolling} zoomed={zoom.modified} scroll={() => setScrolling(true)} />}
+            {scrolling && panelVisible && session.stream && <DesktopScrollPad
+              pointer={session.pointer} viewport={viewport}
+              panel={panel} wheel={wheel} horizontal={!!session.capabilities.horizontalScroll}
+              close={() => setScrolling(false)} />}
+            {!!(session.status || orientation.error) && <View style={s.message}>
+              <Text accessibilityRole="alert" style={s.text}>{session.status || orientation.error}</Text>
+              <Pressable onPress={session.retry}><Text style={s.text}>重新连接</Text></Pressable></View>}
+            {display && <DisplaySettings settings={session.settings} displays={session.displays} update={session.update}
+              saving={session.saving || !session.stream}
+              stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}
+              close={() => setDisplay(false)} />}
+          </View>
+          {orientation.landscape
+            ? <ScrollView style={s.rail} contentContainerStyle={[s.toolbar, s.railContent]}
+              keyboardShouldPersistTaps="handled" indicatorStyle="white">{buttons}</ScrollView>
+            : <View style={s.toolbar}>{buttons}</View>}
         </View>
-        {orientation.landscape
-          ? <ScrollView style={s.rail} contentContainerStyle={[s.toolbar, s.railContent]}
-            keyboardShouldPersistTaps="handled" indicatorStyle="white">{buttons}</ScrollView>
-          : <View style={s.toolbar}>{buttons}</View>}
+        {active && keyboard && <DesktopKeyboard input={session.input} compact={orientation.landscape}
+          supported={!!session.capabilities.keyboard} close={() => setKeyboard(false)} />}
       </KeyboardAvoidingView>
     </SafeAreaView></SafeAreaProvider>
   </Modal>;

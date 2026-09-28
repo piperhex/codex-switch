@@ -9,6 +9,7 @@ const { applyListRenderRangePatch } = require('./scripts/patch-list-render-range
 applyDrawerTapPatch();
 applyListRenderRangePatch();
 require('./scripts/patch-tcp-punch.cjs').applyTcpPunchPatch();
+require('./scripts/build-desktop-ime.cjs');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');

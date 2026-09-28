@@ -82,7 +82,8 @@ test('forwards physical keys, editing shortcuts and IME text, releasing modifier
   await page.getByRole('button', { name: '键盘', exact: true }).click();
   const count = inputs.length;
   await page.getByRole('textbox', { name: '发送到电脑的文字' }).fill('local form');
-  expect(await page.evaluate(() => window.desktopTest.inputs.length)).toBe(count);
+  await expect.poll(() => page.evaluate(count => window.desktopTest.inputs.slice(count), count))
+    .toEqual([{ kind: 'text', text: 'local form' }]);
 });
 
 test('copies remote text with Ctrl+C and Ctrl+X, and pastes local text through the clipboard', async ({ page }) => {

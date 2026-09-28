@@ -1,25 +1,64 @@
-import { useState } from 'react';
-import { Keyboard, Pressable, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { DesktopInput } from '../../../../../shared/remote-desktop/protocol';
-import { desktopStyles as s } from './styles';
+import { DESKTOP_SHORTCUTS, INPUT_TABS, KEYBOARD_PAGES, MODIFIERS }
+  from '../../../../../shared/remote-desktop/softKeyboard';
+import { useSoftKeyboard } from '../../../../../shared/remote-desktop/useSoftKeyboard';
+import { DesktopIme } from './DesktopIme';
+import { keyboardStyles as s } from './keyboardStyles';
 
-export function DesktopKeyboard({ input, close, compact }: {
-  input: (input: DesktopInput) => void; close: () => void; compact: boolean;
+export function DesktopKeyboard({ input, close, compact, supported }: {
+  input: (input: DesktopInput) => void; close: () => void; compact: boolean; supported: boolean;
 }) {
-  const [text, setText] = useState('');
-  const send = () => { if (text) { input({ kind: 'text', text }); setText(''); } };
+  const keyboard = useSoftKeyboard(input);
   const dismiss = () => { Keyboard.dismiss(); close(); };
-  const buttonStyle = [s.choice, compact && s.keyboardButtonCompact];
-  return <View style={[s.keyboard, compact && s.keyboardCompact]}>
-    <View style={s.keyboardRow}><TextInput autoFocus disableFullscreenUI autoCorrect={false} autoCapitalize="none"
-      returnKeyType="send" style={[s.input, s.keyboardInput, compact && s.keyboardInputCompact]}
-      value={text} onChangeText={setText}
-      maxLength={1000} placeholder="输入文字" placeholderTextColor="#aebad0" accessibilityLabel="发送到电脑的文字"
-      onSubmitEditing={send} blurOnSubmit={false} />
-      <Pressable style={buttonStyle} onPress={send}><Text style={s.text}>发送</Text></Pressable></View>
-    <View style={s.keyboardRow}>{(['escape', 'tab', 'backspace', 'enter'] as const).map((key, index) =>
-      <Pressable key={key} style={buttonStyle} onPress={() => input({ kind: 'key', key })}>
-        <Text style={s.text}>{['Esc', 'Tab', '退格', '回车'][index]}</Text></Pressable>)}
-      <Pressable style={buttonStyle} onPress={dismiss}><Text style={s.text}>收起</Text></Pressable></View>
+  return <View style={s.root}>
+    <View style={s.tabs} accessibilityRole="tablist">
+      {INPUT_TABS.map(tab => <Pressable key={tab.id} accessibilityRole="tab" accessibilityLabel={tab.label}
+        accessibilityState={{ selected: keyboard.tab === tab.id }}
+        style={[s.tab, keyboard.tab === tab.id && s.activeTab]} onPress={() => {
+          if (tab.id !== 'ime') Keyboard.dismiss();
+          keyboard.selectTab(tab.id);
+        }}><Text style={[s.tabLabel, keyboard.tab === tab.id && s.activeText]}>{tab.label}</Text></Pressable>)}
+      <Pressable accessibilityRole="button" accessibilityLabel="收起键盘" style={s.close} onPress={dismiss}>
+        <Ionicons name="close-circle" size={24} color="#ddd" /></Pressable>
+    </View>
+    {keyboard.tab === 'ime' ? <DesktopIme input={input} />
+      : <ScrollView style={{ maxHeight: compact ? 238 : 320 }}
+        contentContainerStyle={s.content} keyboardShouldPersistTaps="always">
+        {!supported && <Text accessibilityRole="alert" style={s.notice}>更新远程电脑上的应用后，即可使用这些按键。</Text>}
+        {keyboard.tab === 'shortcuts' ? <View style={s.shortcuts}>
+          {DESKTOP_SHORTCUTS.map(shortcut => <Pressable key={shortcut.label} accessibilityRole="button"
+            accessibilityLabel={`${shortcut.label} ${shortcut.description}`} disabled={!supported}
+            style={[s.shortcut, { width: compact ? '15.5%' : '31%' }, !supported && s.disabled]}
+            onPress={() => keyboard.shortcut(shortcut.codes)}>
+            <Text style={s.shortcutLabel}>{shortcut.label}</Text>
+            <Text style={s.description}>{shortcut.description}</Text>
+          </Pressable>)}
+        </View> : <View style={s.keys}>
+          <View style={s.row}>
+            <Pressable accessibilityRole="checkbox" accessibilityLabel="组合键模式"
+              accessibilityState={{ checked: keyboard.combination }} style={s.combination}
+              onPress={keyboard.toggleCombination}>
+              <Ionicons name={keyboard.combination ? 'checkbox-outline' : 'square-outline'} size={20}
+                color={keyboard.combination ? '#568aff' : '#ddd'} />
+              <Text style={s.description}>组合键模式</Text></Pressable>
+            {MODIFIERS.map(key => <Pressable key={key.code} accessibilityRole="button" accessibilityLabel={key.label}
+              accessibilityState={{ selected: keyboard.modifiers.includes(key.code), disabled: !supported }}
+              disabled={!supported} style={[s.key, keyboard.modifiers.includes(key.code) && s.selected]}
+              onPress={() => keyboard.modifier(key.code)}><Text style={s.keyLabel}>{key.label}</Text></Pressable>)}
+          </View>
+          {KEYBOARD_PAGES[keyboard.page].map((row, index) => <View key={index} style={s.row}>
+            {row.map(key => <Pressable key={key.code} accessibilityRole="button" accessibilityLabel={key.label}
+              disabled={!supported} style={[s.key, { flex: key.weight ?? 1 }, !supported && s.disabled]}
+              onPress={() => keyboard.press(key.code)}><Text style={s.keyLabel}>{key.label}</Text></Pressable>)}
+          </View>)}
+          <View style={s.pages}>{KEYBOARD_PAGES.map((_, index) => <Pressable key={index}
+            accessibilityRole="button" accessibilityLabel={index === 0 ? '字母键盘' : '符号和功能键'}
+            accessibilityState={{ selected: keyboard.page === index }} style={s.page}
+            onPress={() => keyboard.setPage(index)}><View style={[s.dot, keyboard.page === index && s.activeDot]} />
+          </Pressable>)}</View>
+        </View>}
+      </ScrollView>}
   </View>;
 }

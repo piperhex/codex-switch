@@ -3,19 +3,19 @@ import { Keyboard } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
 /** Serialize rotation and cleanup so hiding during a pending rotation still restores portrait. */
-export function useTerminalOrientation(visible: boolean) {
+export function useTerminalOrientation(visible: boolean, { initialLandscape = false } = {}) {
   const [landscape, setLandscape] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [error, setError] = useState('');
   const active = useRef(false);
-  const busy = useRef(false);
+  const busy = useRef(0);
   const generation = useRef(0);
   const pending = useRef(Promise.resolve());
 
   useEffect(() => {
     active.current = visible;
     setError('');
-    setRotating(busy.current);
+    setRotating(busy.current > 0);
     if (!visible) return;
     let observing = true;
     const update = (value: ScreenOrientation.Orientation) => {
@@ -25,6 +25,7 @@ export function useTerminalOrientation(visible: boolean) {
     const subscription = ScreenOrientation.addOrientationChangeListener(event => update(event.orientationInfo.orientation));
     void ScreenOrientation.getOrientationAsync().then(update)
       .catch(() => console.warn('Unable to read terminal orientation'));
+    if (initialLandscape) requestRotation(ScreenOrientation.OrientationLock.LANDSCAPE, true);
     return () => {
       observing = false;
       subscription.remove();
@@ -34,14 +35,12 @@ export function useTerminalOrientation(visible: boolean) {
       pending.current = pending.current.then(() => ScreenOrientation.lockAsync(portrait))
         .catch(() => console.warn('Unable to restore terminal portrait orientation'));
     };
-  }, [visible]);
+  }, [visible, initialLandscape]);
 
-  const rotate = () => {
-    if (!active.current || busy.current) return;
+  const requestRotation = (target: ScreenOrientation.OrientationLock, queue = false) => {
+    if (!active.current || (busy.current > 0 && !queue)) return;
     const current = generation.current;
-    const target = landscape ? ScreenOrientation.OrientationLock.PORTRAIT_UP
-      : ScreenOrientation.OrientationLock.LANDSCAPE;
-    busy.current = true;
+    busy.current += 1;
     setRotating(true);
     setError('');
     Keyboard.dismiss();
@@ -51,9 +50,11 @@ export function useTerminalOrientation(visible: boolean) {
     }).catch(() => {
       if (active.current && current === generation.current) setError('旋转失败，请重试');
     }).finally(() => {
-      busy.current = false;
-      if (active.current) setRotating(false);
+      busy.current -= 1;
+      if (active.current) setRotating(busy.current > 0);
     });
   };
+  const rotate = () => requestRotation(landscape ? ScreenOrientation.OrientationLock.PORTRAIT_UP
+    : ScreenOrientation.OrientationLock.LANDSCAPE);
   return { landscape, rotate, rotating, error };
 }

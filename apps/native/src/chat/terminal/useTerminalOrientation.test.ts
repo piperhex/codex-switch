@@ -19,12 +19,29 @@ vi.mock('expo-screen-orientation', () => ({
 }));
 
 const flush = async () => { for (let index = 0; index < 12; index++) await Promise.resolve(); };
-function open() {
-  const orientation = useTerminalOrientation(true);
+function open(initialLandscape = false) {
+  const orientation = useTerminalOrientation(true, { initialLandscape });
   const cleanup = observed.effects[0]()!;
   return { ...orientation, cleanup };
 }
 beforeEach(() => { vi.clearAllMocks(); observed.effects = []; observed.updates = []; });
+
+it('opens the desktop in landscape before any input panel is used, then restores portrait', async () => {
+  const orientation = open(true); await flush();
+  expect(ScreenOrientation.lockAsync).toHaveBeenCalledExactlyOnceWith(ScreenOrientation.OrientationLock.LANDSCAPE);
+  orientation.cleanup(); await flush();
+  expect(ScreenOrientation.lockAsync).toHaveBeenLastCalledWith(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+});
+
+it('restores portrait when closed while the initial landscape request is in flight', async () => {
+  let finish!: () => void;
+  vi.mocked(ScreenOrientation.lockAsync).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const orientation = open(true); await flush();
+  orientation.cleanup(); finish(); await flush();
+  expect(vi.mocked(ScreenOrientation.lockAsync).mock.calls.map(([lock]) => lock)).toEqual([
+    ScreenOrientation.OrientationLock.LANDSCAPE, ScreenOrientation.OrientationLock.PORTRAIT_UP,
+  ]);
+});
 
 it('ignores repeated presses and restores portrait after an in-flight rotation finishes', async () => {
   let finish!: () => void;

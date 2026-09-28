@@ -1,4 +1,11 @@
 export const remoteDesktopMessages: Record<string, string> = {
+  '输入法': 'Input method', '快捷键': 'Shortcuts', '电脑键盘': 'Computer keyboard', '远程输入': 'Remote input',
+  '输入方式': 'Input mode', '收起键盘': 'Hide keyboard', '组合键模式': 'Key combinations',
+  '字母键盘': 'Letter keys', '符号和功能键': 'Symbols and function keys',
+  '大小写锁定': 'Caps lock', '开始': 'Start', '切换窗口': 'Switch windows', '锁定屏幕': 'Lock screen',
+  '剪切': 'Cut', '全选': 'Select all', '撤销': 'Undo',
+  '输入文字，即时发送到电脑': 'Type to send directly to your computer',
+  '更新远程电脑上的应用后，即可使用这些按键。': 'Update the app on the remote computer to use these keys.',
   '展开滚动滑块': 'Open scroll control', '收起滚动滑块': 'Close scroll control', '十字滚动滑块': 'Scroll control',
   '更新远程电脑上的应用后，即可左右滚动。': 'Update the remote computer app to scroll horizontally.',
   '剪贴板': 'Clipboard', '远程桌面键盘输入': 'Remote desktop keyboard input',

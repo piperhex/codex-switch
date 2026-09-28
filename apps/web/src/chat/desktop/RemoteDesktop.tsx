@@ -11,6 +11,7 @@ import { useVideoViewport } from './useVideoViewport';
 import { useMousePanel } from '../../../../../shared/remote-desktop/useMousePanel';
 import { useMouseViewport } from '../../../../../shared/remote-desktop/useMouseViewport';
 import { useDesktopZoom } from '../../../../../shared/remote-desktop/useDesktopZoom';
+import { useInputViewport } from '../../../../../shared/remote-desktop/useInputViewport';
 import { MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE } from '../../../../../shared/remote-desktop/geometry';
 import { t } from '../../i18n';
 import { usePageVisibility } from './usePageVisibility';
@@ -21,6 +22,8 @@ import { useDesktopClipboard } from './useDesktopClipboard';
 import { DesktopClipboardPanel } from './DesktopClipboardPanel';
 import { DesktopInputSurface } from './DesktopInputSurface';
 import { DesktopScrollPad } from './DesktopScrollPad';
+import { DesktopKeyboard } from './DesktopKeyboard';
+import { useDesktopOrientation } from './useDesktopOrientation';
 import './desktop.css';
 
 const createPeer = (configuration: RTCConfiguration) => new RTCPeerConnection(configuration);
@@ -40,7 +43,6 @@ export function RemoteDesktop({ client, active, close }: {
   const clipboard = useDesktopClipboard({ active: active && !!session.stream, clipboard: session.clipboard });
   const panelVisible = !hardware && !direct && !display && !keyboard && !clipboard.open;
   const panel = useMousePanel(active && panelVisible && !!session.stream);
-  const [text, setText] = useState('');
   const video = useRef<HTMLVideoElement>(null);
   const playback = useDesktopPlayback(video, session.stream, session.muted);
   const silent = session.muted || playback.blocked;
@@ -49,8 +51,10 @@ export function RemoteDesktop({ client, active, close }: {
     if (silent) { session.mute(false); playback.enable(); } else session.mute(true);
   };
   const root = useRef<HTMLDivElement>(null);
+  useDesktopOrientation(root, active && !hardware);
   const stage = useRef<HTMLDivElement>(null);
-  const fitted = useVideoViewport(stage, video, active);
+  const measured = useVideoViewport(stage, video, active);
+  const fitted = useInputViewport(measured, keyboard);
   const zoom = useDesktopZoom(fitted, active && !!session.stream);
   const viewport = useMouseViewport(session.pointer, zoom.viewport,
     panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined, zoom.modified);
@@ -69,15 +73,15 @@ export function RemoteDesktop({ client, active, close }: {
     target?.focus({ preventScroll: true });
     return () => previous?.focus();
   }, [active, hardware]);
-  const send = () => { if (text) { session.input({ kind: 'text', text }); setText(''); } };
   const fullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-    else void root.current?.requestFullscreen?.().catch(() => undefined);
+    else void document.documentElement.requestFullscreen?.().catch(() => undefined);
   };
   if (!active) return null;
   return createPortal(<div ref={root} tabIndex={-1} className="rd-root" style={keyboardViewport}
     role="dialog" aria-modal="true"
     aria-label={t('远程桌面')} onContextMenu={event => event.preventDefault()}>
+    <div className="rd-workspace">
     <div ref={stage} className="rd-stage">
       <video ref={video} autoPlay playsInline className="rd-video" style={{
         left: viewport.content.x, top: viewport.content.y,
@@ -103,15 +107,6 @@ export function RemoteDesktop({ client, active, close }: {
       {hardware && session.stream && !session.capabilities.keyboard && !clipboard.status
         && <div className="rd-clipboard-notice" role="status">
           {t('请更新远程电脑上的应用，启用实体键盘和剪贴板。')}</div>}
-      {keyboard && <form className="rd-keyboard" onSubmit={event => { event.preventDefault(); send(); }}>
-        <div><input autoFocus value={text} maxLength={1000} aria-label={t('发送到电脑的文字')}
-          placeholder={t('输入文字')} onChange={event => setText(event.target.value)} />
-          <button type="submit">{t('发送')}</button></div>
-        <div>{(['escape', 'tab', 'backspace', 'enter'] as const).map((key, index) =>
-          <button key={key} type="button" onClick={() => session.input({ kind: 'key', key })}>
-            {t(['Esc', 'Tab', '退格', '回车'][index])}</button>)}
-          <button type="button" onClick={() => setKeyboard(false)}>{t('收起')}</button></div>
-      </form>}
     </div>
     <nav className="rd-toolbar" aria-label={t('远程桌面操作')}>
       {!hardware && <button aria-label={t(direct ? '切换为鼠标模式' : '切换为触屏模式')} className="rd-mode"
@@ -135,5 +130,8 @@ export function RemoteDesktop({ client, active, close }: {
       {document.fullscreenEnabled && <button onClick={fullscreen}><Maximize /><span>{t('全屏')}</span></button>}
       <button onClick={close}><X /><span>{t('关闭')}</span></button>
     </nav>
+    </div>
+    {keyboard && <DesktopKeyboard input={session.input} close={() => setKeyboard(false)}
+      supported={!!session.capabilities.keyboard} />}
   </div>, document.body);
 }

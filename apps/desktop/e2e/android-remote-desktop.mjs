@@ -4,6 +4,8 @@ import path from 'node:path';
 import { adb, apiUrl, output, prepare, serverState, waitFor, waitText, tap, input, screenshot, hasText, nodes }
   from './android-chat-driver.mjs';
 
+import { verifyDesktopInput, verifyDesktopOrientation } from './android-desktop-input.mjs';
+
 const report = { started: new Date().toISOString(), checks: [] };
 async function check(name, run) {
   await run(); report.checks.push(name); await screenshot(name); console.log(`PASS ${name}`);
@@ -54,13 +56,19 @@ try {
   await check('02-mouse-buttons', async () => {
     if (await hasText('展开鼠标面板')) await tap('展开鼠标面板');
     await waitText('鼠标左键');
-    await tap('鼠标左键'); await tap('鼠标右键'); await tap('向下滚动');
+    await tap('鼠标左键'); await tap('鼠标右键'); await tap('展开滚动滑块');
+    const pad = (await nodes()).find(node => node['content-desc'] === '十字滚动滑块');
+    const [left, top, right, bottom] = pad.rect;
+    const x = String(Math.round((left + right) / 2));
+    const y = String(Math.round(top + (bottom - top) * .8));
+    await adb('shell', 'input', 'tap', x, y);
+    await adb('shell', 'input', 'tap', x, String(Math.round((top + bottom) / 2)));
     await waitFor(async () => (await serverState()).desktop.inputs.some(value =>
-      value.kind === 'wheel' && value.delta === -120), 'wheel input');
+      value.kind === 'wheel' && value.delta < 0), 'wheel input');
     const inputs = (await serverState()).desktop.inputs;
     assert(inputs.some(value => value.kind === 'button' && value.button === 'left' && value.down));
     assert(inputs.some(value => value.kind === 'button' && value.button === 'right' && !value.down));
-    assert(inputs.some(value => value.kind === 'wheel' && value.delta === -120));
+    assert(inputs.some(value => value.kind === 'wheel' && value.delta < 0));
   });
   await check('02b-latched-drag', async () => {
     if (await hasText('展开鼠标面板')) await tap('展开鼠标面板');
@@ -91,11 +99,10 @@ try {
     await tap('切换为鼠标模式'); await waitText('鼠标左键'); await waitText('切换为触屏模式');
   });
   await check('03-landscape', async () => {
-    await tap('旋转');
     await waitFor(async () => {
       const stage = (await nodes()).find(node => node['content-desc'] === '远程桌面触控区域');
       return stage && stage.rect[2] - stage.rect[0] > stage.rect[3] - stage.rect[1];
-    }, 'landscape layout');
+    }, 'landscape layout without pressing rotate');
   });
   await check('03a-pinch-and-stats', async () => {
     const before = (await serverState()).desktop.inputs.length;
@@ -121,7 +128,7 @@ try {
     }, 'pointer reaches bottom-right');
     if (await hasText('展开鼠标面板')) await tap('展开鼠标面板');
     const controls = await nodes();
-    for (const label of ['鼠标左键', '鼠标右键', '向下滚动', '滑动移动鼠标，轻点单击']) {
+    for (const label of ['鼠标左键', '鼠标右键', '展开滚动滑块', '滑动移动鼠标，轻点单击']) {
       const control = controls.find(node => node['content-desc'] === label);
       assert(control, label);
       assert(control.rect[0] >= left && control.rect[1] >= top, label);
@@ -139,23 +146,10 @@ try {
     await screenshot('04-display-open');
     await tap('关闭显示设置');
   });
-  await check('05-native-keyboard', async () => {
-    const initialStage = (await nodes()).find(node => node['content-desc'] === '远程桌面触控区域');
-    await tap('键盘'); await waitText('发送到电脑的文字');
-    await waitFor(async () => {
-      const current = await nodes();
-      const editor = current.find(node => node['content-desc'] === '发送到电脑的文字');
-      const stage = current.find(node => node['content-desc'] === '远程桌面触控区域');
-      const keyboard = await adb('shell', 'dumpsys', 'input_method');
-      return editor && stage && stage.rect[3] < initialStage.rect[3]
-        && editor.rect[1] > stage.rect[1] && editor.rect[3] <= stage.rect[3]
-        && /mInputShown=true/.test(keyboard);
-    }, 'keyboard input visible above the landscape IME');
-    await input('发送到电脑的文字', 'native-desktop'); await waitText('native-desktop');
-    await tap('发送');
-    await waitFor(async () => (await serverState()).desktop.inputs.some(value => value.text === 'native-desktop'),
-      'keyboard input');
-    await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK'); await tap('收起');
+  await check('05-native-keyboard', verifyDesktopInput);
+  await check('05b-orientation-lifecycle', async () => {
+    await verifyDesktopOrientation();
+    await tap('打开工具'); await tap('远程桌面'); await waitText('fps');
   });
   await check('06-background-cleanup', async () => {
     await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');

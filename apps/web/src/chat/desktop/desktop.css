@@ -1,7 +1,9 @@
-.rd-root { position: fixed; inset: 0; z-index: 2200; display: flex; background: #080b12; color: #e7edf8;
+.rd-root { position: fixed; inset: 0; z-index: 2200; display: flex; flex-direction: column;
+  background: #080b12; color: #e7edf8;
   font-family: system-ui, sans-serif; padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left); outline: none; }
 .rd-root * { box-sizing: border-box; }
+.rd-workspace { flex: 1; display: flex; min-height: 0; min-width: 0; }
 @media (orientation: landscape) {
   .rd-root { padding-top: 0; }
 }
@@ -46,7 +48,7 @@
   padding: 0; background: transparent; pointer-events: auto; border-radius: 6px; }
 .rd-status { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); padding: 14px; border-radius: 12px;
   background: #222b3aee; width: max-content; max-width: min(400px, 90%); display: grid; gap: 10px; font-size: 14px; }
-.rd-status button, .rd-settings button, .rd-keyboard button { background: #333d50; padding: 10px 12px; border-radius: 9px; }
+.rd-status button, .rd-settings button { background: #333d50; padding: 10px 12px; border-radius: 9px; }
 .rd-mouse { position: absolute; left: 0; top: 0; border: 2px solid #94a4be;
   border-radius: 40px; background: #dce9ffed; overflow: hidden; color: #526684; }
 .rd-mouse-top { display: flex; height: 64px; border-bottom: 2px solid #94a4be; }
@@ -70,20 +72,8 @@
 .rd-custom input { width: 80px; }
 .rd-displays { flex-direction: column; }
 .rd-displays button { text-align: left; overflow-wrap: anywhere; }
-.rd-keyboard { position: absolute; left: 8px; bottom: 8px; width: min(400px, calc(100% - 16px));
-  background: #202634; padding: 12px; border-radius: 12px; display: grid; gap: 10px;
-  z-index: 3; max-height: calc(100% - 16px); overflow: auto; }
-.rd-keyboard > div { display: flex; gap: 6px; }
-.rd-keyboard > div:last-child { overflow-x: auto; }
-.rd-keyboard button { flex-shrink: 0; }
-.rd-keyboard input { flex: 1; }
-@media (orientation: landscape) and (max-height: 450px) {
-  .rd-keyboard { padding: 6px; gap: 4px; bottom: 4px; }
-  .rd-keyboard button { padding: 6px 10px; font-size: 14px; }
-  .rd-keyboard input { padding: 4px 10px; height: 36px; }
-}
 @media (orientation: portrait) and (max-width: 700px) {
-  .rd-root { flex-direction: column; }
+  .rd-workspace { flex-direction: column; }
   .rd-toolbar { width: auto; flex-direction: row; gap: 2px; padding: 8px 4px; overflow: visible; touch-action: auto; }
   .rd-toolbar button { flex: 1; min-height: 0; font-size: 10px; }
   .rd-toolbar svg { width: 21px; height: 21px; }

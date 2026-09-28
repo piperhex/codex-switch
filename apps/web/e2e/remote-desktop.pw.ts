@@ -102,7 +102,6 @@ test('streams video, controls mouse and keyboard, applies display settings and c
   await page.getByRole('button', { name: '完成', exact: true }).click();
   await page.getByRole('button', { name: '键盘', exact: true }).click();
   await page.getByRole('textbox', { name: '发送到电脑的文字' }).fill('你好，远程桌面');
-  await page.getByRole('button', { name: '发送', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.desktopTest.inputs.at(-1)))
     .toEqual({ kind: 'text', text: '你好，远程桌面' });
   await page.getByRole('button', { name: '关闭', exact: true }).click();
