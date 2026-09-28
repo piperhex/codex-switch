@@ -7,13 +7,23 @@ const LOAD_AHEAD_PX = 120;
 export function useThreadPagination({ state, controller, enabled }: {
   state: GuiState; controller: GuiController; enabled: boolean;
 }) {
+  return useThreadScrollPagination({
+    enabled: enabled && Boolean(state.cursor) && state.connection === "ready",
+    loading: state.loading,
+    loadMore: () => controller.refresh(true),
+  });
+}
+
+export function useThreadScrollPagination({ enabled, loading, loadMore }: {
+  enabled: boolean; loading: boolean; loadMore: () => Promise<void>;
+}) {
   const pending = useRef(false);
   const previousTop = useRef(0);
   const loadNearBottom = async (node: HTMLDivElement) => {
-    if (!enabled || !state.cursor || state.loading || state.connection !== "ready" || pending.current) return;
+    if (!enabled || loading || pending.current) return;
     if (node.clientHeight <= 0 || node.scrollHeight - node.scrollTop - node.clientHeight > LOAD_AHEAD_PX) return;
     pending.current = true;
-    try { await controller.refresh(true); }
+    try { await loadMore(); }
     finally { pending.current = false; }
   };
   const onScroll = (event: UIEvent<HTMLDivElement>) => {

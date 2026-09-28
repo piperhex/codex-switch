@@ -3,11 +3,12 @@ import { Button, Segmented } from 'antd';
 import { ChevronRight, Folder, RefreshCw, Search, SquarePen } from 'lucide-react';
 import type { ChatSidebarActions } from '../../../../../web/src/chat/ConnectedChat';
 import type { ChatController, ChatState } from '../../../../../web/src/chat/types';
-import { useThreadListScroll } from '../../../../../web/src/chat/useThreadListScroll';
 import { useThreadGroups } from '../../../../../../shared/remote-chat/client/useThreadGroups';
 import { threadPresentation } from '../../../../../../shared/remote-chat/sidebar';
 import { FocusModeButton, type GuiFocusMode } from '../FocusModeButton';
 import { ThreadStatus } from '../ThreadStatus';
+import { ThreadPagination } from '../ThreadPagination';
+import { useThreadScrollPagination } from '../useThreadPagination';
 import styles from '../styles.module.less';
 import groupsStyle from '../ThreadGroup.module.less';
 import navigationStyle from '../GuiNavigation.module.less';
@@ -17,7 +18,11 @@ export function RemoteGuiSidebar({ state, controller, actions, accountPicker, fo
   accountPicker: ReactNode; focusMode: GuiFocusMode;
 }) {
   const { groups, toggle, toggleCollapse } = useThreadGroups(state);
-  const pagination = useThreadListScroll(state, controller);
+  const pagination = useThreadScrollPagination({
+    enabled: state.ready && Boolean(state.cursor),
+    loading: state.loading,
+    loadMore: () => controller.list({ more: true }),
+  });
   return <div className={`${styles.sidebar} gui-remote-sidebar`}>
     <div className={styles.sidebarHeading} data-tauri-drag-region>
       <h2 className={styles.sidebarTitle} data-tauri-drag-region>Codex GUI</h2>
@@ -38,7 +43,7 @@ export function RemoteGuiSidebar({ state, controller, actions, accountPicker, fo
       options={[{ label: '最近', value: 'recent' }, { label: '已归档', value: 'archived' }]}
       disabled={!state.ready || state.loading}
       onChange={value => { void controller.list({ archived: value === 'archived' }); }} />
-    <div ref={pagination.list} className={styles.threadList} aria-busy={state.loading}>
+    <div className={styles.threadList} aria-busy={state.loading} {...pagination}>
       {groups.map(group => <section className={groupsStyle.group} aria-label={group.label} key={group.cwd}>
         <div className={groupsStyle.header}>
           <button type="button" className={groupsStyle.heading} aria-expanded={!group.collapsed}
@@ -72,11 +77,7 @@ export function RemoteGuiSidebar({ state, controller, actions, accountPicker, fo
         </div>
       </section>)}
       {!state.threads.length && <p className={styles.listEmpty}>{state.ready ? '还没有对话' : '连接电脑后查看对话'}</p>}
-      <div ref={pagination.end} className="chat-thread-pagination">
-        {pagination.loadingMore && <span role="status">正在加载…</span>}
-        {state.cursor && pagination.failed && <Button disabled={!state.ready || state.loading}
-          onClick={pagination.retry}>加载失败，点击重试</Button>}
-      </div>
+      {state.cursor && <ThreadPagination loading={state.loading} />}
     </div>
     {accountPicker}
   </div>;
