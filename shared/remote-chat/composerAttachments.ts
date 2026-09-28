@@ -7,6 +7,7 @@ const DEFAULT_ATTACHMENT_DATA = 6 * MIB;
 const IMAGE_RESERVE_CHARS = 2 * MIB;
 const MAX_NAME_LENGTH = 200;
 const MAX_PLUGIN_PATH_LENGTH = 310;
+const MAX_CONVERSATION_PATH_LENGTH = 213;
 
 // Keep the existing image allowance and grow the mixed payload allowance with file uploads.
 export function chatAttachmentDataLimit(mode?: ConnectionMode) {
@@ -38,6 +39,11 @@ export function remoteAttachments(value: unknown, mode?: ConnectionMode): Attach
     if (item.kind === 'plugin' && typeof item.path === 'string' && item.path.length <= MAX_PLUGIN_PATH_LENGTH
       && /^plugin:\/\/[\w.@-]+$/.test(item.path) && item.data === undefined) {
       return { kind: 'plugin', name: item.name, path: item.path };
+    }
+    if (item.kind === 'conversation' && typeof item.path === 'string'
+      && item.path.length <= MAX_CONVERSATION_PATH_LENGTH
+      && /^codex-thread:\/\/[^/\\\x00-\x1f\x7f]+$/u.test(item.path) && item.data === undefined) {
+      return { kind: 'conversation', name: item.name, path: item.path };
     }
     if (item.kind === 'file' && item.data === undefined && typeof item.path === 'string'
       && item.path.length <= 4096 && /^(?:[A-Za-z]:[\\/]|\/(?!\/))/.test(item.path)

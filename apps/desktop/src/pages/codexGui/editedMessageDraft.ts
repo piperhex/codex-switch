@@ -1,6 +1,7 @@
 import type { Content, Conversation, MessageInput } from "./types";
 import type { MessageEdit } from "./editMessage";
 import { retainedMessageParts } from "./messageEditContent";
+import { referenceKind } from "./conversationReferences";
 
 /** Preserve attachments and steering inputs if rollback succeeds but resending fails. */
 export function editedMessageDraft(value: Conversation, edit: MessageEdit): MessageInput {
@@ -19,7 +20,7 @@ export function editedMessageDraft(value: Conversation, edit: MessageEdit): Mess
         draft.skills.push({ name: part.name ?? "", path: part.path });
       }
       if (part.type === "mention" && part.path) draft.attachments!.push({
-        kind: part.path.startsWith("plugin://") ? "plugin" : "file", name: part.name ?? "", path: part.path,
+        kind: referenceKind(part.path), name: part.name ?? "", path: part.path,
       });
     }
     if (message.id === edit.itemId) {

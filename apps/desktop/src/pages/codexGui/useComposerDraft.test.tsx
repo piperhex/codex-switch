@@ -14,6 +14,31 @@ let readers: FileReader[];
 const imageUrl = "data:image/png;base64,iVBORw0KGgo=";
 const file = () => new File(["image"], "截图.png", { type: "image/png" });
 
+it("retains conversation references on failure and restores them from queued messages", async () => {
+  const attachment = { kind: "conversation" as const, name: "方案", path: "codex-thread://source" };
+  act(() => editor.addAttachments([attachment, attachment]));
+  expect(editor.draft.attachments).toEqual([attachment]);
+  vi.mocked(controller.send).mockResolvedValueOnce(false);
+  await act(async () => editor.send());
+  expect(controller.send).toHaveBeenCalledWith("", [], [], [attachment]);
+  expect(editor.draft.attachments).toEqual([attachment]);
+  vi.spyOn(controller.queue, "take").mockReturnValue({ text: "参考方案", images: [], skills: [],
+    attachments: [attachment] });
+  act(() => editor.editQueued("queued"));
+  expect(editor.draft.text).toBe("参考方案");
+  expect(editor.draft.attachments).toEqual([attachment]);
+  act(() => editor.removeAttachment(attachment.path));
+  expect(editor.draft.attachments).toEqual([]);
+});
+
+it("rejects a ninth conversation reference before sending", () => {
+  act(() => editor.addAttachments(Array.from({ length: 8 }, (_, index) => ({ kind: "conversation",
+    name: `对话 ${index}`, path: `codex-thread://${index}` }))));
+  act(() => editor.addAttachments([{ kind: "conversation", name: "额外", path: "codex-thread://extra" }]));
+  expect(editor.draft.attachments).toHaveLength(8);
+  expect(controller.report).toHaveBeenCalledWith("每条消息最多引用 8 个对话。");
+});
+
 function Fixture({ draftKey }: { draftKey: string }) {
   editor = useComposerDraft(draftKey, controller);
   return null;

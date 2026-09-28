@@ -9,6 +9,7 @@ import { MessageQuotes } from "./MessageQuotes";
 import { quotedMessage } from "../../../../../shared/chat/quotedMessage";
 import { FileMenu } from "./FileMenu";
 import { isFileReference } from "./fileReference";
+import { CONVERSATION_PREFIX } from "./conversationReferences";
 import { isMessageImage, type SubmitMessageEdit } from "./messageEditContent";
 import userStyles from "./UserMessage.module.less";
 import styles from "./styles.module.less";
@@ -41,7 +42,8 @@ export function UserMessage({ item, startedAt, onEdit, editDisabled = false }: {
         part.path && isFileReference(part.path)
           ? <FileMenu path={part.path} key={`reference-${index}`}>{part.name || part.path}</FileMenu>
           : <span className={styles.imageLabel} key={`reference-${index}`}>
-          {part.path?.startsWith("plugin://") ? "插件" : "附件"}：{part.name || part.path}
+          {part.path?.startsWith(CONVERSATION_PREFIX) ? "引用对话" : part.path?.startsWith("plugin://")
+            ? "插件" : "附件"}：{part.name || part.path}
         </span>)}
       {editing && onEdit ? <UserMessageEditor text={text} images={images}
         skills={parts.flatMap((part) => part.type === "skill" && part.path

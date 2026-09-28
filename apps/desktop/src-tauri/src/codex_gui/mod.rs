@@ -13,6 +13,7 @@ pub(crate) mod clipboard_images;
 mod clipboard_paths;
 mod computer_use_setup;
 pub(crate) mod context_settings;
+mod conversation_context;
 pub(crate) mod deletion;
 mod downloads;
 mod error;

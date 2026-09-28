@@ -1,6 +1,9 @@
 import { forwardRef, useId, useImperativeHandle, useLayoutEffect, useRef, useState,
   type ClipboardEvent, type KeyboardEvent } from "react";
-import type { ComposerText, Skill } from "./types";
+import type { ComposerText, GuiState, Skill } from "./types";
+import type { AttachmentReference } from "./attachmentTypes";
+import { conversationCandidates, conversationReference } from "./conversationReferences";
+import { useConversationCandidates } from "./useConversationCandidates";
 import { insertSkill, readEditor, skillTrigger, writeEditor } from "./skillEditorDom";
 import { composerOptions, type CompactCommand, type ComposerOption, type GoalCommand } from "./composerOptions";
 import type { SkillTrigger } from "./skillEditorDom";
@@ -27,21 +30,31 @@ export const SkillInput = forwardRef<SkillInputHandle, {
   placeholder: string; onChange: (value: ComposerText) => void;
   compact?: CompactCommand;
   goal?: GoalCommand;
+  conversations?: Pick<GuiState, "selected" | "threads" | "conversations">;
+  onConversation?: (reference: AttachmentReference) => void;
   editing?: { onCancel: () => void; className: string };
   onPaste: (event: ClipboardEvent<HTMLElement>) => void; onSend: () => void;
   onPasteKeyDown?: (event: KeyboardEvent<HTMLElement>) => void;
 }>(function SkillInput({ value, draftKey, cwd, active, connected, disabled, placeholder,
-  compact, goal, editing, onChange, onPaste, onPasteKeyDown, onSend }, ref) {
+  compact, goal, conversations, onConversation, editing, onChange, onPaste, onPasteKeyDown, onSend }, ref) {
   const editor = useRef<HTMLDivElement>(null);
   const savedCaret = useRef<Range | null>(null);
   const composing = useRef(false);
   const [trigger, setTrigger] = useState<SkillTrigger | null>(null);
   const [selected, setSelected] = useState(0);
   const listId = useId();
-  const open = Boolean(trigger) && active && !disabled;
-  const catalog = useComposerSkills({ cwd, active: open, connected });
+  const isConversation = trigger?.kind === "conversation";
+  const open = Boolean(trigger) && active && !disabled && (!isConversation || Boolean(onConversation));
+  const catalog = useComposerSkills({ cwd, active: open && !isConversation, connected });
   const query = trigger?.query.toLocaleLowerCase() ?? "";
-  const options = composerOptions(catalog.skills, query, compact, goal);
+  const candidates = useConversationCandidates({ active: open && isConversation, connected, query });
+  const options: ComposerOption[] = isConversation ? conversationCandidates({ remote: candidates.threads,
+    known: conversations?.threads ?? [], conversations: conversations?.conversations ?? {},
+    currentId: conversations?.selected ?? null, query }).map((thread) => ({ kind: "conversation", key: thread.id,
+      label: conversationReference(thread).name, enabled: true,
+      description: `${thread.status?.type === "active" ? "运行中" : "空闲"} · ${thread.cwd || "未选择项目"}`,
+      command: { enabled: true, run: () => onConversation?.(conversationReference(thread)) },
+    })) : composerOptions(catalog.skills, query, compact, goal);
   const selectedIndex = Math.min(selected, Math.max(0, options.length - 1));
 
   useLayoutEffect(() => {
@@ -69,7 +82,7 @@ export const SkillInput = forwardRef<SkillInputHandle, {
     if (!editor.current || composing.current) return;
     const next = skillTrigger(editor.current);
     setTrigger(next);
-    if (next?.query !== trigger?.query) setSelected(0);
+    if (next?.query !== trigger?.query || next?.kind !== trigger?.kind) setSelected(0);
   };
   const change = () => {
     if (!editor.current) return;
@@ -118,7 +131,9 @@ export const SkillInput = forwardRef<SkillInputHandle, {
   };
   return <div className={styles.inputWrap}>
     {open && <SkillMenu id={listId} options={options} selected={selectedIndex}
-      loading={catalog.loading} error={catalog.error} onChoose={choose} below={Boolean(editing)}
+      loading={isConversation ? candidates.loading : catalog.loading}
+      error={isConversation ? candidates.error : catalog.error} conversations={isConversation}
+      onChoose={choose} below={Boolean(editing)}
       skillsOnly={!compact && !goal} />}
     <div ref={editor} role="textbox" aria-label={editing ? "编辑消息内容" : "消息"}
       aria-multiline="true" aria-disabled={disabled}

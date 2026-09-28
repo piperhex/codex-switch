@@ -28,6 +28,7 @@ pub(crate) struct PromptInput {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) enum AttachmentKind {
+    Conversation,
     File,
     Folder,
     Plugin,
@@ -52,7 +53,14 @@ impl AttachmentInput {
             return Err(GuiError::InvalidRequest);
         }
         let path = std::path::Path::new(&self.path);
+        if matches!(self.kind, AttachmentKind::Conversation) {
+            super::conversation_context::reference_id(&self.path)?;
+            return Ok(vec![
+                json!({"type": "mention", "name": self.name, "path": self.path}),
+            ]);
+        }
         let valid = match self.kind {
+            AttachmentKind::Conversation => false,
             AttachmentKind::File => path.is_absolute() && path.is_file(),
             AttachmentKind::Folder => path.is_absolute() && path.is_dir(),
             AttachmentKind::Plugin => self.path.strip_prefix("plugin://").is_some_and(|id| {

@@ -52,7 +52,7 @@ export function writeEditor(root: HTMLElement, value: ComposerText) {
   root.replaceChildren(...nodes);
 }
 
-export interface SkillTrigger { query: string; range: Range }
+export interface SkillTrigger { query: string; range: Range; kind?: "skill" | "conversation" }
 
 export function skillTrigger(root: HTMLElement): SkillTrigger | null {
   const selection = window.getSelection();
@@ -62,13 +62,13 @@ export function skillTrigger(root: HTMLElement): SkillTrigger | null {
   const before = caret.cloneRange();
   before.selectNodeContents(root);
   before.setEnd(caret.startContainer, caret.startOffset);
-  const match = readEditor(before.cloneContents()).text.match(/(?:^|\s)\/([^\s/]*)$/u);
+  const match = readEditor(before.cloneContents()).text.match(/(?:^|\s)([/@])([^\s/@]*)$/u);
   if (!match) return null;
-  const start = caret.startOffset - match[1].length - 1;
+  const start = caret.startOffset - match[2].length - 1;
   if (start < 0 || caret.startContainer.parentElement?.closest("[data-skill]")) return null;
   const range = caret.cloneRange();
   range.setStart(caret.startContainer, start);
-  return { query: match[1], range };
+  return { query: match[2], range, kind: match[1] === "@" ? "conversation" : "skill" };
 }
 
 export function insertSkill(trigger: SkillTrigger, skill: Skill) {

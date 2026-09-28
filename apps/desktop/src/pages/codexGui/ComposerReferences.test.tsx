@@ -44,7 +44,7 @@ it("shows local image thumbnails alongside ordinary file pills before any conver
     request: { path: photo.path, variant: "thumbnail" },
   });
   expect(host.querySelector("img")?.getAttribute("src")).toBe(thumbnail);
-  expect(host.querySelector('[aria-label="文件和插件附件"]')?.textContent).toBe(document.name);
+  expect(host.querySelector('[aria-label="文件、插件和对话引用"]')?.textContent).toBe(document.name);
   await click(`移除附件：${photo.name}`);
   expect(remove).toHaveBeenCalledWith(photo.path);
 });

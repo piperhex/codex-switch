@@ -1,6 +1,7 @@
 mod completion_notifications;
 mod context_capacity;
 mod context_change;
+mod conversation_awareness;
 mod live_settings;
 mod plugin_refresh;
 #[path = "title_service.rs"]
@@ -130,7 +131,13 @@ impl Client {
             .map_err(|_| GuiError::Disconnected)
     }
 
-    pub(super) async fn request(&self, method: &str, mut params: Value) -> Result<Value> {
+    pub(super) async fn request(&self, method: &str, params: Value) -> Result<Value> {
+        let mut result = self.request_internal(method, params).await?;
+        super::conversation_context::display(&mut result);
+        Ok(result)
+    }
+
+    async fn request_internal(&self, method: &str, mut params: Value) -> Result<Value> {
         if method == "thread/name/set" {
             let _guard = self.title_writes.lock().await;
             return self.request_raw(method, params).await;
@@ -138,6 +145,9 @@ impl Client {
         super::home::scope_thread_request(method, &mut params);
         if method == "turn/interrupt" {
             return self.interrupt_with_context(params).await;
+        }
+        if matches!(method, "turn/start" | "turn/steer") {
+            self.prepare_conversation_context(&mut params).await?;
         }
         if method == "turn/start" {
             self.refresh_plugins().await?;
@@ -280,7 +290,8 @@ impl Client {
         !self.active_turns.lock().await.is_empty() || !self.pending.lock().await.is_empty()
     }
 
-    fn emit(&self, event: GuiEvent) {
+    fn emit(&self, mut event: GuiEvent) {
+        super::conversation_context::display(&mut event.params);
         super::web::publish(&self.app, "codex-gui-event", event);
     }
 

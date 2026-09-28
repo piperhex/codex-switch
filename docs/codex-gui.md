@@ -6,6 +6,10 @@ Providers (三方模型及中转). It supports project folders, text and image i
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
 history, search, renaming, pinning, and archiving/restoring conversations.
 
+Each submitted message includes a snapshot of other running GUI conversations. Type **@** to search for
+another conversation and attach its recent messages as context. See [conversation awareness](codex-gui-conversation-awareness.md)
+for scope, limits and verification.
+
 The GUI account picker includes official accounts, custom Providers, and upstream Codex Switch Providers.
 Codex GUI remembers its own account independently of the account manager and other applications. The first
 visit starts with the current supported account; later switches and restarts preserve the GUI's choice.

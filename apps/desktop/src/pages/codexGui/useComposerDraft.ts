@@ -5,6 +5,7 @@ import type { ComposerText } from "./types";
 import { MAX_ATTACHMENTS, type AttachmentReference } from "./attachmentTypes";
 import { MAX_REPLY_QUOTES, MAX_QUOTE_CHARACTERS, quoteKey, quotedReply, type ReplyQuote } from "./replyQuotes";
 import { queuedMessageText } from "./queuedMessageDraft";
+import { MAX_CONVERSATION_REFERENCES } from "./conversationReferences";
 
 import { IMAGE_TYPES, MAX_IMAGES, MAX_IMAGE_BYTES, readImage, type DraftImage } from "./draftImages";
 export { IMAGE_TYPES, MAX_IMAGES, MAX_IMAGE_BYTES, readImage, type DraftImage } from "./draftImages";
@@ -66,8 +67,13 @@ export function useComposerDraft(key: string, controller: GuiController) {
     ({ ...value, quotes: value.quotes?.filter((item) => quoteKey(item) !== key) }));
   const clearQuotes = () => update((value) => ({ ...value, quotes: [] }));
   const addAttachments = (attachments: AttachmentReference[]) => {
+    const combined = [...new Map([...(draft.attachments ?? []), ...attachments]
+      .map((item) => [item.path, item])).values()];
+    if (combined.filter((item) => item.kind === "conversation").length > MAX_CONVERSATION_REFERENCES) {
+      controller.report("每条消息最多引用 8 个对话。"); return;
+    }
     if ((draft.attachments?.length ?? 0) + attachments.length > MAX_ATTACHMENTS) {
-      controller.report("每条消息最多添加 32 个文件、文件夹或插件。");
+      controller.report("每条消息最多添加 32 个附件或对话引用。");
     }
     update((value) => ({ ...value, attachments: [...new Map([...(value.attachments ?? []), ...attachments]
       .map((item) => [item.path, item])).values()].slice(0, MAX_ATTACHMENTS) }));

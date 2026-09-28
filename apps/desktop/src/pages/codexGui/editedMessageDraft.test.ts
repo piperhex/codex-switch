@@ -27,6 +27,7 @@ it("recovers the edited text, earlier steering inputs, and all attached referenc
         { type: "skill", name: "check", path: "D:/SKILL.md" },
         { type: "mention", name: "file", path: "D:/file.txt" },
         { type: "mention", name: "plugin", path: "plugin://example" },
+        { type: "mention", name: "方案", path: "codex-thread://source" },
       ] },
     ] },
   ] });
@@ -35,6 +36,7 @@ it("recovers the edited text, earlier steering inputs, and all attached referenc
       skills: [{ name: "check", path: "D:/SKILL.md" }], attachments: [
         { kind: "file", name: "file", path: "D:/file.txt" },
         { kind: "plugin", name: "plugin", path: "plugin://example" },
+        { kind: "conversation", name: "方案", path: "codex-thread://source" },
       ] });
 });
 
