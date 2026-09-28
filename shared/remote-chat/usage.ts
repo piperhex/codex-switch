@@ -13,9 +13,13 @@ const THOUSAND = 1_000;
 const LOW_QUOTA_PERCENT = 20;
 const WARNING_QUOTA_PERCENT = 50;
 
-export function formatTokens(value: number) {
-  if (value >= MILLION) return `${(value / MILLION).toLocaleString('en-US', { maximumFractionDigits: 2 })}M`;
-  if (value >= THOUSAND) return `${(value / THOUSAND).toLocaleString('en-US', { maximumFractionDigits: 1 })}K`;
+export function formatTokens(value: number, fractionDigits?: number) {
+  const options = {
+    minimumFractionDigits: fractionDigits ?? 0,
+    maximumFractionDigits: fractionDigits ?? (value >= MILLION ? 2 : 1),
+  };
+  if (value >= MILLION) return `${(value / MILLION).toLocaleString('en-US', options)}M`;
+  if (value >= THOUSAND) return `${(value / THOUSAND).toLocaleString('en-US', options)}K`;
   return value.toLocaleString('en-US');
 }
 

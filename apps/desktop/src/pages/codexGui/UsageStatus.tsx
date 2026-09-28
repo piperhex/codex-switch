@@ -7,6 +7,7 @@ import type { ThreadTokenUsage } from "./types";
 import styles from "./UsageStatus.module.less";
 import { formatTokens, formatCost, usageTrailing } from "../../../../../shared/remote-chat/usage";
 
+const TOKEN_FRACTION_DIGITS = 2;
 const TOOLTIP_STYLES = {
   root: { maxWidth: 400 },
   body: { fontSize: 12, lineHeight: "18px", padding: "6px 8px", overflowWrap: "anywhere" },
@@ -33,6 +34,7 @@ export function UsageStatus({ active, threadId, tokenUsage }: {
   const [hint, setHint] = useState<UsageHint | null>(null);
   const [settingsThread, setSettingsThread] = useState<string | null>(null);
   const trailing = usageTrailing(usage);
+  const tokens = usage ? formatTokens(usage.totalTokens, TOKEN_FRACTION_DIGITS) : "—";
   const pendingDescription = error || "正在读取今日用量…";
   useEffect(() => {
     if (!active || (hint === "remaining" && !trailing)) setHint(null);
@@ -55,9 +57,9 @@ export function UsageStatus({ active, threadId, tokenUsage }: {
         onSettings={threadId ? () => { setHint(null); setSettingsThread(threadId); } : undefined}
         onOpenChange={(open) => changeHint("context", open)} />
       <span>今日</span>
-      <UsageValue className={styles.tokens} text={usage ? formatTokens(usage.totalTokens) : "—"}
+      <UsageValue className={styles.tokens} text={tokens}
         open={active && hint === "tokens"} onOpenChange={(open) => changeHint("tokens", open)}
-        description={usage ? `今日 Token 用量：${usage.totalTokens.toLocaleString("en-US")}` : pendingDescription} />
+        description={usage ? `今日 Token 用量：${tokens}` : pendingDescription} />
       <span>·</span>
       <UsageValue className={styles.cost} text={usage ? formatCost(usage.estimatedCostUsd) : "—"}
         open={active && hint === "cost"} onOpenChange={(open) => changeHint("cost", open)}
