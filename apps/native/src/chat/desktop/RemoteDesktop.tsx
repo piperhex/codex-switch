@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { RTCPeerConnection, RTCView, type MediaStream as NativeMediaStream } from 'react-native-webrtc';
@@ -15,6 +15,7 @@ import { useMouseViewport } from '../../../../../shared/remote-desktop/useMouseV
 import { useDesktopZoom } from '../../../../../shared/remote-desktop/useDesktopZoom';
 import { DisplaySettings } from './DisplaySettings';
 import { DesktopKeyboard } from './DesktopKeyboard';
+import { DesktopScrollPad } from './DesktopScrollPad';
 import { DesktopStats } from './DesktopStats';
 import { useDesktopWindow } from './useDesktopWindow';
 import { desktopStyles as s } from './styles';
@@ -34,6 +35,7 @@ export function RemoteDesktop({ client, active, close }: {
   const [display, setDisplay] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
   const [direct, setDirect] = useState(false);
+  const [scrolling, setScrolling] = useState(false);
   const [statsVisible, setStatsVisible] = useState(true);
   const panelVisible = !direct && !display && !keyboard;
   const panel = useMousePanel(active && panelVisible && !!session.stream);
@@ -44,7 +46,12 @@ export function RemoteDesktop({ client, active, close }: {
   const viewport = useMouseViewport(session.pointer, zoom.viewport,
     panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined, zoom.modified);
   const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage', zoom: zoom.gestures });
-  const wheel = (delta: number) => { session.pointer.synchronize(); session.input({ kind: 'wheel', delta }); };
+  const wheel = (delta: number, horizontal = false) => {
+    session.pointer.synchronize(); session.input({ kind: 'wheel', delta, ...(horizontal ? { horizontal } : {}) });
+  };
+  useEffect(() => {
+    if (!panelVisible || !active || !session.stream) setScrolling(false);
+  }, [panelVisible, active, session.stream]);
   const switchMode = (next: boolean) => { session.pointer.release(); setDirect(next); if (!next) panel.expand(); };
   const safeEdges: Edge[] = ['left', 'right'];
   if (!orientation.landscape) safeEdges.push('top');
@@ -93,7 +100,10 @@ export function RemoteDesktop({ client, active, close }: {
           {session.stats && statsVisible && !keyboard
             && <DesktopStats stats={session.stats} close={() => setStatsVisible(false)} />}
           {session.stream && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
-            visible={panelVisible} zoomed={zoom.modified} wheel={wheel} />}
+            visible={panelVisible && !scrolling} zoomed={zoom.modified} scroll={() => setScrolling(true)} />}
+          {scrolling && panelVisible && session.stream && <DesktopScrollPad pointer={session.pointer} viewport={viewport}
+            panel={panel} wheel={wheel} horizontal={!!session.capabilities.horizontalScroll}
+            close={() => setScrolling(false)} />}
           {!!(session.status || orientation.error) && <View style={s.message}>
             <Text accessibilityRole="alert" style={s.text}>{session.status || orientation.error}</Text>
             <Pressable onPress={session.retry}><Text style={s.text}>重新连接</Text></Pressable></View>}

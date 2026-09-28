@@ -12,7 +12,7 @@ import { useTrackpad } from './useTrackpad';
 
 interface Props {
   pointer: DesktopPointer; viewport: DesktopViewport; panel: MousePanelActivity;
-  wheel: (delta: number) => void;
+  scroll: () => void;
 }
 export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { visible: boolean; zoomed?: boolean }) {
   const position = useSyncExternalStore(props.pointer.subscribe, props.pointer.getSnapshot);
@@ -29,7 +29,7 @@ export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { vi
   </>;
 }
 
-function MousePad({ pointer, viewport, panel, wheel }: Props) {
+function MousePad({ pointer, viewport, panel, scroll }: Props) {
   const buttons = useMouseButtons(pointer);
   const pad = useTrackpad({ pointer, viewport, panel, id: 'pad', cancel: buttons.cancel });
   const grip = useTrackpad({ pointer, viewport, panel, id: 'grip', click: false, cancel: buttons.cancel });
@@ -46,13 +46,8 @@ function MousePad({ pointer, viewport, panel, wheel }: Props) {
         onPointerCancel={() => { buttons.cancel(); panel.hold(button, false); }}>
         {t(button === 'left' ? (buttons.dragging ? '拖拽中' : '左键') : '右键')}</button>)}</div>
     <div className="rd-pad" {...pad}>{t('滑动移动')}</div>
-    <div className="rd-wheel">{[120, -120].map(delta =>
-      <button key={delta} aria-label={t(delta > 0 ? '向上滚动' : '向下滚动')}
-        onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); panel.hold('wheel', true); }}
-        onPointerUp={() => panel.hold('wheel', false)} onLostPointerCapture={() => panel.hold('wheel', false)}
-        onPointerCancel={() => panel.hold('wheel', false)}
-        onClick={() => { panel.activity(); wheel(delta); }}>
-        {delta > 0 ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button>)}</div>
+    <button className="rd-wheel" aria-label={t('展开滚动滑块')} onClick={scroll}>
+      <ChevronUp size={18} /><ChevronDown size={18} /></button>
     <button className="rd-grip" aria-label={t('拖动鼠标面板')} {...grip}><GripHorizontal size={22} /></button>
   </div>;
 }

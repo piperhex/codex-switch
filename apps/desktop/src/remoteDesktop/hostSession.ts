@@ -11,12 +11,14 @@ export class HostSession {
     this.session = new NativeDesktopSession(settings, iceServers);
   }
   async open() {
-    try { return { ...await this.session.open(), capabilities: { keyboard: true, clipboard: true } }; }
+    try {
+      return { ...await this.session.open(), capabilities: { keyboard: true, clipboard: true, horizontalScroll: true } };
+    }
     catch {
       await this.session.close();
       if (this.stopped) throw new Error('桌面连接已结束。');
       this.session = new DesktopHostSession(this.settings, this.iceServers);
-      return { ...await this.session.open(), capabilities: { keyboard: true, clipboard: true } };
+      return { ...await this.session.open(), capabilities: { keyboard: true, clipboard: true, horizontalScroll: true } };
     }
   }
   signal(signal: DesktopSignal) { return this.session.signal(signal); }

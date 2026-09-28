@@ -10,7 +10,7 @@ import { useTrackpad } from './useTrackpad';
 import { desktopStyles as s } from './styles';
 
 interface Props {
-  pointer: DesktopPointer; viewport: DesktopViewport; panel: MousePanelActivity; wheel: (delta: number) => void;
+  pointer: DesktopPointer; viewport: DesktopViewport; panel: MousePanelActivity; scroll: () => void;
 }
 export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { visible: boolean; zoomed?: boolean }) {
   const position = useSyncExternalStore(props.pointer.subscribe, props.pointer.getSnapshot);
@@ -29,7 +29,7 @@ export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { vi
     </View>}
   </>;
 }
-function MousePad({ pointer, viewport, panel, wheel }: Props) {
+function MousePad({ pointer, viewport, panel, scroll }: Props) {
   const buttons = useMouseButtons(pointer);
   const pad = useTrackpad({ pointer, viewport, panel, id: 'pad', cancel: buttons.cancel });
   const grip = useTrackpad({ pointer, viewport, panel, id: 'grip', click: false, cancel: buttons.cancel });
@@ -46,13 +46,10 @@ function MousePad({ pointer, viewport, panel, wheel }: Props) {
       </Pressable>)}</View>
     <View {...pad.panHandlers} style={[s.pad, pad.pressed && s.pressed]} accessibilityLabel="滑动移动鼠标，轻点单击">
       <Text style={s.mouseText}>滑动移动</Text></View>
-    <View style={s.wheel}>{[120, -120].map(delta =>
-      <Pressable key={delta} accessibilityRole="button" accessibilityLabel={delta > 0 ? '向上滚动' : '向下滚动'}
-        onPressIn={() => panel.hold('wheel', true)} onPressOut={() => panel.hold('wheel', false)}
-        style={({ pressed }) => [s.wheelButton, pressed && s.pressed]}
-        onPress={() => { panel.activity(); wheel(delta); }}>
-        <Ionicons name={delta > 0 ? 'caret-up' : 'caret-down'} size={16} color="#526684" />
-      </Pressable>)}</View>
+    <Pressable accessibilityRole="button" accessibilityLabel="展开滚动滑块" onPress={scroll}
+      style={({ pressed }) => [s.wheel, pressed && s.pressed]}>
+      <Ionicons name="chevron-up" size={18} color="#526684" />
+      <Ionicons name="chevron-down" size={18} color="#526684" /></Pressable>
     <View {...grip.panHandlers} style={[s.grip, grip.pressed && s.pressed]} accessibilityLabel="拖动鼠标面板">
       <Ionicons name="reorder-two" size={22} color="#526684" /></View>
   </View>;

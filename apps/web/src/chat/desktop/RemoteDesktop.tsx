@@ -20,6 +20,7 @@ import { useHardwarePointer } from './useDesktopMouse';
 import { useDesktopClipboard } from './useDesktopClipboard';
 import { DesktopClipboardPanel } from './DesktopClipboardPanel';
 import { DesktopInputSurface } from './DesktopInputSurface';
+import { DesktopScrollPad } from './DesktopScrollPad';
 import './desktop.css';
 
 const createPeer = (configuration: RTCConfiguration) => new RTCPeerConnection(configuration);
@@ -33,6 +34,7 @@ export function RemoteDesktop({ client, active, close }: {
   const [keyboard, setKeyboard] = useState(false);
   const keyboardViewport = useKeyboardViewport(keyboard || display);
   const [direct, setDirect] = useState(false);
+  const [scrolling, setScrolling] = useState(false);
   const [statsVisible, setStatsVisible] = useState(true);
   const hardware = useHardwarePointer();
   const clipboard = useDesktopClipboard({ active: active && !!session.stream, clipboard: session.clipboard });
@@ -53,7 +55,12 @@ export function RemoteDesktop({ client, active, close }: {
   const viewport = useMouseViewport(session.pointer, zoom.viewport,
     panelVisible ? (panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE) : undefined, zoom.modified);
   const trackpad = useTrackpad({ pointer: session.pointer, viewport, direct, panel, id: 'stage', zoom: zoom.gestures });
-  const wheel = (delta: number) => { session.pointer.synchronize(); session.input({ kind: 'wheel', delta }); };
+  const wheel = (delta: number, horizontal = false) => {
+    session.pointer.synchronize(); session.input({ kind: 'wheel', delta, ...(horizontal ? { horizontal } : {}) });
+  };
+  useEffect(() => {
+    if (!panelVisible || !active || !session.stream) setScrolling(false);
+  }, [panelVisible, active, session.stream]);
   const switchMode = (next: boolean) => { session.pointer.release(); setDirect(next); if (!next) panel.expand(); };
   useEffect(() => {
     if (!active) return;
@@ -81,7 +88,9 @@ export function RemoteDesktop({ client, active, close }: {
       {session.stats && statsVisible && !keyboard
         && <DesktopStats stats={session.stats} close={() => setStatsVisible(false)} />}
       {session.stream && !hardware && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
-        visible={panelVisible} zoomed={zoom.modified} wheel={wheel} />}
+        visible={panelVisible && !scrolling} zoomed={zoom.modified} scroll={() => setScrolling(true)} />}
+      {scrolling && panelVisible && session.stream && <DesktopScrollPad pointer={session.pointer} viewport={viewport}
+        panel={panel} wheel={wheel} horizontal={!!session.capabilities.horizontalScroll} close={() => setScrolling(false)} />}
       {session.status && <div className="rd-status" role="status"><span>{t(session.status)}</span>
         <button onClick={session.retry}>{t('重新连接')}</button></div>}
       {display && <DisplaySettings settings={session.settings} displays={session.displays} update={session.update}

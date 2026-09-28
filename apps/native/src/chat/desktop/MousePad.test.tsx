@@ -35,7 +35,7 @@ it('renders the native local pointer and small controls over black letterboxing,
   const pointer = new DesktopPointer(vi.fn()); pointer.absolute(0.4, 1);
   const viewport = desktopViewport({ width: 400, height: 800 }, { width: 1600, height: 900 });
   const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
-  const render = () => nodes(DesktopMouse({ pointer, viewport, panel, visible: true, wheel: vi.fn() }));
+  const render = () => nodes(DesktopMouse({ pointer, viewport, panel, visible: true, scroll: vi.fn() }));
   const elements = render();
   const cursor = elements.find(node => node.props.pointerEvents === 'none')!;
   expect(cursor.props.style?.[1].left).toBeCloseTo(159.6);
@@ -55,7 +55,7 @@ it('renders the native local pointer and small controls over black letterboxing,
   const iconStyle = Object.assign({}, ...collapsed.find(node => node.props.pointerEvents === 'box-none')!.props.style!);
   expect(iconStyle).toMatchObject({ left: style.left, top: style.top, width: 40, height: 40 });
   icon.props.onPress!(); expect(panel.expand).toHaveBeenCalledOnce();
-  expect(nodes(DesktopMouse({ pointer, viewport, panel, visible: false, wheel: vi.fn() }))
+  expect(nodes(DesktopMouse({ pointer, viewport, panel, visible: false, scroll: vi.fn() }))
     .some(node => node.props.pointerEvents === 'box-none')).toBe(false);
   pointer.dispose();
 });
@@ -67,7 +67,7 @@ it('keeps the native cursor and panel offset together at the screen edges', () =
     const viewport = desktopViewport(stage, { width: 1600, height: 900 });
     for (const point of [{ x: 0, y: 0 }, { x: 0.7, y: 0.8 }, { x: 1, y: 1 }]) {
       pointer.absolute(point.x, point.y);
-      const elements = nodes(DesktopMouse({ pointer, viewport, panel, visible: true, wheel: vi.fn() }));
+      const elements = nodes(DesktopMouse({ pointer, viewport, panel, visible: true, scroll: vi.fn() }));
       const cursor = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'none')!.props.style!);
       const controls = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'box-none')!.props.style!);
       expect(controls.left! - cursor.left!).toBeCloseTo(24);
@@ -83,7 +83,7 @@ it('keeps native controls visible after a pinch moves the pointer offscreen', ()
   const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
   const viewport = { stage: { width: 800, height: 450 },
     content: { x: -500, y: -300, width: 2400, height: 1350 } };
-  const elements = nodes(DesktopMouse({ pointer, viewport, panel, visible: true, zoomed: true, wheel: vi.fn() }));
+  const elements = nodes(DesktopMouse({ pointer, viewport, panel, visible: true, zoomed: true, scroll: vi.fn() }));
   const cursor = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'none')!.props.style!);
   const controls = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'box-none')!.props.style!);
   expect(cursor.left).toBeGreaterThan(800); expect(cursor.top).toBeGreaterThan(450);

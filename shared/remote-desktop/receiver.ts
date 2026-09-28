@@ -137,6 +137,7 @@ export class DesktopReceiver {
   }
 
   input(input: DesktopInput) {
+    if (input.kind === 'wheel' && input.horizontal && !this.capabilities.horizontalScroll) return;
     if (input.kind === 'keyboard' && !this.capabilities.keyboard) return;
     if (input.kind === 'button' && input.button === 'middle' && !this.capabilities.keyboard) return;
     if (!this.stopped) sendDesktopInput(this.channel, input);

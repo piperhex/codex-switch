@@ -63,7 +63,10 @@ test('streams video, controls mouse and keyboard, applies display settings and c
   if (await collapsed.isVisible()) await collapsed.click();
   await page.getByRole('button', { name: '鼠标左键', exact: true }).click();
   await page.getByRole('button', { name: '鼠标右键', exact: true }).click();
-  await page.getByRole('button', { name: '向下滚动' }).click();
+  await page.getByRole('button', { name: '展开滚动滑块' }).click();
+  const scrollPad = (await page.locator('.rd-scroll-pad').boundingBox())!;
+  await page.mouse.click(scrollPad.x + scrollPad.width / 2, scrollPad.y + scrollPad.height / 2 + 60);
+  await page.mouse.click(scrollPad.x + scrollPad.width / 2, scrollPad.y + scrollPad.height / 2);
   await expect.poll(() => page.evaluate(() => window.desktopTest.inputs.length)).toBe(8);
   expect(await page.evaluate(() => window.desktopTest.inputs)).toEqual([
     { kind: 'move', x: 0.5, y: 0.5 },

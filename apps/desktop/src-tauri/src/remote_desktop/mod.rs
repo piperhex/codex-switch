@@ -57,6 +57,8 @@ pub(crate) enum DesktopInput {
     },
     Wheel {
         delta: i32,
+        #[serde(default)]
+        horizontal: bool,
     },
     Text {
         text: String,

@@ -1,4 +1,6 @@
 export const remoteDesktopMessages: Record<string, string> = {
+  '展开滚动滑块': 'Open scroll control', '收起滚动滑块': 'Close scroll control', '十字滚动滑块': 'Scroll control',
+  '更新远程电脑上的应用后，即可左右滚动。': 'Update the remote computer app to scroll horizontally.',
   '剪贴板': 'Clipboard', '远程桌面键盘输入': 'Remote desktop keyboard input',
   '请更新远程电脑上的应用，启用实体键盘和剪贴板。':
     'Update the app on the remote computer to enable physical keyboard and clipboard support.',

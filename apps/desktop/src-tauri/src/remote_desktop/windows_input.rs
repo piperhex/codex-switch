@@ -107,7 +107,14 @@ fn input_event(input: DesktopInput, display: &super::monitors::Monitor) -> Resul
             };
             send(&[mouse(flags, 0)])
         }
-        DesktopInput::Wheel { delta } => send(&[mouse(MOUSEEVENTF_WHEEL, delta as u32)]),
+        DesktopInput::Wheel { delta, horizontal } => {
+            let flags = if horizontal {
+                MOUSEEVENTF_HWHEEL
+            } else {
+                MOUSEEVENTF_WHEEL
+            };
+            send(&[mouse(flags, delta as u32)])
+        }
         DesktopInput::Text { text } => text_input(&text),
         DesktopInput::Key { key: value } => shortcut(value),
         DesktopInput::Keyboard { .. } => Err(DesktopError::Invalid),
