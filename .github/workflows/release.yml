@@ -31,7 +31,7 @@ jobs:
         uses: actions/github-script@v9
         env:
           TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          RELEASE_NAME: "Codex Remote ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+          RELEASE_NAME: "Remote AI ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
           PRERELEASE: ${{ contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -335,7 +335,7 @@ jobs:
       - name: Build unsigned iOS Release app
         working-directory: apps/native
         run: >-
-          xcodebuild -workspace ios/CodexRemote.xcworkspace -scheme CodexRemote
+          xcodebuild -workspace ios/RemoteAI.xcworkspace -scheme RemoteAI
           -configuration Release -sdk iphoneos -derivedDataPath build
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
@@ -343,7 +343,7 @@ jobs:
         working-directory: apps/native
         run: >-
           ditto -c -k --sequesterRsrc --keepParent
-          build/Build/Products/Release-iphoneos/CodexRemote.app
+          build/Build/Products/Release-iphoneos/RemoteAI.app
           CodexSwitch-ios-unsigned.app.zip
 
       - name: Upload workflow artifact

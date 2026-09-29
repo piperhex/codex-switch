@@ -45,7 +45,7 @@ export function SettingsPage({ totpManager }: { totpManager: ReturnType<typeof u
       <div className="settings-layout"><section className="settings-group settings-profile-group">
         <button type="button" className="settings-profile" onClick={() => setPanel('profile')} aria-label={t("查看用户信息")}>
           <span className="settings-avatar">{email.slice(0, 2).toUpperCase()}</span>
-          <span><strong>{email}</strong><small>{t("Codex Remote 云端账号")}</small></span><ChevronRight size={20} /></button>
+          <span><strong>{email}</strong><small>{t("Remote AI 云端账号")}</small></span><ChevronRight size={20} /></button>
         <SettingsRow label={t("用户信息")} value={email} icon={UserRound} tone="blue" onClick={() => setPanel('profile')} />
         <SettingsRow label={t("身份信息")} value={role} icon={IdCard} tone="blue" onClick={() => setPanel('identity')} />
       </section>
@@ -67,7 +67,7 @@ export function SettingsPage({ totpManager }: { totpManager: ReturnType<typeof u
           onClick={() => setPanel('password')} /></section>
         <section className="settings-group">
           <SettingsRow label={t('电脑端版本')} icon={Monitor} tone="blue" onClick={() => setPanel('desktop')} />
-          <SettingsRow label={t("关于 Codex Remote")} value={`v${version}`}
+          <SettingsRow label={t("关于 Remote AI")} value={`v${version}`}
           icon={Info} tone="blue" onClick={() => setPanel('about')} /></section>
       </div></div>
       <Button className="settings-logout" block color="danger" fill="outline" onClick={() => void logout()}>

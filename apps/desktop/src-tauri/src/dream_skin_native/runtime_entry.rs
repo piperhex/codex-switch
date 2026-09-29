@@ -13,7 +13,7 @@ pub(crate) fn restart_runtime_session(executable: Option<&Path>) -> Result<(), S
                 .unwrap_or_else(|error| error.into_inner())
                 .clone()
         })
-        .ok_or_else(|| "Codex 启动服务尚未就绪，请重新打开 Codex Remote 后重试。".to_string())?;
+        .ok_or_else(|| "Codex 启动服务尚未就绪，请重新打开 Remote AI 后重试。".to_string())?;
     if let Some(executable) = executable {
         record_runtime_executable(executable)?;
     }

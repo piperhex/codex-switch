@@ -11,7 +11,7 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
       aria-label={t("返回设置")} onClick={onBack}><ArrowLeft size={22} /></button><h1>{t("关于")}</h1></header>
     <section className="settings-group about-identity">
       <BrandMark />
-      <div><h2>Codex Remote <small>Web</small></h2><p>v{version}</p></div>
+      <div><h2>Remote AI <small>Web</small></h2><p>v{version}</p></div>
       <p>{t("管理账号用量，随时连接桌面设备。")}</p>
     </section>
     <section className="settings-group">

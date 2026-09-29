@@ -13,7 +13,7 @@ test('renamed installers reuse legacy installs and retire registration only afte
   const scratch = resolve('.codex-tmp');
   mkdirSync(scratch, { recursive: true });
   const directory = mkdtempSync(join(scratch, 'installer-branding-'));
-  const name = `CodexRemoteTest-${Date.now()}`;
+  const name = `RemoteAITest-${Date.now()}`;
   const registry = `Software\\${name}`;
   const uninstall = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${name}-legacy`;
   const output = join(directory, 'fixture.exe');
@@ -26,7 +26,7 @@ test('renamed installers reuse legacy installs and retire registration only afte
     assert.equal(result.status, 0, result.error?.message);
   } finally {
     // These keys are unique to this fixture; no installed application is touched.
-    for (const key of [registry, uninstall]) {
+    for (const key of [registry, uninstall, uninstall.replace(/-legacy$/, '-previous')]) {
       spawnSync('reg.exe', ['delete', `HKCU\\${key}`, '/f'], { windowsHide: true, stdio: 'ignore' });
     }
   }

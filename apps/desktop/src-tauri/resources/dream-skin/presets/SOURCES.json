@@ -16,7 +16,7 @@
     "avoid": "No source-image copying, readable text, franchise logo, watermark, border, or UI mockup."
   },
   "transformations": "Each generated image is resized to 2560x1440, converted to JPEG, and configured as an adaptive Codex Dream Skin theme.",
-  "distributionNote": "Bundled only as configured themes inside Codex Remote.",
+  "distributionNote": "Bundled only as configured themes inside Remote AI.",
   "rightsNotice": "Themes marked thirdPartyFanArt require permission from the applicable IP owners. User-provided artwork also requires the contributor to hold the necessary distribution rights.",
   "themes": [
     {

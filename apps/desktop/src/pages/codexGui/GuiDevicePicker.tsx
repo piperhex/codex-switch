@@ -40,7 +40,7 @@ export function GuiDevicePicker({ navigation, busy, onSelect }: {
       {!navigation.authenticated ? <button type="button" className={styles.deviceOption}
         disabled={busy} onClick={() => { close(); onSelect(); navigation.login(); }}>登录后选择其他设备</button> : <>
         {!navigation.devices.length && !navigation.loading && !navigation.error
-          && <p className={styles.hint}>在其他设备上打开 Codex Remote，登录同一账户即可连接。</p>}
+          && <p className={styles.hint}>在其他设备上打开 Remote AI，登录同一账户即可连接。</p>}
         <button type="button" className={styles.deviceOption} aria-label="刷新设备列表"
           disabled={navigation.loading} onClick={navigation.refresh}>
           {navigation.loading ? <Spin size="small" /> : <RefreshCw size={14} />}刷新设备列表</button>

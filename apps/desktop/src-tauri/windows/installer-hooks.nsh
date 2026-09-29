@@ -86,7 +86,7 @@ Var CswRmSessionActive
   !insertmacro CswBackupPrepare
   ${If} $R0 != 0
     !insertmacro CswInstallerCancel
-    Abort "Please exit Codex Remote, then try again."
+    Abort "Please exit Remote AI, then try again."
   ${EndIf}
 !macroend
 

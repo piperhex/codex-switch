@@ -280,7 +280,7 @@ fn official_local_proxy_profile(
     ProviderProfile {
         id: MANAGED_PROVIDER_ID.to_string(),
         kind: ProviderKind::OpenAi,
-        name: "Codex Remote".to_string(),
+        name: "Remote AI".to_string(),
         group: String::new(),
         base_url: LOCAL_PROXY_BASE_URL.to_string(),
         api_key: LOCAL_PROXY_TOKEN.to_string(),

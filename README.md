@@ -1,8 +1,8 @@
-# Codex Remote
+# Remote AI
 
 > For English documentation, please see [README_EN.md](README_EN.md).
 
-Codex Remote 是一款面向 Codex / ChatGPT 用户的桌面工作台，集 Codex GUI 编程助手与多账号管理于一体。
+Remote AI 是一款面向 Codex / ChatGPT 用户的桌面工作台，集 Codex GUI 编程助手与多账号管理于一体。
 你可以直接在应用中与 Codex 对话，理解代码、实现功能、排查问题，并随时查看执行进度和文件改动。
 它还提供账号登录与切换、用量查看、第三方 Provider、本地热切换代理、Token 分析、Skills 市场和一键换肤，
 支持在本机启动网页版，也可连接自建后端与移动端，实现跨设备协同管理。
@@ -17,7 +17,7 @@ QQ 技术交流群2：`972062132`。
 
 访问 [Codex Web](https://codex.onepiper.cloud/web/)，在浏览器中连接电脑使用 Codex。
 
-使用前，请先安装 [Codex Remote PC 端](https://github.com/piperhex/codex-switch/releases)，
+使用前，请先安装 [Remote AI PC 端](https://github.com/piperhex/codex-switch/releases)，
 再打开 **Codex GUI**，按页面提示完成安装。
 保持 PC 端运行并联网，在网页端登录与 PC 端相同的云端账号，即可连接电脑开始使用。
 
@@ -35,46 +35,46 @@ Codex GUI 是内置的图形化对话工作区。选择项目后，用自然语�
 - **按需选择模型**：调整模型、思考强度和访问权限，适应不同任务。
 - **随时掌握进展**：实时查看回复、计划、命令输出和文件差异，处理权限确认，也可中断任务。
 - **接着上次继续**：搜索、重命名、置顶或归档对话，重新打开后继续交流。
-- **桌面与浏览器均可使用**：通过 Codex Remote 提供的网页版访问同一工作区，任务在运行 Codex Remote 的电脑上执行。
+- **桌面与浏览器均可使用**：通过 Remote AI 提供的网页版访问同一工作区，任务在运行 Remote AI 的电脑上执行。
 
 首次使用可按页面提示下载 Codex。更多操作请参阅 [Codex GUI 使用说明](docs/codex-gui.md)。
 
 ### 账号管理与本地代理
 
-![Codex Remote 账号管理界面](docs/assets/codex-switch-dashboard.png)
+![Remote AI 账号管理界面](docs/assets/codex-switch-dashboard.png)
 
 ### 会话管理
 
-![Codex Remote 会话管理界面](docs/assets/codex-switch-conversations.png)
+![Remote AI 会话管理界面](docs/assets/codex-switch-conversations.png)
 
 ### 第三方模型服务商
 
-![Codex Remote 第三方模型服务商界面](docs/assets/codex-switch-providers.png)
+![Remote AI 第三方模型服务商界面](docs/assets/codex-switch-providers.png)
 
 ### Token 消耗分析
 
-![Codex Remote Token 消耗分析界面](docs/assets/codex-switch-token-usage.png)
+![Remote AI Token 消耗分析界面](docs/assets/codex-switch-token-usage.png)
 
 ### 一键换肤
 
 内置 300+ 套主题预设，并兼容 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
-![Codex Remote 一键换肤界面](docs/assets/codex-switch-dream-skin.png)
+![Remote AI 一键换肤界面](docs/assets/codex-switch-dream-skin.png)
 
 ### 插件市场
 
-![Codex Remote 插件市场](docs/assets/codex-switch-skills.png)
+![Remote AI 插件市场](docs/assets/codex-switch-skills.png)
 
 ### 2FA 验证码
 
-![Codex Remote 2FA 验证码界面](docs/assets/codex-switch-two-factor.png)
+![Remote AI 2FA 验证码界面](docs/assets/codex-switch-two-factor.png)
 
 ### 悬浮用量球
 
 <p align="center">
-  <img src="docs/assets/codex-switch-floating-usage.png" alt="Codex Remote 紧凑悬浮用量球" width="146">
+  <img src="docs/assets/codex-switch-floating-usage.png" alt="Remote AI 紧凑悬浮用量球" width="146">
   &nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/codex-switch-floating-usage-expanded.png" alt="Codex Remote 玻璃悬浮用量面板" width="345">
+  <img src="docs/assets/codex-switch-floating-usage-expanded.png" alt="Remote AI 玻璃悬浮用量面板" width="345">
 </p>
 
 ## 功能
@@ -222,7 +222,7 @@ npm run check
 
 使用账号工具栏的“导入”和“导出”可恢复或创建包含所有本地账号与服务商配置的 `.cs` 备份。导入会按稳定标识合并记录，并不会将备份当成可随意公开的无密钥导出文件。
 
-“第三方服务商”页面用于管理兼容 OpenAI Responses 或 Chat Completions 的接口、API 密钥、模型列表，以及由 Codex 还是 Codex Remote 控制模型选择。三方 Provider 仅可在本地代理运行时使用；代理会监听 `127.0.0.1:15722` 并使 Codex 指向该地址，从而支持热切换。
+“第三方服务商”页面用于管理兼容 OpenAI Responses 或 Chat Completions 的接口、API 密钥、模型列表，以及由 Codex 还是 Remote AI 控制模型选择。三方 Provider 仅可在本地代理运行时使用；代理会监听 `127.0.0.1:15722` 并使 Codex 指向该地址，从而支持热切换。
 
 ### 局域网共享与 API Key 额度
 
@@ -236,30 +236,30 @@ npm run check
 
 若部分请求未返回完整用量，Key 会标记为“用量待确认”，设有额度的 Key 会暂停新请求。管理员核对成本并调整额度后，可在编辑时勾选确认以恢复使用；已确认的累计用量会保留。
 
-在下游 Codex Remote 添加上游设备的局域网地址和对应 Key，保存后可自动识别并显示该 Key 的剩余额度。也可在余额查询设置中选择“Codex Remote”。额度用完后仍可刷新余额；不同 Key 只能查询各自的额度。
+在下游 Remote AI 添加上游设备的局域网地址和对应 Key，保存后可自动识别并显示该 Key 的剩余额度。也可在余额查询设置中选择“Remote AI”。额度用完后仍可刷新余额；不同 Key 只能查询各自的额度。
 
 ### 中转站接入
 
-Codex Remote 支持通过桌面深链从 sub2api、newapi 以及其他兼容页面一键导入中转站 Provider。网页按钮只需要打开下面的自定义协议链接，浏览器会唤起已安装的 Codex Remote，并把参数交给桌面端保存：
+Remote AI 支持通过桌面深链从 sub2api、newapi 以及其他兼容页面一键导入中转站 Provider。网页按钮只需要打开下面的自定义协议链接，浏览器会唤起已安装的 Remote AI，并把参数交给桌面端保存：
 
 ```text
 cswitch://v1/import?resource=provider&app=codex&name=站点名称&homepage=https%3A%2F%2Fexample.com&endpoint=https%3A%2F%2Fexample.com%2Fv1&apiKey=你的API密钥&balancePlatform=sub2api
 ```
 
-Codex Remote 只注册自己的 `cswitch://` 协议。所有参数值都必须经过 URL 编码，尤其是 `name`、`homepage`、`endpoint` 和 `apiKey`；API 密钥不要直接拼接未编码的特殊字符。
+Remote AI 只注册自己的 `cswitch://` 协议。所有参数值都必须经过 URL 编码，尤其是 `name`、`homepage`、`endpoint` 和 `apiKey`；API 密钥不要直接拼接未编码的特殊字符。
 
 参数说明：
 
 - `resource=provider`：固定值，表示导入 Provider。
 - `app=codex`：按支持 OpenAI Responses 的第三方中转站 Provider 导入，不会识别为官方 OpenAI Provider。
 - `app=claude`、`app=gemini` 或 `app=grokbuild`：按兼容 Chat Completions 的自定义 Provider 导入，适合只提供 Chat Completions 的中转站。
-- `name`：在 Codex Remote 中显示的 Provider 名称。
+- `name`：在 Remote AI 中显示的 Provider 名称。
 - `homepage`：站点主页，保留给兼容页面使用。
 - `endpoint`：实际 API Base URL，例如 `https://example.com/v1`。
 - `apiKey`：中转站 API 密钥。
 - `balancePlatform=sub2api` 或 `balancePlatform=newapi`：可选，用于标记对应的余额查询平台；也接受兼容页面常用的 `platform` 参数名。
 
-页面只需提供余额平台；未提供余额查询地址和 Token 时，Codex Remote 会根据 `endpoint` 补全平台默认地址，并复用导入的 API 密钥。导入时还会自动从中转站加载可用模型；加载失败时使用链接指定的模型或程序默认模型，不会中断导入。
+页面只需提供余额平台；未提供余额查询地址和 Token 时，Remote AI 会根据 `endpoint` 补全平台默认地址，并复用导入的 API 密钥。导入时还会自动从中转站加载可用模型；加载失败时使用链接指定的模型或程序默认模型，不会中断导入。
 
 因此，sub2api 使用的核心格式不是账号 JSON，而是上面的 Provider 深链格式：把 `balancePlatform` 设置为 `sub2api`，把 `endpoint` 和 `apiKey` 换成该站点实际值即可。newapi 只需将其改为 `newapi`。深链会在桌面端后台解析并保存，不会把密钥写入前端日志。
 
@@ -339,7 +339,7 @@ npm run release-beta
 
 ## 许可证
 
-Codex Remote 使用 [Apache License 2.0](LICENSE)，与官方 [OpenAI Codex](https://github.com/openai/codex) 仓库一致。
+Remote AI 使用 [Apache License 2.0](LICENSE)，与官方 [OpenAI Codex](https://github.com/openai/codex) 仓库一致。
 
 ## 当前限制
 
@@ -353,7 +353,7 @@ Codex Remote 使用 [Apache License 2.0](LICENSE)，与官方 [OpenAI Codex](htt
 
 ## 免责声明
 
-Codex Remote 是独立开发的第三方软件，与 OpenAI 及其 Codex 产品不存在隶属、关联、授权、认可或官方合作关系。
+Remote AI 是独立开发的第三方软件，与 OpenAI 及其 Codex 产品不存在隶属、关联、授权、认可或官方合作关系。
 
 ## Star History
 
@@ -368,7 +368,7 @@ Codex Remote 是独立开发的第三方软件，与 OpenAI 及其 Codex 产品�
       srcset="assets/star-history/star-history-light.svg"
     />
     <img
-      alt="Codex Remote Star History"
+      alt="Remote AI Star History"
       src="assets/star-history/star-history-light.svg"
     />
   </picture>

@@ -6,6 +6,7 @@ RequestExecutionLevel user
 SilentInstall silent
 !define PRODUCTNAME "@name@"
 !define CSW_LEGACY_PRODUCT_NAME "@name@-legacy"
+!define CSW_PREVIOUS_PRODUCT_NAME "@name@-previous"
 !define MANUKEY "@registry@"
 !define MANUPRODUCTKEY "@registry@\@name@"
 !define MAINBINARYNAME "fixture"
@@ -53,5 +54,18 @@ Section
   ReadRegStr $0 SHCTX "@registry@\@name@-legacy" ""
   !insertmacro AssertEqual $0 '""'
   ReadRegStr $0 SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\@name@-legacy" "DisplayName"
+  !insertmacro AssertEqual $0 '""'
+
+  ; The intermediate brand is also recognized and migrated on an in-place update.
+  WriteRegStr SHCTX "@registry@\@name@-previous" "" "@directory@\legacy"
+  WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\@name@-previous" "DisplayName" "previous"
+  StrCpy $INSTDIR "@directory@\legacy"
+  !insertmacro CswPrepareBrandMigration
+  !insertmacro AssertEqual $CswBrandMigration 1
+  !insertmacro AssertEqual $CswLegacyProductName '"@name@-previous"'
+  !insertmacro CswFinishBrandMigration
+  ReadRegStr $0 SHCTX "@registry@\@name@-previous" ""
+  !insertmacro AssertEqual $0 '""'
+  ReadRegStr $0 SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\@name@-previous" "DisplayName"
   !insertmacro AssertEqual $0 '""'
 SectionEnd

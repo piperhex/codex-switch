@@ -27,8 +27,8 @@ $productId = '{' + [guid]::NewGuid().ToString() + '}'
 $upgradeProductId = '{' + [guid]::NewGuid().ToString() + '}'
 $source = @'
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="PRODUCT_ID" Name="Codex Remote Installer Test RUN_ID" Language="1033"
-    Version="PRODUCT_VERSION" Manufacturer="Codex Remote Tests" UpgradeCode="UPGRADE_ID">
+  <Product Id="PRODUCT_ID" Name="Remote AI Installer Test RUN_ID" Language="1033"
+    Version="PRODUCT_VERSION" Manufacturer="Remote AI Tests" UpgradeCode="UPGRADE_ID">
     <Package InstallerVersion="450" Compressed="yes" InstallScope="perUser" />
     <Property Id="REINSTALLMODE" Value="amus" />
     <Property Id="INSTALLDIR">

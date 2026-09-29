@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
 const thread = { id: "conversation", cwd: "", name: "保留的对话", preview: "对话内容", updatedAt: 1, turns: [] };
-const task = { id: "release", title: "跟踪 Codex Remote 发布", prompt: "检查新版本发布。", cwd: "",
+const task = { id: "release", title: "跟踪 Remote AI 发布", prompt: "检查新版本发布。", cwd: "",
   schedule: { kind: "interval", minutes: 5 }, status: "active", nextRunAt: Date.now() + 300_000,
   lastRunAt: null, lastThreadId: "conversation", lastTurnId: null, runStatus: "idle", error: null };
 const skill = { id: "gui-plugin", title: "项目检查助手", description: "整理项目状态，汇总需要跟进的事项。",

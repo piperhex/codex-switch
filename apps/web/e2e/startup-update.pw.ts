@@ -17,7 +17,7 @@ test('checks at startup, remembers a skipped version, and prompts for the next v
   await page.goto('./');
   await expect(page.getByText('发现新版本', { exact: true })).toBeVisible();
   expect(requests).toBe(1);
-  await expect(page.getByText('Codex Remote v99.0.0 已发布，刷新页面即可更新。')).toBeVisible();
+  await expect(page.getByText('Remote AI v99.0.0 已发布，刷新页面即可更新。')).toBeVisible();
   const dialog = page.locator('.adm-dialog-body');
   const bounds = await dialog.boundingBox();
   expect(bounds!.width).toBeLessThanOrEqual(400);
@@ -32,7 +32,7 @@ test('checks at startup, remembers a skipped version, and prompts for the next v
   await expect(dialog).toBeHidden();
   available = '99.1.0';
   await page.reload();
-  await expect(page.getByText('Codex Remote v99.1.0 已发布，刷新页面即可更新。')).toBeVisible();
+  await expect(page.getByText('Remote AI v99.1.0 已发布，刷新页面即可更新。')).toBeVisible();
   expect(requests).toBe(3);
 });
 

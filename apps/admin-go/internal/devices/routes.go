@@ -140,7 +140,7 @@ func checkCapability(device *Device, spec commandSpec) error {
 		}
 	}
 	if !has {
-		return platform.NewError(409, "请先更新目标 PC 上的 Codex Remote")
+		return platform.NewError(409, "请先更新目标 PC 上的 Remote AI")
 	}
 	if (spec.path == "provider" || spec.path == "provider-group") && !device.LocalProxyRunning {
 		return platform.NewError(409, "请先在目标 PC 上启动本地代理")

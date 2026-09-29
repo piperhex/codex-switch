@@ -280,7 +280,7 @@ fn codex_model_refresh_expression(
     upgrade: null,
     upgradeInfo: null,
     availabilityNux: null,
-    displayName: model === "codex switch control" ? "Codex Remote Control" : model,
+    displayName: model === "codex switch control" ? "Remote AI Control" : model,
     description: model,
     modelSpecialty: null,
     hidden: false,
@@ -341,7 +341,7 @@ fn codex_model_refresh_expression(
               ? ["text", "image"]
               : ["text"],
             displayName: (model.model ?? model.id) === "codex switch control"
-              ? "Codex Remote Control"
+              ? "Remote AI Control"
               : model.displayName,
             isDefault: (model.model ?? model.id) === selectedModel ||
               (!expected.has(selectedModel) && index === 0),

@@ -16,11 +16,11 @@ interface Props {
 export function ChromeSetup({ status, busy, error, onClose, onAction, onRefresh }: Props) {
   return <Modal open title="安装并连接 Chrome 浏览器助手" width={448} footer={null} onCancel={onClose}>
     <div className={styles.setup}>
-      <p>从 Chrome 应用商店添加浏览器助手，安装后即可连接 Codex Remote。</p>
+      <p>从 Chrome 应用商店添加浏览器助手，安装后即可连接 Remote AI。</p>
       <ol>
         <li>打开下方商店页面，点击“添加至 Chrome”并确认安装。</li>
-        <li>在 Chrome 工具栏打开“Codex Remote 浏览器助手”，确认显示“已连接”。</li>
-        <li>回到 Codex Remote，开启新任务即可使用。</li>
+        <li>在 Chrome 工具栏打开“Remote AI 浏览器助手”，确认显示“已连接”。</li>
+        <li>回到 Remote AI，开启新任务即可使用。</li>
       </ol>
       <div className={styles.setupActions}>
         <button className="primary-button" disabled={busy} onClick={() => void onAction("openStore")}>

@@ -1,8 +1,8 @@
-# Codex Remote
+# Remote AI
 
 > Chinese is the default documentation language. For the Chinese README, see [README.md](README.md).
 
-Codex Remote is a desktop workspace for Codex / ChatGPT that brings together Codex GUI and multi-account management.
+Remote AI is a desktop workspace for Codex / ChatGPT that brings together Codex GUI and multi-account management.
 Chat with Codex to understand code, build features, and troubleshoot problems while following progress and file changes.
 It also includes account sign-in and switching, usage monitoring, third-party Providers, a hot-switching local proxy,
 token analytics, a Skills Market, and one-click themes. Use its hosted browser UI or connect a self-hosted backend
@@ -14,7 +14,7 @@ and mobile companion to manage accounts across devices.
 
 Open [Codex Web](https://codex.onepiper.cloud/web/) to connect to your computer and use Codex in your browser.
 
-Before using it, install the [Codex Remote desktop app](https://github.com/piperhex/codex-switch/releases),
+Before using it, install the [Remote AI desktop app](https://github.com/piperhex/codex-switch/releases),
 then open **Codex GUI** and follow the installation prompts.
 Keep the desktop app running and your computer online. Sign in to the web app with the same cloud account
 as the desktop app, then connect to your computer to get started.
@@ -39,40 +39,40 @@ On first use, follow the page's prompt to download Codex. See the [Codex GUI gui
 
 ### Account management and local proxy
 
-![Codex Remote account dashboard](docs/assets/codex-switch-dashboard.png)
+![Remote AI account dashboard](docs/assets/codex-switch-dashboard.png)
 
 ### Conversation management
 
-![Codex Remote conversation management](docs/assets/codex-switch-conversations.png)
+![Remote AI conversation management](docs/assets/codex-switch-conversations.png)
 
 ### Third-party providers
 
-![Codex Remote providers](docs/assets/codex-switch-providers.png)
+![Remote AI providers](docs/assets/codex-switch-providers.png)
 
 ### Token analytics
 
-![Codex Remote token analytics](docs/assets/codex-switch-token-usage.png)
+![Remote AI token analytics](docs/assets/codex-switch-token-usage.png)
 
 ### One-click themes
 
 Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin).
 
-![Codex Remote one-click themes](docs/assets/codex-switch-dream-skin.png)
+![Remote AI one-click themes](docs/assets/codex-switch-dream-skin.png)
 
 ### Plugin Market
 
-![Codex Remote Plugin Market](docs/assets/codex-switch-skills.png)
+![Remote AI Plugin Market](docs/assets/codex-switch-skills.png)
 
 ### 2FA authenticator
 
-![Codex Remote 2FA authenticator](docs/assets/codex-switch-two-factor.png)
+![Remote AI 2FA authenticator](docs/assets/codex-switch-two-factor.png)
 
 ### Floating usage widgets
 
 <p align="center">
-  <img src="docs/assets/codex-switch-floating-usage.png" alt="Codex Remote compact floating usage widget" width="146">
+  <img src="docs/assets/codex-switch-floating-usage.png" alt="Remote AI compact floating usage widget" width="146">
   &nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/codex-switch-floating-usage-expanded.png" alt="Codex Remote glass floating usage panel" width="345">
+  <img src="docs/assets/codex-switch-floating-usage-expanded.png" alt="Remote AI glass floating usage panel" width="345">
 </p>
 
 ## Features
@@ -215,11 +215,11 @@ The custom cloud server setting is hidden by default. Self-hosted users can set
 
 ## License
 
-Codex Remote is licensed under the [Apache License 2.0](LICENSE), the same license used by the official [OpenAI Codex](https://github.com/openai/codex) repository.
+Remote AI is licensed under the [Apache License 2.0](LICENSE), the same license used by the official [OpenAI Codex](https://github.com/openai/codex) repository.
 
 ## Disclaimer
 
-Codex Remote is independently developed third-party software and is not affiliated with, associated with, authorized by, endorsed by, or officially partnered with OpenAI or its Codex products.
+Remote AI is independently developed third-party software and is not affiliated with, associated with, authorized by, endorsed by, or officially partnered with OpenAI or its Codex products.
 
 ## Star History
 
@@ -234,7 +234,7 @@ Codex Remote is independently developed third-party software and is not affiliat
       srcset="assets/star-history/star-history-light.svg"
     />
     <img
-      alt="Codex Remote Star History"
+      alt="Remote AI Star History"
       src="assets/star-history/star-history-light.svg"
     />
   </picture>

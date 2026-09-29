@@ -4,7 +4,7 @@ export const errors = {
     'Could not load. Check that your computer is connected and up to date, then try again.',
   '暂时无法读取文件夹，请确认电脑已连接且文件夹可访问。':
     'Could not load folders. Check your computer connection and folder access.',
-  '请更新电脑端 Codex Remote 后重试。': 'Update Codex Remote on your computer and try again.',
+  '请更新电脑端 Remote AI 后重试。': 'Update Remote AI on your computer and try again.',
   '暂时无法读取电脑的账户，请重试。': 'Could not load accounts from your computer. Please try again.',
   '切换未完成，请重试。': 'The switch did not complete. Please try again.',
   '暂时无法读取上下文设置，请重试。': 'Could not load context settings. Please try again.',
@@ -58,10 +58,10 @@ export const errors = {
   '部分技能暂未更新，可继续使用已有列表。': 'Some skills could not be updated. You can still use the existing list.',
   '暂时无法更新，可继续使用已有列表。': 'Could not update. You can still use the existing list.',
   '暂时无法加载技能，请重新打开重试。': 'Could not load skills. Open the menu again to retry.',
-  '手机端与电脑端的聊天版本不兼容，请将两端的 Codex Remote 更新到最新版本后重试。':
-    'The chat versions are incompatible. Update Codex Remote on both devices and try again.',
-  '电脑的聊天连接尚未就绪。请确认电脑已联网，并打开 Codex Remote、登录同一云端账号；旧版请先更新。':
-    'Chat is not ready on your computer. Open an up-to-date Codex Remote, connect to the internet and sign in with the same account.',
+  '手机端与电脑端的聊天版本不兼容，请将两端的 Remote AI 更新到最新版本后重试。':
+    'The chat versions are incompatible. Update Remote AI on both devices and try again.',
+  '电脑的聊天连接尚未就绪。请确认电脑已联网，并打开 Remote AI、登录同一云端账号；旧版请先更新。':
+    'Chat is not ready on your computer. Open an up-to-date Remote AI, connect to the internet and sign in with the same account.',
   '无法连接聊天服务，请检查手机网络和服务器地址后重试。':
     'Cannot connect to chat. Check your network and server address.',
   '聊天连接验证未通过，请重新登录，并确认手机与电脑使用同一云端账号。':
@@ -70,12 +70,12 @@ export const errors = {
   '聊天服务暂时不可用，请稍后重试。': 'Chat is temporarily unavailable. Please try again later.',
   '这台电脑的聊天连接数已满，请断开其他手机上的聊天后重试。':
     'This computer has reached its chat connection limit. Disconnect another device and retry.',
-  '电脑的聊天连接已中断，请检查电脑网络，并保持 Codex Remote 运行。':
-    'Your computer disconnected. Check its network and keep Codex Remote running.',
-  '连接电脑超时，请确认电脑未休眠、Codex Remote 正在运行，且两端网络正常。':
-    'Connection timed out. Keep your computer awake, Codex Remote running and both devices online.',
-  '未能识别连接信息，请更新手机和电脑上的 Codex Remote 后重试。':
-    'Could not read connection details. Update Codex Remote on both devices and retry.',
+  '电脑的聊天连接已中断，请检查电脑网络，并保持 Remote AI 运行。':
+    'Your computer disconnected. Check its network and keep Remote AI running.',
+  '连接电脑超时，请确认电脑未休眠、Remote AI 正在运行，且两端网络正常。':
+    'Connection timed out. Keep your computer awake, Remote AI running and both devices online.',
+  '未能识别连接信息，请更新手机和电脑上的 Remote AI 后重试。':
+    'Could not read connection details. Update Remote AI on both devices and retry.',
   '电脑未检测到 Codex GUI 所需的程序，请在电脑的 Codex GUI 页面下载 Codex 后重试。':
     'Download Codex from the Codex GUI page on your computer, then try again.',
   '电脑上的 Codex GUI 启动失败，请在电脑上打开 Codex GUI，检查配置后重试。':

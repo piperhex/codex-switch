@@ -1,7 +1,7 @@
 import type { UserAgreement } from './types';
 
 export const userAgreementEn: UserAgreement = {
-  title: 'Codex Remote User Agreement',
+  title: 'Remote AI User Agreement',
   updated: 'Updated: September 25, 2026',
   introduction: 'Please read this agreement before signing in or registering, '
     + 'especially the sections with bold headings. '
@@ -41,7 +41,7 @@ export const userAgreementEn: UserAgreement = {
         'Features vary by version, device, network and server settings. Usage, quota and device status may be delayed; '
           + 'the relevant service’s final records apply. Prices, duration and refund terms for paid services must be '
           + 'disclosed separately before purchase.',
-        'Codex Remote is an independent tool, not an official product of OpenAI or other model providers. '
+        'Remote AI is an independent tool, not an official product of OpenAI or other model providers. '
           + 'Third-party accounts, models and plugins have their own terms and privacy policies. This tool does not '
           + 'grant extra quota, guarantee account availability or permit bypassing third-party restrictions.',
       ],

@@ -41,7 +41,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 it('shows a compact version prompt with exactly the two requested choices', () => {
   const prompt = StartupUpdatePrompt();
-  expect(text(prompt)).toContain('Codex Remote v1.6.0 已发布');
+  expect(text(prompt)).toContain('Remote AI v1.6.0 已发布');
   expect(nodes(prompt).filter((node) => node.props.onPress).map(text)).toEqual(['忽略本版本', '立即更新']);
   expect(nodes(prompt).some((node) => node.props.style?.maxWidth === 400)).toBe(true);
   expect(state.download).not.toHaveBeenCalled();

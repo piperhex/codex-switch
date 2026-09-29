@@ -319,7 +319,7 @@
             model: Some("deepseek-chat"),
             include_model_catalog: true,
             requires_openai_auth: false,
-            token_command: r"C:\Program Files\Codex Remote\csw.exe",
+            token_command: r"C:\Program Files\Remote AI\csw.exe",
         };
         let merged = merge_local_proxy_config("model = \"old\"", &options).unwrap();
         assert!(merged.contains("model_provider = \"codex-switch-local\""));
@@ -336,7 +336,7 @@
         assert!(merged.contains("--print-local-proxy-token"));
         assert_eq!(
             provider["auth"]["command"].as_str(),
-            Some(r"C:\Program Files\Codex Remote\csw.exe")
+            Some(r"C:\Program Files\Remote AI\csw.exe")
         );
         assert!(!merged.contains("model = \"old\""));
     }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Codex Remote",
+  "productName": "Remote AI",
   "version": "1.6.13",
   "identifier": "dev.codex.switch",
   "build": {
@@ -14,7 +14,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "Codex Remote",
+        "title": "Remote AI",
         "width": 1370,
         "height": 760,
         "minWidth": 1200,

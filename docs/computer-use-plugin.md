@@ -1,6 +1,6 @@
 # CUA Computer Use for Codex GUI
 
-Codex Remote's community marketplace includes **Computer Use 电脑助手**. It installs CUA Driver
+Remote AI's community marketplace includes **Computer Use 电脑助手**. It installs CUA Driver
 0.25.0 for the selected Codex Home and lets Codex GUI use its native desktop tools through STDIO MCP.
 The installer supports Windows x64/ARM64 and macOS 13+ on Intel and Apple Silicon. macOS uses the
 pinned universal binary archive. Older macOS versions and other operating systems show an unsupported state.
@@ -30,16 +30,16 @@ Windows secure desktop, UAC prompts and elevated applications remain subject to 
 
 Open the computer assistant card on the community plugin page and use **去开启** beside each missing
 permission. In **System Settings → Privacy & Security**, enable **Accessibility** and **Screen Recording**
-(called **Screen & System Audio Recording** on newer macOS versions) for **Codex Remote**. These let the
+(called **Screen & System Audio Recording** on newer macOS versions) for **Remote AI**. These let the
 assistant operate apps and inspect screenshots. The buttons request the corresponding macOS permission
 and open its settings page; only the user can grant it. Reopen the conversation afterwards, and restart
-Codex Remote if macOS asks you to quit it. Status polling never requests a grant or captures the screen.
+Remote AI if macOS asks you to quit it. Status polling never requests a grant or captures the screen.
 
 The managed driver inherits the app's TCC responsibility through its child-process chain and uses
 `CUA_DRIVER_HOST_BUNDLE_ID=dev.codex.switch` for attribution. It does not install or start a separate
 `CuaDriver.app` daemon. When developing or running the opt-in protocol script from a terminal/IDE,
 macOS can attribute permission to that launching app instead. Grant that app access for the test;
-verify the packaged Codex Remote separately. Direct MCP mode has no macOS cursor overlay/PiP facility;
+verify the packaged Remote AI separately. Direct MCP mode has no macOS cursor overlay/PiP facility;
 use screenshots to verify desktop actions.
 
 ## Lifecycle
@@ -62,7 +62,7 @@ use screenshots to verify desktop actions.
   while links, duplicates, missing members and oversized files are rejected.
   They are shared only as cached files. Uninstalling one Home retains this cache for other Homes and
   future reinstalls; it does not modify a separately installed CUA Driver or the user's PATH/autostart.
-- Each Home gets a `codex_switch_computer_use` MCP entry pointing to the current Codex Remote executable
+- Each Home gets a `codex_switch_computer_use` MCP entry pointing to the current Remote AI executable
   with `--computer-use-mcp=<home-hash>`, plus the managed `codex-switch-computer-use` skill.
   Existing unrelated settings and user-authored same-name skills are preserved; conflicts fail explicitly.
 - The helper launches `cua-driver mcp --direct`, so each connection owns its native runtime instead of
@@ -124,5 +124,5 @@ it does not grant TCC permissions or claim an interactive desktop test.
 - [Windows MCP tools](https://cua.ai/docs/reference/cua-driver/mcp-tools-windows)
 - [macOS MCP tools](https://cua.ai/docs/reference/cua-driver/mcp-tools-macos)
 
-CUA is developed by Cua AI, Inc. Codex Remote supplies this integration; it is not the OpenAI
+CUA is developed by Cua AI, Inc. Remote AI supplies this integration; it is not the OpenAI
 Computer Use plugin. The driver binaries are downloaded unchanged from the pinned upstream release.

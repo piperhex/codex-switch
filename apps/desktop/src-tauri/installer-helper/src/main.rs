@@ -32,7 +32,7 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 enum Error {
     #[error("invalid installer shutdown arguments")]
     Arguments,
-    #[error("Codex Remote has not finished exiting")]
+    #[error("Remote AI has not finished exiting")]
     Timeout,
     #[error(transparent)]
     Io(#[from] io::Error),
@@ -42,7 +42,7 @@ type Result<T> = std::result::Result<T, Error>;
 fn main() {
     if let Err(error) = run() {
         logging::write(format!("failed: {error}"));
-        eprintln!("Codex Remote installer shutdown: {error}");
+        eprintln!("Remote AI installer shutdown: {error}");
         std::process::exit(1);
     }
 }

@@ -89,7 +89,7 @@ export function useChatPhotos({ threadId, sending }: { threadId: string | null; 
     setPhotos((current) => current.filter((photo) => !submitted.includes(photo)));
   };
   const openSettings = () => {
-    void Linking.openSettings().catch(() => setError('无法打开设置，请在手机设置中找到 Codex Remote。'));
+    void Linking.openSettings().catch(() => setError('无法打开设置，请在手机设置中找到 Remote AI。'));
   };
   const restore = (images: string[]) => setPhotos(images.map((dataUrl, index) => ({
     id: `queued-${index}`, uri: dataUrl, dataUrl,

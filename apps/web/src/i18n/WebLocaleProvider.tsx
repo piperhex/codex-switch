@@ -12,8 +12,8 @@ export function WebLocaleProvider({ children }: { children: ReactNode }) {
   const language = useLanguage();
   useEffect(() => {
     document.documentElement.lang = language === 'en' ? 'en' : 'zh-CN';
-    document.title = language === 'en' ? 'Codex Remote Web - Remote chat and account management'
-      : 'Codex Remote Web - 远程 Codex 聊天与账号管理';
+    document.title = language === 'en' ? 'Remote AI Web - Remote chat and account management'
+      : 'Remote AI Web - 远程 Codex 聊天与账号管理';
   }, [language]);
   // Imperative dialogs are rendered outside the provider tree.
   useEffect(() => { setDefaultConfig({ locale: language === 'en' ? enUSMobile : zhCNMobile }); }, [language]);

@@ -112,7 +112,7 @@ class StartupErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Codex Remote startup error', error, info.componentStack);
+    console.error('Remote AI startup error', error, info.componentStack);
   }
 
   render() {
@@ -176,7 +176,7 @@ function LoginScreen({ initialBaseUrl, onLoggedIn }: { initialBaseUrl: string; o
     <SafeAreaView style={styles.flex}>
       <ScrollView contentContainerStyle={styles.loginScroll} keyboardShouldPersistTaps="handled">
         <View style={styles.logoMark}><Text style={styles.logoGlyph}>↺</Text></View>
-        <Text style={styles.loginTitle}>Codex Remote</Text>
+        <Text style={styles.loginTitle}>Remote AI</Text>
         <Text style={styles.loginSubtitle}>登录后查看你的官方账号用量</Text>
         <View style={styles.loginCard}>
           <View style={styles.fieldLabelRow}>
@@ -189,7 +189,7 @@ function LoginScreen({ initialBaseUrl, onLoggedIn }: { initialBaseUrl: string; o
           <TextInput value={baseUrl} onChangeText={setBaseUrl} autoCapitalize="none" autoCorrect={false}
             keyboardType="url" placeholder={DEFAULT_CLOUD_BASE_URL} placeholderTextColor="#98a9a0"
             style={styles.input} editable={!submitting} />
-          <Text style={styles.fieldHint}>填写部署 Codex Remote 后端的根地址</Text>
+          <Text style={styles.fieldHint}>填写部署 Remote AI 后端的根地址</Text>
           <Text style={styles.fieldLabel}>邮箱</Text>
           <TextInput value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false}
             autoComplete="email" keyboardType="email-address" placeholder="name@example.com" placeholderTextColor="#98a9a0"
@@ -360,7 +360,7 @@ function AndroidUpdateInstallPrompt() {
     promptedVersion.current = downloadState.version;
     Alert.alert(
       '更新已下载',
-      `Codex Remote ${downloadState.version} 已下载完成，现在安装吗？`,
+      `Remote AI ${downloadState.version} 已下载完成，现在安装吗？`,
       [
         { text: '稍后', style: 'cancel' },
         {
@@ -1244,7 +1244,7 @@ function AppContent() {
   }, []);
 
   const showBottomNavigation = activePage !== 'token-summary' && activePage !== 'downloads';
-  if (initializing) return <View style={styles.boot}><StatusBar style="dark" /><ActivityIndicator size="large" color={COLORS.green} /><Text style={styles.bootText}>Codex Remote</Text></View>;
+  if (initializing) return <View style={styles.boot}><StatusBar style="dark" /><ActivityIndicator size="large" color={COLORS.green} /><Text style={styles.bootText}>Remote AI</Text></View>;
   if (!session) return <View style={styles.app}>
     <LoginScreen initialBaseUrl={DEFAULT_CLOUD_BASE_URL} onLoggedIn={handleLogin} />
   </View>;

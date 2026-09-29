@@ -35,7 +35,7 @@ pub(crate) use codex_config::{
     LOCAL_PROXY_PORT, LOCAL_PROXY_TOKEN,
 };
 pub(crate) const CODEX_SWITCH_CONTROL_MODEL: &str = "codex switch control";
-const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Remote Local Proxy";
+const LOCAL_PROXY_PROVIDER_NAME: &str = "Remote AI Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-6-astra";
 pub(crate) const DEFAULT_OFFICIAL_REASONING_EFFORT: &str = "low";
 const MODEL_CATALOG_FILENAME: &str = "codex-switch-model-catalog.json";

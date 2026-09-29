@@ -51,7 +51,7 @@ async function frame(width: number) {
   context.fillStyle = '#12344e'; context.fillRect(0, 0, 1600, 900);
   context.fillStyle = '#eff4fb'; context.fillRect(130, 95, 1300, 695);
   context.fillStyle = '#dae4f2'; context.fillRect(130, 95, 1300, 65);
-  context.font = '30px sans-serif'; context.fillStyle = '#263c58'; context.fillText('Codex Remote · Windows', 160, 138);
+  context.font = '30px sans-serif'; context.fillStyle = '#263c58'; context.fillText('Remote AI · Windows', 160, 138);
   context.font = '38px sans-serif'; context.fillText('远程桌面', 200, 245);
   context.font = '22px sans-serif'; context.fillText('原生视频连接测试', 200, 295);
   for (let row = 0; row < 4; row++) {

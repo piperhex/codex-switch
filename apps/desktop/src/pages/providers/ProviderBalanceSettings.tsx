@@ -32,7 +32,7 @@ const PLATFORM_LABELS: Record<ProviderBalancePlatform, string> = {
   newApi: "New API",
   sub2Api: "Sub2API",
   deepSeek: "DeepSeek",
-  codexSwitch: "Codex Remote",
+  codexSwitch: "Remote AI",
 };
 
 export function ProviderBalanceSettings({

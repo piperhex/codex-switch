@@ -149,7 +149,7 @@ test('the GUI-managed Codex CLI loads the computer-use tools from the selected h
       } });
       child.stderr.on('data', () => {});
       const call = rpc(child);
-      await call('initialize', { clientInfo: { name: 'codex-tui', title: 'Codex Remote', version: '0.153.4' },
+      await call('initialize', { clientInfo: { name: 'codex-tui', title: 'Remote AI', version: '0.153.4' },
         capabilities: { experimentalApi: true } });
       child.stdin.write('{"method":"initialized"}\n');
       const thread = await call('thread/start', { cwd: selected.record.home, ephemeral: true });

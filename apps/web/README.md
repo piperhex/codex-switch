@@ -1,13 +1,13 @@
-# Codex Remote Web
+# Remote AI Web
 
-面向手机浏览器的 Codex Remote Web 客户端，同时提供宽屏桌面布局。移动交互使用
+面向手机浏览器的 Remote AI Web 客户端，同时提供宽屏桌面布局。移动交互使用
 Ant Design Mobile，桌面增强使用 Ant Design，应用状态由 Redux Toolkit 管理。
 
 ## 在线使用
 
 访问 [Codex Web](https://codex.onepiper.cloud/web/)。
 
-使用前，请先安装 [Codex Remote PC 端](https://github.com/piperhex/codex-switch/releases)，
+使用前，请先安装 [Remote AI PC 端](https://github.com/piperhex/codex-switch/releases)，
 再打开 **Codex GUI**，按页面提示完成安装。
 保持 PC 端运行并联网，在网页端登录与 PC 端相同的云端账号，即可连接电脑开始使用。
 
@@ -25,7 +25,7 @@ npm run dev:web
 ## Codex 聊天
 
 底部导航和桌面侧栏均提供“聊天”入口。登录与 PC 相同的云端账号后，选择在线电脑，
-即可查看和搜索 Codex Remote 内置 GUI 的聊天、发送消息、查看流式回复、补充要求、停止任务，
+即可查看和搜索 Remote AI 内置 GUI 的聊天、发送消息、查看流式回复、补充要求、停止任务，
 以及新建聊天、归档恢复、选择模型、处理审批和补充问题。界面与 Android 客户端保持一致。
 
 Web 和 Android 共用聊天状态、历史同步、加密及重连逻辑。浏览器优先使用 WebRTC 直连 PC，

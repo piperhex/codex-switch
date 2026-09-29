@@ -1,6 +1,6 @@
 # 自定义模型目录
 
-Codex Remote 更新 `~/.codex/codex-switch-model-catalog.json` 时，会按 `slug` 匹配模型，
+Remote AI 更新 `~/.codex/codex-switch-model-catalog.json` 时，会按 `slug` 匹配模型，
 保留手动设置的 `apply_patch_tool_type`、`shell_type`、`base_instructions`、
 其他工具能力字段以及未知字段。目录顶层的额外字段也会保留。
 

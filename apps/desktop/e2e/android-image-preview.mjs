@@ -9,7 +9,7 @@ const orientation = async () => {
 const savedPictures = async () => {
   const result = await adb('shell', 'content', 'query', '--uri', 'content://media/external/images/media',
     '--projection', '_display_name:mime_type:_size:relative_path');
-  return result.split('\n').filter((line) => line.includes('CodexRemote-'));
+  return result.split('\n').filter((line) => line.includes('RemoteAI-'));
 };
 
 async function rotateTo({ gravity, surface }) {
@@ -54,7 +54,7 @@ export async function imagePreviewJourney() {
       await waitFor(async () => (await savedPictures()).length === before.length + 1, 'original in system album');
       const added = (await savedPictures()).filter((line) => !before.includes(line));
       assert.match(added[0], /mime_type=image\/png/);
-      assert.match(added[0], /relative_path=Pictures\/Codex Remote\//);
+      assert.match(added[0], /relative_path=Pictures\/Remote AI\//);
       assert.ok(Number(added[0].match(/_size=(\d+)/)?.[1]) > 0);
       // Moving the phone offers rotation without rotating the preview automatically.
       await adb('emu', 'sensor', 'set', 'acceleration', '9.8:0:0');

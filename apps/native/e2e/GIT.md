@@ -1,7 +1,7 @@
 # Git tool regression
 
 The isolated fixture uses `com.codexswitch.mobile.gittest` and in-memory Git data.
-It never modifies a real repository or replaces the installed Codex Remote app.
+It never modifies a real repository or replaces the installed Remote AI app.
 
 From `apps/native/android`, with Java and the Android SDK configured:
 

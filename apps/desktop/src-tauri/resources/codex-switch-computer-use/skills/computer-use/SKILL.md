@@ -1,6 +1,6 @@
 ---
 name: codex-switch-computer-use
-description: Inspect and operate Windows and macOS desktop apps through the Codex Remote computer-use MCP tools. Use for native app interactions, desktop screenshots, clicks, typing, scrolling, dragging, and keyboard shortcuts.
+description: Inspect and operate Windows and macOS desktop apps through the Remote AI computer-use MCP tools. Use for native app interactions, desktop screenshots, clicks, typing, scrolling, dragging, and keyboard shortcuts.
 ---
 
 <!-- managed:codex-switch-computer-use -->
@@ -17,8 +17,8 @@ or website tasks only when Chrome tools are unavailable and desktop access is au
 use desktop control to bypass a browser assistant pause, rejected permission, or restricted site.
 
 On macOS, inspect `check_permissions` with `prompt: false` if a tool reports missing permissions.
-The managed driver uses Codex Remote's permissions. Direct the user to the computer assistant's
-community plugin card to enable Accessibility and Screen Recording for **Codex Remote**, then
+The managed driver uses Remote AI's permissions. Direct the user to the computer assistant's
+community plugin card to enable Accessibility and Screen Recording for **Remote AI**, then
 reopen the conversation (or restart the app if macOS requests it). Do not ask them to grant a
 separately installed CuaDriver app access. The standalone source bundle instead inherits the
 permissions of the app that launches it, such as a terminal or IDE.

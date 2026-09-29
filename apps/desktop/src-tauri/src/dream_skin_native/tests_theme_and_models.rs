@@ -401,7 +401,7 @@
         )
         .unwrap();
 
-        assert!(expression.contains("Codex Remote Control"));
+        assert!(expression.contains("Remote AI Control"));
         assert!(expression.contains("isDefault:"));
     }
 

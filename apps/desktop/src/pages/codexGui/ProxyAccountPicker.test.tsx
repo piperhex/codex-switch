@@ -96,7 +96,7 @@ it("keeps provider names visible in privacy mode", async () => {
 
 it.each(["custom", "openai"] as const)(
   "shows and switches a %s Provider alongside official accounts", async (kind) => {
-  const target = { ...provider, kind, name: kind === "openai" ? "Codex Remote" : provider.name };
+  const target = { ...provider, kind, name: kind === "openai" ? "Remote AI" : provider.name };
   props.providers = [target];
   await render();
   expect(trigger().textContent).toContain(account.email);
@@ -261,7 +261,7 @@ it("does not present missing usage as zero remaining", async () => {
 const balance: ProviderBalance = { apiAmount: 99, apiUnit: "USD", apiUnlimited: false,
   walletAmount: 12.34, walletUnit: "CNY", queriedAt: 1 };
 
-it.each([0, 7.5])("shows Codex Remote key quota %s in the proxy summary", async (amount) => {
+it.each([0, 7.5])("shows Remote AI key quota %s in the proxy summary", async (amount) => {
   props.providers = [{ ...provider, active: true, balancePlatform: "codexSwitch" }];
   vi.mocked(queryProviderBalance).mockResolvedValue({ ...balance, apiAmount: amount, walletAmount: null });
   await render();
@@ -269,7 +269,7 @@ it.each([0, 7.5])("shows Codex Remote key quota %s in the proxy summary", async 
   expect(trigger().textContent).not.toContain("钱包余额");
 });
 
-it("shows unlimited Codex Remote keys without treating them as a zero balance", async () => {
+it("shows unlimited Remote AI keys without treating them as a zero balance", async () => {
   props.providers = [{ ...provider, active: true, balancePlatform: "codexSwitch" }];
   vi.mocked(queryProviderBalance).mockResolvedValue({ ...balance,
     apiAmount: null, apiUnlimited: true, walletAmount: null });

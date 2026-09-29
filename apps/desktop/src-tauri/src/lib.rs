@@ -601,7 +601,7 @@ pub fn run() {
         ])
         .build(context)
         .unwrap_or_else(|error| {
-            eprintln!("failed to start Codex Remote: {error}");
+            eprintln!("failed to start Remote AI: {error}");
             std::process::exit(1);
         })
         .run(|app, event| {

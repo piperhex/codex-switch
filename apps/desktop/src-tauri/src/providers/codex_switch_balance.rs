@@ -5,9 +5,9 @@ pub(crate) const CODEX_SWITCH_QUOTA_DETECTION_TIMEOUT: Duration = Duration::from
 /// Resolves quota requests beside the upstream API, preserving any reverse-proxy prefix.
 pub(crate) fn codex_switch_quota_url(base_url: &str) -> Result<String, String> {
     let mut url =
-        Url::parse(base_url).map_err(|_| "Codex Remote address is invalid".to_string())?;
+        Url::parse(base_url).map_err(|_| "Remote AI address is invalid".to_string())?;
     if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
-        return Err("Codex Remote address must use HTTP or HTTPS".to_string());
+        return Err("Remote AI address must use HTTP or HTTPS".to_string());
     }
     let path = url.path().trim_end_matches('/');
     let root = path
@@ -70,12 +70,12 @@ pub(crate) fn is_codex_switch_quota_payload(payload: &Value) -> bool {
 
 fn parse_codex_switch_quota_response(payload: &Value) -> Result<CodexSwitchQuotaResponse, String> {
     let quota: CodexSwitchQuotaResponse = serde_json::from_value(payload.clone())
-        .map_err(|_| "Codex Remote returned an invalid quota response".to_string())?;
+        .map_err(|_| "Remote AI returned an invalid quota response".to_string())?;
     if quota.object != CODEX_SWITCH_QUOTA_OBJECT || quota.unit != "USD" {
-        return Err("Codex Remote returned an invalid quota response".to_string());
+        return Err("Remote AI returned an invalid quota response".to_string());
     }
     if !quota.unlimited && quota.remaining_usd.is_none_or(|value| !value.is_finite()) {
-        return Err("Codex Remote did not return the remaining quota".to_string());
+        return Err("Remote AI did not return the remaining quota".to_string());
     }
     Ok(quota)
 }

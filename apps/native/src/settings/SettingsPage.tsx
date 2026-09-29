@@ -51,7 +51,7 @@ export function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalR
           </View></View>
           <View style={styles.profileCopy}>
             <Text style={styles.profileName} numberOfLines={1}>{username}</Text>
-            <Text style={styles.caption}>Codex Remote 云端账号</Text>
+            <Text style={styles.caption}>Remote AI 云端账号</Text>
           </View>
           <Ionicons name="chevron-forward" size={19} color={settingsColors.muted} />
         </Pressable>
@@ -83,7 +83,7 @@ export function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalR
       <View style={styles.group}>
         <SettingsRow label="电脑端版本" icon="desktop-outline" color={settingsColors.blue}
           background="#e7f3ff" divider onPress={() => setPanel('desktop')} />
-        <SettingsRow label="关于 Codex Remote" value={`v${CURRENT_APP_VERSION}`} icon="information-circle-outline"
+        <SettingsRow label="关于 Remote AI" value={`v${CURRENT_APP_VERSION}`} icon="information-circle-outline"
           color={settingsColors.blue} background="#e7f3ff" onPress={onOpenAbout} />
       </View>
       <View style={styles.footer}>

@@ -2,7 +2,7 @@
 name = "csw"
 version = "1.0.21"
 description = "Local multi-account manager for Codex auth.json"
-authors = ["Codex Remote"]
+authors = ["Remote AI"]
 license = "Apache-2.0"
 edition = "2021"
 

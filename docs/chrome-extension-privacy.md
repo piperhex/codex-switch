@@ -1,13 +1,13 @@
-# Codex Remote 浏览器助手隐私说明
+# Remote AI 浏览器助手隐私说明
 
 更新日期：2026 年 9 月 21 日
 
-本说明适用于 Codex Remote 浏览器助手 Chrome 扩展，由 Codex Remote 开源项目维护。
-扩展需要配合用户安装并启用的 Codex Remote 桌面应用使用。
+本说明适用于 Remote AI 浏览器助手 Chrome 扩展，由 Remote AI 开源项目维护。
+扩展需要配合用户安装并启用的 Remote AI 桌面应用使用。
 
 ## 处理哪些信息
 
-扩展按 Codex Remote 发来的任务请求，读取标签页的地址、标题和状态，
+扩展按 Remote AI 发来的任务请求，读取标签页的地址、标题和状态，
 获取被操作页面的文字、页面结构、表单内容、操作结果或截图，并执行点击、输入、滚动和导航。
 需要排查网页问题时，扩展也会按请求读取页面、网络请求和 Worker 的控制台日志及错误信息，
 以及用于选择 Worker 的地址和名称。Shared Worker 和 Service Worker 的日志可能涉及多个页面。
@@ -22,8 +22,8 @@
 
 ## 用途与传递方式
 
-上述信息仅用于执行用户要求的浏览器任务、显示连接及权限状态，并将结果交还 Codex Remote。
-扩展通过 Chrome Native Messaging 将任务数据传递给本机 Codex Remote。
+上述信息仅用于执行用户要求的浏览器任务、显示连接及权限状态，并将结果交还 Remote AI。
+扩展通过 Chrome Native Messaging 将任务数据传递给本机 Remote AI。
 桌面应用及 Codex 会话可能将网页内容、输入、操作结果、日志或截图发送给用户配置的 AI 模型服务商。
 因此，任务数据并非始终仅保留在本机。模型服务商的数据处理和保留规则由其隐私政策及用户配置决定。
 

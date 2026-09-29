@@ -1,7 +1,7 @@
 # Codex GUI 上下文容量隔离验证
 
 2026-09-15，Windows 11 Hyper-V 虚拟机 `win11`（设备名 `ZH2`），Codex CLI 0.154.0。
-虚拟机沿用现有 Codex Remote Provider，连接上游 Codex Remote，使用真实模型 `gpt-6-astra`。
+虚拟机沿用现有 Remote AI Provider，连接上游 Remote AI，使用真实模型 `gpt-6-astra`。
 
 GUI 对话保存的容量原本会被模型列表中的账户或 Provider 上限压低。
 代理会话列表也从账户或 Provider 配置推算容量，无法反映 GUI 对话的实际设置。

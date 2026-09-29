@@ -15,13 +15,13 @@ async function prepareStorage() {
 async function publishFile(path: string, info: FileInfo) {
   if (Platform.OS === 'android' && Number(Platform.Version) >= SCOPED_STORAGE_API) {
     const uri = await ReactNativeBlobUtil.MediaCollection.copyToMediaStore({
-      name: info.name, parentFolder: 'Codex Remote', mimeType: info.mimeType,
+      name: info.name, parentFolder: 'Remote AI', mimeType: info.mimeType,
     }, 'Download', path);
     if (!uri) throw new Error('Unable to save download');
     return;
   }
   const base = Platform.OS === 'android' ? fs.dirs.DownloadDir : fs.dirs.DocumentDir;
-  const folder = `${base}/Codex Remote/${randomUUID()}`;
+  const folder = `${base}/Remote AI/${randomUUID()}`;
   await fs.mkdir(folder);
   await fs.mv(path, `${folder}/${info.name}`);
   if (Platform.OS === 'ios') ReactNativeBlobUtil.ios.previewDocument(`${folder}/${info.name}`);

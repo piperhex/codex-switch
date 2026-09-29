@@ -71,7 +71,7 @@ export function TaskEditor({ initial, editing, busy, error, onClose, onSave }: {
     <label className={styles.field}>项目文件夹（选填）<Input value={input.cwd} disabled={busy}
       placeholder="不填写也可以创建任务"
       onChange={(event) => setInput({ ...input, cwd: event.target.value })} /></label>
-    <p className={styles.hint}>任务会在 Codex Remote 运行时执行，时间以运行应用的电脑为准。
+    <p className={styles.hint}>任务会在 Remote AI 运行时执行，时间以运行应用的电脑为准。
       如需你的确认，请打开任务对话。</p>
     {error && <Alert type="error" message={error} />}
   </Modal>;

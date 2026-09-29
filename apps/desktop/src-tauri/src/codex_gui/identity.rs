@@ -8,7 +8,7 @@ pub(super) fn initialize_params(cli_version: &str) -> Value {
     json!({
         "clientInfo": {
             "name": CLI_ORIGINATOR,
-            "title": "Codex Remote",
+            "title": "Remote AI",
             "version": cli_version
         },
         "capabilities": {"experimentalApi": true}

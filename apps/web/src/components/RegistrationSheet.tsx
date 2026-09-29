@@ -14,7 +14,7 @@ export function RegistrationSheet({ open, onClose }: RegistrationSheetProps) {
   useLanguage();
   return <AdaptiveSheet open={open} title={t("在客户端注册")} onClose={onClose} width={440}>
     <div className="registration-guide">
-      <p>{t("请下载最新版 Codex Remote 电脑客户端，并在客户端完成注册。")}</p>
+      <p>{t("请下载最新版 Remote AI 电脑客户端，并在客户端完成注册。")}</p>
       <p>{t("注册后，即可使用同一账号登录网页版。")}</p>
       <div className="sheet-actions">
         <a className="registration-download" href={DESKTOP_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">

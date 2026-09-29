@@ -10,10 +10,10 @@
 检查最多等待 30 秒（包含重试）；检查失败或超时时保留已下载的更新，恢复弹窗操作，
 用户可以重试或稍后安装。超时后才返回的检查结果不会替换已下载的版本。
 
-Android 应用在“设置 → 关于 Codex Remote”中通过 GitHub Release API 检查
+Android 应用在“设置 → 关于 Remote AI”中通过 GitHub Release API 检查
 最新正式版本。发现更新后，系统 DownloadManager 会在后台下载安装包，下载
 完成后应用会调用 Android 系统安装器。首次安装应用内更新时，用户可能需要在
-系统设置中允许 Codex Remote“安装未知应用”。
+系统设置中允许 Remote AI“安装未知应用”。
 
 ## 一次性配置
 
@@ -23,11 +23,11 @@ Android 应用在“设置 → 关于 Codex Remote”中通过 GitHub Release AP
 
 ## 发布要求
 
-应用显示名称为 Codex Remote。应用标识、数据目录、深链协议和更新源继续沿用原有值，
+应用显示名称为 Remote AI。应用标识、数据目录、深链协议和更新源继续沿用原有值，
 保证已有账号、设置和更新客户端可继续使用。MSI 的 `upgradeCode` 固定为改名前的值；
 NSIS 默认安装会复用旧安装目录，安装成功后移除旧名称的卸载登记并更新对应快捷方式。
 Android 发布资产仍沿用 `CodexSwitch-android-` 前缀，供旧版电脑客户端识别下载入口；
-iOS 预构建项目和 scheme 随显示名称使用 `CodexRemote`。
+iOS 预构建项目和 scheme 随显示名称使用 `RemoteAI`。
 
 - `apps/desktop/package.json`、`apps/desktop/src-tauri/tauri.conf.json` 和 `apps/desktop/src-tauri/Cargo.toml` 的版本必须一致，并且新 tag 的版本号更高。
 - `apps/native/app.json` 的 `expo.version` 和 Android `versionCode` 由发布脚本同步；不要手工复用旧的 `versionCode`，否则 Android 会拒绝覆盖安装。
@@ -47,8 +47,8 @@ iOS 预构建项目和 scheme 随显示名称使用 `CodexRemote`。
 验证远程更新时，分别在手机和 Web 窄屏、宽屏打开此入口，检查离线电脑、旧版电脑、
 无更新、下载失败、重复点击及安装后重连。安装会重启电脑端，应在测试安装环境中验证。
 
-发布新版本后，在安装了旧版本的 Windows 或 macOS 应用中启动 Codex Remote。出现更新提示后，选择“安装更新”；应用应下载、校验签名、安装并重启到新版本。
+发布新版本后，在安装了旧版本的 Windows 或 macOS 应用中启动 Remote AI。出现更新提示后，选择“安装更新”；应用应下载、校验签名、安装并重启到新版本。
 
-在安装了旧版本的 Android 设备上进入“设置 → 关于 Codex Remote”，点击
+在安装了旧版本的 Android 设备上进入“设置 → 关于 Remote AI”，点击
 “检查更新”。确认后台下载后，可离开该页面并在通知栏查看进度；下载完成后
 应出现安装确认，系统安装器显示的目标版本应与 Release tag 一致。

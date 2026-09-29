@@ -59,6 +59,6 @@ export async function guiToolRequest(body: Record<string, unknown>) {
       requireIdle();
       await guiApi.connect();
       return;
-    default: throw new Error('请更新远程电脑上的 Codex Remote 后重试。');
+    default: throw new Error('请更新远程电脑上的 Remote AI 后重试。');
   }
 }

@@ -27,7 +27,7 @@ const entries = [
     `${name} · 主 ${primary} · 次 ${secondary}`, { checked: index === 0 })),
   entry("separator-1", "", { separator: true }),
   entry("tray:providers-header", "服务商", { enabled: false }),
-  ...["127.0.0.1", "Codex Remote", "DeepSeek", "Volcengine ModelArk", "ai.soulecho.cc", "ai.wulusai.com",
+  ...["127.0.0.1", "Remote AI", "DeepSeek", "Volcengine ModelArk", "ai.soulecho.cc", "ai.wulusai.com",
     "api.zetai.com", "tokenrhythm.studio", "xiuzhenzyxy.online"].map((name, index) =>
     entry(`tray:provider:${index}`, name, { checked: index === 1 })),
   entry("tray:provider-submenu:models", "模型服务", { children: [
@@ -38,7 +38,7 @@ const entries = [
   entry("separator-2", "", { separator: true }),
   entry("tray:toggle-floating-bubble", "隐藏悬浮球 / 卡片"),
   entry("tray:settings", "设置"), entry("tray:dashboard", "仪表板"),
-  entry("tray:restart-chatgpt", "重启 ChatGPT"), entry("tray:restart-app", "重启 Codex Remote"),
+  entry("tray:restart-chatgpt", "重启 ChatGPT"), entry("tray:restart-app", "重启 Remote AI"),
   entry("tray:quit", "退出程序"),
 ];
 let revision = 1;

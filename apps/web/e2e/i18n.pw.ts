@@ -36,7 +36,7 @@ test('Chinese default, immediate English switch, persistence and switching back'
   await page.reload();
   await navigate(page, 'Settings');
   await expect(page.getByRole('button', { name: 'Language English' })).toBeVisible();
-  await page.getByRole('button', { name: /About Codex Remote/ }).click();
+  await page.getByRole('button', { name: /About Remote AI/ }).click();
   await expect(page.getByText('Web browser', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Back to settings' }).click();
   await navigate(page, 'Accounts');

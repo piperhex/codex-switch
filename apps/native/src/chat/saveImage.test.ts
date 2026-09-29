@@ -36,7 +36,7 @@ it('saves original inline bytes to Android Pictures without requesting access to
   expect(mocks.disk.writeAsStringAsync).toHaveBeenCalledWith(directory + 'image.png', 'aGVsbG8=',
     { encoding: 'base64' });
   expect(mocks.mediaStore).toHaveBeenCalledWith({
-    name: 'CodexRemote-unique-id.png', parentFolder: 'Codex Remote', mimeType: 'image/png',
+    name: 'RemoteAI-unique-id.png', parentFolder: 'Remote AI', mimeType: 'image/png',
   }, 'Image', '/cache/save-image-unique-id/image.png');
   expect(mocks.disk.deleteAsync).toHaveBeenCalledWith(directory, { idempotent: true });
 });

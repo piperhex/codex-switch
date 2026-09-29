@@ -49,7 +49,7 @@
         "size": 42
       },
       {
-        "text": "使用时，请让电脑保持在线并运行 Codex Remote",
+        "text": "使用时，请让电脑保持在线并运行 Remote AI",
         "pos": [96, 845],
         "size": 25,
         "color": "0xa5bdb6"
@@ -226,7 +226,7 @@
         "size": 68
       },
       {
-        "text": "电脑保持联网\nCodex Remote 保持运行",
+        "text": "电脑保持联网\nRemote AI 保持运行",
         "pos": [96, 445],
         "size": 44,
         "color": "0x84e9cc"

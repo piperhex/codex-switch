@@ -53,7 +53,7 @@ export function GuiHostPicker({ navigation, active }: { navigation: GuiComputerN
     {!navigation.authenticated ? <button type="button" className={projectStyles.option}
       onClick={() => { close(); navigation.login(); }}>登录后选择其他主机</button> : <>
       {!navigation.devices.length && !navigation.loading && !navigation.error
-        && <p className={projectStyles.empty}>在其他主机上打开 Codex Remote，登录同一账户即可连接。</p>}
+        && <p className={projectStyles.empty}>在其他主机上打开 Remote AI，登录同一账户即可连接。</p>}
       <button type="button" className={projectStyles.option} disabled={navigation.loading}
         aria-label="刷新主机列表" onClick={navigation.refresh}>
         {navigation.loading ? <Spin size="small" /> : <RefreshCw size={16} />}

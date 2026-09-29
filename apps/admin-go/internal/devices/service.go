@@ -74,7 +74,7 @@ func (s *Service) register(owner string, input platform.JSON) (*Device, error) {
 	}
 	device.Name = trimLimit(name, 120)
 	if device.Name == "" {
-		device.Name = "Codex Remote"
+		device.Name = "Remote AI"
 	}
 	device.Platform = trimLimit(devicePlatform, 20)
 	if device.Platform == "" {

@@ -12,7 +12,7 @@ use crate::storage::{read_json, write_json_atomic};
 
 const CONFIG_FILE: &str = "claude_desktop_config.json";
 const PROFILE_ID: &str = "00000000-0000-4000-8000-000000157210";
-const PROFILE_NAME: &str = "Codex Remote";
+const PROFILE_NAME: &str = "Remote AI";
 const PROXY_TOKEN: &str = "PROXY_MANAGED";
 const PROXY_ROUTE: &str = "/claude-desktop";
 

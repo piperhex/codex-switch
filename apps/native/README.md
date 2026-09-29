@@ -1,12 +1,12 @@
-# Codex Remote Native
+# Remote AI Native
 
-React Native（Expo）移动端，用已登录的 Codex Remote 云端账号查看官方账号与用量概览，并远程切换指定 PC 的官方模型或已同步第三方 Provider。
+React Native（Expo）移动端，用已登录的 Remote AI 云端账号查看官方账号与用量概览，并远程切换指定 PC 的官方模型或已同步第三方 Provider。
 
 每次启动 App 都会检查更新，无需登录。有新版时可选择“忽略本版本”或“立即更新”。忽略记录保存在本机，
 仅跳过该版本的启动提示；后续新版仍会提示，“关于”页也可随时手动检查。检查失败不会打断使用。
 Android 沿用后台下载和安装流程，已有下载或待安装更新时不会重复提示下载；其他平台打开版本发布页。
 
-底部“聊天”页可以连接同一账号下的 PC，继续 Codex Remote 内置 GUI 的对话。WebRTC 直连与 admin 加密中转同时保持可用，
+底部“聊天”页可以连接同一账号下的 PC，继续 Remote AI 内置 GUI 的对话。WebRTC 直连与 admin 加密中转同时保持可用，
 优先直连，故障时自动切换，恢复稳定后切回。配置、协议和验证方法见 [手机聊天说明](../../docs/mobile-chat.md)。
 聊天需要原生 WebRTC 模块，请安装 APK 或使用开发构建，Expo Go 不支持此模块。
 
@@ -72,12 +72,12 @@ npm run ios -w @codex-switch/native
 单独检查已有安装包可运行 `node apps/native/scripts/verify-apk.cjs <APK路径>`，需要 JDK。
 模拟器启动验证不能代替 ARM64 安装包检查，交付前还应在 ARM64 设备上验证冷启动。
 
-登录页默认使用官方服务器 `https://codex.onepiper.cloud`；如需连接自部署服务，可直接修改服务器地址，并随时通过“使用官方服务器”恢复默认值。Codex Remote 登录令牌保存在 iOS Keychain / Android Keystore 支持的安全存储中。移动端会读取账户摘要、PC 设备列表和当前用户信息，并支持用户验证当前密码后修改密码。账户摘要会下发手机直连官方接口所需的短期 Codex access token，但不会下发 refresh token、ID token 或完整 `auth.json`；该 access token 只保存在应用运行时内存中。移动端通过 `subscribe-devices` 消息登录设备状态 WebSocket，随后接收 `devices-snapshot`、`device-online`、`device-offline` 和 `device-removed` 消息以实时更新 PC 在线状态。“设备”页会优先展示在线 PC，并允许删除已离线、不再使用的设备；选择在线 PC 后，可以通过同一服务端 WebSocket 通道切换该设备的官方模型或已同步第三方 Provider，不影响同一用户的其他设备。远程启用 Provider 前，需要先在目标 PC 启动本地代理。在官方模型与 Provider 之间切换后，移动端会提示立即或稍后重启目标 PC 上的 ChatGPT/Codex。
+登录页默认使用官方服务器 `https://codex.onepiper.cloud`；如需连接自部署服务，可直接修改服务器地址，并随时通过“使用官方服务器”恢复默认值。Remote AI 登录令牌保存在 iOS Keychain / Android Keystore 支持的安全存储中。移动端会读取账户摘要、PC 设备列表和当前用户信息，并支持用户验证当前密码后修改密码。账户摘要会下发手机直连官方接口所需的短期 Codex access token，但不会下发 refresh token、ID token 或完整 `auth.json`；该 access token 只保存在应用运行时内存中。移动端通过 `subscribe-devices` 消息登录设备状态 WebSocket，随后接收 `devices-snapshot`、`device-online`、`device-offline` 和 `device-removed` 消息以实时更新 PC 在线状态。“设备”页会优先展示在线 PC，并允许删除已离线、不再使用的设备；选择在线 PC 后，可以通过同一服务端 WebSocket 通道切换该设备的官方模型或已同步第三方 Provider，不影响同一用户的其他设备。远程启用 Provider 前，需要先在目标 PC 启动本地代理。在官方模型与 Provider 之间切换后，移动端会提示立即或稍后重启目标 PC 上的 ChatGPT/Codex。
 
-下拉刷新、页面内“刷新”和应用回到前台时，移动端会先从 Codex Remote 后端读取账户列表和短期 access token，再由手机直接调用 Codex 官方接口刷新每个账号的用量。查看或使用重置卡也由手机直连 Codex，不经过 Codex Remote 的重置卡代理接口。为避免瞬间发起过多请求，用量查询最多同时处理四个账号。access token 过期时，需要先由桌面端刷新账号凭据并完成云同步。隐私开关会遮罩账号卡片中的邮箱和备注预览；单击备注位置属于主动查看操作，会从底部抽屉展示完整备注。
+下拉刷新、页面内“刷新”和应用回到前台时，移动端会先从 Remote AI 后端读取账户列表和短期 access token，再由手机直接调用 Codex 官方接口刷新每个账号的用量。查看或使用重置卡也由手机直连 Codex，不经过 Remote AI 的重置卡代理接口。为避免瞬间发起过多请求，用量查询最多同时处理四个账号。access token 过期时，需要先由桌面端刷新账号凭据并完成云同步。隐私开关会遮罩账号卡片中的邮箱和备注预览；单击备注位置属于主动查看操作，会从底部抽屉展示完整备注。
 
 账户页提供 2FA 验证码管理器，支持保存多个 TOTP 密钥、扫描标准 Authenticator 二维码、手动录入、编辑、
 删除和复制动态验证码。密钥保存在 iOS Keychain / Android Keystore 支持的系统安全存储中。手机端的 2FA
-云同步开关位于设置页，默认关闭；只有用户主动开启后，密钥才会上传到已登录的 Codex Remote 云端服务器。
+云同步开关位于设置页，默认关闭；只有用户主动开启后，密钥才会上传到已登录的 Remote AI 云端服务器。
 
 生产环境应使用 HTTPS。为了便于连接现有局域网或本地开发后端，当前 Expo 配置允许 HTTP；发布前若只使用 HTTPS，可移除 `app.json` 中的明文传输配置。

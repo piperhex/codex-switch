@@ -371,7 +371,7 @@ mod tests {
             model: Some("deepseek-chat"),
             model_catalog_filename: Some("codex-switch-model-catalog.json"),
             requires_openai_auth: false,
-            token_command: r"C:\Program Files\Codex Remote\csw.exe",
+            token_command: r"C:\Program Files\Remote AI\csw.exe",
         }
     }
 

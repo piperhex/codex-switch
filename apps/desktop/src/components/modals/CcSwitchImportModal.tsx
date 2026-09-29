@@ -15,7 +15,7 @@ function balancePlatformLabel(platform: ProviderBalancePlatform | null | undefin
   if (platform === "newApi") return "New API";
   if (platform === "sub2Api") return "Sub2API";
   if (platform === "deepSeek") return "DeepSeek";
-  if (platform === "codexSwitch") return "Codex Remote";
+  if (platform === "codexSwitch") return "Remote AI";
   return t("providers.import.balanceNone");
 }
 

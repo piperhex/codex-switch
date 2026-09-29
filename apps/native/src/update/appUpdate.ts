@@ -124,7 +124,7 @@ export async function checkForAppUpdate(): Promise<AppUpdateCheck> {
   const release: AppRelease = {
     version,
     tagName,
-    title: textValue(payload.name) || `Codex Remote ${tagName}`,
+    title: textValue(payload.name) || `Remote AI ${tagName}`,
     notes: textValue(payload.body),
     publishedAt: textValue(payload.published_at) || null,
     releaseUrl,
@@ -248,7 +248,7 @@ export async function startAndroidUpdateDownload(release: AppRelease) {
           notification: true,
           mediaScannable: true,
           path,
-          title: `Codex Remote ${release.version}`,
+          title: `Remote AI ${release.version}`,
           description: '下载完成后可安装更新',
           mime: APK_MIME_TYPE,
         },

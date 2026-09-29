@@ -160,7 +160,7 @@ export const chat = {
   "内容": "Content",
   "在线": "Online",
   "离线": "Offline",
-  "在电脑上打开 Codex Remote 并登录同一账号，即可开始聊天。": "Open Codex Remote on your computer and sign in with the same account to start chatting.",
+  "在电脑上打开 Remote AI 并登录同一账号，即可开始聊天。": "Open Remote AI on your computer and sign in with the same account to start chatting.",
   "复制差异": "Copy diff",
   "显示更多差异": "Show more changes",
   "原路径：": "Original path:",

@@ -1,6 +1,6 @@
 ---
 name: codex-switch-remote-command
-description: Run diagnostic commands on other online PCs signed into the same Codex Remote account. Use when the user asks to inspect, diagnose, or analyze another computer with this plugin installed and enabled.
+description: Run diagnostic commands on other online PCs signed into the same Remote AI account. Use when the user asks to inspect, diagnose, or analyze another computer with this plugin installed and enabled.
 ---
 
 <!-- managed:codex-switch-remote-command -->

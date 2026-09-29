@@ -62,7 +62,7 @@ export function AccountsPage() {
     <AdaptiveSheet open={Boolean(target)} title={t("切换到设备")}
       subtitle={target ? (privateMode ? maskEmail(target.email) : target.email) : undefined}
       onClose={() => setSwitchId(null)}>
-      {!online.length ? <Empty description={t("暂无在线设备，请先在电脑上打开 Codex Remote")} />
+      {!online.length ? <Empty description={t("暂无在线设备，请先在电脑上打开 Remote AI")} />
         : <div className="select-list">{online.map(device => {
           const current = device.activeAccountId === target?.id && !device.activeProviderId;
           return <button key={device.deviceId} type="button" disabled={current || Boolean(switchingAccountId)}

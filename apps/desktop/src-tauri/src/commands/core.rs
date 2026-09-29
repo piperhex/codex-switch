@@ -17,7 +17,7 @@ pub(crate) fn account_switch_lock() -> &'static Mutex<()> {
     ACCOUNT_SWITCH_LOCK.get_or_init(|| Mutex::new(()))
 }
 
-/// Import the externally managed credential only once, when Codex Remote starts.
+/// Import the externally managed credential only once, when Remote AI starts.
 /// Later operations deliberately use the managed account store instead.
 pub(crate) fn initialize_local_state<R: Runtime>(app: &tauri::AppHandle<R>) {
     let _ = sync_current_into_store(app);

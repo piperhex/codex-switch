@@ -104,7 +104,7 @@ fn authentication_message(request: &OpenRequest, config: &Config) -> serde_json:
         "type": "authenticate", "role": "mobile", "accessToken": config.access_token,
         "deviceId": request.device_id, "publicKey": request.public_key,
         "transportVersion": 2, "binaryRelay": true, "tcpPunch": true,
-        "clientInfo": { "name": "Codex Remote PC", "platform": std::env::consts::OS },
+        "clientInfo": { "name": "Remote AI PC", "platform": std::env::consts::OS },
     });
     // Both backends treat the presence of resume as a recovery attempt, including null.
     if let Some(resume) = &request.resume {

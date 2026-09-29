@@ -9,7 +9,7 @@ import styles from "./index.module.less";
 interface Props { homeId: string; active: boolean; onBusyChange: (busy: boolean) => void }
 
 export function computerUseMatches(query: string) {
-  return "computer use cua 电脑助手 桌面 应用 自动化 windows macos mac 苹果 截图 点击 输入 codex remote"
+  return "computer use cua 电脑助手 桌面 应用 自动化 windows macos mac 苹果 截图 点击 输入 remote ai"
     .includes(query.trim().toLocaleLowerCase());
 }
 
@@ -38,7 +38,7 @@ export function ComputerUseCard({ homeId, active, onBusyChange }: Props) {
       <div className={styles.status} role="status">{statusText(status)}</div>
       {status?.permissions && <Permissions permissions={status.permissions} busy={busy} onRequest={requestPermission} />}
       {error && <div className={styles.error} role="alert">{error}</div>}
-      <div className="skill-card-meta"><span>Codex Remote · CUA</span><span>电脑操作</span></div>
+      <div className="skill-card-meta"><span>Remote AI · CUA</span><span>电脑操作</span></div>
       {status?.installed ? <div className="official-plugin-actions">
         <button className={`official-plugin-toggle${status.enabled ? " active" : ""}`} disabled={busy}
           onClick={() => void run(status.enabled ? "disable" : "enable")}>

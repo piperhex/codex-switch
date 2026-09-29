@@ -23,7 +23,7 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
         <View style={settingsStyles.profile}>
           <Image source={require('../../assets/icon.png')} style={styles.icon} />
           <View style={settingsStyles.profileCopy}>
-            <Text style={settingsStyles.profileName}>Codex Remote</Text>
+            <Text style={settingsStyles.profileName}>Remote AI</Text>
             <View style={styles.versionRow}>
               <Text style={styles.version}>v{CURRENT_APP_VERSION}</Text>
               <VersionUpdateButton update={update} />

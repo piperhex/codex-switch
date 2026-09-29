@@ -188,7 +188,7 @@ fn register(root: &Path) -> Result<()> {
     let manager = manager(true)?;
     let info = ServiceInfo {
         name: OsString::from(NAME),
-        display_name: OsString::from("Codex Remote Desktop"),
+        display_name: OsString::from("Remote AI Desktop"),
         service_type: ServiceType::OWN_PROCESS,
         start_type: ServiceStartType::AutoStart,
         error_control: ServiceErrorControl::Normal,

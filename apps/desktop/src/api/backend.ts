@@ -201,7 +201,7 @@ export async function invoke<T = void>(command: string, args: Record<string, unk
   let response = await request(readHostedWebApiKey());
   if (response.status === 401) {
     if (hostedWebApiKeyRejected) {
-      throw new Error("The LAN access key was rejected. Check the key in Codex Remote and reload the page.");
+      throw new Error("The LAN access key was rejected. Check the key in Remote AI and reload the page.");
     }
     writeHostedWebApiKey("");
     const suppliedKey = (await requestHostedWebApiKey())?.trim() || "";
@@ -1842,7 +1842,7 @@ export function migrateCodexThreadsToHome(request: {
 }
 
 export async function migrateCodexThreads(sessionIds: string[], homeId?: string): Promise<CodexThreadMigrationReport> {
-  if (!hasLocalBackend) throw new Error("会话迁移需要桌面版 Codex Remote");
+  if (!hasLocalBackend) throw new Error("会话迁移需要桌面版 Remote AI");
   return invoke<CodexThreadMigrationReport>("migrate_codex_threads", { homeId, sessionIds });
 }
 
@@ -2529,21 +2529,21 @@ export async function setPromptPluginEnabled(pluginId: string, enabled: boolean)
 
 export async function installOfficialPlugin(pluginId: string, homeId: string): Promise<void> {
   if (!hasLocalBackend) {
-    throw new Error("Official plugins are available when Codex Remote is running locally");
+    throw new Error("Official plugins are available when Remote AI is running locally");
   }
   await invoke("install_official_plugin", { pluginId, homeId });
 }
 
 export async function removeOfficialPlugin(pluginId: string, homeId: string): Promise<void> {
   if (!hasLocalBackend) {
-    throw new Error("Official plugins are available when Codex Remote is running locally");
+    throw new Error("Official plugins are available when Remote AI is running locally");
   }
   await invoke("remove_official_plugin", { pluginId, homeId });
 }
 
 export async function setOfficialPluginEnabled(pluginId: string, enabled: boolean, homeId: string): Promise<void> {
   if (!hasLocalBackend) {
-    throw new Error("Official plugins are available when Codex Remote is running locally");
+    throw new Error("Official plugins are available when Remote AI is running locally");
   }
   await invoke("set_official_plugin_enabled", { pluginId, enabled, homeId });
 }
@@ -2789,7 +2789,7 @@ export async function chooseAndExportAccountArchive(): Promise<ExportAccountArch
   if (!isDesktopApp) return { status: "preview" };
   const selected = await save({
     defaultPath: `codex-switch-backup-${new Date().toISOString().slice(0, 10)}.cs`,
-    filters: [{ name: "Codex Remote backup", extensions: ["cs"] }],
+    filters: [{ name: "Remote AI backup", extensions: ["cs"] }],
   });
   if (!selected) return { status: "cancelled" };
   const path = await invoke<string>("export_accounts_archive", { path: selected });
@@ -2800,7 +2800,7 @@ export async function chooseAndImportAccountArchive(): Promise<ImportAccountArch
   if (!isDesktopApp) return { status: "preview" };
   const selected = await open({
     multiple: false,
-    filters: [{ name: "Codex Remote backup", extensions: ["cs"] }],
+    filters: [{ name: "Remote AI backup", extensions: ["cs"] }],
   });
   if (!selected) return { status: "cancelled" };
   const result = await invoke<AccountArchiveImportResult>("import_accounts_archive", { path: selected });
@@ -2811,7 +2811,7 @@ export async function chooseAndExportDiagnosticLogs(): Promise<ExportDiagnosticL
   if (!isDesktopApp) return { status: "preview" };
   const selected = await save({
     defaultPath: `codex-switch-diagnostics-${new Date().toISOString().slice(0, 10)}.jsonl`,
-    filters: [{ name: "Codex Remote diagnostics", extensions: ["jsonl"] }],
+    filters: [{ name: "Remote AI diagnostics", extensions: ["jsonl"] }],
   });
   if (!selected) return { status: "cancelled" };
   const path = await invoke<string>("export_diagnostic_logs", { path: selected });
@@ -3191,7 +3191,7 @@ function toUpdateInfo(update: Update): UpdateInfo {
   return {
     currentVersion: update.currentVersion,
     latestVersion: update.version,
-    releaseName: `Codex Remote v${update.version}`,
+    releaseName: `Remote AI v${update.version}`,
     releaseNotes: update.body ?? null,
     releaseUrl: RELEASES_URL,
   };

@@ -349,7 +349,7 @@ pub(crate) fn remote_control_config<R: Runtime>(
         websocket_url: url.to_string(),
         access_token,
         device_id: installation.device_id,
-        device_name: sysinfo::System::host_name().unwrap_or_else(|| "Codex Remote".to_string()),
+        device_name: sysinfo::System::host_name().unwrap_or_else(|| "Remote AI".to_string()),
         platform: installation.platform,
         app_version: app.package_info().version.to_string(),
         active_account_id: manager_state.active_account_id,

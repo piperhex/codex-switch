@@ -8,7 +8,7 @@ import styles from "./index.module.less";
 interface Props { homeId: string; active: boolean; onBusyChange: (busy: boolean) => void }
 
 export function remoteCommandMatches(query: string) {
-  return "remote command 远程命令 电脑 主机 诊断 分析 终端 powershell shell windows macos linux codex remote"
+  return "remote command 远程命令 电脑 主机 诊断 分析 终端 powershell shell windows macos linux remote ai"
     .includes(query.trim().toLocaleLowerCase());
 }
 
@@ -33,7 +33,7 @@ export function RemoteCommandCard({ homeId, active, onBusyChange }: Props) {
       <p>让 AI 在同账号的电脑间执行命令、排查问题，停用即可停止访问。</p>
       <div className={styles.status} role="status">{statusText(status)}</div>
       {error && <div className={styles.error} role="alert">{error}</div>}
-      <div className="skill-card-meta"><span>Codex Remote</span><span>远程诊断</span></div>
+      <div className="skill-card-meta"><span>Remote AI</span><span>远程诊断</span></div>
       {status?.installed ? <div className="official-plugin-actions">
         <button className={`official-plugin-toggle${status.enabled ? " active" : ""}`} disabled={busy}
           onClick={() => void run(status.enabled ? "disable" : "enable")}>

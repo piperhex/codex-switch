@@ -27,7 +27,7 @@ export const UPDATE_MESSAGES = {
   reconnecting: '正在等待电脑重新连接，请稍后查看版本。',
   error: '更新未完成，请重试。',
   offline: '电脑已离线，请打开电脑端后重试。',
-  unsupported: '请先在电脑上更新 Codex Remote，再使用远程更新。',
+  unsupported: '请先在电脑上更新 Remote AI，再使用远程更新。',
   disconnected: '连接已断开，请重新连接后查看结果。',
   timeout: '电脑暂未响应，请重试；已发送的安装指令可能仍在执行。',
   failed: '操作未完成，请稍后重试。',

@@ -344,7 +344,7 @@ export function EmailTemplatesPage({
           </Form.Item>
           <Form.Item name="fromAddress" label={t("mailServices.fromAddress")}
             extra={t("mailServices.fromAddressHint")} rules={[{ required: true, whitespace: true }]}>
-            <Input maxLength={320} placeholder="Codex Remote <noreply@example.com>" />
+            <Input maxLength={320} placeholder="Remote AI <noreply@example.com>" />
           </Form.Item>
           <Form.Item name="enabled" label={t("common.enabled")} valuePropName="checked">
             <Switch />

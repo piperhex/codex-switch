@@ -196,7 +196,7 @@ export function DashboardPage({
     <section className="dashboard-page">
       <div className="dashboard-heading">
         <div>
-          <div className="dashboard-eyebrow">CODEX REMOTE · OVERVIEW</div>
+          <div className="dashboard-eyebrow">REMOTE AI · OVERVIEW</div>
           <h1 className="page-title dashboard-title">{t("dashboard.title")}</h1>
           <Typography.Text type="secondary">{t("dashboard.description")}</Typography.Text>
         </div>

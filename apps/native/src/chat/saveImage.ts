@@ -52,7 +52,7 @@ export async function saveImage(source: string): Promise<void> {
     if (usesMediaStore()) {
       // MediaStore writes on Android 10+ require no permission to read the user's photos.
       await ReactNativeBlobUtil.MediaCollection.copyToMediaStore({
-        name: `CodexRemote-${id}.${EXTENSIONS[mime]}`, parentFolder: 'Codex Remote', mimeType: mime,
+        name: `RemoteAI-${id}.${EXTENSIONS[mime]}`, parentFolder: 'Remote AI', mimeType: mime,
       }, 'Image', uri.replace(/^file:\/\//, ''));
     } else {
       await MediaLibrary.saveToLibraryAsync(uri);

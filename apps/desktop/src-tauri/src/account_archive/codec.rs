@@ -78,7 +78,7 @@ fn decrypt_payload(bytes: &[u8]) -> Result<Vec<u8>, String> {
         return Err("The encrypted account archive payload is incomplete".to_string());
     }
     if &bytes[..ARCHIVE_MAGIC.len()] != ARCHIVE_MAGIC {
-        return Err("The selected file is not a Codex Remote account archive".to_string());
+        return Err("The selected file is not a Remote AI account archive".to_string());
     }
     let nonce_start = ARCHIVE_MAGIC.len();
     let nonce_end = nonce_start + NONCE_LENGTH;

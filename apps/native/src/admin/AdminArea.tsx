@@ -80,7 +80,7 @@ const entries: Array<{
 ];
 
 const pageMeta: Record<AdminPage, { title: string; subtitle: string }> = {
-  home: { title: '管理控制台', subtitle: '集中管理 Codex Remote 服务' },
+  home: { title: '管理控制台', subtitle: '集中管理 Remote AI 服务' },
   dashboard: { title: '数据仪表盘', subtitle: '关键运营数据与趋势' },
   officialAccounts: { title: '官方账号池', subtitle: '维护账号凭据和绑定关系' },
   invitations: { title: '邀请注册', subtitle: '管理注册链接和使用状态' },
@@ -951,7 +951,7 @@ function FeedbackPage({ session, profile, onBack }: AdminAreaProps & { onBack: (
   const [selected, setSelected] = useState<AdminFeedback | null>(null);
   const [replying, setReplying] = useState<AdminFeedback | null>(null);
   const [mailServiceId, setMailServiceId] = useState<string | null>(null);
-  const [subject, setSubject] = useState('Codex Remote 问题反馈回复');
+  const [subject, setSubject] = useState('Remote AI 问题反馈回复');
   const [content, setContent] = useState('');
   const [replyingBusy, setReplyingBusy] = useState(false);
   const canManage = has(profile, 'admin.feedback.manage');
@@ -985,7 +985,7 @@ function FeedbackPage({ session, profile, onBack }: AdminAreaProps & { onBack: (
     const initialService = mailServices.find((service) => service.source === 'default' && service.enabled)
       ?? mailServices.find((service) => service.enabled);
     setMailServiceId(initialService?.id ?? null);
-    setSubject('Codex Remote 问题反馈回复');
+    setSubject('Remote AI 问题反馈回复');
     setContent('');
     setReplying(item);
   }

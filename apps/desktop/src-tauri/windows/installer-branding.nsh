@@ -1,12 +1,23 @@
 ; The former product name remains an installation identity for upgrades only.
 !define /ifndef CSW_LEGACY_PRODUCT_NAME "Codex Switch"
+!define /ifndef CSW_PREVIOUS_PRODUCT_NAME "Codex Remote"
+Var CswLegacyProductName
 Var CswLegacyInstallDirectory
 Var CswBrandMigration
+
+!macro CswFindLegacyInstallation
+  StrCpy $CswLegacyProductName "${CSW_PREVIOUS_PRODUCT_NAME}"
+  ReadRegStr $CswLegacyInstallDirectory SHCTX "${MANUKEY}\$CswLegacyProductName" ""
+  ${IfNot} ${FileExists} "$CswLegacyInstallDirectory\${MAINBINARYNAME}.exe"
+    StrCpy $CswLegacyProductName "${CSW_LEGACY_PRODUCT_NAME}"
+    ReadRegStr $CswLegacyInstallDirectory SHCTX "${MANUKEY}\$CswLegacyProductName" ""
+  ${EndIf}
+!macroend
 
 !macro CswPrepareBrandMigration
   Push $0
   StrCpy $CswBrandMigration 0
-  ReadRegStr $CswLegacyInstallDirectory SHCTX "${MANUKEY}\${CSW_LEGACY_PRODUCT_NAME}" ""
+  !insertmacro CswFindLegacyInstallation
   ${If} $CswLegacyInstallDirectory != ""
   ${AndIf} ${FileExists} "$CswLegacyInstallDirectory\${MAINBINARYNAME}.exe"
     ; Reuse an existing installation only when the default destination was chosen.
@@ -26,13 +37,13 @@ Var CswBrandMigration
 !macroend
 
 !macro CswRenameBrandShortcut directory
-  !insertmacro IsShortcutTarget "${directory}\${CSW_LEGACY_PRODUCT_NAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  !insertmacro IsShortcutTarget "${directory}\$CswLegacyProductName.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
   Pop $0
   ${If} $0 == 1
     ${If} ${FileExists} "${directory}\${PRODUCTNAME}.lnk"
-      Delete "${directory}\${CSW_LEGACY_PRODUCT_NAME}.lnk"
+      Delete "${directory}\$CswLegacyProductName.lnk"
     ${Else}
-      Rename "${directory}\${CSW_LEGACY_PRODUCT_NAME}.lnk" "${directory}\${PRODUCTNAME}.lnk"
+      Rename "${directory}\$CswLegacyProductName.lnk" "${directory}\${PRODUCTNAME}.lnk"
     ${EndIf}
   ${EndIf}
 !macroend
@@ -44,8 +55,8 @@ Var CswBrandMigration
     Push $2
     Push $3
     ; Only retire the old registration after its executable was replaced successfully.
-    DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\${CSW_LEGACY_PRODUCT_NAME}"
-    DeleteRegKey SHCTX "${MANUKEY}\${CSW_LEGACY_PRODUCT_NAME}"
+    DeleteRegKey SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\$CswLegacyProductName"
+    DeleteRegKey SHCTX "${MANUKEY}\$CswLegacyProductName"
     !insertmacro CswRenameBrandShortcut "$DESKTOP"
     !insertmacro CswRenameBrandShortcut "$SMPROGRAMS"
     Pop $3

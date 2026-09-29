@@ -28,7 +28,7 @@ test('disables offline and legacy computers and avoids stale versions after sele
   await expect(page.getByText('电脑已离线，请打开电脑端后重试。')).toBeVisible();
   await expect(page.getByRole('button', { name: '检查更新', exact: true })).toBeDisabled();
   await page.getByLabel('选择电脑').selectOption('old');
-  await expect(page.getByText('请先在电脑上更新 Codex Remote，再使用远程更新。')).toBeVisible();
+  await expect(page.getByText('请先在电脑上更新 Remote AI，再使用远程更新。')).toBeVisible();
   await expect(page.getByText('1.3.0', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '安装更新', exact: true })).toBeDisabled();
 });

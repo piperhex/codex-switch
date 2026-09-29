@@ -1,6 +1,6 @@
 # Independent Chrome plugin
 
-Codex Remote supplies its own Chrome extension and browser connection program. It does not bundle
+Remote AI supplies its own Chrome extension and browser connection program. It does not bundle
 OpenAI's proprietary Chrome plugin and does not require ChatGPT or a Node runtime to be installed.
 The plugin is available in the desktop application's community marketplace for the selected Codex Home.
 
@@ -131,7 +131,7 @@ No vendor code is copied or required by this integration.
 
 The following differences remain after the diagnostic improvements:
 
-| Debugging workflow | Codex Remote behavior |
+| Debugging workflow | Remote AI behavior |
 | --- | --- |
 | Continuous events and sequence cursor | On-demand retained logs; `since` narrows reads but cannot recover discarded logs. |
 | Raw DevTools calls | Dedicated operations only; no arbitrary protocol commands or breakpoint controls. |
@@ -158,7 +158,7 @@ paths are implemented but have not received equivalent live platform verificatio
 - The Manifest V3 extension owns browser access, grants and pause state. It uses the documented
   [Chrome debugger API](https://developer.chrome.com/docs/extensions/reference/api/debugger).
 - [Native Messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)
-  launches the Codex Remote executable in a dedicated helper mode. The same executable supplies
+  launches the Remote AI executable in a dedicated helper mode. The same executable supplies
   STDIO MCP with `--chrome-mcp=<client-id>`. Both modes return before Tauri/WebView startup.
 - A framed, authenticated loopback transport connects the two helpers. Requests and messages are
   bounded. Revoking a home credential cancels its pending work; disconnects do not replay actions.
@@ -171,7 +171,7 @@ paths are implemented but have not received equivalent live platform verificatio
 
 Chrome's required host permissions cover HTTP(S) websites, so ordinary installations request permission
 once and do not display an extra prompt for each website. The all-site mode applies to authenticated
-Codex Remote clients in that Chrome profile. Users can select per-site confirmation instead; those
+Remote AI clients in that Chrome profile. Users can select per-site confirmation instead; those
 additional grants are scoped to the requesting home. Neither mode bypasses Chrome's own host permissions.
 Denial, closing or expiry of a per-site permission request does not authorize access. Pause/revoke
 cancels pending work and detaches browser control. Removing host permissions in Chrome also stops

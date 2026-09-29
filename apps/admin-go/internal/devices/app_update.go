@@ -33,7 +33,7 @@ func (g *ControlGateway) requestAppUpdate(client *peer, session controlSession, 
 		return
 	}
 	if checkCapability(device, commandSpec{capability: "app-update"}) != nil {
-		fail("请先在电脑上更新 Codex Remote，再使用远程更新。")
+		fail("请先在电脑上更新 Remote AI，再使用远程更新。")
 		return
 	}
 	g.forwardAppUpdate(client, session.owner, message)

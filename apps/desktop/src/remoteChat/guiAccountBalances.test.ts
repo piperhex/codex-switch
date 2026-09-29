@@ -53,7 +53,7 @@ it('does not invent wallet funds from API credit when wallet data is missing', a
   expect(balances.detail({ ...provider, balancePlatform: null })).toBe('钱包余额 暂无余额');
 });
 
-it('uses the existing API quota semantics for Codex Remote accounts', async () => {
+it('uses the existing API quota semantics for Remote AI accounts', async () => {
   const api = { ...provider, balancePlatform: 'codexSwitch' as const };
   vi.mocked(queryProviderBalance).mockResolvedValue(balance);
   const balances = new GuiAccountBalances();

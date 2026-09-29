@@ -41,7 +41,7 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(windows))]
     let menu = build_initial_menu(app.handle())?;
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip("Codex Remote")
+        .tooltip("Remote AI")
         .show_menu_on_left_click(false)
         .on_menu_event(handle_menu_event)
         .on_tray_icon_event(|tray, event| {
@@ -278,9 +278,9 @@ pub(crate) fn build_menu<R: Runtime>(
         app,
         RESTART_APP_ID,
         if chinese {
-            "重启 Codex Remote"
+            "重启 Remote AI"
         } else {
-            "Restart Codex Remote"
+            "Restart Remote AI"
         },
         true,
         None::<&str>,

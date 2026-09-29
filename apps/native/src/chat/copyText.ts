@@ -32,7 +32,7 @@ async function saveToSelectedFolder(text: string, filename: string): Promise<Tex
 export async function saveTextFile(text: string): Promise<TextSaveResult | null> {
   checkDownloadSize(utf8ToBytes(text).length);
   if (Platform.OS !== 'android') throw new Error('Text file export is unavailable');
-  const filename = `CodexRemote-output-${randomUUID()}.txt`;
+  const filename = `RemoteAI-output-${randomUUID()}.txt`;
   if (Number(Platform.Version) < SCOPED_STORAGE_API) return saveToSelectedFolder(text, filename);
   if (!FileSystem.cacheDirectory) throw new Error('Text cache unavailable');
   const directory = `${FileSystem.cacheDirectory}save-text-${randomUUID()}/`;
@@ -41,7 +41,7 @@ export async function saveTextFile(text: string): Promise<TextSaveResult | null>
     await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
     await FileSystem.writeAsStringAsync(uri, text, { encoding: FileSystem.EncodingType.UTF8 });
     await ReactNativeBlobUtil.MediaCollection.copyToMediaStore({
-      name: filename, parentFolder: 'Codex Remote', mimeType: TEXT_MIME_TYPE,
+      name: filename, parentFolder: 'Remote AI', mimeType: TEXT_MIME_TYPE,
     }, 'Download', uri.replace(/^file:\/\//, ''));
     return { filename, location: 'downloads' };
   } finally {

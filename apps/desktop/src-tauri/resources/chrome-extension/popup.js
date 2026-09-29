@@ -26,7 +26,7 @@ async function refresh() {
   const state = await send({ operation: 'status' });
   paused = state.paused;
   document.querySelector('#status').textContent = state.connected
-    ? paused ? '已连接 · 控制已暂停' : '已连接 · 等待你的任务' : '尚未连接 Codex Remote';
+    ? paused ? '已连接 · 控制已暂停' : '已连接 · 等待你的任务' : '尚未连接 Remote AI';
   document.querySelector('#pause').textContent = paused ? '继续控制' : '暂停控制';
   allowAll.checked = state.allSitesAllowed;
   document.querySelector('#site-details').hidden = state.allSitesAllowed;

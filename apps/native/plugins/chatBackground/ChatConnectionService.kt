@@ -30,7 +30,7 @@ class ChatConnectionService : HeadlessJsTaskService() {
     }
     val notification = NotificationCompat.Builder(this, CHANNEL_ID)
       .setSmallIcon(android.R.drawable.stat_notify_chat)
-      .setContentTitle("Codex Remote 聊天")
+      .setContentTitle("Remote AI 聊天")
       .setContentText("后台接收电脑回复，点击返回应用")
       .setContentIntent(pending)
       .setCategory(NotificationCompat.CATEGORY_SERVICE)

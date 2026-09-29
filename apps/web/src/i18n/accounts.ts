@@ -55,7 +55,7 @@ export const accounts = {
   "正在读取账户概览": "Loading accounts",
   "暂无账号，点击“添加账户”开始使用": "No accounts yet. Select “Add account” to get started.",
   "切换到设备": "Switch on a device",
-  "暂无在线设备，请先在电脑上打开 Codex Remote": "No devices online. Open Codex Remote on your computer first.",
+  "暂无在线设备，请先在电脑上打开 Remote AI": "No devices online. Open Remote AI on your computer first.",
   "· 在线": "· Online",
   "当前": "Current",
   "这里显示剩余额度和重置时间，不同套餐的用量窗口可能不同。": "View remaining quota and reset times. Usage windows vary by plan.",

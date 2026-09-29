@@ -8,7 +8,7 @@ fn normalize_notification(message: String) -> Option<String> {
     Some(message.chars().take(MAX_CODEX_NOTIFICATION_CHARS).collect())
 }
 
-/// Mirrors a Codex Remote toast into the managed Codex renderer when its local
+/// Mirrors a Remote AI toast into the managed Codex renderer when its local
 /// CDP channel is available. Notification delivery is deliberately best-effort.
 #[tauri::command]
 pub(crate) async fn sync_codex_notification(message: String) -> Result<bool, String> {

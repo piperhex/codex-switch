@@ -131,7 +131,7 @@ def base_filters(scene, work):
         "drawgrid=w=96:h=96:t=1:c=0x25473e@0.16",
         "drawbox=x=0:y=1000:w=1920:h=80:c=0x03130f@0.85:t=fill",
         "drawbox=x=80:y=128:w=54:h=4:c=0x84e9cc:t=fill",
-        label("CODEX REMOTE  /  Codex GUI", (80, 52), (27, MINT), work),
+        label("REMOTE AI  /  Codex GUI", (80, 52), (27, MINT), work),
         label(scene["chapter"], ("w-tw-80", 54), (25, MUTED), work),
     ]
     return filters

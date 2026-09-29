@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { GuiAccountsClient, GuiAccountsSnapshot, SelectableGuiAccount } from '../guiAccounts';
 
 function readError(error: unknown) {
-  if (error instanceof Error && error.message.includes('暂不支持')) return '请更新电脑端 Codex Remote 后重试。';
+  if (error instanceof Error && error.message.includes('暂不支持')) return '请更新电脑端 Remote AI 后重试。';
   return '暂时无法读取电脑的账户，请重试。';
 }
 
