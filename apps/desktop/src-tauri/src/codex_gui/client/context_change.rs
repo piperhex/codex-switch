@@ -19,6 +19,7 @@ impl Client {
         id: &str,
         settings: &ContextSettings,
     ) -> Result<ContextUpdate> {
+        let _subscription = self.idle_threads.protect(id).await;
         let state = self.context_capacity.thread(id).await;
         let mut applied = state.applied.lock().await;
         let previous = context_settings::for_thread(self.app.clone(), id.to_owned())

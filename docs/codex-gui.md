@@ -91,6 +91,20 @@ is selected or the app is minimized. On Windows, these appear in the system noti
 bottom right, subject to the user's system notification settings. Failed, interrupted, and duplicate
 completion events do not send notifications. Delivery runs outside the UI and protocol reader threads.
 
+Tool connections belong to a loaded conversation, so one conversation can own separate Chrome,
+computer-use and remote-command helper processes even between tool calls. The shared desktop backend
+checks subscriptions every 30 seconds and releases them after at least 60 seconds without activity.
+It first confirms that the conversation is idle, has no active goal, approval, background terminal or
+queued engine submission. Unknown states or failed checks leave the subscription intact for retry.
+Sending, resuming and context changes are serialized against cleanup; reading history does not renew
+the subscription. Desktop, hosted web and phone clients all use this same lifecycle.
+
+Unsubscribing preserves conversation history and allows the engine to reclaim its tools after its own
+inactivity grace period (30 minutes in Codex 0.158.0). It does not kill helpers after each tool call.
+The next message resumes the conversation and restores its tool connections. The Chrome extension's
+native messaging host is a separate connection and stays alive while Chrome is connected.
+See the [app-server lifecycle](https://learn.chatgpt.com/docs/app-server#unsubscribe-from-a-loaded-thread).
+
 Automatic switching is off by
 default and has its own account membership, priorities, quota thresholds, exhaustion toggle, fallback
 Provider, and sequential/concurrent mode. New accounts participate by default after it is enabled;

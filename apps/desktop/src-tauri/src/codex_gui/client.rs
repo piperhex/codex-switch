@@ -2,6 +2,7 @@ mod completion_notifications;
 mod context_capacity;
 mod context_change;
 mod conversation_awareness;
+mod idle_threads;
 mod live_settings;
 mod plugin_refresh;
 #[path = "title_service.rs"]
@@ -50,6 +51,7 @@ pub(super) struct Client {
     active_turns: Mutex<HashMap<String, String>>,
     completion_notifications: Mutex<completion_notifications::CompletionNotifications>,
     context_capacity: context_capacity::ContextCapacity,
+    idle_threads: idle_threads::IdleThreads,
     plugin_revision: Mutex<Option<String>>,
     next_id: AtomicU64,
     pub(super) alive: AtomicBool,
@@ -101,6 +103,7 @@ impl Client {
             active_turns: Mutex::new(HashMap::new()),
             completion_notifications: Mutex::default(),
             context_capacity: context_capacity::ContextCapacity::default(),
+            idle_threads: idle_threads::IdleThreads::default(),
             plugin_revision: Mutex::new(None),
             next_id: AtomicU64::new(1),
             alive: AtomicBool::new(true),
@@ -118,6 +121,7 @@ impl Client {
             return Err(GuiError::Startup);
         }
         client.write(json!({"method": "initialized"})).await?;
+        client.start_idle_cleanup();
         Ok(client)
     }
 
@@ -132,6 +136,7 @@ impl Client {
     }
 
     pub(super) async fn request(&self, method: &str, params: Value) -> Result<Value> {
+        let _subscription = self.idle_threads.request_guard(method, &params).await;
         let mut result = self.request_internal(method, params).await?;
         super::conversation_context::display(&mut result);
         Ok(result)
@@ -174,9 +179,11 @@ impl Client {
         }
         let result = timeout(REQUEST_TIMEOUT, receiver).await;
         self.pending.lock().await.remove(&id);
-        result
+        let result = result
             .map_err(|_| GuiError::Timeout)?
-            .map_err(|_| GuiError::Disconnected)?
+            .map_err(|_| GuiError::Disconnected)??;
+        self.idle_threads.response(method, &params, &result).await;
+        Ok(result)
     }
 
     async fn read(self: Arc<Self>, stdout: ChildStdout) {
@@ -196,6 +203,7 @@ impl Client {
             if method.starts_with("codex/event/") {
                 return;
             }
+            self.idle_threads.event(method, &value["params"]).await;
             let mut event = GuiEvent {
                 method: method.to_owned(),
                 params: value["params"].clone(),
