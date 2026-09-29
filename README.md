@@ -6,7 +6,7 @@
 
 > For English documentation, please see [README_EN.md](README_EN.md).
 
-Remote AI 是一款面向 Codex / ChatGPT 用户的桌面工作台，集 Codex GUI 编程助手与多账号管理于一体。
+Remote AI 是一款基于 Codex CLI 的桌面工作台，集图形化编程助手与多账号管理于一体。
 你可以直接在应用中与 Codex 对话，理解代码、实现功能、排查问题，并随时查看执行进度和文件改动。
 它还提供账号登录与切换、用量查看、第三方 Provider、本地热切换代理、Token 分析、Skills 市场和一键换肤，
 支持在本机启动网页版，也可连接自建后端与移动端，实现跨设备协同管理。
