@@ -45,6 +45,6 @@
 ## 联系与变更
 
 如对本说明或数据处理有疑问，请通过
-[项目问题反馈页面](https://github.com/piperhex/codex-switch/issues) 联系维护者。
+[项目问题反馈页面](https://github.com/piperhex/remoteai/issues) 联系维护者。
 请勿在公开问题中提交密码、完整网页截图或其他敏感个人信息。
 本说明如有变化，将在此页面更新日期及内容。

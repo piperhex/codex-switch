@@ -7,7 +7,7 @@ Remote AI 是一款面向 Codex / ChatGPT 用户的桌面工作台，集 Codex G
 它还提供账号登录与切换、用量查看、第三方 Provider、本地热切换代理、Token 分析、Skills 市场和一键换肤，
 支持在本机启动网页版，也可连接自建后端与移动端，实现跨设备协同管理。
 
-[![许可证](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![发布版本](https://img.shields.io/github/v/release/piperhex/codex-switch)](https://github.com/piperhex/codex-switch/releases)
+[![许可证](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![发布版本](https://img.shields.io/github/v/release/piperhex/remoteai)](https://github.com/piperhex/remoteai/releases)
 
 QQ 技术交流群1：`1051213898`（已满）。
 
@@ -17,7 +17,7 @@ QQ 技术交流群2：`972062132`。
 
 访问 [Codex Web](https://codex.onepiper.cloud/web/)，在浏览器中连接电脑使用 Codex。
 
-使用前，请先安装 [Remote AI PC 端](https://github.com/piperhex/codex-switch/releases)，
+使用前，请先安装 [Remote AI PC 端](https://github.com/piperhex/remoteai/releases)，
 再打开 **Codex GUI**，按页面提示完成安装。
 保持 PC 端运行并联网，在网页端登录与 PC 端相同的云端账号，即可连接电脑开始使用。
 
@@ -121,7 +121,7 @@ Codex GUI 是内置的图形化对话工作区。选择项目后，用自然语�
 
 ### Linux 安装包用户
 
-从 [Releases](https://github.com/piperhex/codex-switch/releases) 下载 Linux x64 `.deb` 包，
+从 [Releases](https://github.com/piperhex/remoteai/releases) 下载 Linux x64 `.deb` 包，
 将下面的文件名替换为实际下载的文件名：
 
 ```bash
@@ -357,7 +357,7 @@ Remote AI 是独立开发的第三方软件，与 OpenAI 及其 Codex 产品不�
 
 ## Star History
 
-<a href="https://www.star-history.com/#piperhex/codex-switch&Date">
+<a href="https://www.star-history.com/#piperhex/remoteai&Date">
   <picture>
     <source
       media="(prefers-color-scheme: dark)"

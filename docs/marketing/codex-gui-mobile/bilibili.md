@@ -21,8 +21,8 @@
 
 使用前，在电脑和手机登录同一个 Remote AI 账号，连接在线电脑；使用期间请让电脑保持联网，Remote AI 保持运行，并完成 Codex GUI 所需的模型配置。
 
-项目地址：https://github.com/piperhex/codex-switch
-下载地址：https://github.com/piperhex/codex-switch/releases
+项目地址：https://github.com/piperhex/remoteai
+下载地址：https://github.com/piperhex/remoteai/releases
 网页版：https://codex.onepiper.cloud/web/
 
 画面为实际操作演示，等待过程经过剪辑，实际速度取决于网络、模型与任务。本片使用 AI 女声配音，封面含 AI 生成视觉元素；Remote AI 为社区项目。

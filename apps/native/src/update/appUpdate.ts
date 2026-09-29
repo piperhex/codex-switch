@@ -8,12 +8,12 @@ import { compareAppVersions, versionFromReleaseMetadata } from '../../../../shar
 export { compareAppVersions } from '../../../../shared/app-update/version';
 export { versionFromReleaseMetadata } from './version';
 
-const RELEASE_API_URL = 'https://api.github.com/repos/piperhex/codex-switch/releases/latest';
+const RELEASE_API_URL = 'https://api.github.com/repos/piperhex/remoteai/releases/latest';
 const UPDATE_METADATA_KEY = 'codex-switch.mobile.android-update.v1';
 const APK_MIME_TYPE = 'application/vnd.android.package-archive';
 const DOWNLOAD_RETRY_MESSAGE = '下载未完成，请重新下载。';
 
-export const RELEASES_URL = 'https://github.com/piperhex/codex-switch/releases';
+export const RELEASES_URL = 'https://github.com/piperhex/remoteai/releases';
 export const CURRENT_APP_VERSION =
   Application.nativeApplicationVersion ?? appConfig.expo.version;
 export const CURRENT_BUILD_VERSION =

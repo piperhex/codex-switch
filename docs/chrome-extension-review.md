@@ -6,7 +6,7 @@ Use a desktop version of Chrome (125 or later) on Windows, macOS, or Linux.
 
 ## Install the companion application
 
-1. Download and install [Remote AI 1.5.23](https://github.com/piperhex/codex-switch/releases/tag/v1.5.23).
+1. Download and install [Remote AI 1.5.23](https://github.com/piperhex/remoteai/releases/tag/v1.5.23).
    Earlier desktop versions do not recognize the Chrome Web Store extension ID.
 2. Open Remote AI and select a Codex Home directory. If none exists, add a directory in Settings.
 3. Open the community plugins page (社区插件), find **Chrome 浏览器助手**, and click **安装**.

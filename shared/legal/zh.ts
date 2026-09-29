@@ -97,7 +97,7 @@ export const userAgreementZh: UserAgreement = {
       title: '九、联系与争议处理',
       paragraphs: [
         '服务、账号或数据请求请优先联系你所连接服务器的运营者。开源软件的问题可通过项目反馈页面联系维护者：'
-          + 'https://github.com/piperhex/codex-switch/issues。请勿在公开反馈中提交密码、验证码、密钥或其他敏感信息。',
+          + 'https://github.com/piperhex/remoteai/issues。请勿在公开反馈中提交密码、验证码、密钥或其他敏感信息。',
         '出现争议时，双方可先协商解决；协商不成的，可依法向有管辖权的机构寻求救济。'
           + '适用法律的强制性规定优先于本协议，个别条款无效不影响其余合法条款的效力。',
       ],

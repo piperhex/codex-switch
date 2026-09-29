@@ -8,13 +8,13 @@ It also includes account sign-in and switching, usage monitoring, third-party Pr
 token analytics, a Skills Market, and one-click themes. Use its hosted browser UI or connect a self-hosted backend
 and mobile companion to manage accounts across devices.
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/piperhex/codex-switch)](https://github.com/piperhex/codex-switch/releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/piperhex/remoteai)](https://github.com/piperhex/remoteai/releases)
 
 ## Codex Web
 
 Open [Codex Web](https://codex.onepiper.cloud/web/) to connect to your computer and use Codex in your browser.
 
-Before using it, install the [Remote AI desktop app](https://github.com/piperhex/codex-switch/releases),
+Before using it, install the [Remote AI desktop app](https://github.com/piperhex/remoteai/releases),
 then open **Codex GUI** and follow the installation prompts.
 Keep the desktop app running and your computer online. Sign in to the web app with the same cloud account
 as the desktop app, then connect to your computer to get started.
@@ -107,7 +107,7 @@ Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://gi
 
 ### Linux packages
 
-Download the Linux x64 `.deb` from [Releases](https://github.com/piperhex/codex-switch/releases).
+Download the Linux x64 `.deb` from [Releases](https://github.com/piperhex/remoteai/releases).
 Replace the filename below with the downloaded package name:
 
 ```bash
@@ -223,7 +223,7 @@ Remote AI is independently developed third-party software and is not affiliated 
 
 ## Star History
 
-<a href="https://www.star-history.com/#piperhex/codex-switch&Date">
+<a href="https://www.star-history.com/#piperhex/remoteai&Date">
   <picture>
     <source
       media="(prefers-color-scheme: dark)"

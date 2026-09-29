@@ -20,7 +20,7 @@ export function AboutPage({ onBack }: { onBack: () => void }) {
       <SettingsRow label={t("开源许可")} value="Apache-2.0" icon={FileText} tone="orange" />
     </section>
     <section className="settings-group"><a className="settings-link"
-      href="https://github.com/piperhex/codex-switch/releases"
+      href="https://github.com/piperhex/remoteai/releases"
       target="_blank" rel="noreferrer"><Github size={21} /><span>{t("开源项目与历史版本")}</span></a></section>
     <p className="settings-hint">{t("网页版由服务端更新，无需下载安装包。")}</p>
   </div>;

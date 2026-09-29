@@ -3,7 +3,7 @@ import { Button } from "antd-mobile";
 import { Download } from "lucide-react";
 import { AdaptiveSheet } from "./AdaptiveSheet";
 
-const DESKTOP_DOWNLOAD_URL = "https://github.com/piperhex/codex-switch/releases/latest";
+const DESKTOP_DOWNLOAD_URL = "https://github.com/piperhex/remoteai/releases/latest";
 
 interface RegistrationSheetProps {
   open: boolean;

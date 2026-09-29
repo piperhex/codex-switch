@@ -6,25 +6,25 @@
 
 **本地优先 · 桌面端 + 本机网页 · Windows / macOS / Linux · 中文 / English**
 
-[下载最新版本](https://github.com/piperhex/codex-switch/releases/latest) · [查看全部版本](https://github.com/piperhex/codex-switch/releases) · [访问 GitHub 仓库](https://github.com/piperhex/codex-switch)
+[下载最新版本](https://github.com/piperhex/remoteai/releases/latest) · [查看全部版本](https://github.com/piperhex/remoteai/releases) · [访问 GitHub 仓库](https://github.com/piperhex/remoteai)
 
 > Remote AI 将账户登录、凭据导入、用量查看、身份切换、第三方 Provider、本地代理、Skills 市场与一键换肤集中在一个工作台中，并可选连接自部署后端与移动端。
 
-![Remote AI 账户管理界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-dashboard.png)
+![Remote AI 账户管理界面](https://raw.githubusercontent.com/piperhex/remoteai/master/docs/assets/codex-switch-dashboard.png)
 
 ### 第三方 Provider
 
-![Remote AI 第三方 Provider 界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-providers.png)
+![Remote AI 第三方 Provider 界面](https://raw.githubusercontent.com/piperhex/remoteai/master/docs/assets/codex-switch-providers.png)
 
 ### Token 消耗分析
 
-![Remote AI Token 消耗分析界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-token-usage.png)
+![Remote AI Token 消耗分析界面](https://raw.githubusercontent.com/piperhex/remoteai/master/docs/assets/codex-switch-token-usage.png)
 
 ### 一键换肤与 Skills 市场
 
-![Remote AI 一键换肤界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-dream-skin.png)
+![Remote AI 一键换肤界面](https://raw.githubusercontent.com/piperhex/remoteai/master/docs/assets/codex-switch-dream-skin.png)
 
-![Remote AI Skills 市场](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-skills.png)
+![Remote AI Skills 市场](https://raw.githubusercontent.com/piperhex/remoteai/master/docs/assets/codex-switch-skills.png)
 
 ---
 
@@ -91,7 +91,7 @@ Remote AI 将这些操作整合到一个本地桌面应用中：添加账户后�
 ## 三步开始使用
 
 1. **下载并安装**  
-   前往 [GitHub Releases](https://github.com/piperhex/codex-switch/releases/latest)，根据操作系统选择对应安装包。
+   前往 [GitHub Releases](https://github.com/piperhex/remoteai/releases/latest)，根据操作系统选择对应安装包。
 
 2. **添加账户**  
    在应用中选择“添加账户”，使用应用内窗口、系统浏览器完成登录，或导入已有的 `auth.json` / 兼容 JSON。
@@ -114,7 +114,7 @@ Remote AI 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust 后�
 - 不要提交、分享或截图展示 `auth.json`、`.cs`、Token、API Key、真实账户 ID 等敏感信息。
 - 如果设备由多人共用，建议不要在其中保存生产或重要账户凭据。
 
-[了解架构与数据流](https://github.com/piperhex/codex-switch/blob/master/docs/architecture.md)
+[了解架构与数据流](https://github.com/piperhex/remoteai/blob/master/docs/architecture.md)
 
 ---
 
@@ -140,7 +140,7 @@ Remote AI 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust 后�
 
 版本通过 GitHub Actions 自动构建并发布，Windows、macOS、Linux、Android 与 iOS 验证构建均可在 Releases 页面获取。你可以随时查看历史版本、发布日期与对应构建产物。
 
-[查看版本记录](https://github.com/piperhex/codex-switch/releases) · [关注开发进展](https://github.com/piperhex/codex-switch/commits/master)
+[查看版本记录](https://github.com/piperhex/remoteai/releases) · [关注开发进展](https://github.com/piperhex/remoteai/commits/master)
 
 ---
 
@@ -187,9 +187,9 @@ Remote AI 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust 后�
 
 让多个 Codex 账户的管理、用量查看与身份切换，回到一个简单、清晰的桌面工作台。
 
-[**下载最新版本 →**](https://github.com/piperhex/codex-switch/releases/latest)
+[**下载最新版本 →**](https://github.com/piperhex/remoteai/releases/latest)
 
-[查看源代码](https://github.com/piperhex/codex-switch) · [Apache-2.0 许可证](https://github.com/piperhex/codex-switch/blob/master/LICENSE) · [提交问题与建议](https://github.com/piperhex/codex-switch/issues)
+[查看源代码](https://github.com/piperhex/remoteai) · [Apache-2.0 许可证](https://github.com/piperhex/remoteai/blob/master/LICENSE) · [提交问题与建议](https://github.com/piperhex/remoteai/issues)
 
 ---
 

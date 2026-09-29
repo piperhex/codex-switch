@@ -1,4 +1,4 @@
-const LATEST_RELEASE_API = "https://api.github.com/repos/piperhex/codex-switch/releases/latest";
+const LATEST_RELEASE_API = "https://api.github.com/repos/piperhex/remoteai/releases/latest";
 
 interface GitHubReleaseAsset {
   name?: string;

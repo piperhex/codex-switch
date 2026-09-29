@@ -4,7 +4,7 @@
 
 - USB 连接的 Android 实体机：2109119BC，Android 14 / API 34，1080 × 2400。
 - 本地 Hyper-V Windows 11 虚拟机运行 PC 应用，沿用现有上游 Remote AI 连接。
-- 手机和虚拟机均先从 1.5.8 覆盖升级到官方 [v1.5.10](https://github.com/piperhex/codex-switch/releases/tag/v1.5.10)。
+- 手机和虚拟机均先从 1.5.8 覆盖升级到官方 [v1.5.10](https://github.com/piperhex/remoteai/releases/tag/v1.5.10)。
   虚拟机安装退出码为 0，安装后进程响应正常；手机恢复 P2P 连接，登录与历史数据保留。
 - 复现后以 v1.5.10 源码加本次修复单独构建 Android arm64 Release APK，再覆盖安装同一实体机。
   PC 保持官方 v1.5.10；本次没有发布新的版本号。

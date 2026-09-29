@@ -5,7 +5,7 @@
 
 ## 安装 Linux 包
 
-从 [Releases](https://github.com/piperhex/codex-switch/releases) 下载 Linux x64 安装包。
+从 [Releases](https://github.com/piperhex/remoteai/releases) 下载 Linux x64 安装包。
 Ubuntu 优先使用 `.deb`，无需安装 Node.js、npm 或 Rust。
 下面的 `codex-switch.deb` 代表下载的文件，请替换为实际文件名；路径中有空格时保留引号。
 

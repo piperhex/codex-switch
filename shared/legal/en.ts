@@ -118,7 +118,7 @@ export const userAgreementEn: UserAgreement = {
       title: '9. Contact and disputes',
       paragraphs: [
         'For service, account or data requests, contact your server operator first. For open-source software issues, '
-          + 'contact maintainers at https://github.com/piperhex/codex-switch/issues. Never post passwords, codes, '
+          + 'contact maintainers at https://github.com/piperhex/remoteai/issues. Never post passwords, codes, '
           + 'keys or sensitive personal information in public reports.',
         'Parties may first try to resolve disputes through discussion, then seek remedies from a competent authority '
           + 'under applicable law. Mandatory law prevails. An invalid clause does not invalidate other lawful clauses.',

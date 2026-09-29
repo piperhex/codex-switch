@@ -132,8 +132,8 @@ import type {
   Provider,
 } from "../../types";
 
-const REPOSITORY_URL = "https://github.com/piperhex/codex-switch";
-const LATEST_RELEASE_API_URL = "https://api.github.com/repos/piperhex/codex-switch/releases/latest";
+const REPOSITORY_URL = "https://github.com/piperhex/remoteai";
+const LATEST_RELEASE_API_URL = "https://api.github.com/repos/piperhex/remoteai/releases/latest";
 const APP_LOGO_URL = new URL("../../../src-tauri/icons/128x128.png", import.meta.url).href;
 const NATIVE_WINDOW_CONTROLS_ENABLED = isDesktopApp && navigator.userAgent.includes("Windows");
 const MemoAccountsPage = memo(AccountsPage);

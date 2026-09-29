@@ -24,7 +24,7 @@ use crate::{
 #[path = "dream_skin_resource_cleanup.rs"]
 mod cleanup;
 
-const RELEASES_API: &str = "https://api.github.com/repos/piperhex/codex-switch/releases";
+const RELEASES_API: &str = "https://api.github.com/repos/piperhex/remoteai/releases";
 const RELEASES_PER_PAGE: usize = 100;
 const RELEASE_TAG_PREFIX: &str = "dream-skin-";
 const RESOURCE_ASSET_PREFIX: &str = "dream-skin-resources-";
