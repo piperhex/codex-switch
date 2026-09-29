@@ -8,7 +8,7 @@ import {
   PackageOpen,
   Palette,
   Server,
-  House,
+  SquareTerminal,
   Settings,
   ShieldCheck,
   UserRound,
@@ -39,7 +39,7 @@ interface DashboardNavigationProps {
 }
 
 const NAVIGATION_ITEMS = [
-  { page: "codexGui", icon: House, labelKey: "nav.codexGui" },
+  { page: "codexGui", icon: SquareTerminal, labelKey: "nav.codexGui" },
   { page: "accounts", icon: UserRound, labelKey: "nav.accounts" },
   { page: "sessions", icon: FolderOpen, labelKey: "nav.sessions" },
   { page: "providers", icon: Server, labelKey: "nav.providers" },

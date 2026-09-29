@@ -134,7 +134,6 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
   overflow: hidden;
   text-align: left;
 }
-.sidebar-brand span { white-space: nowrap; }
 .sidebar-collapsed .sidebar-brand { justify-content: center; padding-inline: 12px; }
 .sidebar-collapsed .sidebar-brand span { display: none; }
 .sidebar-tabs {
@@ -198,8 +197,29 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .brand { flex: 0 0 auto; display: flex; align-items: center; gap: 11px; padding: 0; border: 0; border-radius: 8px; line-height: 1.05; font-family: Manrope, sans-serif; letter-spacing: 0; background: transparent; cursor: pointer; }
 .brand-logo { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; filter: drop-shadow(0 5px 10px rgba(41, 84, 54,.16)); transition: transform .18s ease; }
 .brand:hover .brand-logo { transform: translateY(-1px); }
-.brand span { font-size: 15px; color: #66756c; }
-.brand b { color: #213028; font-weight: 700; }
+.brand .brand-name {
+  --brand-gradient: linear-gradient(105deg, #087f8c 0%, #2563eb 35%, #7c3aed 65%, #c0267e 100%);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--ink);
+}
+:root[data-theme="dark"] .brand .brand-name {
+  --brand-gradient: linear-gradient(105deg, #5eead4 0%, #60a5fa 35%, #c084fc 65%, #f472b6 100%);
+}
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .brand .brand-name {
+    background-image: var(--brand-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+@media (forced-colors: active) {
+  .brand .brand-name { background-image: none; color: CanvasText; -webkit-text-fill-color: CanvasText; }
+}
 .announcement-slot { min-width: 0; flex: 1 1 0; overflow: hidden; }
 .announcement-marquee { width: 100%; min-width: 0; max-width: 100%; height: var(--announcement-height); padding: 0; overflow: hidden; display: flex; align-items: center; border: 1px solid rgba(var(--green-rgb), .22); border-radius: var(--announcement-radius); color: var(--green-dark); background: var(--green-soft); text-align: left; }
 .announcement-marquee-link,
@@ -1914,8 +1934,6 @@ html.floating-usage-page #root {
 :root[data-theme="dark"] .app-sidebar { border-color: var(--line); background: #121416; box-shadow: none; }
 :root[data-theme="dark"] .app-menu,
 :root[data-theme="dark"] .topbar { border-color: var(--line); background: rgba(21, 23, 26, .96); box-shadow: none; }
-:root[data-theme="dark"] .brand span { color: #aeb4bd; }
-:root[data-theme="dark"] .brand b { color: var(--ink); }
 :root[data-theme="dark"] .sidebar-tabs button { color: #aeb4bd; }
 :root[data-theme="dark"] .sidebar-tabs button.selected { color: var(--ink); }
 :root[data-theme="dark"] .top-tabs { border-color: var(--line); background: #202328; }

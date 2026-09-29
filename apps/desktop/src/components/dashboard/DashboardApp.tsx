@@ -1259,7 +1259,7 @@ export function DashboardApp() {
             <button type="button" className="brand sidebar-brand" onClick={openRepository}
               aria-label={t("help.github")} title={t("help.github")}>
               <img className="brand-logo" src={APP_LOGO_URL} alt="" />
-              <span>Remote<br /><b>AI</b></span>
+              <span className="brand-name">Remote AI</span>
             </button>
             <DashboardNavigation collapsed={navigationStyle.sidebarCollapsed}
               onPageChange={setPage} page={page} t={t} variant="sidebar" />
@@ -1270,7 +1270,7 @@ export function DashboardApp() {
             <button type="button" className="brand" onClick={openRepository}
               aria-label={t("help.github")} title={t("help.github")}>
               <img className="brand-logo" src={APP_LOGO_URL} alt="" />
-              <span>Remote<br /><b>AI</b></span>
+              <span className="brand-name">Remote AI</span>
             </button>
           )}
           {page !== "codexGui" && <AnnouncementBanner link={announcementLink} onOpenLink={openAnnouncementLink}
