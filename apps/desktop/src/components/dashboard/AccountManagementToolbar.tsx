@@ -38,6 +38,7 @@ export function AccountManagementToolbar({
   return (
     <header className={styles.toolbar}>
       <div className={styles.heading}>
+        {summary && <div className={styles.summary}>{summary}</div>}
         <div className={styles.tabs} role="tablist" aria-label={t("nav.accounts")}>
           {SECTIONS.map(({ value, icon: Icon, label }) => (
             <button key={value} id={`account-section-${value}`} type="button" role="tab"
@@ -48,7 +49,6 @@ export function AccountManagementToolbar({
             </button>
           ))}
         </div>
-        {summary && <div className={styles.summary}>{summary}</div>}
       </div>
       <div className={`topbar-actions ${styles.actions}`}>
         <div className={styles.sectionActions}>{children}</div>
