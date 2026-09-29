@@ -5,15 +5,9 @@ import styles from "./CodeBlock.module.less";
 
 const highlighter = createLowlight(common);
 const MAX_HIGHLIGHT_CHARACTERS = 30_000;
-const FILE_LANGUAGES: Record<string, string> = {
-  ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
-  rs: "rust", py: "python", json: "json", css: "css", less: "less", scss: "scss", html: "xml", svg: "xml",
-  xml: "xml", yaml: "yaml", yml: "yaml", toml: "ini", sh: "bash", ps1: "powershell", sql: "sql",
-  c: "c", h: "c", cpp: "cpp", cs: "csharp", go: "go", java: "java", md: "markdown", diff: "diff",
-};
-export function fileLanguage(path: string) { return FILE_LANGUAGES[path.split(".").pop()?.toLowerCase() ?? ""] ?? ""; }
+export { fileLanguage } from "./filePreview/fileLanguages";
 
-function renderToken(node: RootContent, index: number): ReactNode {
+export function renderToken(node: RootContent, index: number): ReactNode {
   if (node.type === "text") return node.value;
   if (node.type !== "element") return null;
   const classes = node.properties.className;

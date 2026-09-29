@@ -41,6 +41,7 @@ function Harness() {
         <p>已整理好文件，点击下方链接可选择打开方式。</p>
         <p><FileMenu path="C:/项目/季度报告.pdf" line={12}>季度报告.pdf</FileMenu></p>
         <EditedFilesSummary files={files} title="本轮修改" onReview={() => setResult("全部差异")}
+          renderFile={props => <FileMenu {...props}>{props.path}</FileMenu>}
           onReviewFile={(path) => setResult(`差异：${path}`)} />
         <p><input aria-label="消息" placeholder="输入消息…" style={{ padding: 12, width: "80%" }} /></p>
         <output aria-label="操作结果">{result}</output><output aria-label="刷新次数" hidden>{beats}</output>

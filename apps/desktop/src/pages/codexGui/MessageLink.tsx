@@ -14,7 +14,7 @@ export function MessageLink({ href, children }: { href?: string; children?: Reac
   if (href && localImageSource(href)) return <MessageImage src={href}
     alt={typeof children === "string" ? children : "图片"} />;
   const file = href ? parseFileReference(href) : undefined;
-  if (file) return <FileMenu {...file}>{children}</FileMenu>;
+  if (file) return <FileMenu {...file} preview>{children}</FileMenu>;
   if (!href || !/^https?:\/\//i.test(href)) return <span>{children}</span>;
   return <a href={href} target="_blank" rel="noopener noreferrer" onClick={(event) => {
     // Browser navigation must stay native, including Ctrl/Cmd-click and the link context menu.

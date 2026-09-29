@@ -39,8 +39,8 @@ type Result<T> = std::result::Result<T, FileError>;
 pub(crate) struct FileTarget {
     path: String,
     thread_id: Option<String>,
-    line: Option<u32>,
-    column: Option<u32>,
+    pub(super) line: Option<u32>,
+    pub(super) column: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -91,6 +91,15 @@ pub(crate) async fn codex_gui_file_action(
     }
     .await
     .map_err(|error: FileError| error.to_string())
+}
+
+/// Resolve an explicitly selected desktop file using the conversation's real workspace.
+pub(super) async fn resolve_target(state: &GuiState, target: &FileTarget) -> Result<PathBuf> {
+    let source = paths::source(target)?;
+    let workspace = workspace(state, target, &source).await?;
+    tauri::async_runtime::spawn_blocking(move || paths::resolve(&source, &workspace, false))
+        .await
+        .map_err(|_| FileError::Path)?
 }
 
 async fn workspace(

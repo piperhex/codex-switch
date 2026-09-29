@@ -7,6 +7,7 @@ import { message } from "antd";
 import { FileMenu } from "./FileMenu";
 import { FileThreadContext, fileApi } from "./fileApi";
 import { RichText } from "./RichText";
+import { filePreviewApi } from "./filePreview/api";
 
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: vi.fn(() => true), invoke: vi.fn() }));
 let root: Root;
@@ -30,6 +31,7 @@ beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.mocked(isTauri).mockReturnValue(true);
   vi.spyOn(fileApi, "applications").mockResolvedValue(applications);
+  vi.spyOn(filePreviewApi, "open").mockResolvedValue(true);
   vi.spyOn(fileApi, "perform").mockResolvedValue({ path: "C:/project/report.txt", text: "文件内容", saved: true });
   vi.spyOn(message, "success").mockImplementation(() => Object.assign(() => {}, { then: vi.fn() }));
   vi.spyOn(message, "error").mockImplementation(() => Object.assign(() => {}, { then: vi.fn() }));
@@ -121,4 +123,27 @@ it("preserves literal URL punctuation in paths supplied by edited-file cards", a
   await click(trigger()); await click(item("打开文件"));
   expect(fileApi.perform).toHaveBeenCalledWith(expect.objectContaining({ path: "C:/project/report%20#L12.txt" }),
     { type: "open", application: "default" });
+});
+
+it("previews Markdown resources directly and preserves the original menu on right click", async () => {
+  await act(async () => root.render(<FileThreadContext.Provider value="thread-one">
+    <RichText text="[配置](./config.yaml#L12C3)" />
+  </FileThreadContext.Provider>));
+  await click(trigger());
+  expect(filePreviewApi.open).toHaveBeenCalledWith({ path: "./config.yaml", line: 12, column: 3,
+    threadId: "thread-one" });
+  expect(fileApi.applications).not.toHaveBeenCalled();
+  await act(async () => { trigger().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true })); });
+  expect(item("打开文件")).toBeTruthy();
+});
+
+it("opens the original menu for unsupported files and prevents duplicate preview requests", async () => {
+  let resolve!: (supported: boolean) => void;
+  vi.mocked(filePreviewApi.open).mockReturnValue(new Promise(done => { resolve = done; }));
+  await act(async () => root.render(<FileMenu path="archive.zip" preview>归档</FileMenu>));
+  await click(trigger()); await click(trigger());
+  expect(filePreviewApi.open).toHaveBeenCalledOnce();
+  await act(async () => resolve(false));
+  expect(item("打开文件")).toBeTruthy();
+  expect(trigger().disabled).toBe(false);
 });

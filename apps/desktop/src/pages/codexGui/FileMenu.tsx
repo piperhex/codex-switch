@@ -11,11 +11,12 @@ const SUBMENU_PLACEMENTS: MenuProps["builtinPlacements"] = {
   leftTop: { points: ["tr", "tl"], overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true } },
 };
 
-export function FileMenu({ path, line, column, children, className, onReview }: FileReference & {
-  children: ReactNode; className?: string; onReview?: () => void;
+export function FileMenu({ path, line, column, children, className, onReview, preview = false }: FileReference & {
+  children: ReactNode; className?: string; onReview?: () => void; preview?: boolean;
 }) {
   const target = { path, ...(line && { line }), ...(column && { column }) };
   const menu = useFileMenu(target);
+  const previewsFile = preview && menu.desktop && !onReview;
   const openApplication = (application: string) => { void menu.perform({ type: "open", application }); };
   const applications: MenuProps["items"] = menu.applications.map((app) => ({
     key: app.id, label: app.name,
@@ -48,14 +49,17 @@ export function FileMenu({ path, line, column, children, className, onReview }: 
   // The browser retains its existing diff shortcut; local file operations belong to the desktop.
   if (!menu.desktop && onReview) return <button type="button" className={className}
     onClick={onReview} aria-label={`查看 ${path} 的差异`}>{children}</button>;
-  return <Dropdown trigger={onReview ? ["contextMenu"] : ["click", "contextMenu"]}
+  return <Dropdown trigger={onReview || previewsFile ? ["contextMenu"] : ["click", "contextMenu"]}
     open={menu.open} onOpenChange={menu.setOpen} autoFocus
     overlayClassName={styles.popup} overlayStyle={{ maxWidth: 400 }}
     menu={{ items, builtinPlacements: SUBMENU_PLACEMENTS, expandIcon: <ChevronRight size={14} aria-hidden="true" />,
       onClick: () => menu.setOpen(false) }} disabled={menu.busy}>
     <button type="button" className={className ?? styles.link}
-      aria-label={onReview ? `查看 ${path} 的差异` : `文件操作：${path}`}
-      onClick={() => { if (onReview) { menu.setOpen(false); onReview(); } }}
+      aria-label={onReview ? `查看 ${path} 的差异` : `${previewsFile ? "预览文件" : "文件操作"}：${path}`}
+      onClick={() => {
+        if (onReview) { menu.setOpen(false); onReview(); }
+        else if (previewsFile) void menu.preview();
+      }}
       aria-haspopup="menu" aria-expanded={menu.open} disabled={menu.busy}>{children}</button>
   </Dropdown>;
 }

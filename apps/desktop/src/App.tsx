@@ -5,6 +5,7 @@ import { TokenUsageWindow } from "./components/TokenUsageWindow";
 import { DashboardApp } from "./components/dashboard/DashboardApp";
 import { installCodexUsageCostSync } from "./utils/codexUsageCostSync";
 import { installWindowDragDismissal } from "./utils/windowDragDismissal";
+import { FilePreviewWindow } from "./pages/codexGui/filePreview/FilePreviewWindow";
 
 function normalizeWindowName(value: string | null) {
   return (value ?? "").replace(/^#\/?/, "").split(/[?#]/)[0];
@@ -30,5 +31,6 @@ export default function App() {
 function renderWindow(windowName: string) {
   if (windowName === "bubble") return <FloatingUsageBubble />;
   if (windowName === "token-usage") return <TokenUsageWindow />;
+  if (windowName === "file-preview") return <FilePreviewWindow />;
   return <DashboardApp />;
 }

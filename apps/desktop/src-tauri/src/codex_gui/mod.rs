@@ -18,6 +18,7 @@ pub(crate) mod deletion;
 mod downloads;
 mod error;
 pub(crate) mod file_actions;
+pub(crate) mod file_preview;
 mod file_stream;
 #[cfg(test)]
 mod fork_tests;

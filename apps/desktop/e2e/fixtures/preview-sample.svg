@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="180" viewBox="0 0 640 180">
+  <rect width="640" height="180" rx="16" fill="#e7f5f4"/>
+  <circle cx="90" cy="90" r="42" fill="#35ada7"/>
+  <text x="160" y="102" font-size="32" font-family="sans-serif" fill="#17211b">File preview</text>
+</svg>
