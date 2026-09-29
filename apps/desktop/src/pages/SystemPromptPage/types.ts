@@ -12,6 +12,8 @@ export interface SystemPromptListItem extends SystemPromptRule {
 }
 
 export interface SystemPromptPageProps {
+  embedded?: boolean;
+  notice?: string;
   filterEnabled: boolean;
   filterRules: SystemPromptRule[];
   injectionEnabled: boolean;

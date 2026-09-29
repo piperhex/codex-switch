@@ -1,6 +1,6 @@
 import { useId, useRef, useState, type ReactNode } from "react";
 import { Popover } from "antd";
-import { ChevronDown, ChevronLeft, BriefcaseBusiness } from "lucide-react";
+import { ChevronDown, ChevronLeft, BriefcaseBusiness, MessageSquareText } from "lucide-react";
 import type { Translate } from "../../i18n";
 import { DashboardNavigation, isToolboxPage, type DashboardPage } from "./DashboardNavigation";
 import styles from "./AccountToolbox.module.less";
@@ -8,10 +8,11 @@ import styles from "./AccountToolbox.module.less";
 interface AccountToolboxProps {
   children?: ReactNode;
   navigation?: { page: DashboardPage; onPageChange: (page: DashboardPage) => void };
+  onSystemPrompts?: () => void;
   t: Translate;
 }
 
-export function AccountToolbox({ children, navigation, t }: AccountToolboxProps) {
+export function AccountToolbox({ children, navigation, onSystemPrompts, t }: AccountToolboxProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -35,6 +36,10 @@ export function AccountToolbox({ children, navigation, t }: AccountToolboxProps)
               navigation.onPageChange(page);
               setOpen(false);
             }} />}
+          {onSystemPrompts && <button type="button" className="refresh-all"
+            onClick={() => { setOpen(false); onSystemPrompts(); }}>
+            <MessageSquareText size={15} /><span>{t("nav.systemPrompts")}</span>
+          </button>}
           {children}
         </div>
       )}>

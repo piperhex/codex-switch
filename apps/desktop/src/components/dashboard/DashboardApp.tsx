@@ -1281,6 +1281,7 @@ export function DashboardApp() {
             <DashboardNavigation onPageChange={setPage} page={page} t={t} />
           )}
           {(!sidebarNavigationEnabled || page === "accounts" || page === "providers") && <AccountToolbox t={t}
+            onSystemPrompts={page === "accounts" || page === "providers" ? () => setPage("systemPrompts") : undefined}
             navigation={sidebarNavigationEnabled ? undefined : { page, onPageChange: setPage }}>
             {(page === "accounts" || page === "providers") && <>
             <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}

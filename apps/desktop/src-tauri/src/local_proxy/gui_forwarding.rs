@@ -18,7 +18,8 @@ pub(super) fn forward<R: Runtime>(
     let target = selected_target(request.app, &route.selection)?;
     let attempt = RefCell::new(Attempt { route, target });
     let started_at = Instant::now();
-    request.body = inject_system_prompts(filter_system_prompts(request.body));
+    request.body =
+        gui_system_prompts::apply(request.app, request.body).map_err(|error| error.to_string())?;
     let result = retry_upstream_request(
         upstream_429_retry_timeout(request.app)?,
         || {

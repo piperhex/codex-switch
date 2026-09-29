@@ -104,6 +104,12 @@ accounts. With no eligible account, the configured fallback Provider is used; a 
 stays selected. A normal temporary rate limit retries without rotating accounts. Once a reply has streamed,
 it is never replayed on another account. Settings are saved in `codex-gui-auto-switch.json` and survive restart.
 
+**Codex GUI 设置 → 系统提示词** manages GUI-only filtering and injection rules. Changes are saved immediately
+in `codex-gui-system-prompts.json` and apply to the next request, including requests in existing conversations.
+Filtering runs before injection; an active request keeps the rules it started with. GUI rules start disabled
+and do not inherit or change the shared proxy rules. The shared **系统提示词** entry is available from the
+**工具箱** in **账户管理** and **三方模型及中转**, rather than as a main navigation item.
+
 Quota refreshes run outside settings and selection locks. A manual account change or a settings save
 invalidates older automatic decisions, so a slow refresh cannot overwrite the newer choice. Confirmed
 exhausted accounts stay excluded until a later successful quota refresh shows usable quota again.

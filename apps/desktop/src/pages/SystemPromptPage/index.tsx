@@ -52,7 +52,7 @@ export function SystemPromptPage(props: SystemPromptPageProps) {
   const {
     filterEnabled, filterRules, injectionEnabled, injectionPrompts, loading,
     onFilterEnabledChange, onFilterRulesChange,
-    onInjectionEnabledChange, onInjectionPromptsChange, t,
+    onInjectionEnabledChange, onInjectionPromptsChange, t, embedded = false, notice,
   } = props;
   const editor = useRuleEditor({
     filterRules,
@@ -67,27 +67,21 @@ export function SystemPromptPage(props: SystemPromptPageProps) {
   ], [filterRules, injectionPrompts]);
   const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    setTopbarHost(document.getElementById(TOPBAR_ACTIONS_ID));
+    setTopbarHost(embedded ? null : document.getElementById(TOPBAR_ACTIONS_ID));
     return () => setTopbarHost(null);
-  }, []);
+  }, [embedded]);
+
+  const controls = <TopbarControls filterEnabled={filterEnabled} injectionEnabled={injectionEnabled}
+    loading={loading} onAdd={editor.openAdd} onFilterEnabledChange={onFilterEnabledChange}
+    onInjectionEnabledChange={onInjectionEnabledChange} t={t} />;
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page}${embedded ? ` ${styles.embedded}` : ""}`}>
+      {embedded && controls}
       <RulesCard editor={editor} items={items} loading={loading} t={t} />
       <RuleEditorModal editor={editor} loading={loading} t={t} />
-      {topbarHost && createPortal(
-        <TopbarControls
-          filterEnabled={filterEnabled}
-          injectionEnabled={injectionEnabled}
-          loading={loading}
-          onAdd={editor.openAdd}
-          onFilterEnabledChange={onFilterEnabledChange}
-          onInjectionEnabledChange={onInjectionEnabledChange}
-          t={t}
-        />,
-        topbarHost,
-      )}
-      <p className={styles.notice}>{t("systemPrompts.notice")}</p>
+      {topbarHost && createPortal(controls, topbarHost)}
+      <p className={styles.notice}>{notice ?? t("systemPrompts.notice")}</p>
     </div>
   );
 }

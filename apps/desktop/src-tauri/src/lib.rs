@@ -311,6 +311,8 @@ pub fn run() {
             codex_gui::model_settings::codex_gui_set_model_settings,
             codex_gui::auto_switch_settings::codex_gui_auto_switch_settings,
             codex_gui::auto_switch_settings::codex_gui_set_auto_switch_settings,
+            local_proxy::gui_system_prompts::codex_gui_system_prompt_settings,
+            local_proxy::gui_system_prompts::codex_gui_set_system_prompt_settings,
             gui_terminal::codex_gui_terminal_open,
             gui_terminal::codex_gui_terminal_command,
             remote_chat::remote_chat_attach,

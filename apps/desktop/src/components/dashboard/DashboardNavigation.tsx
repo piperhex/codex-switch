@@ -4,7 +4,6 @@ import {
   ClipboardList,
   FolderOpen,
   FileSliders,
-  MessageSquareText,
   PackageOpen,
   Palette,
   Server,
@@ -52,7 +51,6 @@ const LOG_DIAGNOSTICS_ITEM = {
 const TOTP_ITEM = { page: "totp", icon: ShieldCheck, labelKey: "totp.action" } as const;
 
 const TOOLBOX_NAVIGATION_ITEMS = [
-  { page: "systemPrompts", icon: MessageSquareText, labelKey: "nav.systemPrompts" },
   { page: "claudeCode", icon: Bot, labelKey: "nav.claudeCode" },
   { page: "tokens", icon: BarChart3, labelKey: "nav.tokenUsage" },
   { page: "dreamSkin", icon: Palette, labelKey: "nav.dreamSkin" },
@@ -60,7 +58,8 @@ const TOOLBOX_NAVIGATION_ITEMS = [
 ] as const;
 
 export function isToolboxPage(page: DashboardPage) {
-  return page === "logDiagnostics" || page === "totp" || TOOLBOX_NAVIGATION_ITEMS.some((item) => item.page === page);
+  return page === "systemPrompts" || page === "logDiagnostics" || page === "totp"
+    || TOOLBOX_NAVIGATION_ITEMS.some((item) => item.page === page);
 }
 
 export function DashboardNavigation({

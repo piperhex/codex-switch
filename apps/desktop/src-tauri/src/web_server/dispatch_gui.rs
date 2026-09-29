@@ -38,6 +38,14 @@ fn dispatch_gui_command(app: AppHandle, command: &str, args: Value) -> Result<Va
         "codex_gui_set_auto_switch_settings" => serialize(block_on(
             codex_gui::auto_switch_settings::codex_gui_set_auto_switch_settings(app, argument(&args, "settings")?),
         )),
+        "codex_gui_system_prompt_settings" => serialize(block_on(
+            crate::local_proxy::gui_system_prompts::codex_gui_system_prompt_settings(app),
+        )),
+        "codex_gui_set_system_prompt_settings" => serialize(block_on(
+            crate::local_proxy::gui_system_prompts::codex_gui_set_system_prompt_settings(
+                app, argument(&args, "settings")?,
+            ),
+        )),
         "codex_gui_account_selection" => serialize(block_on(
             codex_gui::account_selection::codex_gui_account_selection(app),
         )),

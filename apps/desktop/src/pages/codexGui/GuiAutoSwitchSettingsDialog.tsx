@@ -12,6 +12,7 @@ import { GuiAccountUsage } from "./GuiAccountUsage";
 import { GuiAppearanceSettings } from "./GuiAppearanceSettings";
 import { GuiThemeSettings } from "./GuiThemeSettings";
 import { GuiSkinSettings } from "./GuiSkinSettings";
+import { GuiSystemPromptSettings } from "./GuiSystemPromptSettings";
 import styles from "./GuiAutoSwitchSettingsDialog.module.less";
 
 type SettingsEditor = ReturnType<typeof useGuiAutoSwitchSettings>;
@@ -154,6 +155,8 @@ export function GuiAutoSwitchSettingsDialog({ accounts, providers, privacyMode, 
         </>}
       </div> },
       { key: "appearance", label: "界面", disabled: editor.saving, children: <GuiAppearanceSettings /> },
+      { key: "systemPrompts", label: "系统提示词", disabled: editor.saving,
+        children: <GuiSystemPromptSettings /> },
       { key: "theme", label: "主题", disabled: editor.saving, children: <GuiThemeSettings /> },
       { key: "skin", label: "皮肤", disabled: editor.saving, children: tab === "skin" && <GuiSkinSettings /> },
     ]} />

@@ -40,7 +40,6 @@ function navigateItems(t: Translate): MenuProps["items"] {
     { key: "sessions", label: t("nav.sessions") },
     { key: "log-diagnostics", label: t("logDiagnostics.title") },
     { key: "totp", label: t("totp.action") },
-    { key: "system-prompts", label: t("nav.systemPrompts") },
     { type: "divider" },
     { key: "settings", label: t("nav.settings") },
   ];
@@ -59,6 +58,7 @@ function viewItems(t: Translate): MenuProps["items"] {
 
 function toolItems(t: Translate): MenuProps["items"] {
   return [
+    { key: "system-prompts", label: t("nav.systemPrompts") },
     { key: "refresh-all", label: t("actions.refreshAll") },
     { key: "refresh-reset-credits", label: t("actions.refreshResetCredits") },
     { key: "open-token-window", label: t("windowMenu.openTokenWindow") },
@@ -116,7 +116,7 @@ function searchItems(t: Translate, authenticated: boolean, desktopApp: boolean):
     item("log-diagnostics", t("logDiagnostics.title"), t("windowMenu.navigate")),
     item("totp", t("totp.action"), t("windowMenu.navigate")),
     item("proxy-sessions", t("nav.proxySessions"), t("windowMenu.navigate")),
-    item("system-prompts", t("nav.systemPrompts"), t("windowMenu.navigate")),
+    item("system-prompts", t("nav.systemPrompts"), t("windowMenu.tools")),
     item("settings", t("nav.settings"), t("windowMenu.navigate")),
     item("refresh-all", t("actions.refreshAll"), t("windowMenu.tools")),
     item("refresh-reset-credits", t("actions.refreshResetCredits"), t("windowMenu.tools")),

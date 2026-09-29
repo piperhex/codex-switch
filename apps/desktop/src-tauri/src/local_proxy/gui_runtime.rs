@@ -44,15 +44,6 @@ pub(crate) fn ensure_started<R: Runtime>(
 }
 
 fn start_listener<R: Runtime>(app: tauri::AppHandle<R>) -> Result<ProxyRuntime, GuiProxyError> {
-    let state = read_state(&resolve_paths(&app).map_err(|_| GuiProxyError::Unavailable)?);
-    set_system_prompt_filter_runtime_config(
-        state.system_prompt_filter_enabled,
-        state.system_prompt_filter_rules,
-    );
-    set_system_prompt_injection_runtime_config(
-        state.system_prompt_injection_enabled,
-        state.system_prompt_injection_prompts,
-    );
     let server =
         Arc::new(Server::http((LOCAL_PROXY_HOST, 0)).map_err(|_| GuiProxyError::Unavailable)?);
     let incoming = Arc::clone(&server);
