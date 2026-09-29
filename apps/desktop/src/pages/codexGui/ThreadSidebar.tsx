@@ -93,8 +93,8 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
           collapsed={views.collapsed.includes(key)} expanded={views.expanded.includes(key)}
           filtering={Boolean(state.search.trim())} onToggle={(field) => toggle(field, key)}
           projectPinned={state.pinnedProjects.includes(group.cwd)}
-          projectMenu={group.cwd ? <ProjectGroupMenu path={group.cwd} label={group.label}
-            state={state} controller={controller} /> : undefined}
+          projectMenu={group.cwd ? (heading) => <ProjectGroupMenu path={group.cwd} label={group.label}
+            state={state} controller={controller}>{heading}</ProjectGroupMenu> : undefined}
           creatingDisabled={state.sending} onNewConversation={group.cwd ? () => {
             onNavigate("conversation");
             controller.newConversation();

@@ -192,12 +192,13 @@
   :global(.ant-select) { width: 120px; } }
 .localLabel { font-size: calc(var(--gui-font-size, 14px) - 2px); color: var(--gui-muted); margin-left: auto; }
 .composer { border: 1px solid var(--gui-border); background: var(--panel); border-radius: 18px;
-  padding: 12px 12px 9px; box-shadow: 0 5px 25px #173c2810;
+  container: gui-composer / inline-size; padding: 12px 12px 9px; box-shadow: 0 5px 25px #173c2810;
   &:focus-within { border-color: var(--green); }
   textarea:global(.ant-input) { border: 0; background: transparent; resize: none; box-shadow: none;
     padding: 5px 8px 12px; font-size: var(--gui-font-size, 14px); } }
 .composerAttached { border-top-left-radius: 0; border-top-right-radius: 0; }
 .composerControls { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.composerSecondary { display: contents; }
 .modelControls { margin-left: auto; display: flex; gap: 8px; align-items: center;
   flex: 1 1 510px; justify-content: flex-end; min-width: 0; font-size: calc(var(--gui-font-size, 14px) - 2px);
   line-height: max(20px, 1.4em); }
@@ -250,7 +251,13 @@
   .messageContent { padding: 18px 14px; }
   .composerWrap, .questionWrap { padding-inline: 10px; }
   .composerWrap { padding-bottom: 10px; }
-  .modelControls { flex-basis: auto; flex-wrap: wrap; gap: 6px; }
   .localLabel { display: none; }
   .userMessage { max-width: 95%; }
+}
+
+// Respond to the space left by side panels, even when the window itself stays wide.
+@container gui-composer (max-width: 640px) {
+  .composerControls { flex-wrap: nowrap; }
+  .composerSecondary { display: none; }
+  .modelControls { flex-basis: 0; gap: 6px; }
 }

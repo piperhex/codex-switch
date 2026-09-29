@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useId, type ReactElement, type ReactNode } from "react";
 import { Tooltip } from "antd";
 import { ChevronRight, Folder, Pin, SquarePen } from "lucide-react";
 import type { Thread } from "./types";
@@ -15,7 +15,7 @@ interface ThreadGroupProps {
   filtering: boolean;
   creatingDisabled: boolean;
   onNewConversation?: () => void;
-  projectMenu?: ReactNode;
+  projectMenu?: (heading: ReactElement) => ReactNode;
   projectPinned?: boolean;
   onToggle: (field: "collapsed" | "expanded") => void;
   renderThread: (thread: Thread) => ReactNode;
@@ -27,18 +27,19 @@ export function ThreadGroup({ label, pinned, threads, selected, collapsed, expan
   const isCollapsed = collapsed && !filtering;
   const showAll = expanded || filtering;
   const Icon = pinned ? Pin : Folder;
+  const heading = <button type="button" className={styles.heading}
+    aria-expanded={!isCollapsed} aria-controls={contentId}
+    disabled={filtering} onClick={() => onToggle("collapsed")}>
+    <span className={styles.icon} aria-hidden="true">
+      <Icon size={14} className={styles.folder} />
+      <ChevronRight size={14} className={styles.arrow} />
+    </span>
+    <span className={styles.label}>{label}</span>
+    {projectPinned && <Pin size={12} className={styles.pin} aria-label="已置顶" />}
+  </button>;
   return <section className={styles.group} aria-label={label}>
     <div className={styles.header}>
-      <button type="button" className={styles.heading} aria-expanded={!isCollapsed} aria-controls={contentId}
-        disabled={filtering} onClick={() => onToggle("collapsed")}>
-        <span className={styles.icon} aria-hidden="true">
-          <Icon size={14} className={styles.folder} />
-          <ChevronRight size={14} className={styles.arrow} />
-        </span>
-        <span className={styles.label}>{label}</span>
-        {projectPinned && <Pin size={12} className={styles.pin} aria-label="已置顶" />}
-      </button>
-      {projectMenu}
+      {projectMenu ? projectMenu(heading) : heading}
       {onNewConversation && <Tooltip title="新建对话" overlayStyle={{ maxWidth: 400 }}>
         <button type="button" className={styles.add} aria-label={`在 ${label} 中新建对话`}
           disabled={creatingDisabled} onClick={onNewConversation}>

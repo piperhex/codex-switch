@@ -114,20 +114,24 @@ export const Composer = forwardRef<ComposerHandle, {
         <ComposerAddMenu cwd={project} active={active} disabled={disabled} anchor={composer}
           onFiles={() => setDialog("files")} onGoal={() => setDialog("goal")}
           onPlugin={(plugin) => addAttachments([plugin])} onSkill={(skill) => skillInput.current?.addSkill(skill)} />
-        <AccessPicker value={state.settings.access}
-          disabled={false} onChange={(access: AccessMode) => controller.settings({ access })} />
+        <div className={styles.composerSecondary}>
+          <AccessPicker value={state.settings.access}
+            disabled={false} onChange={(access: AccessMode) => controller.settings({ access })} />
+        </div>
         <div className={styles.modelControls}>
-          {(goalMode.enabled || goal) && <div className={extras.goalChip}>
-            <button type="button" onClick={() => goal && setDialog("goal")}
-              title={goal ? `${goal.objective}（${GOAL_STATUS[goal.status]}）` : "目标模式"}>
-              <Target size={14} /><span>目标</span></button>
-            <button type="button" aria-label="移除目标" disabled={disabled || Boolean(state.goalBusy)}
-              onClick={async () => {
-                if (goal && state.selected && !await controller.goals.clear(state.selected)) return;
-                goalMode.exit(); skillInput.current?.focus();
-              }}><X size={13} /></button>
-          </div>}
-          <UsageStatus active={active} threadId={state.selected} tokenUsage={current?.tokenUsage} />
+          <div className={styles.composerSecondary}>
+            {(goalMode.enabled || goal) && <div className={extras.goalChip}>
+              <button type="button" onClick={() => goal && setDialog("goal")}
+                title={goal ? `${goal.objective}（${GOAL_STATUS[goal.status]}）` : "目标模式"}>
+                <Target size={14} /><span>目标</span></button>
+              <button type="button" aria-label="移除目标" disabled={disabled || Boolean(state.goalBusy)}
+                onClick={async () => {
+                  if (goal && state.selected && !await controller.goals.clear(state.selected)) return;
+                  goalMode.exit(); skillInput.current?.focus();
+                }}><X size={13} /></button>
+            </div>}
+            <UsageStatus active={active} threadId={state.selected} tokenUsage={current?.tokenUsage} />
+          </div>
           <ModelPicker models={state.models} model={state.settings.model} effort={state.settings.effort}
             disabled={false} onChange={controller.settings} />
           <ComposerSubmit state={state} controller={controller}
