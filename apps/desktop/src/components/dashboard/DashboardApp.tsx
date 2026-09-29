@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ConfigProvider, Dropdown, Modal, theme as antdTheme } from "antd";
+import { Button, ConfigProvider, Dropdown, Modal, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import {
@@ -12,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
+  ShieldCheck,
   X,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -52,7 +53,7 @@ import { HelpModal } from "../modals/HelpModal";
 import { FeedbackModal } from "../modals/FeedbackModal";
 import { TokenUsageHeatmap } from "../TokenUsageHeatmap";
 import { TokenUsageDashboard } from "../TokenUsageDashboard";
-import { TotpWindowButton } from "../TotpWindowButton";
+import { TotpPage } from "../../pages/TotpPage";
 import { LogDiagnosticsPage, type LogDiagnosticsTab } from "../../pages/LogDiagnosticsPage";
 import logDiagnosticsStyles from "../../pages/LogDiagnosticsPage/index.module.less";
 import { CloudLoginModal } from "../modals/CloudLoginModal";
@@ -186,6 +187,7 @@ type SystemMenuAction =
   | "sessions"
   | "proxy-sessions"
   | "log-diagnostics"
+  | "totp"
   | "system-prompts"
   | "settings"
   | "refresh-all"
@@ -225,6 +227,7 @@ async function refreshProviderBalances(providers: Provider[]) {
 }
 
 function dashboardEyebrow(page: DashboardPage, t: Translate) {
+  if (page === "totp") return "AUTHENTICATOR";
   if (page === "codexConfig") return "CODEX / CONFIGURATION";
   if (page === "providers") return t("topbar.providersEyebrow");
   if (page === "skills") return t("topbar.skillsEyebrow");
@@ -238,6 +241,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
   accountCount: number;
   providerCount: number;
 }) {
+  if (page === "totp") return t("totp.title");
   if (page === "codexConfig") return t("nav.codexConfig");
   if (page === "settings") return t("topbar.settings");
   if (page === "skills") return t("topbar.skills");
@@ -996,6 +1000,9 @@ export function DashboardApp() {
       case "proxy-sessions":
         openProxySessions();
         break;
+      case "totp":
+        setPage("totp");
+        break;
       case "log-diagnostics":
         setPage("logDiagnostics");
         break;
@@ -1194,7 +1201,8 @@ export function DashboardApp() {
           outputTarget={providerManager.localProxy.imageOutputTarget}
           busy={providerManager.proxyBusy} onChange={providerManager.setProxyImageModel}
           privacyMode={privacyMode.enabled} t={t} />}
-        {!sidebarNavigationEnabled && <TotpWindowButton notify={notify} t={t} />}
+        {!sidebarNavigationEnabled && <Button className="refresh-all proxy-topbar-action" size="small"
+          icon={<ShieldCheck size={14} />} onClick={() => setPage("totp")}>{t("totp.action")}</Button>}
       </>} t={t} />
   );
   const menuTools = (
@@ -1254,8 +1262,7 @@ export function DashboardApp() {
               <span>Remote<br /><b>AI</b></span>
             </button>
             <DashboardNavigation collapsed={navigationStyle.sidebarCollapsed}
-              onPageChange={setPage} page={page} t={t} variant="sidebar"
-              sidebarTools={<TotpWindowButton notify={notify} t={t} variant="sidebar" />} />
+              onPageChange={setPage} page={page} t={t} variant="sidebar" />
           </aside>
         )}
         <header className="app-menu" hidden={sidebarNavigationEnabled && page === "codexGui"}>
@@ -1375,6 +1382,7 @@ export function DashboardApp() {
           </>
           )}
 
+          {page === "totp" && <TotpPage accounts={manager.accounts} manager={totpManager} t={t} />}
           {page === "logDiagnostics" && <LogDiagnosticsPage activeTab={diagnosticsTab}
             onTabChange={setDiagnosticsTab} language={language} t={t} />}
           <section className="page-panel" hidden={page !== "dreamSkin"}>

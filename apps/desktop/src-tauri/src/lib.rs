@@ -68,7 +68,6 @@ mod system_proxy;
 mod system_tray;
 mod third_party_apps;
 mod totp_qr;
-mod totp_window;
 mod web_server;
 mod web_session_login;
 #[cfg(target_os = "windows")]
@@ -252,14 +251,6 @@ pub fn run() {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.destroy();
-                }
-            }
-            if window.label() == totp_window::TOTP_WINDOW_LABEL {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    if let Err(error) = window.destroy() {
-                        eprintln!("failed to close 2FA window: {error}");
-                    }
                 }
             }
             if window.label() == web_session_login::WINDOW_LABEL {
@@ -495,7 +486,6 @@ pub fn run() {
             account_quota_history::list_account_quota_history,
             local_proxy::list_provider_token_usage,
             local_proxy::show_token_usage_window,
-            totp_window::show_totp_window,
             local_proxy::start_local_proxy,
             local_proxy::stop_local_proxy,
             local_proxy::stop_local_proxy_without_migrating,

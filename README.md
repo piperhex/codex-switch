@@ -1,5 +1,9 @@
 # Remote AI
 
+> [!IMPORTANT]
+> **Codex Switch 现已更名为 Remote AI。** 仓库也已由 `codex-switch` 迁至
+> [piperhex/remoteai](https://github.com/piperhex/remoteai)，欢迎更新收藏，继续关注后续版本。
+
 > For English documentation, please see [README_EN.md](README_EN.md).
 
 Remote AI 是一款面向 Codex / ChatGPT 用户的桌面工作台，集 Codex GUI 编程助手与多账号管理于一体。
@@ -18,7 +22,7 @@ QQ 技术交流群2：`972062132`。
 访问 [Codex Web](https://codex.onepiper.cloud/web/)，在浏览器中连接电脑使用 Codex。
 
 使用前，请先安装 [Remote AI PC 端](https://github.com/piperhex/remoteai/releases)，
-再打开 **Codex GUI**，按页面提示完成安装。
+进入 **首页**，按页面提示完成 Codex 安装。
 保持 PC 端运行并联网，在网页端登录与 PC 端相同的云端账号，即可连接电脑开始使用。
 
 ## 产品截图
@@ -66,6 +70,8 @@ Codex GUI 是内置的图形化对话工作区。选择项目后，用自然语�
 ![Remote AI 插件市场](docs/assets/codex-switch-skills.png)
 
 ### 2FA 验证码
+
+点击菜单中的 **2FA**，即可在主窗口右侧查看和管理验证码。
 
 ![Remote AI 2FA 验证码界面](docs/assets/codex-switch-two-factor.png)
 

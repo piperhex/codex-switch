@@ -10,9 +10,9 @@ import {
   Server,
   House,
   Settings,
+  ShieldCheck,
   UserRound,
 } from "lucide-react";
-import type { ReactNode } from "react";
 import type { Translate } from "../../i18n";
 
 export type DashboardPage =
@@ -27,13 +27,13 @@ export type DashboardPage =
   | "settings"
   | "codexConfig"
   | "logDiagnostics"
+  | "totp"
   | "claudeCode";
 
 interface DashboardNavigationProps {
   collapsed?: boolean;
   onPageChange: (page: DashboardPage) => void;
   page: DashboardPage;
-  sidebarTools?: ReactNode;
   t: Translate;
   variant?: "top" | "sidebar" | "toolbox";
 }
@@ -49,6 +49,8 @@ const LOG_DIAGNOSTICS_ITEM = {
   page: "logDiagnostics", icon: ClipboardList, labelKey: "logDiagnostics.title",
 } as const;
 
+const TOTP_ITEM = { page: "totp", icon: ShieldCheck, labelKey: "totp.action" } as const;
+
 const TOOLBOX_NAVIGATION_ITEMS = [
   { page: "systemPrompts", icon: MessageSquareText, labelKey: "nav.systemPrompts" },
   { page: "claudeCode", icon: Bot, labelKey: "nav.claudeCode" },
@@ -58,21 +60,20 @@ const TOOLBOX_NAVIGATION_ITEMS = [
 ] as const;
 
 export function isToolboxPage(page: DashboardPage) {
-  return page === "logDiagnostics" || TOOLBOX_NAVIGATION_ITEMS.some((item) => item.page === page);
+  return page === "logDiagnostics" || page === "totp" || TOOLBOX_NAVIGATION_ITEMS.some((item) => item.page === page);
 }
 
 export function DashboardNavigation({
   collapsed = false,
   onPageChange,
   page,
-  sidebarTools,
   t,
   variant = "top",
 }: DashboardNavigationProps) {
   const navigationButton = (item: typeof NAVIGATION_ITEMS[number] | typeof TOOLBOX_NAVIGATION_ITEMS[number] | {
-    page: "settings" | "codexConfig" | "logDiagnostics";
+    page: "settings" | "codexConfig" | "logDiagnostics" | "totp";
     icon: typeof Settings;
-    labelKey: "nav.settings" | "nav.codexConfig" | "logDiagnostics.title";
+    labelKey: "nav.settings" | "nav.codexConfig" | "logDiagnostics.title" | "totp.action";
   }) => {
     const Icon = item.icon;
     const label = t(item.labelKey);
@@ -92,10 +93,11 @@ export function DashboardNavigation({
       {variant !== "toolbox" && NAVIGATION_ITEMS.map(navigationButton)}
       {variant !== "top" && TOOLBOX_NAVIGATION_ITEMS.map(navigationButton)}
       {variant === "toolbox" && navigationButton(LOG_DIAGNOSTICS_ITEM)}
+      {variant === "toolbox" && navigationButton(TOTP_ITEM)}
       {variant === "sidebar" && (
         <div className="sidebar-nav-tools" data-tauri-drag-region>
           {navigationButton(LOG_DIAGNOSTICS_ITEM)}
-          {sidebarTools}
+          {navigationButton(TOTP_ITEM)}
           {navigationButton({ page: "codexConfig", icon: FileSliders, labelKey: "nav.codexConfig" })}
           {navigationButton({ page: "settings", icon: Settings, labelKey: "nav.settings" })}
         </div>

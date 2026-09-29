@@ -31,7 +31,6 @@ if (!currentWindowRoute && '__TAURI_INTERNALS__' in window) void refreshTokenCos
 if (import.meta.hot) import.meta.hot.dispose(stopPresetStorage);
 document.documentElement.classList.toggle("floating-usage-page", currentWindowRoute === "bubble");
 document.documentElement.classList.toggle("token-usage-page", currentWindowRoute === "token-usage");
-document.documentElement.classList.toggle("totp-window-page", currentWindowRoute === "totp");
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

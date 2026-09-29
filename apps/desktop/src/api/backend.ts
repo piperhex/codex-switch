@@ -1677,14 +1677,6 @@ export async function saveAutoResetSettings(settings: AutoResetSettings): Promis
   window.localStorage.setItem(AUTO_RESET_PREVIEW_KEY, JSON.stringify(settings));
 }
 
-export async function showTotpWindow(): Promise<void> {
-  if (!isDesktopApp) {
-    window.open(`${window.location.pathname}?cache=${Date.now()}#totp`, "_blank", "noopener,noreferrer");
-    return;
-  }
-  await invoke("show_totp_window");
-}
-
 export async function startLocalProxy(): Promise<LocalProxyStatus> {
   if (!hasLocalBackend) {
     if (!previewLocalProxyStatus().port) {

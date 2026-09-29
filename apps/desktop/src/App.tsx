@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { HostedWebApiKeyModal } from "./components/modals/HostedWebApiKeyModal";
 import { TokenUsageWindow } from "./components/TokenUsageWindow";
-import { TotpWindow } from "./components/TotpWindow";
 import { DashboardApp } from "./components/dashboard/DashboardApp";
 import { installCodexUsageCostSync } from "./utils/codexUsageCostSync";
 import { installWindowDragDismissal } from "./utils/windowDragDismissal";
@@ -31,6 +30,5 @@ export default function App() {
 function renderWindow(windowName: string) {
   if (windowName === "bubble") return <FloatingUsageBubble />;
   if (windowName === "token-usage") return <TokenUsageWindow />;
-  if (windowName === "totp") return <TotpWindow />;
   return <DashboardApp />;
 }

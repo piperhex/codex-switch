@@ -1,5 +1,9 @@
 # Remote AI
 
+> [!IMPORTANT]
+> **Codex Switch is now Remote AI.** The repository has moved from `codex-switch` to
+> [piperhex/remoteai](https://github.com/piperhex/remoteai). Update your bookmarks to follow future releases.
+
 > Chinese is the default documentation language. For the Chinese README, see [README.md](README.md).
 
 Remote AI is a desktop workspace for Codex / ChatGPT that brings together Codex GUI and multi-account management.
@@ -15,7 +19,7 @@ and mobile companion to manage accounts across devices.
 Open [Codex Web](https://codex.onepiper.cloud/web/) to connect to your computer and use Codex in your browser.
 
 Before using it, install the [Remote AI desktop app](https://github.com/piperhex/remoteai/releases),
-then open **Codex GUI** and follow the installation prompts.
+then open **Home** and follow the prompts to install Codex.
 Keep the desktop app running and your computer online. Sign in to the web app with the same cloud account
 as the desktop app, then connect to your computer to get started.
 
@@ -64,6 +68,8 @@ Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://gi
 ![Remote AI Plugin Market](docs/assets/codex-switch-skills.png)
 
 ### 2FA authenticator
+
+Select **2FA** in the menu to view and manage authentication codes in the main window's content area.
 
 ![Remote AI 2FA authenticator](docs/assets/codex-switch-two-factor.png)
 
