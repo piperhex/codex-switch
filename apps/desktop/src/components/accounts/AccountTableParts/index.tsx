@@ -4,14 +4,12 @@ import { CalendarClock, Check, Copy, Eye, EyeOff, Pencil, Settings, X } from "lu
 import type { Language, Translate } from "../../../i18n";
 import type {
   Account,
-  AccountTokenUsageTotals,
   ResetCreditsLoadState,
 } from "../../../types";
 import { formatCompactTokenCount } from "../../../utils/tokenContext";
 import { shouldShowUsageError } from "../../../utils/usageErrors";
 import {
   DailyTokenUsageTooltip,
-  EMPTY_TOKEN_TOTALS,
   type TokenTypeTotals,
 } from "../../DailyTokenUsageTooltip";
 import { ResetCreditsPanel } from "../ResetCreditsPanel";
@@ -90,15 +88,6 @@ export function CopyableAccountEmail({ email, displayEmail, t }: {
   );
 }
 
-export function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Account) {
-  const accountId = account.accountId?.trim();
-  const usageAccountId = usage.accountId?.trim();
-  if (accountId && usageAccountId && accountId === usageAccountId) return true;
-  const email = account.email.trim().toLowerCase();
-  const usageEmail = usage.accountEmail?.trim().toLowerCase();
-  return Boolean(email && usageEmail && email === usageEmail);
-}
-
 export function CompactDailyTokenChart({ totals, language }: {
   totals: TokenTypeTotals;
   language: Language;
@@ -122,10 +111,6 @@ export function CompactDailyTokenChart({ totals, language }: {
       </div>
     </Tooltip>
   );
-}
-
-export function totalsForAccount(totalsByAccount: Map<string, TokenTypeTotals>, account: Account) {
-  return totalsByAccount.get(account.id) ?? EMPTY_TOKEN_TOTALS;
 }
 
 export function canEditAccountMetadata(account: Account) {

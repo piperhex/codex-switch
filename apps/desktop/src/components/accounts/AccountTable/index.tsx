@@ -67,11 +67,7 @@ import {
   FAST_MODE_COST_MULTIPLIER_STORAGE_KEY,
 } from "../../../utils/tokenCostFastMode";
 import { LONG_CONTEXT_COST_EVENT, LONG_CONTEXT_COST_STORAGE_KEY } from "../../../utils/tokenCostLongContext";
-import {
-  DailyTokenUsageTooltip,
-  EMPTY_TOKEN_TOTALS,
-  type TokenTypeTotals,
-} from "../../DailyTokenUsageTooltip";
+import { DailyTokenUsageTooltip } from "../../DailyTokenUsageTooltip";
 import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../TokenCostUnitSettings";
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { AccountExpandedPanel } from "../AccountExpandedPanel";
@@ -82,7 +78,7 @@ import { AccountUseActionIcon } from "../AccountUseActionIcon";
 import { OfficialContextSettings } from "../OfficialContextSettings";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
 import { canReceiveConcurrentConversation } from "../concurrentAccountEligibility";
-import { getAccountCardTokenUsage } from "../accountCardUsage";
+import { createAccountTokenUsageLookup } from "../accountCardUsage";
 import { getSwitchableAccounts } from "../accountSelectors";
 import { confirmOfficialAuthAccountChange } from "../confirmOfficialAuthAccountChange";
 import styles from "./index.module.less";
@@ -99,8 +95,6 @@ import {
   needsAccountAttention,
   resetCreditsCount,
   ResetCreditsModal,
-  tokenUsageMatchesAccount,
-  totalsForAccount,
 } from "../AccountTableParts";
 
 interface AccountTableProps {
@@ -417,6 +411,8 @@ export function AccountTable({
   const modelContextWindow = useGpt56SolContextWindow();
   const [tableScrollY, setTableScrollY] = useState(0);
   const [accountTokenUsage, setAccountTokenUsage] = useState<AccountTokenUsageTotals[]>([]);
+  const accountUsageRefreshing = useRef(false);
+  const refreshCurrentAccountUsage = useRef<(() => void) | null>(null);
   const [accountConversationCounts, setAccountConversationCounts] = useState<Record<string, number>>({});
   const tokenCostDisplay = useTokenCostDisplaySettings();
   const [cardTopbarHost, setCardTopbarHost] = useState<HTMLElement | null>(null);
@@ -462,15 +458,12 @@ export function AccountTable({
     return () => document.removeEventListener("pointerdown", closeContextMenu);
   }, []);
   useEffect(() => {
-    if (!hotSwitchEnabled) {
-      setAccountTokenUsage([]);
-      return undefined;
-    }
-    let active = true;
-    let refreshing = false;
+    // Persisted usage remains available while proxy status is loading or the proxy is stopped.
+    if (!active) return undefined;
+    let mounted = true;
     const refresh = async () => {
-      if (refreshing) return;
-      refreshing = true;
+      if (!mounted || accountUsageRefreshing.current) return;
+      accountUsageRefreshing.current = true;
       try {
         const today = new Date();
         const startTs = new Date(
@@ -479,13 +472,16 @@ export function AccountTable({
           today.getDate(),
         ).getTime() / 1_000;
         const totals = await loadAccountTokenUsage(startTs, providers);
-        if (active) setAccountTokenUsage(totals);
+        if (mounted) setAccountTokenUsage(totals);
       } catch {
         // Keep the last successful totals; quota rendering must not fail with token statistics.
       } finally {
-        refreshing = false;
+        accountUsageRefreshing.current = false;
+        // If pricing or visibility changed mid-request, refresh with the latest inputs after it settles.
+        if (!mounted) refreshCurrentAccountUsage.current?.();
       }
     };
+    refreshCurrentAccountUsage.current = () => void refresh();
     void refresh();
     const timer = window.setInterval(() => void refresh(), Math.max(1, tokenUsageRefreshSeconds) * 1000);
     const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
@@ -502,7 +498,8 @@ export function AccountTable({
     window.addEventListener(LONG_CONTEXT_COST_EVENT, refresh);
     window.addEventListener("storage", refreshStoredMultiplier);
     return () => {
-      active = false;
+      mounted = false;
+      refreshCurrentAccountUsage.current = null;
       window.clearInterval(timer);
       unsubscribe();
       window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
@@ -511,7 +508,7 @@ export function AccountTable({
       window.removeEventListener(LONG_CONTEXT_COST_EVENT, refresh);
       window.removeEventListener("storage", refreshStoredMultiplier);
     };
-  }, [hotSwitchEnabled, providers, tokenUsageRefreshSeconds]);
+  }, [active, providers, tokenUsageRefreshSeconds]);
   useEffect(() => {
     if (!concurrentRoutingActive) {
       setAccountConversationCounts({});
@@ -562,21 +559,10 @@ export function AccountTable({
   const customThresholdActive = hotSwitchEnabled
     && autoSwitchOnQuotaExhaustion
     && customAutoSwitchThresholdEnabled;
-  const todayTokenTotalsByAccount = useMemo(() => {
-    const totals = new Map<string, TokenTypeTotals>();
-    accountTokenUsage.forEach((usage) => {
-      const account = accounts.find((candidate) => tokenUsageMatchesAccount(usage, candidate));
-      if (!account) return;
-      const current = totals.get(account.id) ?? { ...EMPTY_TOKEN_TOTALS };
-      current.total += usage.totalTokens;
-      current.input += usage.inputTokens;
-      current.output += usage.outputTokens;
-      current.reasoning += usage.reasoningTokens;
-      current.cached += usage.cachedTokens;
-      totals.set(account.id, current);
-    });
-    return totals;
-  }, [accountTokenUsage, accounts]);
+  const usageForAccount = useMemo(
+    () => createAccountTokenUsageLookup(accounts, accountTokenUsage),
+    [accounts, accountTokenUsage],
+  );
   const orderedAccounts = useMemo(() => [...accounts].sort(
     (left, right) => Number(needsAccountAttention(left, hotSwitchEnabled, showUsageNetworkErrors))
       - Number(needsAccountAttention(right, hotSwitchEnabled, showUsageNetworkErrors)),
@@ -750,15 +736,9 @@ export function AccountTable({
       title: t("table.tokenTotals"), key: "tokenTotals", width: 92, align: "center" as const,
       render: (_: unknown, account: Account) => (
         <div className="account-token-chart-cell">
-          {hotSwitchEnabled ? (
-            <CompactDailyTokenChart
-              totals={totalsForAccount(todayTokenTotalsByAccount, account)}
-              language={language} />
-          ) : (
-            <Tooltip title={t("table.tokenTotalsProxyOnly")}>
-              <span className="account-token-chart-unavailable">--</span>
-            </Tooltip>
-          )}
+          <CompactDailyTokenChart
+            totals={usageForAccount(account).totals}
+            language={language} />
         </div>
       ),
     },
@@ -767,11 +747,11 @@ export function AccountTable({
         settings={tokenCostDisplay} providers={providers} t={t} />,
       key: "estimatedCost", width: 145, align: "center" as const,
       render: (_: unknown, account: Account) => {
-        const usage = accountTokenUsage.find((item) => tokenUsageMatchesAccount(item, account));
+        const usage = usageForAccount(account);
         return <Tooltip title={t("table.estimatedTokenCostHint", { unit: tokenCostDisplay.unit })}
           styles={{ root: { maxWidth: 400 } }}>
           <strong className={`account-token-cost${fastModeEnabled ? " token-cost-burning" : ""}`}>
-            {formatEstimatedCost(usage?.estimatedCost ?? 0, tokenCostDisplay)}
+            {formatEstimatedCost(usage.estimatedCost, tokenCostDisplay)}
           </strong>
         </Tooltip>;
       },
@@ -1247,11 +1227,7 @@ export function AccountTable({
       {orderedAccounts.map((account) => {
         const waiting = busyAccountId === account.id;
         const isDisabled = isAccountDisabled(account, hotSwitchEnabled);
-        const cardTokenUsage = getAccountCardTokenUsage(
-          account,
-          todayTokenTotalsByAccount,
-          accountTokenUsage,
-        );
+        const cardTokenUsage = usageForAccount(account);
         const switchBlocked = hotSwitchEnabled
           ? !account.localProxyCompatible
           : !account.directSwitchCompatible;
@@ -1344,20 +1320,14 @@ export function AccountTable({
             </div>
             {cardTokenUsage && (
               <footer className="account-card-token-footer">
-                {hotSwitchEnabled ? (
-                  <Tooltip title={<DailyTokenUsageTooltip totals={cardTokenUsage.totals} language={language} />}
-                    placement="topLeft" styles={{ root: { maxWidth: 400 } }}>
-                    <span className="account-card-token-summary" aria-label={t("table.tokenTotals")}>
-                      {t("tokenUsage.dayTotal", {
-                        tokens: formatCompactTokenCount(cardTokenUsage.totals.total, language),
-                      })}
-                    </span>
-                  </Tooltip>
-                ) : (
-                  <Tooltip title={t("table.tokenTotalsProxyOnly")}>
-                    <span className="account-card-token-summary unavailable">--</span>
-                  </Tooltip>
-                )}
+                <Tooltip title={<DailyTokenUsageTooltip totals={cardTokenUsage.totals} language={language} />}
+                  placement="topLeft" styles={{ root: { maxWidth: 400 } }}>
+                  <span className="account-card-token-summary" aria-label={t("table.tokenTotals")}>
+                    {t("tokenUsage.dayTotal", {
+                      tokens: formatCompactTokenCount(cardTokenUsage.totals.total, language),
+                    })}
+                  </span>
+                </Tooltip>
                 <Tooltip title={t("table.estimatedTokenCostHint", { unit: tokenCostDisplay.unit })}
                   styles={{ root: { maxWidth: 400 } }}>
                   <span className="account-card-token-cost">

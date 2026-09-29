@@ -1519,48 +1519,33 @@ export async function loadAccountTokenUsage(
   providers: Provider[] = [],
 ): Promise<AccountTokenUsageTotals[]> {
   const entries = await loadTokenUsageEntries(startTs);
-  const costs = new Map<string, number>();
-  entries.filter((entry) => entry.ts >= startTs && (entry.accountId || entry.accountEmail)).forEach((entry) => {
-    const key = entry.accountId
-      ? `id:${entry.accountId}`
-      : `email:${entry.accountEmail?.trim().toLowerCase()}`;
-    costs.set(key, (costs.get(key) ?? 0) + estimateTokenCost(entry, providers));
-  });
-  if (!hasLocalBackend) {
-    const totals = new Map<string, AccountTokenUsageTotals>();
-    for (const entry of entries) {
-      if (entry.ts < startTs || (!entry.accountId && !entry.accountEmail)) continue;
-      const key = entry.accountId
-        ? `id:${entry.accountId}`
-        : `email:${entry.accountEmail?.trim().toLowerCase()}`;
-      const current = totals.get(key) ?? {
-        accountId: entry.accountId,
-        accountEmail: entry.accountEmail,
-        totalTokens: 0,
-        inputTokens: 0,
-        outputTokens: 0,
-        reasoningTokens: 0,
-        cachedTokens: 0,
-        estimatedCost: 0,
-      };
-      current.totalTokens += entry.totalTokens
-        ?? (entry.inputTokens ?? 0) + (entry.outputTokens ?? 0);
-      current.inputTokens += entry.inputTokens ?? 0;
-      current.outputTokens += entry.outputTokens ?? 0;
-      current.reasoningTokens += entry.reasoningTokens ?? 0;
-      current.cachedTokens += entry.cachedTokens ?? 0;
-      current.estimatedCost += estimateTokenCost(entry, providers);
-      totals.set(key, current);
-    }
-    return [...totals.values()];
+  // Use one snapshot for counts and cost, including older rows with missing account metadata.
+  const totals = new Map<string, AccountTokenUsageTotals>();
+  for (const entry of entries) {
+    if (entry.ts < startTs || (!entry.accountId && !entry.accountEmail)) continue;
+    const key = JSON.stringify([
+      entry.accountId?.trim() || null,
+      entry.accountEmail?.trim().toLowerCase() || null,
+    ]);
+    const current = totals.get(key) ?? {
+      accountId: entry.accountId,
+      accountEmail: entry.accountEmail,
+      totalTokens: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      cachedTokens: 0,
+      estimatedCost: 0,
+    };
+    current.totalTokens += entry.totalTokens ?? (entry.inputTokens ?? 0) + (entry.outputTokens ?? 0);
+    current.inputTokens += entry.inputTokens ?? 0;
+    current.outputTokens += entry.outputTokens ?? 0;
+    current.reasoningTokens += entry.reasoningTokens ?? 0;
+    current.cachedTokens += entry.cachedTokens ?? 0;
+    current.estimatedCost += estimateTokenCost(entry, providers);
+    totals.set(key, current);
   }
-  const totals = await invoke<AccountTokenUsageTotals[]>("list_account_token_usage", { startTs });
-  return totals.map((total) => ({
-    ...total,
-    estimatedCost: costs.get(total.accountId
-      ? `id:${total.accountId}`
-      : `email:${total.accountEmail?.trim().toLowerCase()}`) ?? 0,
-  }));
+  return [...totals.values()];
 }
 
 export async function loadProviderTokenUsage(
