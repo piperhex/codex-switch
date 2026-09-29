@@ -20,7 +20,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tauri::{Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, Runtime, WebviewUrl};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 

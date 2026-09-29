@@ -70,6 +70,7 @@ mod third_party_apps;
 mod totp_qr;
 mod web_server;
 mod web_session_login;
+mod webview_windows;
 #[cfg(target_os = "windows")]
 mod windows_client_processes;
 

@@ -569,7 +569,7 @@ pub(crate) async fn show_token_usage_window<R: Runtime>(
         let _ = window.destroy();
     }
 
-    WebviewWindowBuilder::new(&app, TOKEN_USAGE_WINDOW_LABEL, token_usage_window_url())
+    crate::webview_windows::builder(&app, TOKEN_USAGE_WINDOW_LABEL, token_usage_window_url())
         .title("Token Usage")
         .inner_size(1180.0, 780.0)
         .min_inner_size(900.0, 620.0)

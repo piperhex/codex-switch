@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use rand::RngCore;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tauri::{Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, Runtime, WebviewUrl};
 use url::Url;
 
 use crate::{auth::decode_jwt, oauth::emit_login, storage::import_value};
@@ -294,7 +294,7 @@ pub(crate) async fn start_web_session_login<R: Runtime + 'static>(
     let completed = Arc::new(AtomicBool::new(false));
     let navigation_completed = completed.clone();
     let navigation_app = app.clone();
-    let window = WebviewWindowBuilder::new(&app, WINDOW_LABEL, WebviewUrl::External(url))
+    let window = crate::webview_windows::builder(&app, WINDOW_LABEL, WebviewUrl::External(url))
         .title("ChatGPT 网页登录 - Remote AI")
         .inner_size(560.0, 760.0)
         .min_inner_size(420.0, 620.0)

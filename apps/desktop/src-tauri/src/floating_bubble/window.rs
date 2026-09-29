@@ -1,6 +1,5 @@
 use tauri::{
     webview::Color, AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Runtime, WebviewUrl,
-    WebviewWindowBuilder,
 };
 
 use crate::{
@@ -35,7 +34,7 @@ fn create<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) -> Result<(), 
     }
 
     let (x, y) = restored_or_default_position(app, settings);
-    WebviewWindowBuilder::new(
+    crate::webview_windows::builder(
         app,
         BUBBLE_LABEL,
         WebviewUrl::App("index.html#bubble".into()),

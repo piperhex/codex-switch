@@ -53,7 +53,7 @@ pub(crate) async fn show<R: Runtime>(
 }
 
 fn create_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
-    let builder = tauri::WebviewWindowBuilder::new(
+    let builder = crate::webview_windows::builder(
         app,
         LABEL,
         tauri::WebviewUrl::App("quick-menu.html#quick-menu".into()),

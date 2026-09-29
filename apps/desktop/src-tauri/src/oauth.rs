@@ -13,7 +13,7 @@ use rand::RngCore;
 use reqwest::blocking::Client;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tauri::{Emitter, Manager, Runtime, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, Runtime, State, WebviewUrl};
 use tauri_plugin_opener::OpenerExt;
 use tiny_http::{Header, Request, Response as HttpResponse, Server, StatusCode};
 
@@ -177,7 +177,7 @@ fn open_embedded_login_window<R: Runtime + 'static>(
                 .unwrap_or_else(|_| "\"about:blank\"".to_string());
             let redirect_script =
                 format!("window.setTimeout(() => window.location.replace({redirect_target}), 50);");
-            let window = WebviewWindowBuilder::new(
+            let window = crate::webview_windows::builder(
                 &window_app,
                 "codex-login",
                 WebviewUrl::App("login.html".into()),
