@@ -151,7 +151,7 @@ export function ProvidersPage({
     return () => window.clearInterval(timer);
   }, [active, activeAggregateId, onRefreshAggregateApis]);
 
-  const usageForProvider = useProviderTokenUsage(tokenUsageRefreshSeconds, providers);
+  const usageForProvider = useProviderTokenUsage(tokenUsageRefreshSeconds, providers, active);
 
   const openCreate = () => {
     setEditingProvider(null);
@@ -242,7 +242,7 @@ export function ProvidersPage({
   return (
     <>
       {topbarHost && createPortal(
-        <Space size={6}>
+        <Space size={[8, 8]} wrap>
           <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
             onAddProvider={openCreate} t={t} />
           <Button className="provider-topbar-button" icon={<Network size={14} />}

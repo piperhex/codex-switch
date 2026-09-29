@@ -1,12 +1,10 @@
 import {
   BarChart3,
-  Bot,
   ClipboardList,
   FolderOpen,
   FileSliders,
   PackageOpen,
   Palette,
-  Server,
   SquareTerminal,
   Settings,
   ShieldCheck,
@@ -29,6 +27,12 @@ export type DashboardPage =
   | "totp"
   | "claudeCode";
 
+export type AccountManagementPage = "accounts" | "providers" | "claudeCode";
+
+export function isAccountManagementPage(page: DashboardPage): page is AccountManagementPage {
+  return page === "accounts" || page === "providers" || page === "claudeCode";
+}
+
 interface DashboardNavigationProps {
   collapsed?: boolean;
   onPageChange: (page: DashboardPage) => void;
@@ -41,7 +45,6 @@ const NAVIGATION_ITEMS = [
   { page: "codexGui", icon: SquareTerminal, labelKey: "nav.codexGui" },
   { page: "accounts", icon: UserRound, labelKey: "nav.accounts" },
   { page: "sessions", icon: FolderOpen, labelKey: "nav.sessions" },
-  { page: "providers", icon: Server, labelKey: "nav.providers" },
 ] as const;
 
 const LOG_DIAGNOSTICS_ITEM = {
@@ -51,7 +54,6 @@ const LOG_DIAGNOSTICS_ITEM = {
 const TOTP_ITEM = { page: "totp", icon: ShieldCheck, labelKey: "totp.action" } as const;
 
 const TOOLBOX_NAVIGATION_ITEMS = [
-  { page: "claudeCode", icon: Bot, labelKey: "nav.claudeCode" },
   { page: "tokens", icon: BarChart3, labelKey: "nav.tokenUsage" },
   { page: "dreamSkin", icon: Palette, labelKey: "nav.dreamSkin" },
   { page: "skills", icon: PackageOpen, labelKey: "nav.skills" },
@@ -76,11 +78,12 @@ export function DashboardNavigation({
   }) => {
     const Icon = item.icon;
     const label = t(item.labelKey);
+    const selected = page === item.page || (isAccountManagementPage(page) && item.page === "accounts");
     return (
-      <button key={item.page} type="button" className={page === item.page ? "selected" : ""}
-        aria-current={page === item.page ? "page" : undefined}
+      <button key={item.page} type="button" className={selected ? "selected" : ""}
+        aria-current={selected ? "page" : undefined}
         aria-label={collapsed ? label : undefined} title={collapsed ? label : undefined}
-        onClick={() => onPageChange(item.page)}>
+        onClick={() => onPageChange(selected ? page : item.page)}>
         <Icon size={19} /><span>{label}</span>
       </button>
     );

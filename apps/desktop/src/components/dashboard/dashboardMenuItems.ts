@@ -30,9 +30,11 @@ function fileItems(t: Translate, desktopApp: boolean): MenuProps["items"] {
 function navigateItems(t: Translate): MenuProps["items"] {
   return [
     { key: "codex-gui", label: t("nav.codexGui") },
-    { key: "accounts", label: t("nav.accounts") },
-    { key: "providers", label: t("nav.providers") },
-    { key: "claude-code", label: t("nav.claudeCode") },
+    { key: "account-management", label: t("nav.accounts"), children: [
+      { key: "accounts", label: t("accounts.officialTab") },
+      { key: "providers", label: t("nav.providers") },
+      { key: "claude-code", label: t("nav.claudeCode") },
+    ] },
     { key: "token-usage", label: t("nav.tokenUsage") },
     { type: "divider" },
     { key: "dream-skin", label: t("nav.dreamSkin") },

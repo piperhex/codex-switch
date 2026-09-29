@@ -72,7 +72,7 @@ import { DashboardMenuTools } from "./DashboardMenuTools";
 import { DashboardTopbar } from "./DashboardTopbar";
 import { ProxyProgressModal } from "./ProxyProgressModal";
 import { buildDashboardMenuItems } from "./dashboardMenuItems";
-import { DashboardNavigation, type DashboardPage } from "./DashboardNavigation";
+import { DashboardNavigation, isAccountManagementPage, type DashboardPage } from "./DashboardNavigation";
 import { useAccountManager } from "../../hooks/useAccountManager";
 import { useAppUpdate } from "../../hooks/useAppUpdate";
 import { useAccountAutoRefresh, useAutoRefresh } from "../../hooks/useAutoRefresh";
@@ -119,7 +119,7 @@ import { SystemPromptPage } from "../../pages/SystemPromptPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
 import type { Translate } from "../../i18n";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
-import { AccountTopbarActions } from "./AccountTopbarActions";
+import { AccountManagementToolbar } from "./AccountManagementToolbar";
 import { AccountToolbox } from "./AccountToolbox";
 import { AccountImageModelButton } from "./AccountImageModelButton";
 import { CodexConfigRepairButton } from "./CodexConfigRepairButton";
@@ -1185,25 +1185,23 @@ export function DashboardApp() {
     <ProxyTopbarActions manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
       onOpenSessions={openProxySessions} t={t} />
   );
-  const accountProxyTopbarActions = (
-    <ProxyTopbarActions manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
-      onOpenSessions={openProxySessions}
-      trailingAction={<>
-        {managedAccountGroups.length > 0 && <AccountGroupManager accounts={manager.accounts}
-          concurrentGroup={providerManager.localProxy?.concurrentAccountGroup ?? null}
-          concurrentRoutingEnabled={providerManager.localProxy?.concurrentAccountRoutingEnabled ?? false}
-          groups={managedAccountGroups} onChangeMany={manager.changeAccountGroups}
-          onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
-          onGroupsChange={saveAccountGroups} t={t} />}
-        {providerManager.localProxy?.running && <AccountImageModelButton accounts={manager.accounts}
-          providers={providerManager.providers}
-          inputTarget={providerManager.localProxy.imageInputTarget}
-          outputTarget={providerManager.localProxy.imageOutputTarget}
-          busy={providerManager.proxyBusy} onChange={providerManager.setProxyImageModel}
-          privacyMode={privacyMode.enabled} t={t} />}
-        {!sidebarNavigationEnabled && <Button className="refresh-all proxy-topbar-action" size="small"
-          icon={<ShieldCheck size={14} />} onClick={() => setPage("totp")}>{t("totp.action")}</Button>}
-      </>} t={t} />
+  const officialAccountActions = (
+    <>
+      {managedAccountGroups.length > 0 && <AccountGroupManager accounts={manager.accounts}
+        concurrentGroup={providerManager.localProxy?.concurrentAccountGroup ?? null}
+        concurrentRoutingEnabled={providerManager.localProxy?.concurrentAccountRoutingEnabled ?? false}
+        groups={managedAccountGroups} onChangeMany={manager.changeAccountGroups}
+        onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
+        onGroupsChange={saveAccountGroups} t={t} />}
+      {providerManager.localProxy?.running && <AccountImageModelButton accounts={manager.accounts}
+        providers={providerManager.providers}
+        inputTarget={providerManager.localProxy.imageInputTarget}
+        outputTarget={providerManager.localProxy.imageOutputTarget}
+        busy={providerManager.proxyBusy} onChange={providerManager.setProxyImageModel}
+        privacyMode={privacyMode.enabled} t={t} />}
+      {!sidebarNavigationEnabled && <Button className="refresh-all proxy-topbar-action" size="small"
+        icon={<ShieldCheck size={14} />} onClick={() => setPage("totp")}>{t("totp.action")}</Button>}
+    </>
   );
   const menuTools = (
     <DashboardMenuTools actions={{
@@ -1280,8 +1278,8 @@ export function DashboardApp() {
           {!sidebarNavigationEnabled && (
             <DashboardNavigation onPageChange={setPage} page={page} t={t} />
           )}
-          {(!sidebarNavigationEnabled || page === "accounts" || page === "providers") && <AccountToolbox t={t}
-            onSystemPrompts={page === "accounts" || page === "providers" ? () => setPage("systemPrompts") : undefined}
+          {(!sidebarNavigationEnabled || isAccountManagementPage(page)) && <AccountToolbox t={t}
+            onSystemPrompts={isAccountManagementPage(page) ? () => setPage("systemPrompts") : undefined}
             navigation={sidebarNavigationEnabled ? undefined : { page, onPageChange: setPage }}>
             {(page === "accounts" || page === "providers") && <>
             <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
@@ -1305,20 +1303,29 @@ export function DashboardApp() {
               : page === "codexConfig" ? codexConfigStyles.main : undefined}>
           {page !== "tokens" && page !== "dreamSkin" && page !== "codexGui" && page !== "logDiagnostics" && (
           <>
-          <header data-tauri-drag-region className={`topbar${
-            page === "accounts" || page === "providers" ? " account-view-topbar" : ""
-          }${
-            page === "accounts" && providerManager.localProxy?.running ? " accounts-topbar" : ""
-          }${page === "settings" ? " settings-topbar" : ""}${
+          {isAccountManagementPage(page) ? (
+            <AccountManagementToolbar section={page} onSectionChange={setPage} t={t}
+              summary={providerManager.localProxy?.running && (
+                <TokenUsageHeatmap weeks={tokenUsagePreferences.weeks}
+                  refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t}
+                  providers={providerManager.providers} />
+              )}
+              sharedActions={page !== "claudeCode" && <>{chatGptActionMenu}{proxyTopbarActions}</>}>
+              {page === "accounts" && <>
+                <button type="button" className="primary-button" onClick={openLogin}>
+                  <Plus size={18} />{t("actions.addAccount")}
+                </button>
+                {refreshActionMenu}
+                {officialAccountActions}
+              </>}
+              {page === "providers" && <div id="provider-topbar-actions" className="provider-topbar-action-slot" />}
+              {page === "claudeCode" && <div id="third-party-apps-topbar-actions" />}
+            </AccountManagementToolbar>
+          ) : (
+          <header data-tauri-drag-region className={`topbar${page === "settings" ? " settings-topbar" : ""}${
             page === "codexConfig" ? ` ${codexConfigStyles.topbar}` : ""
           }`}>
-            {page === "accounts" && providerManager.localProxy?.running ? (
-              <TokenUsageHeatmap weeks={tokenUsagePreferences.weeks}
-                refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t}
-                providers={providerManager.providers} />
-            ) : (
-              <div className={page === "accounts" ? "accounts-heading"
-                : page === "skills" ? "skills-market-heading"
+              <div className={page === "skills" ? "skills-market-heading"
                 : page === "settings" ? "settings-heading"
                 : page === "codexConfig" ? codexConfigStyles.heading : undefined}>
                 <span className="eyebrow">{dashboardEyebrow(page, t)}</span>
@@ -1335,24 +1342,6 @@ export function DashboardApp() {
                   </p>}
                 </div>
               </div>
-            )}
-            {page === "accounts" && (
-              <AccountTopbarActions>
-                <button className="primary-button" onClick={openLogin}>
-                  <Plus size={18} />{t("actions.addAccount")}
-                </button>
-                {refreshActionMenu}
-                {chatGptActionMenu}
-                {accountProxyTopbarActions}
-              </AccountTopbarActions>
-            )}
-            {page === "providers" && (
-              <div className="topbar-actions">
-                <div id="provider-topbar-actions" className="provider-topbar-action-slot" />
-                {chatGptActionMenu}
-                {proxyTopbarActions}
-              </div>
-            )}
             {page === "settings" && (
               <div className="topbar-actions">
                 <button type="button" className="refresh-all settings-help-button" onClick={openHelp}>
@@ -1370,11 +1359,8 @@ export function DashboardApp() {
             {page === "systemPrompts" && (
               <div id="system-prompt-topbar-actions" className="topbar-actions" />
             )}
-            {page === "claudeCode" && (
-              <div id="third-party-apps-topbar-actions"
-                className="topbar-actions third-party-apps-topbar-actions" />
-            )}
           </header>
+          )}
           {page === "accounts" && accountDisplayMode.displayMode === "cards" && (
             <div className="account-card-toolbar-row">
               <div id="account-card-topbar-controls" className="account-card-topbar-controls" />
@@ -1389,7 +1375,8 @@ export function DashboardApp() {
           <section className="page-panel" hidden={page !== "dreamSkin"}>
             {page === "dreamSkin" && <MemoDreamSkinPage t={t} notify={notify} />}
           </section>
-          <section className="page-panel" hidden={page !== "claudeCode"}>
+          <section id="account-panel-claudeCode" className="page-panel third-party-apps-page-panel"
+            role="tabpanel" aria-labelledby="account-section-claudeCode" hidden={page !== "claudeCode"}>
             {page === "claudeCode" && (
               <MemoThirdPartyAppsPage
                 settings={thirdPartyAppIntegration.settings}
@@ -1535,7 +1522,8 @@ export function DashboardApp() {
               />
             )}
           </section>
-          <section className="page-panel providers-page-panel" hidden={page !== "providers"}>
+          <section id="account-panel-providers" className="page-panel providers-page-panel"
+            role="tabpanel" aria-labelledby="account-section-providers" hidden={page !== "providers"}>
             <MemoProvidersPage providers={providerManager.providers}
               aggregateApis={providerManager.aggregateApis} providerGroups={providerGroups}
               accounts={manager.accounts}
@@ -1574,7 +1562,8 @@ export function DashboardApp() {
               onWeeksChange={tokenUsagePreferences.updateWeeks}
               preferencesLoading={tokenUsagePreferences.loading} embedded />
           </section>
-          <section className="page-panel accounts-page-panel" hidden={page !== "accounts"}>
+          <section id="account-panel-accounts" className="page-panel accounts-page-panel"
+            role="tabpanel" aria-labelledby="account-section-accounts" hidden={page !== "accounts"}>
             <MemoAccountsPage active={page === "accounts"}
               accounts={manager.accounts}
               accountGroups={managedAccountGroups}
