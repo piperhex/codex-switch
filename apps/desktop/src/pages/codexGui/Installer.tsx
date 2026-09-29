@@ -18,7 +18,7 @@ export function Installer({ installer, compact = false, running = false, remote 
     <p>{remote ? "在当前远程电脑上检查和更新 Codex。" : description}</p>
     {!compact && <p className={styles.muted}>{isDesktopApp
       ? "这里的对话独立保存，不会影响官方 Codex 的聊天记录。"
-      : "Codex 在运行 Codex Switch 的主机上安装和运行，对话也保存在该主机。"}</p>}
+      : "Codex 在运行 Codex Remote 的主机上安装和运行，对话也保存在该主机。"}</p>}
     <div className={styles.installActions}>
       {available && <Button type="primary" icon={<Download size={16} />} loading={installing}
         disabled={running || disabled} onClick={() => void install()}>
@@ -30,7 +30,7 @@ export function Installer({ installer, compact = false, running = false, remote 
         target="_blank" rel="noopener noreferrer">官方发布页</Button>
     </div>
     {available && !installing && <small>{release.ready
-      ? "更新已下载，重启 Codex Switch 后生效，也可立即更新。"
+      ? "更新已下载，重启 Codex Remote 后生效，也可立即更新。"
       : `下载约 ${Math.ceil(release.size / 1024 / 1024)} MB`}</small>}
     {running && available && <small>当前任务完成后即可更新。</small>}
     {installing && <div className={styles.downloadProgress}>

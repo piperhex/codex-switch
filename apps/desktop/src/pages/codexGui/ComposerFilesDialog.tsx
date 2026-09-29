@@ -45,7 +45,7 @@ export function ComposerFilesDialog({ onAdd, onImages, onClose, onError }: {
           onChange={setKind} />
         <Input aria-label="附件路径" placeholder="输入完整路径" value={path}
           onChange={(event) => setPath(event.target.value)} onPressEnter={confirm} />
-        <p className={styles.copy}>填写运行 Codex Switch 的主机上的文件或文件夹路径。</p>
+        <p className={styles.copy}>填写运行 Codex Remote 的主机上的文件或文件夹路径。</p>
         <Button type="primary" disabled={!path.trim()} onClick={confirm}>添加</Button>
       </>}
     </div>

@@ -29,7 +29,7 @@ it('streams original binary chunks and closes the file before publishing its ori
   expect(mocks.fs.writeStream).toHaveBeenCalledWith('/cache/download-unique', 'base64', false);
   expect(mocks.stream.write).toHaveBeenCalledWith('AP8=');
   expect(mocks.stream.close).toHaveBeenCalledOnce();
-  expect(mocks.copy).toHaveBeenCalledWith({ name: info.name, parentFolder: 'Codex Switch', mimeType: info.mimeType },
+  expect(mocks.copy).toHaveBeenCalledWith({ name: info.name, parentFolder: 'Codex Remote', mimeType: info.mimeType },
     'Download', '/cache/download-unique');
   expect(mocks.stream.close.mock.invocationCallOrder[0]).toBeLessThan(mocks.copy.mock.invocationCallOrder[0]);
   expect(mocks.fs.unlink).toHaveBeenCalledWith('/cache/download-unique');

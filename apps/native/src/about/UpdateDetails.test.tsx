@@ -38,7 +38,7 @@ function details(notes: string) {
     checking: false, error: '', downloadState: { status: 'idle' },
     checkForUpdate: vi.fn(), beginDownload: vi.fn(), installDownloaded: vi.fn(),
     updateCheck: { currentVersion: '1.5.29', updateAvailable: true, release: {
-      version: '1.5.31', tagName: 'v1.5.31', title: 'Codex Switch', notes, publishedAt: null,
+      version: '1.5.31', tagName: 'v1.5.31', title: 'Codex Remote', notes, publishedAt: null,
       releaseUrl: 'https://example.com/release', androidAsset: null,
     } },
   };

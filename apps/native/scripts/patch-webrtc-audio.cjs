@@ -3,7 +3,7 @@ const path = require('node:path');
 
 const IOS_ANCHOR = '        WebRTCModuleOptions *options = [WebRTCModuleOptions sharedInstance];';
 const IOS_PLAYBACK = `#if !TARGET_OS_OSX
-        // Codex Switch receives desktop sound; it never opens an audio input.
+        // Codex Remote receives desktop sound; it never opens an audio input.
         RTCAudioSessionConfiguration *playback = [RTCAudioSessionConfiguration webRTCConfiguration];
         playback.category = AVAudioSessionCategoryPlayback;
         playback.categoryOptions = 0;

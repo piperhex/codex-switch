@@ -1,14 +1,14 @@
 {
   "name": "codex-switch-remote-command",
   "version": "1.0.0",
-  "description": "Discover computers signed into the same Codex Switch account and run remote diagnostic commands.",
-  "author": { "name": "Codex Switch" },
+  "description": "Discover computers signed into the same Codex Remote account and run remote diagnostic commands.",
+  "author": { "name": "Codex Remote" },
   "skills": "./skills/",
   "interface": {
     "displayName": "远程命令",
     "shortDescription": "让 AI 在同账号的其他电脑执行命令，诊断和分析问题。",
     "longDescription": "安装并启用后，AI 可发现同账号的在线电脑并执行远程命令，查看输出、诊断和分析问题。本机也可接收同账号的远程命令，停用即可撤销访问。",
-    "developerName": "Codex Switch",
+    "developerName": "Codex Remote",
     "category": "Developer Tools",
     "defaultPrompt": ["检查我的其他电脑的运行状态，分析需要处理的问题。"],
     "capabilities": ["远程电脑发现", "命令执行与诊断"]

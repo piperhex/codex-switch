@@ -293,7 +293,7 @@ pub(crate) fn query_provider_usage_blocking<R: Runtime>(
     let paths = resolve_paths(&app)?;
     let provider = read_provider(&paths, &id)?;
     if provider.kind != ProviderKind::OpenAi {
-        return Err("Usage sync is only available for upstream Codex Switch providers".to_string());
+        return Err("Usage sync is only available for upstream Codex Remote providers".to_string());
     }
     let query_url = provider_usage_url(&provider.base_url)?;
     let client = crate::system_proxy::apply(Client::builder())

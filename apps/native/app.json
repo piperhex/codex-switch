@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Codex Switch",
+    "name": "Codex Remote",
     "slug": "codex-switch",
     "version": "1.6.13",
     "icon": "./assets/icon.png",
@@ -54,22 +54,22 @@
       [
         "@config-plugins/react-native-webrtc",
         {
-          "cameraPermission": "允许 Codex Switch 拍摄照片和扫描二维码",
+          "cameraPermission": "允许 Codex Remote 拍摄照片和扫描二维码",
           "microphonePermission": "聊天不需要使用麦克风"
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "允许 Codex Switch 拍摄照片和扫描二维码",
+          "cameraPermission": "允许 Codex Remote 拍摄照片和扫描二维码",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "允许 Codex Switch 选择照片发送到聊天",
-          "cameraPermission": "允许 Codex Switch 拍摄照片和扫描二维码",
+          "photosPermission": "允许 Codex Remote 选择照片发送到聊天",
+          "cameraPermission": "允许 Codex Remote 拍摄照片和扫描二维码",
           "microphonePermission": false
         }
       ],
@@ -93,15 +93,15 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "允许 Codex Switch 选择照片发送到聊天",
-          "savePhotosPermission": "允许 Codex Switch 将图片保存到相册",
+          "photosPermission": "允许 Codex Remote 选择照片发送到聊天",
+          "savePhotosPermission": "允许 Codex Remote 将图片保存到相册",
           "isAccessMediaLocationEnabled": false
         }
       ],
       [
         "expo-sensors",
         {
-          "motionPermission": "允许 Codex Switch 根据手机方向旋转图片"
+          "motionPermission": "允许 Codex Remote 根据手机方向旋转图片"
         }
       ]
     ]

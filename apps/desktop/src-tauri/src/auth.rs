@@ -198,7 +198,7 @@ pub(crate) fn validate_auth(auth: &Value) -> Result<(), String> {
 
 /// Bring a managed ChatGPT credential up to the shape expected by current Codex builds.
 /// Unknown fields are deliberately preserved so newer Codex metadata can round-trip through
-/// Codex Switch without being discarded.
+/// Codex Remote without being discarded.
 pub(crate) fn canonicalize_chatgpt_auth(auth: &mut Value) -> Result<bool, String> {
     if is_agent_identity_auth(auth) {
         let original = auth.clone();

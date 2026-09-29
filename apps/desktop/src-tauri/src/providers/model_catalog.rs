@@ -281,7 +281,7 @@ fn write_local_proxy_config(
     };
     let requires_openai_auth = state.local_proxy_openai_auth_account_id.is_some();
     let token_command = std::env::current_exe()
-        .map_err(|error| format!("Failed to locate Codex Switch for local proxy auth: {error}"))?
+        .map_err(|error| format!("Failed to locate Codex Remote for local proxy auth: {error}"))?
         .display()
         .to_string();
     let options = LocalProxyConfigOptions {

@@ -148,7 +148,7 @@ export function AdminShell({
         <div className="brand-block" style={{ height: 58, padding: "0 18px" }}>
           <div className="brand-mark">C</div>
           <div className="brand-copy">
-            <strong>Codex Switch</strong>
+            <strong>Codex Remote</strong>
             <span>{t("app.subtitle")}</span>
           </div>
         </div>

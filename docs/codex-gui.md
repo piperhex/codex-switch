@@ -1,6 +1,6 @@
 # Codex GUI
 
-Codex GUI is the chat workspace embedded in Codex Switch, available in the desktop app and its hosted web UI.
+Codex GUI is the chat workspace embedded in Codex Remote, available in the desktop app and its hosted web UI.
 Its navigation entry appears immediately after
 Providers (三方模型及中转). It supports project folders, text and image input, model and reasoning selection,
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
@@ -10,14 +10,14 @@ Each submitted message includes a snapshot of other running GUI conversations. T
 another conversation and attach its recent messages as context. See [conversation awareness](codex-gui-conversation-awareness.md)
 for scope, limits and verification.
 
-The GUI account picker includes official accounts, custom Providers, and upstream Codex Switch Providers.
+The GUI account picker includes official accounts, custom Providers, and upstream Codex Remote Providers.
 Codex GUI remembers its own account independently of the account manager and other applications. The first
 visit starts with the current supported account; later switches and restarts preserve the GUI's choice.
 GUI connections start automatically, even when the external proxy is off. A GUI account switch applies
 to subsequent requests without interrupting an existing reply. Shared automatic fallback and concurrent
 account routing do not change the GUI's selected account.
 The GUI's remaining quota and Provider model choices follow its own selection. All connected GUI browsers
-share this selection, and upstream Codex Switch Providers continue to use the live Codex model catalog.
+share this selection, and upstream Codex Remote Providers continue to use the live Codex model catalog.
 
 The **今日** cost is a daily estimate across recorded requests. For official Codex accounts, each request
 uses the speed selected when it was sent; Fast mode applies the configured multiplier (2.5 by default).
@@ -27,7 +27,7 @@ not remove that request's Fast-mode estimate. API Providers use the reported res
 including a downgrade to normal speed. These estimates are not a statement of actual subscription charges.
 
 In the desktop app, the account bar also shows the selected computer. Open it and choose **切换电脑**
-to select **本机** or another online computer signed in to the same Codex Switch cloud account.
+to select **本机** or another online computer signed in to the same Codex Remote cloud account.
 The conversation list, messages, project selection, model settings and account choices then belong to
 that computer. Use **切换账户** in the same menu to open its account list and select an official account
 or Provider. GUI account selection does not require enabling the target computer's external proxy.
@@ -44,7 +44,7 @@ The desktop remote workspace uses the viewing computer's GUI font size and Dream
 including dark themes. Its project sidebar, recent/archived filter, message spacing, project bar and
 composer follow the local GUI layout. The header can reconnect remote Codex, check and update its CLI,
 open a remote terminal, and toggle the current conversation's file changes in the right sidebar.
-Both computers need a version of Codex Switch that supports these tools. CLI installation and terminal
+Both computers need a version of Codex Remote that supports these tools. CLI installation and terminal
 commands run on the selected remote computer over the existing authenticated P2P or Relay connection.
 Updates show download progress and refuse to start while that computer has an active GUI task.
 Terminals start in the current remote project, support multiple tabs and resizing, and close when the
@@ -77,7 +77,7 @@ Switching computers keeps the local workspace mounted so its running reply and u
 The gear in the local account list opens **Codex GUI 设置**, with top tabs for **自动切号**,
 **界面**, **主题**, and **皮肤**. The appearance tab changes the conversation font size from 12–24 px (14 px by default),
 with an immediate preview and a reset button. Messages, the composer, code, tool output, and file diffs
-follow the saved size; other Codex Switch pages keep their own typography. Font changes are saved locally
+follow the saved size; other Codex Remote pages keep their own typography. Font changes are saved locally
 as soon as they are made, independently of account settings.
 
 The skin tab reuses the built-in, community, and saved images from the existing skin page.
@@ -171,7 +171,7 @@ System prompt plugins retain their existing shared proxy scope, which is explain
 
 ## Browser conversations
 
-Open the web address provided by the running Codex Switch host, then choose **Codex GUI**. The same page is
+Open the web address provided by the running Codex Remote host, then choose **Codex GUI**. The same page is
 available when Switch runs with `csw --headless --port=18080`. A standalone frontend preview has no conversation
 backend; the separate cloud account-sync client under `/web/` is not this hosted interface.
 
@@ -194,7 +194,7 @@ the host and reconnecting loads their current state.
 
 Every entry into the local Codex GUI tab checks [official Codex Releases](https://github.com/openai/codex/releases)
 and silently downloads the latest version. Checks and downloads do not interrupt conversations; background
-failures are retried on the next visit. A verified update is activated when Codex Switch next starts, even offline,
+failures are retried on the next visit. A verified update is activated when Codex Remote next starts, even offline,
 or when the user clicks the update button. Manual updates check again for a newer release before activation.
 The newest discovered version replaces any previous pending update, including while a download is in progress;
 an incomplete newer download never falls back to activating an older pending version.

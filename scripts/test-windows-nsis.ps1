@@ -15,7 +15,7 @@ $helper = Join-Path $InstallRoot 'csw-installer-helper.exe'
 $source = @'
 Unicode true
 !include "LogicLib.nsh"
-Name "Codex Switch Installer Test"
+Name "Codex Remote Installer Test"
 !ifndef CSW_TEST_OUTPUT
   !define CSW_TEST_OUTPUT "INSTALLER_PATH"
 !endif
@@ -32,7 +32,7 @@ SilentUnInstall silent
   ${EndIf}
 !macroend
 Section
-  !insertmacro CheckIfAppIsRunning "csw.exe" "Codex Switch"
+  !insertmacro CheckIfAppIsRunning "csw.exe" "Codex Remote"
   !insertmacro VerifyNoInstallerHelper
   !ifdef CSW_TEST_PAUSE_AFTER_SHUTDOWN
     FileOpen $0 "$INSTDIR\.csw-test-shutdown-ready" w
@@ -57,7 +57,7 @@ Section
   ${EndIf}
 SectionEnd
 Section "Uninstall"
-  !insertmacro CheckIfAppIsRunning "csw.exe" "Codex Switch"
+  !insertmacro CheckIfAppIsRunning "csw.exe" "Codex Remote"
   !insertmacro VerifyNoInstallerHelper
   Delete "$INSTDIR\csw.exe"
   !insertmacro NSIS_HOOK_POSTUNINSTALL

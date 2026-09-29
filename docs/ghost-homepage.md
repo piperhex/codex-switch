@@ -1,4 +1,4 @@
-# Codex Switch
+# Codex Remote
 
 ## 为多 Codex 账户而生的本地优先工作台
 
@@ -8,23 +8,23 @@
 
 [下载最新版本](https://github.com/piperhex/codex-switch/releases/latest) · [查看全部版本](https://github.com/piperhex/codex-switch/releases) · [访问 GitHub 仓库](https://github.com/piperhex/codex-switch)
 
-> Codex Switch 将账户登录、凭据导入、用量查看、身份切换、第三方 Provider、本地代理、Skills 市场与一键换肤集中在一个工作台中，并可选连接自部署后端与移动端。
+> Codex Remote 将账户登录、凭据导入、用量查看、身份切换、第三方 Provider、本地代理、Skills 市场与一键换肤集中在一个工作台中，并可选连接自部署后端与移动端。
 
-![Codex Switch 账户管理界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-dashboard.png)
+![Codex Remote 账户管理界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-dashboard.png)
 
 ### 第三方 Provider
 
-![Codex Switch 第三方 Provider 界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-providers.png)
+![Codex Remote 第三方 Provider 界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-providers.png)
 
 ### Token 消耗分析
 
-![Codex Switch Token 消耗分析界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-token-usage.png)
+![Codex Remote Token 消耗分析界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-token-usage.png)
 
 ### 一键换肤与 Skills 市场
 
-![Codex Switch 一键换肤界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-dream-skin.png)
+![Codex Remote 一键换肤界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-dream-skin.png)
 
-![Codex Switch Skills 市场](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-skills.png)
+![Codex Remote Skills 市场](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-skills.png)
 
 ---
 
@@ -32,7 +32,7 @@
 
 当你需要在不同 Codex 账户之间工作时，反复登录、复制 `auth.json`、确认剩余用量，既费时也容易出错。
 
-Codex Switch 将这些操作整合到一个本地桌面应用中：添加账户后，你可以随时查看账户状态，选择目标身份，并以原子方式更新 Codex 当前使用的认证文件。
+Codex Remote 将这些操作整合到一个本地桌面应用中：添加账户后，你可以随时查看账户状态，选择目标身份，并以原子方式更新 Codex 当前使用的认证文件。
 
 ### 多账户集中管理
 
@@ -103,7 +103,7 @@ Codex Switch 将这些操作整合到一个本地桌面应用中：添加账户�
 
 ## 本地优先，云同步由你选择
 
-Codex Switch 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust 后端处理，不会传入桌面 React 界面，也不会写入应用日志。默认本地模式下，账号与 Provider 保存在操作系统的应用数据目录中；只有主动配置并登录自部署后端后，才会启用云同步。
+Codex Remote 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust 后端处理，不会传入桌面 React 界面，也不会写入应用日志。默认本地模式下，账号与 Provider 保存在操作系统的应用数据目录中；只有主动配置并登录自部署后端后，才会启用云同步。
 
 但“本地优先”不等于“无需防护”：
 
@@ -136,7 +136,7 @@ Codex Switch 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust �
 
 ## 持续迭代，稳定交付
 
-从多平台构建、国际化与账户切换，到 Provider 热切换、代理会话、Token 分析、Skills 市场、主题库、本机网页版、云同步和移动端，Codex Switch 正在围绕真实的多账户工作流持续演进。
+从多平台构建、国际化与账户切换，到 Provider 热切换、代理会话、Token 分析、Skills 市场、主题库、本机网页版、云同步和移动端，Codex Remote 正在围绕真实的多账户工作流持续演进。
 
 版本通过 GitHub Actions 自动构建并发布，Windows、macOS、Linux、Android 与 iOS 验证构建均可在 Releases 页面获取。你可以随时查看历史版本、发布日期与对应构建产物。
 
@@ -146,13 +146,13 @@ Codex Switch 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust �
 
 ## 常见问题
 
-### Codex Switch 会把我的凭据上传到第三方服务器吗？
+### Codex Remote 会把我的凭据上传到第三方服务器吗？
 
-默认本地模式不会上传到 Codex Switch 后端，但正常登录、刷新凭据和查询用量仍会访问相应的官方在线服务。若你主动配置并登录云同步服务器，桌面端会把完整账号凭据和 Provider API Key 上传到该服务器，以支持同步和后台分配；移动端会从服务器接收短期 Codex access token，用于直接查询官方用量与重置卡。请只使用你信任的手机和自部署服务。
+默认本地模式不会上传到 Codex Remote 后端，但正常登录、刷新凭据和查询用量仍会访问相应的官方在线服务。若你主动配置并登录云同步服务器，桌面端会把完整账号凭据和 Provider API Key 上传到该服务器，以支持同步和后台分配；移动端会从服务器接收短期 Codex access token，用于直接查询官方用量与重置卡。请只使用你信任的手机和自部署服务。
 
 ### 可以导入现有的 `auth.json` 吗？
 
-可以。应用支持导入并管理多个 `auth.json` 文件，也支持常见第三方 JSON 字段、账号数组、`accounts` 包装和逐行 JSON。导入后会统一规范化并验证为 Codex Switch 使用的账号格式。
+可以。应用支持导入并管理多个 `auth.json` 文件，也支持常见第三方 JSON 字段、账号数组、`accounts` 包装和逐行 JSON。导入后会统一规范化并验证为 Codex Remote 使用的账号格式。
 
 ### 本地代理和自动切号什么时候生效？
 
@@ -179,11 +179,11 @@ Codex Switch 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust �
 
 ### 这是 OpenAI 官方产品吗？
 
-不是。Codex Switch 是独立开发的第三方工具，与 OpenAI 无隶属、授权或背书关系。Codex、ChatGPT 与 OpenAI 是其各自权利人的商标。
+不是。Codex Remote 是独立开发的第三方工具，与 OpenAI 无隶属、授权或背书关系。Codex、ChatGPT 与 OpenAI 是其各自权利人的商标。
 
 ---
 
-## 获取 Codex Switch
+## 获取 Codex Remote
 
 让多个 Codex 账户的管理、用量查看与身份切换，回到一个简单、清晰的桌面工作台。
 
@@ -193,4 +193,4 @@ Codex Switch 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust �
 
 ---
 
-<small>Codex Switch 是采用 Apache License 2.0 的开源项目，以桌面端为完整管理入口，并提供本机网页版、可选的自部署后端和移动伴侣端。请遵守相关服务条款，并仅管理你有权使用的账户。</small>
+<small>Codex Remote 是采用 Apache License 2.0 的开源项目，以桌面端为完整管理入口，并提供本机网页版、可选的自部署后端和移动伴侣端。请遵守相关服务条款，并仅管理你有权使用的账户。</small>

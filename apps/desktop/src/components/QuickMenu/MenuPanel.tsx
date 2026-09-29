@@ -65,7 +65,7 @@ export function MenuPanel({ snapshot, panel, error, activate, dismiss }: Props) 
       <header className="quick-menu-header">
         {parent ? <button className="quick-menu-back" onClick={() => setParent(null)}
           aria-label={chinese ? "返回" : "Back"}><ArrowLeft size={16} /></button> : <Layers3 size={17} />}
-        <span>{parent ? parent.text.replace(/^✓ /, "") : "Codex Switch"}</span>
+        <span>{parent ? parent.text.replace(/^✓ /, "") : "Codex Remote"}</span>
         <button className="quick-menu-close" onClick={dismiss} aria-label={chinese ? "关闭菜单" : "Close menu"}>
           <X size={14} />
         </button>

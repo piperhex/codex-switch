@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "browser_list",
-      "description": "List connected Chrome profiles. If none are connected, ask the user to connect the Codex Switch browser extension.",
+      "description": "List connected Chrome profiles. If none are connected, ask the user to connect the Codex Remote browser extension.",
       "inputSchema": {
         "type": "object",
         "properties": {},

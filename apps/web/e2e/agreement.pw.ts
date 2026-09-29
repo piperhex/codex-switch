@@ -16,7 +16,7 @@ test('reading and cancelling do not log in; consent resumes one login', async ({
   const checkbox = page.getByRole('checkbox', { name: '我已阅读并同意用户协议' });
   await expect(checkbox).not.toBeChecked();
   await page.getByRole('button', { name: '《用户协议》', exact: true }).click();
-  const reader = page.getByRole('dialog', { name: 'Codex Switch 用户协议' });
+  const reader = page.getByRole('dialog', { name: 'Codex Remote 用户协议' });
   await expect(reader).toBeVisible();
   await expect(reader.getByText('九、联系与争议处理')).toBeAttached();
   expect(await reader.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
@@ -61,7 +61,7 @@ test('English agreement fits a short landscape screen', async ({ page }, info) =
   await page.setViewportSize({ width: 667, height: 375 });
   await page.reload();
   await page.getByRole('button', { name: 'User Agreement', exact: true }).click();
-  const reader = page.getByRole('dialog', { name: 'Codex Switch User Agreement' });
+  const reader = page.getByRole('dialog', { name: 'Codex Remote User Agreement' });
   await expect(reader).toBeVisible();
   const bounds = (await reader.boundingBox())!;
   expect(bounds.y).toBeGreaterThanOrEqual(0);
@@ -88,7 +88,7 @@ test('agreement remains readable while a login request is pending', async ({ pag
   await expect(page.getByRole('checkbox')).toBeDisabled();
   await page.getByRole('textbox', { name: '密码', exact: true }).press('Enter');
   await page.getByRole('button', { name: '《用户协议》', exact: true }).click();
-  const reader = page.getByRole('dialog', { name: 'Codex Switch 用户协议' });
+  const reader = page.getByRole('dialog', { name: 'Codex Remote 用户协议' });
   await expect(reader).toBeVisible();
   await reader.getByRole('button', { name: '关闭协议', exact: true }).last().click();
   expect(logins).toBe(1);

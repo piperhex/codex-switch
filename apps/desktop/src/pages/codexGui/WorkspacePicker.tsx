@@ -9,7 +9,7 @@ const MAX_BRANCH_LENGTH = 200;
 const MENU_ALIGN = { overflow: { adjustX: true, adjustY: true, shiftX: true } };
 
 export function WorkspacePicker({ cwd, disabled, onChange, onBusyChange,
-  localLabel = isDesktopApp ? "本地" : "Codex Switch 主机" }: {
+  localLabel = isDesktopApp ? "本地" : "Codex Remote 主机" }: {
   cwd: string; disabled: boolean; onChange: (cwd: string) => void; onBusyChange: (busy: boolean) => void;
   localLabel?: string;
 }) {

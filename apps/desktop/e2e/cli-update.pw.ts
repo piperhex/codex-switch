@@ -42,7 +42,7 @@ test("silent downloads preserve input and connections, and every entry checks fo
     expect(installs).toBe(0);
     releaseDownload();
     await page.getByRole("button", { name: "CLI 更新", exact: true }).click();
-    await expect(page.getByText("更新已下载，重启 Codex Switch 后生效，也可立即更新。")).toBeVisible();
+    await expect(page.getByText("更新已下载，重启 Codex Remote 后生效，也可立即更新。")).toBeVisible();
     expect((await page.locator(".ant-popover-inner").boundingBox())!.width).toBeLessThanOrEqual(400);
     await expect(page.getByLabel("当前版本")).toHaveText("0.99.0");
     await expect(page.getByLabel("聊天输入")).toHaveValue("下载时继续输入");

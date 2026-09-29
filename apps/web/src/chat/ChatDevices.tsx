@@ -14,7 +14,7 @@ export function ChatDevices({ devices, choose, chooseLocal, onClose }: {
         disabled={!device.online} onClick={() => choose(device.deviceId)}>
         <strong>{device.name}</strong><span>{device.online ? t("在线") : t("离线")}</span>
       </button>)}
-      {!devices.length && <p className="chat-muted">{t("在电脑上打开 Codex Switch 并登录同一账号，即可开始聊天。")}</p>}
+      {!devices.length && <p className="chat-muted">{t("在电脑上打开 Codex Remote 并登录同一账号，即可开始聊天。")}</p>}
     </div>
   </AdaptiveSheet>;
 }

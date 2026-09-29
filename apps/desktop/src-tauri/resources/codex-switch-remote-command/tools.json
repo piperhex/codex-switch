@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "remote_list_computers",
-      "description": "List other PCs signed into the current Codex Switch account, including platform, online status, and whether the Remote Command plugin is enabled. Use this before choosing a target.",
+      "description": "List other PCs signed into the current Codex Remote account, including platform, online status, and whether the Remote Command plugin is enabled. Use this before choosing a target.",
       "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
       "annotations": { "readOnlyHint": true, "destructiveHint": false, "openWorldHint": false }
     },

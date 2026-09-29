@@ -182,7 +182,7 @@ fn open_embedded_login_window<R: Runtime + 'static>(
                 "codex-login",
                 WebviewUrl::App("login.html".into()),
             )
-            .title("登录 ChatGPT - Codex Switch")
+            .title("登录 ChatGPT - Codex Remote")
             .inner_size(520.0, 720.0)
             .min_inner_size(420.0, 620.0)
             .center()
@@ -245,7 +245,7 @@ fn run_login_loop<R: Runtime + 'static>(
             }
         };
         if parsed.path() != "/auth/callback" {
-            html_response(request, 404, "页面不存在", "请回到 Codex Switch 继续操作。");
+            html_response(request, 404, "页面不存在", "请回到 Codex Remote 继续操作。");
             continue;
         }
         let params: HashMap<String, String> = parsed.query_pairs().into_owned().collect();
@@ -290,7 +290,7 @@ fn run_login_loop<R: Runtime + 'static>(
                 let success_message = if reapplied {
                     "当前账户凭据已更新，并已重新应用。"
                 } else {
-                    "账户已保存。请回到 Codex Switch 手动切换到此账户。"
+                    "账户已保存。请回到 Codex Remote 手动切换到此账户。"
                 };
                 html_response(request, 200, "登录成功", success_message);
                 let _ = app.emit("accounts-changed", ());

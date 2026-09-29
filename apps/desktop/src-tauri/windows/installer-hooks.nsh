@@ -73,6 +73,11 @@ Var CswRmSessionActive
 !macroend
 
 !include "${__FILEDIR__}\installer-backup.nsh"
+!include "${__FILEDIR__}\installer-branding.nsh"
+
+!macro NSIS_HOOK_PREINSTALL
+  !insertmacro CswPrepareBrandMigration
+!macroend
 
 ; Restart Manager closes users of this installation's executable, including old
 ; versions without shutdown support. Never use Tauri's name-wide process kill.
@@ -81,7 +86,7 @@ Var CswRmSessionActive
   !insertmacro CswBackupPrepare
   ${If} $R0 != 0
     !insertmacro CswInstallerCancel
-    Abort "Please exit Codex Switch, then try again."
+    Abort "Please exit Codex Remote, then try again."
   ${EndIf}
 !macroend
 
@@ -90,6 +95,9 @@ Var CswRmSessionActive
   ${If} $R0 != 0
     Abort "Please close this installer, then try again."
   ${EndIf}
+  !ifdef MANUKEY
+    !insertmacro CswFinishBrandMigration
+  !endif
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL

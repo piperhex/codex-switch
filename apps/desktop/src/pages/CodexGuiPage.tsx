@@ -57,7 +57,7 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
   if (!visited) return null;
-  if (!hasLocalBackend) return <div className={styles.install}><h2>Codex GUI</h2><p>请打开 Codex Switch 提供的网页地址，开始对话。</p></div>;
+  if (!hasLocalBackend) return <div className={styles.install}><h2>Codex GUI</h2><p>请打开 Codex Remote 提供的网页地址，开始对话。</p></div>;
   return <Workspace {...props} {...(props.focusMode ?? focusMode)} />;
 }
 

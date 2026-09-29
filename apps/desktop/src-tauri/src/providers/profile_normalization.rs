@@ -249,7 +249,7 @@ fn normalize_base_url(value: &str) -> Result<String, String> {
     if is_local_proxy_url(&url) {
         return Err(concat!(
             "Provider Base URL must be an upstream API endpoint, ",
-            "not the Codex Switch local proxy endpoint"
+            "not the Codex Remote local proxy endpoint"
         )
         .to_string());
     }
@@ -259,7 +259,7 @@ fn normalize_base_url(value: &str) -> Result<String, String> {
 pub(crate) fn ensure_not_local_proxy_base_url(base_url: &str) -> Result<(), String> {
     let url = Url::parse(base_url).map_err(|error| format!("Base URL is invalid: {error}"))?;
     if is_local_proxy_url(&url) {
-        Err("Provider Base URL must be an upstream API endpoint, not the Codex Switch local proxy endpoint".to_string())
+        Err("Provider Base URL must be an upstream API endpoint, not the Codex Remote local proxy endpoint".to_string())
     } else {
         Ok(())
     }

@@ -281,7 +281,7 @@ fn codex_notification_expression(message: &str) -> Result<String, String> {
   content.className = 'content';
   const title = document.createElement('div');
   title.className = 'title';
-  title.textContent = 'Codex Switch';
+  title.textContent = 'Codex Remote';
   const body = document.createElement('div');
   body.className = 'message';
   body.textContent = {message};

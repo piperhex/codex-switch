@@ -12,7 +12,7 @@ module.exports = function withChatTransport(config) {
   });
   // Register before permission plugins: Expo runs Info.plist mods in reverse registration order.
   return withInfoPlist(config, (result) => {
-    result.modResults.NSLocalNetworkUsageDescription = '允许 Codex Switch 连接同一网络中的电脑，用于聊天和远程桌面';
+    result.modResults.NSLocalNetworkUsageDescription = '允许 Codex Remote 连接同一网络中的电脑，用于聊天和远程桌面';
     // Chat uses data channels; remote desktop only receives media. Neither feature records a microphone.
     delete result.modResults.NSMicrophoneUsageDescription;
     return result;

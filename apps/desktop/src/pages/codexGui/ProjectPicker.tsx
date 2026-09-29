@@ -89,7 +89,7 @@ export function ProjectPicker({ value, projects, disabled, onChange, onError,
     </span>
     {gitEnabled && onBusyChange ? <WorkspacePicker key={value} cwd={value} disabled={disabled}
       onChange={onChange} onBusyChange={onBusyChange} localLabel={hostPicker ? "工作树" : undefined} />
-      : !hostPicker && <span className={layout.localLabel}>{isDesktopApp ? "本地" : "Codex Switch 主机"}</span>}
+      : !hostPicker && <span className={layout.localLabel}>{isDesktopApp ? "本地" : "Codex Remote 主机"}</span>}
     {hostPicker}
     {creating && <CreateProjectDialog disabled={disabled} onCreate={create} onError={onError}
       onClose={() => { setCreating(false); trigger.current?.focus(); }} />}

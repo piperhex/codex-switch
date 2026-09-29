@@ -74,7 +74,7 @@ services:
       mail__options__secure: "false"
       mail__options__auth__user: parity
       mail__options__auth__pass: local-parity-only
-      mail__from: "Codex Switch <noreply@example.test>"
+      mail__from: "Codex Remote <noreply@example.test>"
     ports: ["127.0.0.1:28080:8080", "127.0.0.1:13479:3478/udp"]
     volumes: ["./testdata:/fixtures:ro"]
     depends_on:

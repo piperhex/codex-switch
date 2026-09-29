@@ -41,6 +41,6 @@ npm run build:desktop
 浏览器用例覆盖新旧结构、宽图及竖图、内容容器可见性、主页空公告栏、内层底色、文字与背景配色、
 保留字体及草稿、重复注入和清理。启动用例覆盖慢加载、失败后重试、等待取消和宠物窗口排除。
 
-本机调试将已验证的 CSS 和 renderer 文件同步到 Codex Switch 安装目录，并在
+本机调试将已验证的 CSS 和 renderer 文件同步到 Codex Remote 安装目录，并在
 `.codex-tmp/theme-compat/installed-assets-backup` 保留原文件。正式分发仍需包含本次改动的
-Codex Switch 构建；主题预设资源包不包含这些内置兼容代码。
+Codex Remote 构建；主题预设资源包不包含这些内置兼容代码。

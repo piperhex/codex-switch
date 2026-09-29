@@ -27,7 +27,7 @@ function CodexConfigContent({ active }: { active: boolean }) {
   useEffect(() => {
     setTopbarHost(active ? window.document.getElementById(CODEX_CONFIG_TOPBAR_ID) : null);
   }, [active]);
-  if (!hasLocalBackend) return <Empty description="请在 Codex Switch 桌面端打开配置。" />;
+  if (!hasLocalBackend) return <Empty description="请在 Codex Remote 桌面端打开配置。" />;
 
   return (
     <div className={styles.page}>

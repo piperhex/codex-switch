@@ -12,7 +12,7 @@ import {
 
 const translateKey: Translate = (key) => key;
 
-describe("Codex Switch quota endpoints", () => {
+describe("Codex Remote quota endpoints", () => {
   it.each([
     ["http://192.168.1.2:15721", "http://192.168.1.2:15721/v1/codex-switch/quota"],
     ["http://192.168.1.2:15721/v1/", "http://192.168.1.2:15721/v1/codex-switch/quota"],

@@ -38,7 +38,7 @@ mail__options__port=465
 mail__options__secure=true
 mail__options__auth__user=smtp-user@example.com
 mail__options__auth__pass=replace-with-mailgun-smtp-password
-mail__from="Codex Switch <noreply@example.com>"
+mail__from="Codex Remote <noreply@example.com>"
 ```
 
 The same SMTP configuration is exposed as the read-only default sending service. Administrators

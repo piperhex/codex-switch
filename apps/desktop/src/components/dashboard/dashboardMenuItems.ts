@@ -29,9 +29,9 @@ function fileItems(t: Translate, desktopApp: boolean): MenuProps["items"] {
 
 function navigateItems(t: Translate): MenuProps["items"] {
   return [
+    { key: "codex-gui", label: t("nav.codexGui") },
     { key: "accounts", label: t("nav.accounts") },
     { key: "providers", label: t("nav.providers") },
-    { key: "codex-gui", label: t("nav.codexGui") },
     { key: "claude-code", label: t("nav.claudeCode") },
     { key: "token-usage", label: t("nav.tokenUsage") },
     { type: "divider" },
@@ -104,9 +104,9 @@ function searchItems(t: Translate, authenticated: boolean, desktopApp: boolean):
     item("quit-app", t("windowMenu.quit"), t("windowMenu.file"), !desktopApp),
     item("navigation-style-top", t("settings.navigationStyle.top"), t("windowMenu.view")),
     item("navigation-style-sidebar", t("settings.navigationStyle.sidebar"), t("windowMenu.view")),
+    item("codex-gui", t("nav.codexGui"), t("windowMenu.navigate")),
     item("accounts", t("nav.accounts"), t("windowMenu.navigate")),
     item("providers", t("nav.providers"), t("windowMenu.navigate")),
-    item("codex-gui", t("nav.codexGui"), t("windowMenu.navigate")),
     item("claude-code", t("nav.claudeCode"), t("windowMenu.navigate")),
     item("token-usage", t("nav.tokenUsage"), t("windowMenu.navigate")),
     item("dream-skin", t("nav.dreamSkin"), t("windowMenu.navigate")),

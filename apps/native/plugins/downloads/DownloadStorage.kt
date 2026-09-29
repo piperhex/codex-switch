@@ -70,7 +70,7 @@ internal class DownloadStorage(private val context: Context) {
     val values = ContentValues().apply {
       put(MediaStore.Downloads.DISPLAY_NAME, task.data.getString("name"))
       put(MediaStore.Downloads.MIME_TYPE, task.data.getString("mimeType"))
-      put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/Codex Switch")
+      put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/Codex Remote")
       put(MediaStore.Downloads.IS_PENDING, 1)
     }
     val uri = checkNotNull(resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values))
@@ -82,7 +82,7 @@ internal class DownloadStorage(private val context: Context) {
   @Suppress("DEPRECATION") // API 24–28 require the legacy Downloads directory and runtime storage permission.
   private fun publishLegacy(task: DownloadTask, checkpoint: () -> Unit) {
     val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-    val destination = File(root, "Codex Switch/${task.id}/${task.data.getString("name")}")
+    val destination = File(root, "Codex Remote/${task.id}/${task.data.getString("name")}")
     check(destination.parentFile?.mkdirs() == true || destination.parentFile?.isDirectory == true)
     task.data.put("uri", Uri.fromFile(destination).toString()); checkpoint()
     part(task).copyTo(destination, overwrite = true)
@@ -98,8 +98,10 @@ internal class DownloadStorage(private val context: Context) {
     } else {
       val file = File(requireNotNull(uri.path))
       @Suppress("DEPRECATION")
-      val root = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Codex Switch")
-      require(file.canonicalFile.parentFile == File(root, task.id).canonicalFile)
+      val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+      // Existing task records may still point to downloads created before the rename.
+      val roots = listOf("Codex Remote", "Codex Switch")
+      require(roots.any { file.canonicalFile.parentFile == File(File(downloads, it), task.id).canonicalFile })
       check(!file.exists() || file.delete())
     }
     task.data.remove("uri")

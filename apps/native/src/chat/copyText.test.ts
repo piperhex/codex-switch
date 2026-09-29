@@ -44,11 +44,11 @@ it('leaves the existing iOS clipboard path intact and reports smaller clipboard 
 
 it('saves every original UTF-8 character to Downloads without broad storage permissions', async () => {
   const text = '<div>完整输出🙂</div>\n'.repeat(70_000);
-  expect(await saveTextFile(text)).toEqual({ filename: 'CodexSwitch-output-unique-id.txt', location: 'downloads' });
+  expect(await saveTextFile(text)).toEqual({ filename: 'CodexRemote-output-unique-id.txt', location: 'downloads' });
   expect(mocks.disk.writeAsStringAsync).toHaveBeenCalledWith('file:///cache/save-text-unique-id/output.txt',
     text, { encoding: 'utf8' });
-  expect(mocks.mediaStore).toHaveBeenCalledWith({ name: 'CodexSwitch-output-unique-id.txt',
-    parentFolder: 'Codex Switch', mimeType: 'text/plain' }, 'Download', '/cache/save-text-unique-id/output.txt');
+  expect(mocks.mediaStore).toHaveBeenCalledWith({ name: 'CodexRemote-output-unique-id.txt',
+    parentFolder: 'Codex Remote', mimeType: 'text/plain' }, 'Download', '/cache/save-text-unique-id/output.txt');
   expect(mocks.picker.requestDirectoryPermissionsAsync).not.toHaveBeenCalled();
   expect(mocks.disk.deleteAsync).toHaveBeenCalledWith('file:///cache/save-text-unique-id/', { idempotent: true });
 });
@@ -77,7 +77,7 @@ it('writes only to the system-selected folder when scoped downloads are unavaila
   mocks.picker.createFileAsync.mockResolvedValue('content://chosen/output');
   expect(await saveTextFile('完整文本')).toMatchObject({ location: 'selected' });
   expect(mocks.picker.createFileAsync).toHaveBeenCalledWith('content://chosen',
-    'CodexSwitch-output-unique-id.txt', 'text/plain');
+    'CodexRemote-output-unique-id.txt', 'text/plain');
   expect(mocks.disk.writeAsStringAsync).toHaveBeenCalledWith('content://chosen/output', '完整文本', { encoding: 'utf8' });
 });
 

@@ -7,7 +7,7 @@ export function AboutHero({ logoUrl, t }: { logoUrl: string; t: Translate }) {
     <div className="about-brand">
       <div className="about-brand-mark"><img src={logoUrl} alt="" /></div>
       <div className="about-brand-copy">
-        <h2 id="about-modal-title">Codex Switch</h2>
+        <h2 id="about-modal-title">Codex Remote</h2>
         <p>{t("about.tagline")}</p>
         <div className="about-badges" aria-label={t("about.badges")}>
           <span><Leaf aria-hidden="true" />{t("about.badge.local")}</span>

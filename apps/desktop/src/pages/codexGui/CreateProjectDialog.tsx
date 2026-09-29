@@ -50,7 +50,7 @@ export function CreateProjectDialog({ disabled, onCreate, onClose, onError }: {
     </button> : <div className={styles.hostFolder}>
       <Input aria-label="源文件夹路径" placeholder="输入源文件夹的完整路径" value={path} disabled={busy}
         onChange={(event) => setPath(event.target.value)} onPressEnter={confirm} />
-      <p>填写运行 Codex Switch 的主机上的文件夹路径。</p>
+      <p>填写运行 Codex Remote 的主机上的文件夹路径。</p>
     </div>}
   </Modal>;
 }

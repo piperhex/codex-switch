@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the main Codex Switch window",
+  "description": "Permissions for the main Codex Remote window",
   "windows": ["main", "usage-bubble", "token-usage", "totp", "chatgpt-web-login", "quick-menu"],
   "permissions": [
     "core:default",

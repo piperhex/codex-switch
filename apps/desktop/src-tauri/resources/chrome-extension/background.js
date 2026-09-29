@@ -23,7 +23,7 @@ async function connect() {
     const reason = chrome.runtime.lastError?.message;
     if (port !== next) return;
     port = undefined;
-    connectionError = reason ? '请先在 Codex Switch 中启用浏览器助手，再点击重新连接。' : '连接已断开，请重新连接。';
+    connectionError = reason ? '请先在 Codex Remote 中启用浏览器助手，再点击重新连接。' : '连接已断开，请重新连接。';
     for (const controller of running.values()) controller.abort();
     void stopDebugging();
     chrome.alarms.create('reconnect', { delayInMinutes: 0.5 });

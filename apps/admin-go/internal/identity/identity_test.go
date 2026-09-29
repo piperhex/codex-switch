@@ -131,7 +131,7 @@ func TestTemplateRenderingAndVerificationContent(t *testing.T) {
 		t.Fatal("HTML was not escaped")
 	}
 	message := verificationMessage("012345", "registration", time.Date(2026, 1, 2, 3, 4, 0, 0, time.UTC))
-	if message.Subject != "012345 是你的 Codex Switch 注册验证码" {
+	if message.Subject != "012345 是你的 Codex Remote 注册验证码" {
 		t.Fatal(message.Subject)
 	}
 	if !strings.Contains(message.HTML, "02 Jan 2026, 03:04 UTC") || !strings.Contains(message.HTML, "012345") {

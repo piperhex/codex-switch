@@ -10,7 +10,7 @@ import type { ComposerText, Skill } from "./types";
 vi.mock("./api", () => ({ guiApi: { request: vi.fn() } }));
 const skills: Skill[] = [
   { name: "deploy-codex-switch", path: "D:/skills/deploy/SKILL.md", description: "部署服务", enabled: true,
-    interface: { displayName: "Deploy Codex Switch" } },
+    interface: { displayName: "Deploy Codex Remote" } },
   { name: "review", path: "D:/skills/review/SKILL.md", description: "检查代码", enabled: true },
 ];
 let root: Root;
@@ -76,7 +76,7 @@ it("lists every skill after an initial slash and inserts a named, atomic inline 
   await key("ArrowDown");
   await key("Enter");
   expect(send).not.toHaveBeenCalled();
-  expect(host.querySelector('[data-skill]')?.textContent).toBe("Deploy Codex Switch");
+  expect(host.querySelector('[data-skill]')?.textContent).toBe("Deploy Codex Remote");
   expect(host.querySelector('[data-skill]')?.getAttribute("contenteditable")).toBe("false");
   expect(readEditor(editor()).mentions[0].skill.path).toBe(skills[0].path);
   expect(host.querySelector('[role="listbox"]')).toBeNull();

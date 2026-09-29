@@ -21,7 +21,7 @@ const stored = {
   version: '1.5.31', path: '/storage/emulated/0/Download/CodexSwitch-update-1.5.31-123.apk', expectedSize: 100,
 };
 const release: AppRelease = {
-  version: stored.version, tagName: 'v1.5.31', title: 'Codex Switch', notes: '', publishedAt: null,
+  version: stored.version, tagName: 'v1.5.31', title: 'Codex Remote', notes: '', publishedAt: null,
   releaseUrl: 'https://example.com/release',
   androidAsset: { name: 'android.apk', downloadUrl: 'https://example.com/update.apk', size: stored.expectedSize },
 };

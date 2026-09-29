@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function chromePluginMatches(query: string) {
-  return "chrome 浏览器助手 browser codex switch 点击 输入 截图"
+  return "chrome 浏览器助手 browser codex remote 点击 输入 截图"
     .includes(query.trim().toLocaleLowerCase());
 }
 
@@ -42,7 +42,7 @@ export function ChromePluginCard({ homeId, active, onBusyChange }: Props) {
       <p>在你允许的网站上读取页面、点击、输入和截图，支持已有标签页。</p>
       <div className={styles.connection} role="status">{connectionText(status, busy)}</div>
       {error && <div className={styles.error} role="alert">{error}</div>}
-      <div className="skill-card-meta"><span>Codex Switch</span><span>浏览器</span></div>
+      <div className="skill-card-meta"><span>Codex Remote</span><span>浏览器</span></div>
       <div className={styles.cardActions}>
         <button className="refresh-all" disabled={busy || !status?.supported || !status.installed}
           onClick={() => setSetup(true)}>

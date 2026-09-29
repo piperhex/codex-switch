@@ -249,8 +249,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
 }
 
 export function DashboardApp() {
-  const [page, setPage] = useState<DashboardPage>(() =>
-    new URLSearchParams(window.location.search).get("page") === "codexGui" ? "codexGui" : "accounts");
+  const [page, setPage] = useState<DashboardPage>("codexGui");
   const notificationTarget = useNotificationNavigation(() => setPage("codexGui"));
   const [diagnosticsTab, setDiagnosticsTab] = useState<LogDiagnosticsTab>("errorLogs");
   const openProxySessions = () => {
@@ -1252,7 +1251,7 @@ export function DashboardApp() {
             <button type="button" className="brand sidebar-brand" onClick={openRepository}
               aria-label={t("help.github")} title={t("help.github")}>
               <img className="brand-logo" src={APP_LOGO_URL} alt="" />
-              <span>Codex<br /><b>Switch</b></span>
+              <span>Codex<br /><b>Remote</b></span>
             </button>
             <DashboardNavigation collapsed={navigationStyle.sidebarCollapsed}
               onPageChange={setPage} page={page} t={t} variant="sidebar"
@@ -1264,7 +1263,7 @@ export function DashboardApp() {
             <button type="button" className="brand" onClick={openRepository}
               aria-label={t("help.github")} title={t("help.github")}>
               <img className="brand-logo" src={APP_LOGO_URL} alt="" />
-              <span>Codex<br /><b>Switch</b></span>
+              <span>Codex<br /><b>Remote</b></span>
             </button>
           )}
           {page !== "codexGui" && <AnnouncementBanner link={announcementLink} onOpenLink={openAnnouncementLink}

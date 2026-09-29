@@ -66,7 +66,7 @@ function LoginView() {
   return <main className="login-page">
     <section className="login-story">
       <div className="story-grid" />
-      <div className="brand-lockup light"><BrandMark /><b>Codex Switch</b></div>
+      <div className="brand-lockup light"><BrandMark /><b>Codex Remote</b></div>
       <div className="story-copy">
         <span className="eyebrow"><Sparkles size={14} />  {t("随时掌握每个账号")}</span>
         <h1>{t("离开电脑，也能")}<br />{t("从容切换。")}</h1>
@@ -82,7 +82,7 @@ function LoginView() {
     <section className="login-panel">
       <div className="mobile-login-brand brand-lockup">
         <BrandMark />
-        <b>Codex Switch</b><span className="login-web-badge">Web</span>
+        <b>Codex Remote</b><span className="login-web-badge">Web</span>
       </div>
       <div className="login-form-wrap">
         <span className="login-kicker">{t("云端控制台")}</span>
@@ -355,7 +355,7 @@ function AppShell() {
     <aside className="desktop-sidebar">
       <div className="desktop-sidebar-heading">
         <div className="brand-lockup"><BrandMark />
-          <b>Codex Switch</b></div>
+          <b>Codex Remote</b></div>
         <button type="button" className="main-menu-toggle" aria-label={menuVisible ? t("收起主菜单") : t("展开主菜单")}
           aria-expanded={menuVisible} onClick={() => setMenuVisible(value => !value)}>
           <MenuToggleIcon size={20} /></button>
@@ -405,6 +405,6 @@ export default function App() {
   const { session, initialized } = useAppSelector((state) => state.auth);
   useEffect(() => { void dispatch(bootstrapApp()); }, [dispatch]);
   if (!initialized) return <div className="boot-screen"><BrandMark /><SpinLoading color="primary" />
-    <p>{t("正在打开 Codex Switch")}</p></div>;
+    <p>{t("正在打开 Codex Remote")}</p></div>;
   return session ? <AppShell /> : <LoginView />;
 }

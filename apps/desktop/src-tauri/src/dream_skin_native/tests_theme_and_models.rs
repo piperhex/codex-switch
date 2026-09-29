@@ -401,7 +401,7 @@
         )
         .unwrap();
 
-        assert!(expression.contains("Codex Switch Control"));
+        assert!(expression.contains("Codex Remote Control"));
         assert!(expression.contains("isDefault:"));
     }
 

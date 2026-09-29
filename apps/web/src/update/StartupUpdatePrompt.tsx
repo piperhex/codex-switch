@@ -16,7 +16,7 @@ export function StartupUpdatePrompt() {
   };
   return <Dialog visible title={t('发现新版本')} closeOnMaskClick={false}
     bodyStyle={{ width: 'calc(100vw - 48px)', maxWidth: 400 }}
-    content={t('Codex Switch v{version} 已发布，刷新页面即可更新。', { version: update.release.version })}
+    content={t('Codex Remote v{version} 已发布，刷新页面即可更新。', { version: update.release.version })}
     actions={[[
       { key: 'ignore', text: t('忽略本版本'), onClick: ignore },
       { key: 'update', text: t('立即更新'), bold: true, onClick: reloadForUpdate },

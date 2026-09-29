@@ -22,7 +22,7 @@ static INSTALL_CHANGES: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum RemoteError {
-    #[error("请先登录 Codex Switch，再使用远程命令。")]
+    #[error("请先登录 Codex Remote，再使用远程命令。")]
     Authentication,
     #[error("请先安装并启用远程命令插件。")]
     Disabled,
@@ -34,7 +34,7 @@ pub(crate) enum RemoteError {
     Storage,
     #[error("已有同名配置，请移除冲突配置后重试。")]
     Conflict,
-    #[error("连接未完成，请确认两台电脑在线且已更新 Codex Switch。")]
+    #[error("连接未完成，请确认两台电脑在线且已更新 Codex Remote。")]
     Connection,
     #[error("等待结果超时，命令可能已执行。请先检查状态，再决定是否重试。")]
     Timeout,

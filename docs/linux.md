@@ -16,7 +16,7 @@ command -v csw
 ```
 
 使用 `apt install` 安装本地包可以同时处理系统依赖。安装后命令是 `csw`，通常位于 `/usr/bin/csw`。
-有桌面环境时，可从应用菜单打开 Codex Switch，或运行：
+有桌面环境时，可从应用菜单打开 Codex Remote，或运行：
 
 ```bash
 csw
@@ -55,12 +55,12 @@ xvfb-run -a dbus-run-session -- csw --headless --port=18080
 
 以下示例使用已有的 `ubuntu` 用户，家目录为 `/home/ubuntu`。
 如果你的用户名不同，请同步修改 `User`、`Group`、`WorkingDirectory` 和 `HOME`。
-先退出同一用户启动的其他 Codex Switch 实例，避免单实例机制把启动请求交给已有进程。
+先退出同一用户启动的其他 Codex Remote 实例，避免单实例机制把启动请求交给已有进程。
 
 ```bash
 sudo tee /etc/systemd/system/codex-switch.service >/dev/null <<'EOF'
 [Unit]
-Description=Codex Switch web interface
+Description=Codex Remote web interface
 Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=120
@@ -127,7 +127,7 @@ ssh -N -L 18080:127.0.0.1:18080 ubuntu@SERVER_IP
 
 ### 方式二：监听 `0.0.0.0`
 
-可以先通过 SSH 隧道进入网页，在 **设置 → 网页版 Codex Switch 监听端口** 中保存端口，
+可以先通过 SSH 隧道进入网页，在 **设置 → 网页版 Codex Remote 监听端口** 中保存端口，
 开启“监听局域网”，再点击“复制网页版访问密钥”。也可在服务器上直接配置：
 
 1. 停止后台服务。
@@ -184,7 +184,7 @@ PY
 
 进入网页后，可导入账号 JSON，或在“三方模型及中转”中配置服务商地址、密钥和模型。
 无桌面服务器优先使用浏览器上传账号文件；需要本机窗口或桌面应用的操作仍取决于服务器环境。
-网页中的配置和任务作用于运行 Codex Switch 的服务器。
+网页中的配置和任务作用于运行 Codex Remote 的服务器。
 
 ### 开启代理的局域网监听
 
@@ -220,7 +220,7 @@ curl -H "Authorization: Bearer $PROXY_API_KEY" \
 unset PROXY_API_KEY
 ```
 
-### Codex Switch 的出站网络代理
+### Codex Remote 的出站网络代理
 
 如果服务器通过 Clash 等代理访问上游，在 **设置 → 网络代理** 中启用并填写其实际监听地址。
 例如 Clash 的 HTTP 代理确实运行在服务器 `127.0.0.1:7890` 时：

@@ -17,7 +17,7 @@ fn manifest(root: &Path) -> PathBuf {
 
 pub(super) fn register(root: &Path, executable: &Path) -> Result<()> {
     let path = manifest(root);
-    let content = json!({"name":HOST_NAME,"description":"Codex Switch browser assistant",
+    let content = json!({"name":HOST_NAME,"description":"Codex Remote browser assistant",
         "path":executable,"type":"stdio","allowed_origins":identity::allowed_origins()});
     crate::storage::write_json_atomic(&path, &content).map_err(|_| BrowserError::Storage)?;
     platform::register(&path)

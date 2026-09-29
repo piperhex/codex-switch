@@ -355,7 +355,7 @@ fn parse_provider_wallet_balance(
             Err("DeepSeek does not use a separate wallet balance endpoint".to_string())
         }
         ProviderBalancePlatform::CodexSwitch => {
-            Err("Codex Switch does not use a separate wallet balance endpoint".to_string())
+            Err("Codex Remote does not use a separate wallet balance endpoint".to_string())
         }
     }
 }

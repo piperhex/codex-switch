@@ -74,7 +74,7 @@ Android Release 构建成功并已覆盖安装到实体手机；Clippy 检查通
 审批验收结束后，访问权限已恢复为“帮我批准”。
 PC 与手机均将上述浏览器结果分为 131 段，PC 对照见 `final-browser-tool-pc-output-end.jpg`。
 单独请求 `functions.exec` 输出的测试在两端都未出现工具结果，不计入工具输出验收。
-超长工具结果已保存到手机“下载/Codex Switch”，本地导出核对记录为 `export-validation.json`。
+超长工具结果已保存到手机“下载/Codex Remote”，本地导出核对记录为 `export-validation.json`。
 工具原始文本中的包装格式不保证是合法 JSON，保存时按原文保留，不补写或改动内容。
 
 ## 未验证范围

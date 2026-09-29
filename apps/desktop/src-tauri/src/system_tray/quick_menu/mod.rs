@@ -58,7 +58,7 @@ fn create_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         LABEL,
         tauri::WebviewUrl::App("quick-menu.html#quick-menu".into()),
     )
-    .title("Codex Switch")
+    .title("Codex Remote")
     .inner_size(360.0, 620.0)
     .decorations(false)
     .transparent(true)

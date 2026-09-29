@@ -18,7 +18,7 @@ needs to be enabled in the current Codex GUI plugin page, then retry in the next
 claim that Computer Use provides these Chrome MCP tools.
 
 1. Call `browser_list` and select the requested browser profile. If no browser is connected,
-   ask the user to connect the Codex Switch browser assistant in Chrome. Never substitute another
+   ask the user to connect the Codex Remote browser assistant in Chrome. Never substitute another
    profile or bypass a disconnected or paused browser.
 2. Unless the user explicitly asks to use an already-open page, call `browser_open` to create a new
    background tab in the dedicated Codex group. Continue the task in the tabs you create. Only use
@@ -66,5 +66,5 @@ the user. Never weaken browser security, install extensions through policy worka
 silently enable a paused integration.
 
 Keep tabs the user needs and close only task-created temporary tabs when finished. Do not close
-existing user tabs unless requested. Distinguish this Codex Switch integration from OpenAI's
+existing user tabs unless requested. Distinguish this Codex Remote integration from OpenAI's
 Chrome plugin; no OpenAI desktop component is used.

@@ -25,7 +25,7 @@ it("shows only the model that a fixed Provider actually forwards to", () => {
     .toEqual(["deepseek-v3"]);
 });
 
-it("keeps the live Codex catalog for official accounts and upstream Codex Switch Providers", () => {
+it("keeps the live Codex catalog for official accounts and upstream Codex Remote Providers", () => {
   expect(providerModels([], [])).toBeNull();
   expect(providerModels([{ ...provider, active: false }], [])).toBeNull();
   expect(providerModels([{ ...provider, kind: "openai" }], [])).toBeNull();

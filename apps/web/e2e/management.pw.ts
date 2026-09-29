@@ -136,7 +136,7 @@ test('grouped settings, persisted interval, shared sync and about', async ({ pag
   await page.getByRole('switch', { name: '云端同步' }).click();
   await closeSheet(page);
   await expect(page.getByRole('button', { name: /2FA 密钥 已开启/ })).toBeVisible();
-  await page.getByRole('button', { name: /关于 Codex Switch/ }).click();
+  await page.getByRole('button', { name: /关于 Codex Remote/ }).click();
   await expect(page.getByText('Web 浏览器')).toBeVisible();
   await noOverflow(page);
   await page.screenshot({ path: info.outputPath('about.png') });
@@ -168,7 +168,7 @@ test('slow refresh stays responsive and only one refresh runs', async ({ page })
     await page.getByRole('button', { name: '批量刷新用量' }).click();
     await expect(page.getByRole('button', { name: '批量刷新用量' })).toBeDisabled();
     await navigate(page, '设置');
-    await page.getByRole('button', { name: /关于 Codex Switch/ }).click();
+    await page.getByRole('button', { name: /关于 Codex Remote/ }).click();
     await expect(page.getByText('Web 浏览器')).toBeVisible();
     expect(calls).toBe(1);
   } finally { release(); }

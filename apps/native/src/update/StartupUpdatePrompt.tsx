@@ -23,7 +23,7 @@ export function StartupUpdatePrompt() {
     <View style={styles.backdrop}>
       <View accessibilityViewIsModal style={styles.dialog}>
         <Text accessibilityRole="header" style={styles.title}>发现新版本</Text>
-        <Text style={styles.message}>Codex Switch v{release.version} 已发布，是否立即更新？</Text>
+        <Text style={styles.message}>Codex Remote v{release.version} 已发布，是否立即更新？</Text>
         {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
         <View style={styles.actions}>
           <Pressable accessibilityRole="button" onPress={ignore} style={styles.button}>

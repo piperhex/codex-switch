@@ -8,7 +8,7 @@ const script = workflow.slice(scriptStart, workflow.indexOf("\n  release:", scri
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 const createRelease = new AsyncFunction("github", "context", "core", "process", script);
 const TAG = "v1.2.3";
-const NAME = `Codex Switch ${TAG}`;
+const NAME = `Codex Remote ${TAG}`;
 
 function fixture(releases = []) {
   const calls = [];

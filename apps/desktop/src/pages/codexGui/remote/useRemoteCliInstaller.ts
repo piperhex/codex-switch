@@ -29,7 +29,7 @@ export function useRemoteCliInstaller(client: GuiToolsClient, active: boolean) {
         if (cancelled) return;
         setStatus(next); setReadError('');
         if (next.installing) delay = INSTALL_REFRESH_MS;
-      } catch { if (!cancelled) setReadError('无法读取远程 Codex 版本，请确认远程电脑已更新 Codex Switch。'); }
+      } catch { if (!cancelled) setReadError('无法读取远程 Codex 版本，请确认远程电脑已更新 Codex Remote。'); }
       finally {
         if (!cancelled) { setChecked(true); timer = setTimeout(() => { void refresh(); }, delay); }
       }

@@ -89,7 +89,7 @@ try {
   await check('04-complete-file-hash-and-delete', async () => {
     await waitFor(() => hasText('已完成'), 'download completed', 120_000);
     const local = path.join(output, 'regression.apk');
-    await adb('pull', '/sdcard/Download/Codex Switch/regression.apk', local);
+    await adb('pull', '/sdcard/Download/Codex Remote/regression.apk', local);
     const size = 32 * 1024 * 1024 + 17;
     const expected = Buffer.alloc(size);
     for (let i = 0; i < size; i++) expected[i] = i % 251;
@@ -97,7 +97,7 @@ try {
     assert.equal(digest(await readFile(local)), digest(expected));
     await tap('删除'); await waitText('将删除手机上的文件'); await tap('删除', { last: true });
     await waitText('暂无下载');
-    assert.equal(await adb('shell', 'test -e "/sdcard/Download/Codex Switch/regression.apk"; echo $?'), '1');
+    assert.equal(await adb('shell', 'test -e "/sdcard/Download/Codex Remote/regression.apk"; echo $?'), '1');
   });
   await check('05-browse-drives-and-delete-active-transfer', async () => {
     await tap('此电脑'); await waitText('打开文件夹：C:/');
@@ -112,7 +112,7 @@ try {
     await tap('当前项目'); await waitText('下载：empty'); await tap('下载：empty'); await tap('下载列表');
     await waitText('已完成');
     const local = path.join(output, 'empty');
-    await adb('pull', '/sdcard/Download/Codex Switch/empty', local);
+    await adb('pull', '/sdcard/Download/Codex Remote/empty', local);
     assert.equal((await readFile(local)).length, 0);
     await tap('删除'); await tap('删除', { last: true }); await waitText('暂无下载');
   });
@@ -136,7 +136,7 @@ try {
     await fixture('downloads-valid');
     await tap('继续下载'); await waitText('已完成');
     const local = path.join(output, 'small.zip');
-    await adb('pull', '/sdcard/Download/Codex Switch/small.zip', local);
+    await adb('pull', '/sdcard/Download/Codex Remote/small.zip', local);
     assert.equal((await readFile(local)).length, 1024 * 1024 + 3);
     await tap('删除'); await tap('删除', { last: true }); await waitText('暂无下载');
   });

@@ -1,6 +1,6 @@
 # 默认 Codex Home 被内置 GUI 环境覆盖
 
-从内置 Codex GUI 的终端或代理任务启动 Codex Switch 时，新进程可能继承 GUI 的
+从内置 Codex GUI 的终端或代理任务启动 Codex Remote 时，新进程可能继承 GUI 的
 `CODEX_HOME`。旧实现把它当作外部默认目录，再按路径合并内置 GUI 条目，导致
 `settings.json` 中只剩 `codex-gui`，原有默认条目消失。该过程不会删除默认目录中的文件。
 
