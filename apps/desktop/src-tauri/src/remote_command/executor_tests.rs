@@ -75,10 +75,17 @@ async fn timeout_also_terminates_shell_descendants() {
          -WindowStyle Hidden -PassThru; Write-Output $p.Id; Start-Sleep -Seconds 30",
         "",
     );
-    request.timeout_seconds = 2;
+    // Cold PowerShell startup can exceed two seconds on a busy Windows CI runner.
+    request.timeout_seconds = 10;
     let result = execute(request, || true).await.unwrap();
     assert!(result.timed_out);
-    let pid = sysinfo::Pid::from_u32(result.stdout.trim().parse::<u32>().unwrap());
+    let pid = sysinfo::Pid::from_u32(
+        result
+            .stdout
+            .trim()
+            .parse::<u32>()
+            .expect("child process must report its PID before the command times out"),
+    );
     let mut system = sysinfo::System::new();
     system.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
     assert!(
