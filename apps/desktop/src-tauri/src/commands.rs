@@ -3,10 +3,12 @@ use std::{
     fs,
     io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
-    process::Command,
     sync::{Mutex, OnceLock},
     time::Duration,
 };
+
+#[cfg(not(target_os = "macos"))]
+use std::process::Command;
 
 #[cfg(target_os = "windows")]
 use std::{os::windows::process::CommandExt, thread, time::Instant};

@@ -165,7 +165,9 @@ fn parse_history(bytes: &[u8]) -> History {
     let text = String::from_utf8_lossy(bytes);
     let fields: Vec<_> = text.split_terminator('\0').collect();
     let mut commits: Vec<_> = fields
-        .chunks_exact(6)
+        .as_chunks::<6>()
+        .0
+        .iter()
         .map(|row| Commit {
             hash: row[0].to_owned(),
             parents: row[1].split_whitespace().map(str::to_owned).collect(),

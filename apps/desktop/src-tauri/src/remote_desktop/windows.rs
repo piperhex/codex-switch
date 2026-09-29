@@ -134,7 +134,7 @@ pub(super) fn capture(width: u32, display: &super::monitors::Monitor) -> Result<
     // SAFETY: CreateDIBSection allocated width * height BGRA pixels; the owner stays live for this slice.
     let pixels = unsafe { std::slice::from_raw_parts(capture.pixels, length) };
     let mut rgb = Vec::with_capacity(length / 4 * 3);
-    for pixel in pixels.chunks_exact(4) {
+    for pixel in pixels.as_chunks::<4>().0 {
         rgb.extend_from_slice(&[pixel[2], pixel[1], pixel[0]]);
     }
     let mut encoded = Vec::new();

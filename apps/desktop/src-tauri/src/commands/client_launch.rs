@@ -116,11 +116,3 @@ fn start_unmanaged_chatgpt(_target: Option<&ChatGptLaunchTarget>) -> Result<(), 
         .map(|_| ())
         .map_err(|error| format!("启动 ChatGPT 失败：{error}"))
 }
-
-#[cfg(unix)]
-fn status_error(action: &str, status: std::process::ExitStatus) -> String {
-    match status.code() {
-        Some(code) => format!("{action}（退出码：{code}）"),
-        None => format!("{action}（进程被信号终止）"),
-    }
-}

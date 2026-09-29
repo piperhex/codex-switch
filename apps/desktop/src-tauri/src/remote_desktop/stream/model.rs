@@ -1,3 +1,4 @@
+#[cfg(windows)]
 use super::super::{DesktopError, Result};
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +13,7 @@ pub(crate) struct Profile {
     pub bitrate: u32,
 }
 
+#[cfg(windows)]
 impl Profile {
     pub(super) fn validate(self) -> Result<Self> {
         super::super::validation::width(self.width)?;
@@ -31,6 +33,7 @@ pub(crate) struct IceServer {
     pub credential: String,
 }
 
+#[cfg(windows)]
 impl IceServer {
     pub(super) fn validate(&self) -> Result<()> {
         if self.urls.len() > 8 || self.username.len() > 512 || self.credential.len() > 512 {

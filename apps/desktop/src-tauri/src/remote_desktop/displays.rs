@@ -19,6 +19,7 @@ pub(crate) struct Opened {
     pub display_id: String,
 }
 
+#[cfg(any(windows, test))]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Bounds {
     pub x: i32,
@@ -27,6 +28,7 @@ pub(super) struct Bounds {
     pub height: u32,
 }
 
+#[cfg(any(windows, test))]
 impl Bounds {
     pub fn point(self, x: f64, y: f64) -> (i32, i32) {
         (

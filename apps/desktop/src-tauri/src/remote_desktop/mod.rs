@@ -26,6 +26,7 @@ mod windows_input;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum DesktopError {
+    #[cfg(windows)]
     #[error("desktop session already active")]
     Busy,
     #[error("desktop permission denied")]
@@ -36,6 +37,7 @@ pub(super) enum DesktopError {
     Expired,
     #[error("desktop capture or input failed")]
     Platform,
+    #[cfg(windows)]
     #[error("selected desktop display disconnected")]
     DisplayGone,
     #[error("desktop platform unsupported")]
@@ -59,6 +61,13 @@ static SESSION: OnceLock<Mutex<Option<Session>>> = OnceLock::new();
 
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
+#[cfg_attr(
+    not(windows),
+    expect(
+        dead_code,
+        reason = "Keep the IPC input schema on all platforms; only Windows injects these input fields."
+    )
+)]
 pub(crate) enum DesktopInput {
     Move {
         x: f64,
@@ -104,6 +113,7 @@ pub(crate) enum Key {
 
 fn safe_error(error: DesktopError) -> String {
     match error {
+        #[cfg(windows)]
         DesktopError::Busy => "已有远程桌面连接，请先关闭后再试。",
         DesktopError::Denied => "这台电脑未允许此远程操作，请在电脑的设置中调整。",
         #[cfg(not(windows))]
@@ -111,6 +121,7 @@ fn safe_error(error: DesktopError) -> String {
         DesktopError::Expired => "桌面连接已结束，请重新连接。",
         DesktopError::Invalid => "远程操作无效，请重试。",
         DesktopError::Platform => "暂时无法访问桌面，请稍后重试。",
+        #[cfg(windows)]
         DesktopError::DisplayGone => "显示器已断开，请重新连接桌面。",
     }
     .into()
@@ -145,7 +156,10 @@ fn open(
         return Err(DesktopError::Denied);
     }
     #[cfg(not(windows))]
-    return Err(DesktopError::Unsupported);
+    {
+        let _ = (display_id, expires_at);
+        Err(DesktopError::Unsupported)
+    }
     #[cfg(windows)]
     {
         if display_id
@@ -223,8 +237,8 @@ fn revoke() -> Result<()> {
         .get_or_init(|| Mutex::new(None))
         .lock()
         .map_err(|_| DesktopError::Platform)?;
+    #[cfg(windows)]
     if let Some(session) = guard.as_mut() {
-        #[cfg(windows)]
         session.input.release()?;
     }
     *guard = None;
@@ -238,9 +252,9 @@ fn close(id: &str) -> Result<()> {
         .get_or_init(|| Mutex::new(None))
         .lock()
         .map_err(|_| DesktopError::Platform)?;
-    if let Some(session) = guard.as_mut().filter(|session| session.id == id) {
+    if let Some(_session) = guard.as_mut().filter(|session| session.id == id) {
         #[cfg(windows)]
-        session.input.release()?;
+        _session.input.release()?;
         *guard = None;
     }
     Ok(())
@@ -300,7 +314,10 @@ pub(crate) async fn remote_desktop_frame(
         return with_session(&id, |session| windows::capture(width, &session.display))
             .map(tauri::ipc::Response::new);
         #[cfg(not(windows))]
-        Err(DesktopError::Unsupported)
+        {
+            let _ = id;
+            Err(DesktopError::Unsupported)
+        }
     })
     .await
     .map_err(|_| safe_error(DesktopError::Platform))?
