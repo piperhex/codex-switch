@@ -19,8 +19,11 @@ export function useChat(session: AuthSession, deviceId: string, enabled: boolean
     controller.start();
     const stopped = DeviceEventEmitter.addListener(CHAT_SERVICE_STOPPED, () => controller.stop());
     const resumed = AppState.addEventListener('change', (next) => {
-      if (next === 'active') { controller.start(); void controller.refreshSelected(); }
-      else void controller.flushCache();
+      if (next !== 'active') { void controller.flushCache(); return; }
+      controller.start();
+      // Returning to chat should not wait for a background retry's backoff timer.
+      controller.connectNow();
+      void controller.refreshSelected();
     });
     return () => { stopped.remove(); resumed.remove(); controller.stop(); };
   }, [enabled, controller]);
