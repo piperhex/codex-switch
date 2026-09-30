@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { beforeEach, test } from 'node:test';
+import { afterEach, beforeEach, test } from 'node:test';
+import { stopDebugging } from '../apps/desktop/src-tauri/resources/chrome-extension/driver.js';
 import { execute } from '../apps/desktop/src-tauri/resources/chrome-extension/operations.js';
 import { validate } from '../apps/desktop/src-tauri/resources/chrome-extension/validation.js';
 import { initializePermissions } from '../apps/desktop/src-tauri/resources/chrome-extension/permissions.js';
@@ -11,6 +12,7 @@ let allowed;
 let documentsRead;
 let changeDocument;
 let intercept;
+afterEach(() => stopDebugging());
 const MAIN = { id: 'main', url: 'https://fixture.example/', loaderId: 'document-1' };
 const CHILD = { id: 'child', url: 'https://child.example/', loaderId: 'document-2' };
 const LOCAL = { id: 'local', url: 'https://fixture.example/child', loaderId: 'document-3' };
@@ -50,7 +52,7 @@ beforeEach(async () => {
         const intercepted = await intercept(target, method, params);
         if (intercepted !== undefined) return intercepted;
         if (method === 'Page.getLayoutMetrics') return { cssLayoutViewport: { clientWidth: 1280, clientHeight: 720 } };
-        if (method === 'Target.setAutoAttach' && !target.sessionId) {
+        if (method === 'Target.setAutoAttach' && params.autoAttach && !target.sessionId) {
           emit(target, ['Target.attachedToTarget',
             { sessionId: 'remote', targetInfo: { targetId: 'child', type: 'iframe' } }]);
         }
@@ -92,7 +94,8 @@ test('reads retained console messages and exceptions, formats values and one-bas
   assert.equal(result.entries[1].text, 'Error: failed');
   assert.equal(result.entries[1].line, 10);
   assert.equal(listeners.size, 0);
-  assert.equal(calls.at(-1).method, 'detach');
+  assert.equal(calls.at(-1).method, 'Log.disable');
+  assert.ok(!calls.some(call => call.method === 'detach'));
   assert.ok(!calls.some(call => ['Runtime.discardConsoleEntries', 'Runtime.callFunctionOn'].includes(call.method)));
   assert.ok(!calls.some(call => call.method.startsWith('Emulation.') || call.method === 'Runtime.evaluate'));
 });
@@ -225,7 +228,8 @@ const networkEvent = (text, timestamp = 300) => ['Log.entryAdded', { entry: {
 
 function workerFixture({ close = false } = {}) {
   intercept = async (target, method, params) => {
-    if (method === 'Target.setAutoAttach' && !target.sessionId && params.filter.some(item => item.type === 'worker')) {
+    if (method === 'Target.setAutoAttach' && params.autoAttach && !target.sessionId
+      && params.filter.some(item => item.type === 'worker')) {
       emit(target, ['Target.attachedToTarget', { sessionId: 'worker-session', targetInfo: {
         targetId: 'worker-id', type: 'worker', url: MAIN.url + 'worker.js',
       } }]);
@@ -294,7 +298,8 @@ test('renderer logs require access to every sharing frame while page-only logs k
 
 test('worker origin permission is checked before enabling its console', async () => {
   intercept = async (target, method, params) => {
-    if (method === 'Target.setAutoAttach' && !target.sessionId && params.filter.some(item => item.type === 'worker')) {
+    if (method === 'Target.setAutoAttach' && params.autoAttach && !target.sessionId
+      && params.filter.some(item => item.type === 'worker')) {
       emit(target, ['Target.attachedToTarget', { sessionId: 'denied-worker', targetInfo: {
         targetId: 'denied', type: 'worker', url: 'https://denied.example/worker.js',
       } }]);
@@ -309,7 +314,8 @@ test('worker origin permission is checked before enabling its console', async ()
 test('rechecks a related worker origin after its final log command', async () => {
   let workerAllowed = true;
   intercept = async (target, method, params) => {
-    if (method === 'Target.setAutoAttach' && !target.sessionId && params.filter.some(item => item.type === 'worker')) {
+    if (method === 'Target.setAutoAttach' && params.autoAttach && !target.sessionId
+      && params.filter.some(item => item.type === 'worker')) {
       emit(target, ['Target.attachedToTarget', { sessionId: 'external-worker', targetInfo: {
         targetId: 'external', type: 'worker', url: 'https://worker.example/worker.js',
       } }]);
@@ -356,7 +362,8 @@ test('reads browser warnings through the authorized renderer and keeps source fi
 
 test('caps related worker discovery and tears down every event listener', async () => {
   intercept = async (target, method, params) => {
-    if (method === 'Target.setAutoAttach' && !target.sessionId && params.filter.some(item => item.type === 'worker')) {
+    if (method === 'Target.setAutoAttach' && params.autoAttach && !target.sessionId
+      && params.filter.some(item => item.type === 'worker')) {
       for (let index = 0; index < 40; index++) emit(target, ['Target.attachedToTarget', {
         sessionId: 'worker-' + index, targetInfo: {
           targetId: 'worker-' + index, type: 'worker', url: MAIN.url + index + '.js',

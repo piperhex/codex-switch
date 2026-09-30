@@ -29,5 +29,11 @@ export async function readWorkerLogs(connection, options) {
     await runtime.flush();
     await guard();
     if (runtime.contextChanged()) throw new Error('这个 Worker 已变化，请重新读取日志。');
-  } finally { dispose(); }
+  } finally {
+    dispose();
+    // Retained connections need a fresh replay on the next read. A cleanup failure propagates
+    // so the driver closes the connection instead of retaining enabled log domains.
+    await chrome.debugger.sendCommand(target, 'Runtime.disable');
+    await chrome.debugger.sendCommand(target, 'Log.disable');
+  }
 }

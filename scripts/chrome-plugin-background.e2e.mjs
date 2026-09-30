@@ -18,6 +18,15 @@ await fs.cp(source, extension, { recursive: true });
 await fs.writeFile(path.join(extension, 'background.js'), `
 import { execute } from './operations.js';
 import { initializePermissions } from './permissions.js';
+import { stopDebugging } from './driver.js';
+import { debuggerDetached } from './debugger-connections.js';
+globalThis.connectionCalls = [];
+for (const method of ['attach', 'detach']) {
+  const original = chrome.debugger[method].bind(chrome.debugger);
+  chrome.debugger[method] = (...args) => { connectionCalls.push({method,target:args[0]}); return original(...args); };
+}
+chrome.debugger.onDetach.addListener(target => { void debuggerDetached(target); });
+globalThis.stop = stopDebugging;
 const ready = initializePermissions();
 globalThis.run = async (operation, args) => { await ready; return execute({clientId:'fixture'}, {operation,args}); };
 globalThis.read = async (tabId) => (await chrome.scripting.executeScript({target:{tabId,allFrames:true},world:'MAIN',
@@ -41,6 +50,16 @@ function findReference(snapshot, role, name) {
   return line.match(/^\[([^\]]+)\]/)[1];
 }
 
+async function checkConnectionAndStop(tabId) {
+  const { evaluate } = browser;
+  await delay(500);
+  assert.deepEqual(await evaluate(`connectionCalls.filter(call=>call.target.tabId===${tabId})`),
+    [{ method: 'attach', target: { tabId } }]);
+  await evaluate('stop()');
+  assert.equal(await evaluate(`chrome.debugger.getTargets().then(targets=>
+    targets.find(target=>target.tabId===${tabId})?.attached)`), false);
+}
+
 async function checkTab({ window, active }) {
   const { evaluate } = browser;
   const tab = await evaluate(`chrome.tabs.create(${JSON.stringify({ url, active, windowId: window.id })})`);
@@ -49,8 +68,12 @@ async function checkTab({ window, active }) {
   const beforeWindow = await evaluate(`chrome.windows.get(${window.id})`);
   const beforeActive = await evaluate(`chrome.tabs.query({active:true,windowId:${window.id}})`);
   const beforeVisibility = (await evaluate(`read(${tab.id})`))[0].visibility;
-  const run = (operation, args) => evaluate(
-    `run(${JSON.stringify(operation)},${JSON.stringify({tabId:tab.id,...args})})`);
+  const run = async (operation, args) => {
+    const result = await evaluate(`run(${JSON.stringify(operation)},${JSON.stringify({tabId:tab.id,...args})})`);
+    assert.equal(await evaluate(`chrome.debugger.getTargets().then(targets=>
+      targets.find(target=>target.tabId===${tab.id})?.attached)`), true);
+    return result;
+  };
   const action = async (operation, { role, name, frameId, ...args }) => {
     const snapshot = await run('snapshot', { ...(frameId ? { frameId } : {}) });
     return run(operation, { ref: findReference(snapshot, role, name), ...args });
@@ -82,8 +105,10 @@ async function checkTab({ window, active }) {
   assert.equal(afterWindow.state, beforeWindow.state);
   assert.equal((await evaluate(`chrome.tabs.query({active:true,windowId:${window.id}})`))[0].id, beforeActive[0].id);
   assert.equal((await evaluate(`read(${tab.id})`))[0].visibility, beforeVisibility);
+  await checkConnectionAndStop(tab.id);
   await evaluate(`chrome.tabs.remove(${tab.id})`);
-  console.log(`Passed ${active ? 'selected' : 'unselected'} tab: input and frames; window and visibility unchanged.`);
+  console.log(`Passed ${active ? 'selected' : 'unselected'} tab: one connection across input and frames;`
+    + ' stop releases it; window and visibility unchanged.');
 }
 
 try {

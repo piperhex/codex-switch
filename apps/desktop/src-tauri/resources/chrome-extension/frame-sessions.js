@@ -4,7 +4,8 @@ const AUTO_ATTACH = { autoAttach: true, waitForDebuggerOnStart: false, flatten: 
 
 // Chrome omits out-of-process frames from the main target's frame tree. Each child session owns a tree.
 export function createFrameSessions(target, guard) {
-  const state = { target, guard, targets: new Map(), frameSessions: new Map(), pending: new Set(), error: null };
+  const state = { target, guard, targets: new Map(), frameSessions: new Map(), pending: new Set(),
+    error: null, disposed: false };
   const listener = (source, method, params) => onEvent(state, { source, method, params });
   chrome.debugger.onEvent.addListener(listener);
   return {
@@ -17,8 +18,27 @@ export function createFrameSessions(target, guard) {
       if (frameId && !state.frameSessions.has(frameId)) throw new Error('页面框架已变化，请重新读取页面。');
       return command(state, { method, params, sessionId: state.frameSessions.get(frameId) });
     },
-    dispose: () => chrome.debugger.onEvent.removeListener(listener),
+    dispose: () => dispose(state, listener),
   };
+}
+
+async function dispose(state, listener) {
+  state.disposed = true;
+  chrome.debugger.onEvent.removeListener(listener);
+  await Promise.all([...state.pending]);
+  try {
+    // Disabling root auto-attach releases child frames/workers and their protocol domains.
+    // Reset root log domains too so the next read receives Chrome's retained log replay.
+    await chrome.debugger.sendCommand(state.target, 'Target.setAutoAttach', {
+      autoAttach: false, waitForDebuggerOnStart: false, flatten: true,
+    });
+    await chrome.debugger.sendCommand(state.target, 'Runtime.disable');
+    await chrome.debugger.sendCommand(state.target, 'Log.disable');
+    return true;
+  } catch {
+    // Cancellation may already have detached. Failed cleanup must not retain the connection.
+    return false;
+  }
 }
 
 function debuggee(state, frameId) {
@@ -73,6 +93,7 @@ async function settle(state) {
 
 async function command(state, { method, params = {}, sessionId }) {
   await state.guard();
+  if (state.disposed) throw new Error('浏览器操作已结束。');
   return chrome.debugger.sendCommand({ ...state.target, ...(sessionId ? { sessionId } : {}) }, method, params);
 }
 

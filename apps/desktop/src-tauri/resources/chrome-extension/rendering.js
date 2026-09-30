@@ -18,10 +18,11 @@ export async function prepareBackgroundPage(driver) {
 
 export async function restoreBackgroundPage(target, viewportOverridden) {
   // Revocation can detach the debugger first. Cleanup must still run without a website-access guard.
-  await chrome.debugger.sendCommand(target, 'Emulation.setFocusEmulationEnabled', { enabled: false }).catch(() => {});
-  if (viewportOverridden) {
-    await chrome.debugger.sendCommand(target, 'Emulation.clearDeviceMetricsOverride').catch(() => {});
-  }
+  try {
+    await chrome.debugger.sendCommand(target, 'Emulation.setFocusEmulationEnabled', { enabled: false });
+    if (viewportOverridden) await chrome.debugger.sendCommand(target, 'Emulation.clearDeviceMetricsOverride');
+    return true;
+  } catch { return false; } // The driver detaches if overrides could not be restored.
 }
 
 // Background Chrome can defer animation-frame callbacks. Keep the renderer prepared until input-driven

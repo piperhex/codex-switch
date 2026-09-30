@@ -2,6 +2,7 @@ import * as permissions from './permissions.js';
 import { execute } from './operations.js';
 import { invalidate } from './snapshot.js';
 import { stopDebugging } from './driver.js';
+import { debuggerDetached, hasDebuggerConnections } from './debugger-connections.js';
 import { clearControlledTabs } from './tab-indicator.js';
 import { createBundleUpdater, UPDATE_ALARM } from './auto-update.js';
 
@@ -10,7 +11,9 @@ const running = new Map();
 let port;
 let connectionError = '';
 const initialized = permissions.initializePermissions();
-const updater = createBundleUpdater({ busy: () => running.size > 0, beforeReload: stopDebugging });
+const updater = createBundleUpdater({
+  busy: () => running.size > 0 || hasDebuggerConnections(), beforeReload: stopDebugging,
+});
 
 async function connect() {
   await initialized;
@@ -105,6 +108,14 @@ chrome.tabs.onUpdated.addListener((tabId, change) => {
   void clearControlledTabs(tabId);
 });
 chrome.tabs.onRemoved.addListener((tabId) => { invalidate(tabId); void clearControlledTabs(tabId); });
+chrome.debugger.onDetach.addListener((target, reason) => {
+  void debuggerDetached(target);
+  if (reason !== 'canceled_by_user') return;
+  // Chrome's Cancel button is a stop decision, including between tool calls.
+  for (const controller of running.values()) controller.abort();
+  void permissions.setPaused(true);
+  void stopDebugging();
+});
 chrome.windows.onRemoved.addListener(permissions.windowClosed);
 chrome.permissions.onRemoved.addListener(({ origins }) => {
   if (!origins?.length) return;

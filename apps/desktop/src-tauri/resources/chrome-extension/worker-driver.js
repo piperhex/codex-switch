@@ -1,8 +1,8 @@
 import { authorize, assertRunning } from './permissions.js';
 import { website } from './validation.js';
+import { acquireConnection, assertConnected, closeConnection, releaseConnection } from './debugger-connections.js';
 
 const queues = new Map();
-const attached = new Set();
 const MAX_LIST_WORKERS = 100;
 const MAX_WORKER_URL = 2000;
 const MAX_WORKER_TITLE = 200;
@@ -51,31 +51,28 @@ async function run(context, workerId, operation) {
   const worker = await findWorker(context, workerId);
   const workerUrl = worker.url;
   const target = { targetId: workerId };
+  const connection = await acquireConnection(target, context.signal).catch(() => {
+    assertRunning(context.signal);
+    throw new Error('无法连接这个 Worker，请关闭其开发者工具后重试。');
+  });
   const guard = async () => {
     const current = await findWorker(context, workerId);
+    assertConnected(connection);
     if (current.url !== workerUrl) throw new Error('这个 Worker 已变化，请重新读取日志。');
   };
-  try { await chrome.debugger.attach(target, '1.3'); }
-  catch { throw new Error('无法连接这个 Worker，请关闭其开发者工具后重试。'); }
-  attached.add(workerId);
   // Cancellation must release a debugger command awaiting a worker that is shutting down.
-  const abort = () => { void chrome.debugger.detach(target).catch(() => {}); };
+  const abort = () => { void closeConnection(connection); };
   context.signal?.addEventListener('abort', abort, { once: true });
+  if (context.signal?.aborted) abort();
+  let completed = false;
   try {
     await guard();
     const result = await operation({ target, guard, worker: { targetId: workerId, url: workerUrl, type: 'worker' } });
     await guard();
+    completed = true;
     return result;
   } finally {
+    await releaseConnection(connection, completed && !context.signal?.aborted);
     context.signal?.removeEventListener('abort', abort);
-    attached.delete(workerId);
-    // Chrome may already have detached a terminated worker or a cancelled request.
-    await chrome.debugger.detach(target).catch(() => {});
   }
-}
-
-export async function stopWorkers() {
-  // Worker termination can race pause/revoke cleanup.
-  await Promise.all([...attached].map(targetId => chrome.debugger.detach({ targetId }).catch(() => {})));
-  attached.clear();
 }

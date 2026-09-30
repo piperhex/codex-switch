@@ -29,8 +29,15 @@ restriction on existing tabs; users can still request operations on their own op
 The debugger session prepares background input with Chrome's focus emulation without activating a
 tab or bringing a window forward. A selected tab created in a minimized window can have a zero-sized
 viewport; only that session receives temporary viewport dimensions. The window remains minimized.
-Input-driven rendering is allowed to settle before detaching, with a one-second limit so background
-animation callbacks do not leave the tool waiting indefinitely. All overrides end with the session.
+Input-driven rendering is allowed to settle before restoring page overrides, with a one-second limit
+so background animation callbacks do not leave the tool waiting indefinitely. All overrides end with
+each operation. Debugger connections are reused between operations, keeping Chrome's debugging banner
+visible during continued browser work. A connection is released after five minutes without an operation
+on its target; active operations never expire. Pause, access revocation, native-host disconnect and
+Chrome's Cancel button release connections immediately. Cancel also pauses control until the user resumes
+it in the extension popup. Closing a target removes only that connection. Frame/Worker subscriptions
+and log domains are reset after each operation so repeated reads still replay retained logs. Unpacked
+extension updates wait until retained connections have been released.
 This fixes the case where input commands acknowledged a click but the background page received no
 mouse event. A fresh snapshot is still required to verify the site's actual response.
 GUI conversations support the upstream MCP tool confirmation form with single-use allow/deny choices;
@@ -195,6 +202,20 @@ are masked in accessible snapshots; screenshots can still contain visible page c
 
 ## Verification
 
+### 2026-09-30 continuous browser control indication
+
+Extension 1.5.1 retains the debugger connection across successive operations. The Windows Chrome
+fixture verifies exactly one attach and no detach across repeated snapshots, trusted input and
+same/cross-origin frame actions, including an idle gap. Explicit stop detaches; window focus,
+minimized state and tab selection stay unchanged. Real Chrome console and Worker diagnostic
+fixtures also pass with reused connections.
+
+Unit tests cover idle expiry/renewal, active-operation protection, cancellation while attaching,
+cleanup failures, and a new request racing idle cleanup. Background integration tests cover Chrome
+Cancel during active/queued work and between requests, popup pause/resume, revocation, host-permission
+removal, target closure and native-host disconnect. No connection is recreated after Cancel until
+the user resumes control.
+
 ### 2026-09-21 network and Worker logs
 
 The isolated Windows Chrome fixture covers retained 404, dropped-connection and CORS request
@@ -331,6 +352,7 @@ node scripts/chrome-plugin-tab-groups.test.mjs
 node scripts/chrome-plugin-tab-indicator.test.mjs
 node --test scripts/chrome-plugin-update.test.mjs
 node --test scripts/chrome-plugin-driver.test.mjs
+node --test scripts/chrome-plugin-connections.test.mjs scripts/chrome-plugin-lifecycle.test.mjs
 node --test scripts/chrome-plugin-console.test.mjs
 node --test scripts/chrome-plugin-console-format.test.mjs
 node scripts/chrome-plugin-console.e2e.mjs

@@ -46,7 +46,7 @@ async function diagnostics(driver, { frameId, args, add }) {
     await verifyRendererScope(driver, scope, frameId);
     return { ...status, unattributedWorkerMessages, forwardedTruncated: forwarded.result().truncated,
       rendererFrameIds: scope.map(frame => frame.id) };
-  } finally { dispose(); workers.dispose(); }
+  } finally { dispose(); await workers.dispose(); }
 }
 
 async function addForwarded(driver, { entries, readIds, add }) {

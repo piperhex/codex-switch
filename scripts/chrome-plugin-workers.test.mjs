@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
-import { beforeEach, test } from 'node:test';
+import { afterEach, beforeEach, test } from 'node:test';
 import { execute } from '../apps/desktop/src-tauri/resources/chrome-extension/operations.js';
 import { initializePermissions } from '../apps/desktop/src-tauri/resources/chrome-extension/permissions.js';
 import { validate } from '../apps/desktop/src-tauri/resources/chrome-extension/validation.js';
-import { stopWorkers } from '../apps/desktop/src-tauri/resources/chrome-extension/worker-driver.js';
+import { stopConnections } from '../apps/desktop/src-tauri/resources/chrome-extension/debugger-connections.js';
 
 let targets;
 let listeners;
 let calls;
 let allowed;
 let command;
+afterEach(() => stopConnections());
 const emit = (source, method, params) => listeners.forEach(listener => listener(source, method, params));
 const run = (args, signal) => execute({ clientId: 'home', signal }, { operation: 'console_logs', args });
 
@@ -75,7 +76,10 @@ test('reads an explicitly selected worker and isolates its events without a tab'
   assert.ok(result.entries.every(entry => entry.workerId === 'shared' && entry.scope === 'worker'));
   assert.equal(result.entries[0].workerUrl, targets[0].url);
   assert.deepEqual(calls[0], { method: 'attach', target: { targetId: 'shared' } });
-  assert.deepEqual(calls.at(-1), { method: 'detach', target: { targetId: 'shared' } });
+  assert.deepEqual(calls.at(-1), { method: 'Log.disable', target: { targetId: 'shared' } });
+  assert.ok(!calls.some(call => call.method === 'detach'));
+  assert.deepEqual((await run({ workerId: 'shared' })).entries, result.entries);
+  assert.equal(calls.filter(call => call.method === 'attach').length, 1);
   assert.equal(listeners.size, 0);
 });
 
@@ -119,7 +123,7 @@ test('permission revocation and cancellation reject reads and release worker deb
   assert.equal(calls.length, 0);
   allowed = true;
   const controller = new AbortController();
-  command = async () => { controller.abort(); await stopWorkers(); return {}; };
+  command = async () => { controller.abort(); await stopConnections(); return {}; };
   await assert.rejects(run({ workerId: 'shared' }, controller.signal), /取消/);
   assert.equal(listeners.size, 0);
   assert.ok(calls.some(call => call.method === 'detach' && call.target.targetId === 'shared'));

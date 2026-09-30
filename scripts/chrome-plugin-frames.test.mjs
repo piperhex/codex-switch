@@ -33,5 +33,5 @@ test('combines remote frame trees, recursively attaches, and routes same-process
   assert.equal(calls.at(-1).target.sessionId,'nested');
   emit({tabId:7},'Target.detachedFromTarget',{sessionId:'remote'});
   assert.throws(()=>sessions.send('DOM.resolveNode',{},'remote-local'),/框架已变化/);
-  sessions.dispose();assert.equal(listeners.size,0);
+  assert.equal(await sessions.dispose(), true);assert.equal(listeners.size,0);
 });

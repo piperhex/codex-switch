@@ -16,7 +16,11 @@ export function relatedWorkers(driver, frameId) {
   return {
     initialize: async () => { await driver.guard(); await attach(state, root); await settle(state); },
     read: (options) => read(state, options),
-    dispose: () => { state.disposed = true; state.disposers.forEach(dispose => dispose()); },
+    dispose: async () => {
+      state.disposed = true;
+      state.disposers.forEach(dispose => dispose());
+      await Promise.all([...state.pending]);
+    },
   };
 }
 
