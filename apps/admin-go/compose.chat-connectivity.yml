@@ -16,7 +16,8 @@ services:
       - "11010:11010/udp"
       - "11010:11010/tcp"
     read_only: true
-    tmpfs: [/tmp:rw,noexec,nosuid,size=16m]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     mem_limit: 512m
