@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Runtime, WebviewWindow};
 use tokio::sync::Mutex;
 
+mod dismissal;
+#[cfg(test)]
+mod native_smoke;
 mod placement;
 mod snapshot;
 #[cfg(windows)]
@@ -25,7 +29,10 @@ struct MenuSession {
 }
 
 #[derive(Default)]
-pub(crate) struct QuickMenuState(Mutex<MenuSession>);
+pub(crate) struct QuickMenuState {
+    session: Mutex<MenuSession>,
+    presented_revision: AtomicU64,
+}
 
 /// Opens on the async runtime: WebView creation must never block the Windows UI thread.
 pub(crate) async fn show<R: Runtime>(
@@ -33,7 +40,7 @@ pub(crate) async fn show<R: Runtime>(
     anchor: PhysicalPosition<f64>,
 ) -> Result<(), String> {
     let state = app.state::<QuickMenuState>();
-    let mut session = state.0.lock().await;
+    let mut session = state.session.lock().await;
     let read_app = app.clone();
     let entries = tauri::async_runtime::spawn_blocking(move || snapshot::read(&read_app))
         .await
@@ -47,12 +54,12 @@ pub(crate) async fn show<R: Runtime>(
             .emit(REFRESH_EVENT, ())
             .map_err(|error| error.to_string())?;
     } else {
-        create_window(app)?;
+        create_window(app).await?;
     }
     Ok(())
 }
 
-fn create_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+async fn create_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let builder = crate::webview_windows::builder(
         app,
         LABEL,
@@ -79,6 +86,9 @@ fn create_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let window = builder.build().map_err(|error| error.to_string())?;
     #[cfg(windows)]
     windows::round_corners(&window).map_err(|error| error.to_string())?;
+    windows::install_dismissal(&window)
+        .await
+        .map_err(|error| error.to_string())?;
     Ok(())
 }
 
@@ -95,7 +105,7 @@ pub(crate) async fn quick_menu_snapshot<R: Runtime>(
 ) -> Result<MenuSnapshot, String> {
     validate_caller(&window)?;
     let state = window.state::<QuickMenuState>();
-    let session = state.0.lock().await;
+    let session = state.session.lock().await;
     Ok(session.snapshot.clone())
 }
 
@@ -113,11 +123,15 @@ pub(crate) async fn quick_menu_present<R: Runtime>(
 ) -> Result<(), String> {
     validate_caller(&window)?;
     let state = window.state::<QuickMenuState>();
-    let session = state.0.lock().await;
+    let session = state.session.lock().await;
     if !session.open || session.snapshot.revision != request.revision {
         return Ok(());
     }
+    state
+        .presented_revision
+        .store(request.revision, Ordering::Release);
     placement::present(&window, session.anchor, request.height).map_err(|error| {
+        state.presented_revision.store(0, Ordering::Release);
         eprintln!("failed to position quick menu: {error}");
         "无法显示菜单，请重试".into()
     })
@@ -131,8 +145,9 @@ pub(crate) async fn quick_menu_dismiss<R: Runtime>(window: WebviewWindow<R>) -> 
 
 async fn dismiss<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let state = app.state::<QuickMenuState>();
-    let mut session = state.0.lock().await;
+    let mut session = state.session.lock().await;
     session.open = false;
+    state.presented_revision.store(0, Ordering::Release);
     if let Some(window) = app.get_webview_window(LABEL) {
         window.hide().map_err(|error| error.to_string())?;
     }
@@ -152,7 +167,7 @@ pub(crate) async fn quick_menu_activate<R: Runtime>(
 ) -> Result<(), String> {
     validate_caller(&window)?;
     let state = window.state::<QuickMenuState>();
-    let mut session = state.0.lock().await;
+    let mut session = state.session.lock().await;
     if !session.open
         || session.snapshot.revision != request.revision
         || !session
@@ -164,6 +179,7 @@ pub(crate) async fn quick_menu_activate<R: Runtime>(
         return Err("菜单已更新，请重新打开后再试".into());
     }
     session.open = false;
+    state.presented_revision.store(0, Ordering::Release);
     window.hide().map_err(|error| error.to_string())?;
     drop(session);
     super::handle_menu_event(
@@ -184,16 +200,7 @@ pub(crate) fn handle_window_event<R: Runtime>(
     }
     match event {
         tauri::WindowEvent::Focused(false) => {
-            // Creating or hiding a WebView also emits blur; only dismiss an open popup.
-            if !window.is_visible().unwrap_or(false) {
-                return;
-            }
-            let app = window.app_handle().clone();
-            tauri::async_runtime::spawn(async move {
-                if let Err(error) = dismiss(&app).await {
-                    eprintln!("failed to dismiss quick menu: {error}");
-                }
-            });
+            dismissal::request(window.app_handle());
         }
         tauri::WindowEvent::CloseRequested { api, .. } => {
             api.prevent_close();
