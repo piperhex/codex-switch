@@ -16,7 +16,7 @@ The fixture retains the production React Native modules and app screens but inst
    Repeat on both physical ARM64 and emulator x86_64 devices. Each run checks local addresses,
    a large Unicode echo, grant renewal, close rejection, and a second echo after reopening.
 6. Request `/app` on port 15049. Start the existing local `mobile-fixture.mjs` and run
-   `android-chat-regression.mjs` with `ANDROID_CHAT_PACKAGE=com.codexswitch.mobile.regressiontest`,
+   `android-connectivity-regression.mjs` with `ANDROID_CHAT_PACKAGE=com.codexswitch.mobile.regressiontest`,
    `ANDROID_CHAT_APK` pointing to the fixture, and `ANDROID_SERIAL` selecting the device.
    Reverse port 1490 as well. Reset the local fixture between devices with POST `/test/reset`.
 

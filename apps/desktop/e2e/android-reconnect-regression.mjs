@@ -28,6 +28,8 @@ try {
   await input(2, 'local-test');
   await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
   await tap('登录并查看');
+  await waitText('同意并登录');
+  await tap('同意并登录');
   await connected();
   await block(true);
   await waitFor(async () => (await retrySeconds()) >= 10, 'long enough automatic retry countdown');

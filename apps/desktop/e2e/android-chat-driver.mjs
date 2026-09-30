@@ -119,7 +119,7 @@ export async function screenshot(name) {
 export async function appErrorLogs() {
   const pid = await adb('shell', 'pidof', applicationId);
   if (!/^\d+$/.test(pid)) throw new Error('Test application is no longer running');
-  return adb('logcat', '-d', `--pid=${pid}`, '-s', 'ReactNativeJS:E', 'AndroidRuntime:E');
+  return adb('logcat', '-d', '-t', '1000', `--pid=${pid}`, '-s', 'ReactNativeJS:E', 'AndroidRuntime:E');
 }
 
 export async function send(text, { steer = false, dismissKeyboard = true } = {}) {
@@ -147,7 +147,15 @@ export async function prepare() {
   }
   await waitFor(async () => (await adb('shell', 'getprop', 'sys.boot_completed')) === '1', 'emulator boot');
   await prepareHierarchy({ adb, output });
-  await adb('install', '-r', apk);
+  const sha256 = createHash('sha256').update(await readFile(apk)).digest('hex');
+  if (process.env.ANDROID_CHAT_INSTALLED === '1') {
+    const installed = (await adb('shell', 'pm', 'path', applicationId)).replace(/^package:/, '');
+    if (!/^\/data\/app\/[A-Za-z0-9_=~.\/-]+\/base\.apk$/.test(installed)) {
+      throw new Error('Installed fixture APK path is unavailable');
+    }
+    const digest = (await adb('shell', 'sha256sum', installed)).split(/\s+/)[0];
+    if (digest !== sha256) throw new Error('Installed APK differs from the tested artifact');
+  } else await adb('install', '-r', apk);
   // Only an explicitly disposable emulator or the separate fixture package may be cleared.
   await adb('shell', 'pm', 'clear', applicationId);
   if (Number(await adb('shell', 'getprop', 'ro.build.version.sdk')) >= 33) {
@@ -156,7 +164,7 @@ export async function prepare() {
   await adb('reverse', `tcp:${apiPort}`, `tcp:${apiPort}`);
   if (!isolatedFixture) await adb('logcat', '-c');
   await adb('shell', 'am', 'start', '-n', activity);
-  return { serial, apk, sha256: createHash('sha256').update(await readFile(apk)).digest('hex'),
+  return { serial, apk, sha256,
     android: await adb('shell', 'getprop', 'ro.build.version.release'),
     api: await adb('shell', 'getprop', 'ro.build.version.sdk'),
     model: await adb('shell', 'getprop', 'ro.product.model') };

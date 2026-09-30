@@ -29,7 +29,12 @@ export async function capabilitiesAndCommands(pair) {
       `missing ${path} capability rejected`,
       'POST',
       `/devices/${securityDevice}/${path}`,
-      { body },
+      { body, normalize: (value, side) => {
+        // The frozen Nest baseline retains its old product name; assert both exact messages.
+        assert.equal(value.message, side === 'legacy'
+          ? '请先更新目标 PC 上的 Codex Switch' : '请先更新目标 PC 上的 Remote AI');
+        return { ...value, message: '<target PC update required>' };
+      } },
     );
     assert.equal(result.legacy.status, 409);
   }

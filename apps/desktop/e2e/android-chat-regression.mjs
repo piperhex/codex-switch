@@ -45,6 +45,8 @@ try {
     await input(2, 'local-test');
     await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
     await tap('登录并查看');
+    await waitText('同意并登录');
+    await tap('同意并登录');
     await waitText('账户管理');
     await tap('聊天', { last: true });
     await waitText('聊天消息');
