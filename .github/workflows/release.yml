@@ -206,6 +206,15 @@ jobs:
         if: startsWith(matrix.name, 'windows')
         run: node scripts/prepare-remote-desktop-runtime.mjs
 
+      # tauri-action invokes Tauri directly, so build:app's service preparation is not run.
+      # These files must exist before Rust embeds their integrity manifest.
+      - name: Prepare Windows unattended service runtime
+        if: matrix.name == 'windows-x86_64'
+        run: >-
+          node --input-type=module -e
+          "import { prepareDesktopService } from './scripts/prepare-desktop-service.mjs';
+          await prepareDesktopService();"
+
       - name: Test Linux AppImage preparation
         if: startsWith(matrix.name, 'ubuntu')
         run: node --test scripts/prepare-linux-appimage.test.mjs
@@ -225,6 +234,34 @@ jobs:
           # complete updater manifest after every platform has finished.
           uploadUpdaterJson: false
           updaterJsonPreferNsis: true
+
+      - name: Checkout current Windows package verifier
+        if: matrix.name == 'windows-x86_64'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .release-tools
+          sparse-checkout: |
+            scripts/verify-windows-service.mjs
+            scripts/verify-windows-service.test.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Verify packaged Windows unattended service
+        if: matrix.name == 'windows-x86_64'
+        shell: pwsh
+        run: |
+          node --test .release-tools/scripts/verify-windows-service.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Windows service verifier tests failed' }
+          $installers = @(Get-ChildItem apps/desktop/src-tauri/target/release/bundle/msi -Filter '*.msi')
+          if ($installers.Count -ne 1) { throw 'Expected one Windows x64 MSI' }
+          $destination = Join-Path $env:RUNNER_TEMP 'windows-service-verification'
+          $arguments = '/a "{0}" /qn TARGETDIR="{1}"' -f $installers[0].FullName, $destination
+          $process = Start-Process msiexec.exe -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "MSI extraction failed: $($process.ExitCode)" }
+          $executables = @(Get-ChildItem $destination -Recurse -Filter csw.exe)
+          if ($executables.Count -ne 1) { throw 'Expected one packaged Windows executable' }
+          node .release-tools/scripts/verify-windows-service.mjs $executables[0].DirectoryName
+          if ($LASTEXITCODE -ne 0) { throw 'Windows service package verification failed' }
 
       # A successful build is insufficient: mode 0770 launchers can work for
       # the builder but fail for other users. Gate publication on the final image.
