@@ -14,6 +14,7 @@ import styles from "./styles.module.less";
 import { CodeReviewComment } from "./CodeReviewComment";
 import { messageSections } from "./messageDirectives";
 import { MarkdownTable } from "./MarkdownTable";
+import { remarkWebLinks } from "./remarkWebLinks";
 
 const COMPONENTS: Components = {
   a: ({ href, children }) => <MessageLink href={href}>{children}</MessageLink>,
@@ -21,7 +22,7 @@ const COMPONENTS: Components = {
   pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
   table: ({ children }) => <MarkdownTable>{children}</MarkdownTable>,
 };
-const PLUGINS = [remarkGfm, remarkMath, remarkBreaks];
+const PLUGINS = [remarkGfm, remarkWebLinks, remarkMath, remarkBreaks];
 
 export const RichText = memo(function RichText({ text, trailing }: { text: string; trailing?: ReactNode }) {
   const sections = useMemo(() => messageSections(text), [text]);

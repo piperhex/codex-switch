@@ -11,13 +11,18 @@ import { DetailsContext } from "./detailsContext";
 
 export { isFileReference } from "./fileReference";
 
+function isWebsiteUrl(href: string | undefined): href is string {
+  if (!href || !/^https?:\/\//i.test(href)) return false;
+  try { return Boolean(new URL(href).hostname); } catch { return false; }
+}
+
 export function MessageLink({ href, children }: { href?: string; children?: ReactNode }) {
   const panel = useContext(DetailsContext);
   if (href && localImageSource(href)) return <MessageImage src={href}
     alt={typeof children === "string" ? children : "图片"} />;
   const file = href ? parseFileReference(href) : undefined;
   if (file) return <FileMenu {...file} preview>{children}</FileMenu>;
-  if (!href || !/^https?:\/\//i.test(href)) return <span>{children}</span>;
+  if (!isWebsiteUrl(href)) return <span>{children}</span>;
   return <a href={href} target="_blank" rel="noopener noreferrer" onClick={(event) => {
     if (panel && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
       event.preventDefault(); panel.openWebsite(href); return;

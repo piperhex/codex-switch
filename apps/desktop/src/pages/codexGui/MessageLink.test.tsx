@@ -79,7 +79,8 @@ it("handles a desktop opener failure with a compact message", async () => {
     style: { maxWidth: 400, marginInline: "auto" } });
 });
 
-it.each(["javascript:alert(1)", "/__codex_switch__/api/invoke", undefined])(
+it.each(["javascript:alert(1)", "/__codex_switch__/api/invoke", "http://localhost:3002**、后端",
+  "http://", undefined])(
   "does not navigate unsupported destinations: %s", async (destination) => {
     await act(async () => root.render(<MessageLink href={destination}>链接</MessageLink>));
     expect(container.querySelector("a")).toBeNull();

@@ -8,6 +8,7 @@ import { FileMenu } from "../FileMenu";
 import { CodeBlock } from "../CodeBlock";
 import { MarkdownTable } from "../MarkdownTable";
 import { MessageLink } from "../MessageLink";
+import { remarkWebLinks } from "../remarkWebLinks";
 import { previewImageUrl, previewReference } from "./references";
 import chatStyles from "../styles.module.less";
 import styles from "./preview.module.less";
@@ -26,7 +27,8 @@ export function PreviewMarkdown({ text, path, url }: { text: string; path: strin
     table: ({ children }) => <MarkdownTable>{children}</MarkdownTable>,
   };
   return <article className={`${styles.document} ${chatStyles.markdown}`}>
-    <Markdown remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]} rehypePlugins={[[rehypeKatex, mathOptions]]}
+    <Markdown remarkPlugins={[remarkGfm, remarkWebLinks, remarkMath, remarkBreaks]}
+      rehypePlugins={[[rehypeKatex, mathOptions]]}
       skipHtml components={components} urlTransform={(value, key) => {
         if (key === "href" && previewReference(value, path)) return value;
         if (key === "src" && previewImageUrl(value, url, path)) return value;

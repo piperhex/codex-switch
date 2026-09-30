@@ -5,6 +5,7 @@ import { DetailsWorkspace } from "../src/pages/codexGui/DetailsWorkspace";
 import { DetailsContext } from "../src/pages/codexGui/detailsContext";
 import { ConversationChangesButton } from "../src/pages/codexGui/ConversationChangesButton";
 import { MessageLink } from "../src/pages/codexGui/MessageLink";
+import { RichText } from "../src/pages/codexGui/RichText";
 import { useThemeMode } from "../src/hooks/useThemeMode";
 import { filePreviewApi, type FilePreviewData } from "../src/pages/codexGui/filePreview/api";
 import { fileApi } from "../src/pages/codexGui/fileApi";
@@ -13,6 +14,7 @@ import "antd/dist/reset.css";
 
 const params = new URLSearchParams(location.search);
 const variant = params.get("kind") ?? "markdown";
+const websiteOnly = variant === "website" || variant === "links";
 const code: Record<string, string> = {
   yaml: 'name: preview\nenabled: true\nsteps:\n  - run: "echo hello"\n',
   rs: 'pub fn greet(name: &str) -> String {\n    format!("Hello, {name}")\n}\n',
@@ -50,7 +52,7 @@ if (params.has("dark")) localStorage.setItem("codex-switch:theme-mode", "dark");
 else localStorage.setItem("codex-switch:theme-mode", "light");
 const native = params.has("native");
 if (!native) {
-  Object.defineProperty(globalThis, "isTauri", { value: variant !== "website", configurable: true });
+  Object.defineProperty(globalThis, "isTauri", { value: !websiteOnly, configurable: true });
   filePreviewApi.open = async target => {
     document.body.dataset.opened = JSON.stringify(target);
     return target.path.endsWith("settings.yaml") ? { ...data, sessionId: crypto.randomUUID(), ...target,
@@ -67,11 +69,13 @@ function Conversation() {
   const panel = useContext(DetailsContext);
   const openFile = panel?.openFile;
   useEffect(() => {
-    if (variant !== "website") void openFile?.({ path: params.get("path") ?? data.path, threadId: null });
+    if (!websiteOnly) void openFile?.({ path: params.get("path") ?? data.path, threadId: null });
   }, [openFile]);
   return <div style={{ padding: 24 }}>
     <ConversationChangesButton />
     <h1>对话</h1>
+    {variant === "links" && <RichText text={"前端 **http://localhost:3002**、后端 **http://127.0.0.1:8082** "
+      + "均保持运行。本轮发现的问题尚未修复。"} />}
     <p><MessageLink href={params.get("path") ?? data.path}>查看文件</MessageLink></p>
     <p><MessageLink href={native ? "https://example.com" : `${location.origin}/e2e/fixtures/preview-sample.html`}>
       查看网页</MessageLink></p>
