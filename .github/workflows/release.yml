@@ -141,6 +141,25 @@ jobs:
             libxdo-dev libssl-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils \
             squashfs-tools xvfb xauth dbus-x11 x11-utils protobuf-compiler libprotobuf-dev clang cmake
 
+      # Ubuntu 22.04 ships protoc 3.12; EasyTier requires stable proto3 optional support.
+      - name: Install Linux connectivity protocol compiler
+        if: startsWith(matrix.name, 'ubuntu')
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/protoc-29.3-linux-x86_64.zip"
+          destination="$RUNNER_TEMP/protoc-29.3"
+          curl -fL --retry 3 \
+            https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-linux-x86_64.zip \
+            -o "$archive"
+          checksum=3e866620c5be27664f3d2fa2d656b5f3e09b5152b42f1bedbf427b333e90021a
+          echo "$checksum  $archive" | sha256sum --check --strict
+          unzip -q "$archive" -d "$destination"
+          "$destination/bin/protoc" --version
+          echo "$destination/bin" >> "$GITHUB_PATH"
+          echo "PROTOC=$destination/bin/protoc" >> "$GITHUB_ENV"
+          echo "PROTOC_INCLUDE=$destination/include" >> "$GITHUB_ENV"
+
       - name: Install macOS connectivity build dependencies
         if: startsWith(matrix.name, 'macos')
         run: brew install protobuf
