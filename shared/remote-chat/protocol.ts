@@ -26,6 +26,7 @@ export interface Peer {
 }
 export type PeerConnectionState = 'new' | 'connecting' | 'connected' | 'disconnected' | 'failed' | 'closed';
 export interface PeerOptions {
+  diagnostic?: import('./diagnostics').ConnectionDiagnostic;
   sessionId?: string;
   desktop?: boolean;
   generation?: number;

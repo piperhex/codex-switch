@@ -21,6 +21,7 @@ vi.mock('./nativeTransport', () => ({ NativeChatTransport: class {
 vi.mock('../../../../shared/remote-chat/link', () => ({ ChatLink: class {
   constructor(options: LinkOptions) { state.options = options; }
   setRelayAvailable = state.relay;
+  renew = vi.fn();
   send = vi.fn(async () => {});
   close = state.close;
 } }));

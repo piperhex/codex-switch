@@ -14,7 +14,12 @@ export const apiUrl = `http://127.0.0.1:${apiPort}`;
 export const apk = path.resolve(root,
   process.env.ANDROID_CHAT_APK ?? 'apps/native/android/app/build/outputs/apk/release/app-release.apk');
 export const serial = process.env.ANDROID_SERIAL ?? 'emulator-5580';
-if (!serial.startsWith('emulator-')) throw new Error('This test is restricted to an Android emulator.');
+export const applicationId = process.env.ANDROID_CHAT_PACKAGE ?? 'com.codexswitch.mobile';
+const isolatedFixture = applicationId === 'com.codexswitch.mobile.regressiontest';
+if (!isolatedFixture && (applicationId !== 'com.codexswitch.mobile' || !serial.startsWith('emulator-'))) {
+  throw new Error('Physical devices require the separately installed regression fixture.');
+}
+export const activity = `${applicationId}/com.codexswitch.mobile.MainActivity`;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function adb(...args) {
@@ -111,6 +116,12 @@ export async function screenshot(name) {
   await writeFile(path.join(output, `${name}.png`), stdout);
 }
 
+export async function appErrorLogs() {
+  const pid = await adb('shell', 'pidof', applicationId);
+  if (!/^\d+$/.test(pid)) throw new Error('Test application is no longer running');
+  return adb('logcat', '-d', `--pid=${pid}`, '-s', 'ReactNativeJS:E', 'AndroidRuntime:E');
+}
+
 export async function send(text, { steer = false, dismissKeyboard = true } = {}) {
   const operation = steer ? 'steer' : 'send';
   const count = (await serverState()).operations.filter((entry) => entry.operation === operation).length;
@@ -126,7 +137,7 @@ export async function send(text, { steer = false, dismissKeyboard = true } = {})
 }
 
 export async function prepare() {
-  if (process.env.ANDROID_CHAT_DISPOSABLE !== '1') {
+  if (!isolatedFixture && process.env.ANDROID_CHAT_DISPOSABLE !== '1') {
     throw new Error('Set ANDROID_CHAT_DISPOSABLE=1 for a disposable emulator.');
   }
   await mkdir(output, { recursive: true });
@@ -137,14 +148,14 @@ export async function prepare() {
   await waitFor(async () => (await adb('shell', 'getprop', 'sys.boot_completed')) === '1', 'emulator boot');
   await prepareHierarchy({ adb, output });
   await adb('install', '-r', apk);
-  // The documented command uses a read-only, disposable emulator; never target a physical phone or normal AVD session.
-  await adb('shell', 'pm', 'clear', 'com.codexswitch.mobile');
+  // Only an explicitly disposable emulator or the separate fixture package may be cleared.
+  await adb('shell', 'pm', 'clear', applicationId);
   if (Number(await adb('shell', 'getprop', 'ro.build.version.sdk')) >= 33) {
-    await adb('shell', 'pm', 'grant', 'com.codexswitch.mobile', 'android.permission.POST_NOTIFICATIONS');
+    await adb('shell', 'pm', 'grant', applicationId, 'android.permission.POST_NOTIFICATIONS');
   }
   await adb('reverse', `tcp:${apiPort}`, `tcp:${apiPort}`);
-  await adb('logcat', '-c');
-  await adb('shell', 'am', 'start', '-n', 'com.codexswitch.mobile/.MainActivity');
+  if (!isolatedFixture) await adb('logcat', '-c');
+  await adb('shell', 'am', 'start', '-n', activity);
   return { serial, apk, sha256: createHash('sha256').update(await readFile(apk)).digest('hex'),
     android: await adb('shell', 'getprop', 'ro.build.version.release'),
     api: await adb('shell', 'getprop', 'ro.build.version.sdk'),

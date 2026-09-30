@@ -8,6 +8,7 @@ import type { TcpSignal } from '../../../../shared/remote-chat/tcp/types';
 import type { Channel } from '../../../../shared/remote-chat/protocol';
 
 const mapping = vi.hoisted(() => new Map<number, number>());
+vi.mock('react-native', () => ({ NativeModules: {} }));
 // Node/Windows cannot share listener ports. Simulate this NAT mapping here; the Java device test
 // exercises the actual Android SO_REUSEPORT implementation with the same listening/source port.
 vi.mock('react-native-tcp-socket', async () => {

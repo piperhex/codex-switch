@@ -6,6 +6,8 @@ mod audio;
 #[cfg(windows)]
 mod audio_packet;
 #[cfg(windows)]
+mod capture_recovery;
+#[cfg(windows)]
 mod encoder;
 #[cfg(windows)]
 mod feedback;
@@ -110,7 +112,7 @@ pub(super) async fn open_at(
 ) -> std::result::Result<Offer, String> {
     let id = request.id.clone();
     let path = tauri::async_runtime::spawn_blocking(move || {
-        super::with_session(&id, |_| encoder::runtime_path(directory))
+        super::with_lease(&id, |_| encoder::runtime_path(directory))
     })
     .await
     .map_err(|_| safe_error(DesktopError::Platform))?

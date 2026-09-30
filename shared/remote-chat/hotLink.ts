@@ -65,6 +65,7 @@ export class HotLink {
   get resumable() { return !this.closed && Boolean(this.cipher); }
   get connectionMode() { return this.mode; }
   offer() { return this.peer.offer(); }
+  renew(expiresAt: number) { this.peer.renew(expiresAt); }
 
   private setKey(key: string) {
     if (this.cipher) throw new Error('Session key cannot change');

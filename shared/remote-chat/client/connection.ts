@@ -28,6 +28,7 @@ interface ConnectionOptions extends ConnectionEvents {
   /** Multi-device clients publish only the visible connection's transfer mode. */
   managePolicyMode?: boolean;
   tcpPunch?: boolean;
+  createNativePath?: import('../nativePath').NativePathFactory;
   clientInfo?: ChatClientInfo;
   createSocket?: (url: string) => ChatSocket;
   deviceId: string;
@@ -99,6 +100,7 @@ export class ChatConnection {
       socket.send(JSON.stringify({ type: 'authenticate', role: 'mobile',
         accessToken, deviceId: this.options.deviceId, publicKey: keys.publicKey,
         transportVersion: 2, binaryRelay: true, tcpPunch: this.options.tcpPunch === true, resume: this.resume,
+        nativeTraversal: Boolean(this.options.createNativePath),
         clientInfo: this.options.clientInfo ?? browserClientInfo() }));
     };
     let incoming = Promise.resolve();
@@ -150,6 +152,7 @@ export class ChatConnection {
 
   private lease(expiresAt: unknown) {
     if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)) throw new Error('Invalid lease');
+    this.link?.renew(expiresAt);
     clearTimeout(this.leaseTimer);
     this.leaseTimer = setTimeout(() => this.fail(CONNECTION_ERRORS.expired), Math.max(0, expiresAt - Date.now()));
     if (this.options.renewAuthorization) this.renewal.update(expiresAt);
@@ -188,6 +191,7 @@ export class ChatConnection {
       }
       this.paired({ id: message.sessionId, iceServers: message.iceServers as IceServer[], keys,
         tcp: message.tcpPunch as import('../tcp/types').TcpPunchConfig | undefined,
+        nativeTraversal: message.nativeTraversal as import('../nativePath').NativeTraversalConfig | undefined,
         transportVersion: Number(message.transportVersion) });
       return;
     }
@@ -214,6 +218,7 @@ export class ChatConnection {
 
   private paired(input: {
     tcp?: import('../tcp/types').TcpPunchConfig;
+    nativeTraversal?: import('../nativePath').NativeTraversalConfig;
     id: string; iceServers: IceServer[]; keys: ReturnType<typeof keyPair>; transportVersion: number;
   }) {
     if (this.link) throw new Error('Already paired');
@@ -223,6 +228,7 @@ export class ChatConnection {
       sessionId: input.id, desktop: false, secret: input.keys.secret, iceServers: input.iceServers, tcp: input.tcp,
       transportVersion: input.transportVersion, reconnectRelay: () => this.fail(CONNECTION_ERRORS.network, true),
       createPeer: this.options.createPeer,
+      nativeTraversal: input.nativeTraversal, createNativePath: this.options.createNativePath,
       createPacketCipher: this.options.createPacketCipher,
       signal: (frame) => {
         if (this.socket?.readyState !== WebSocket.OPEN) throw new Error('Disconnected');

@@ -18,6 +18,7 @@ type hotSession struct {
 	mobile                   *chatEndpoint
 	expires                  time.Time
 	tcp                      bool
+	native                   bool
 }
 type closedSession struct {
 	sockets []*peer
@@ -31,18 +32,20 @@ type hotJoin struct {
 	desktop  chatEndpoint
 	ice      []platform.JSON
 	tcp      bool
+	native   bool
 }
 
 // Access is serialized by chatSessions.mu; credentials remain in process memory only.
 type hotSessions struct {
-	tcpConfig   platform.JSON
-	limit       float64
-	sessions    map[string]*hotSession
-	closed      map[string]closedSession
-	closedOrder []string
-	onRelay     func(int)
-	deliver     func(relayDelivery, platform.JSON)
-	desktopICE  func(string, time.Time) []platform.JSON
+	tcpConfig    platform.JSON
+	nativeConfig platform.JSON
+	limit        float64
+	sessions     map[string]*hotSession
+	closed       map[string]closedSession
+	closedOrder  []string
+	onRelay      func(int)
+	deliver      func(relayDelivery, platform.JSON)
+	desktopICE   func(string, time.Time) []platform.JSON
 }
 
 func newHotSessions(relay func(int)) *hotSessions {
@@ -173,6 +176,10 @@ func (s *hotSessions) join(input hotJoin) error {
 	s.sessions[session.id] = session
 	common := platform.JSON{"sessionId": session.id, "resumeToken": session.token, "transportVersion": 2,
 		"iceServers": input.ice, "expiresAt": expires.UnixMilli(), "type": "peer-open", "publicKey": key}
+	session.native = s.nativeConfig != nil && input.native && input.message["nativeTraversal"] == true
+	if native := s.nativeTraversal(session); native != nil {
+		common["nativeTraversal"] = native
+	}
 	if s.tcpConfig != nil && input.tcp && input.message["tcpPunch"] == true {
 		session.tcp = true
 		common["tcpPunch"] = s.tcpConfig
@@ -202,6 +209,7 @@ func (s *hotSessions) resume(input hotJoin, value interface{}) error {
 		return nil
 	}
 	session.tcp = s.tcpConfig != nil && input.tcp && input.message["tcpPunch"] == true
+	session.native = session.native && input.native && input.message["nativeTraversal"] == true
 	previous := session.mobile
 	session.mobile = &chatEndpoint{input.client, input.identity.expires}
 	if previous != nil && previous.socket != input.client {
@@ -223,6 +231,9 @@ func (s *hotSessions) ready(session *hotSession) {
 		return
 	}
 	message := platform.JSON{"type": "resumed", "sessionId": session.id, "expiresAt": session.expires.UnixMilli()}
+	if native := s.nativeTraversal(session); native != nil {
+		message["nativeTraversal"] = native
+	}
 	if session.tcp {
 		message["tcpPunch"] = s.tcpConfig
 	}

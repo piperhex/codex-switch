@@ -14,6 +14,7 @@ export interface TcpSocket {
 }
 export interface TcpListener { port: number; close(): void }
 export interface TcpNetwork {
+  localAddresses?(): Promise<string[]>;
   listen(ipv6: boolean, accept: (socket: TcpSocket) => void): Promise<TcpListener>;
   connect(address: TcpAddress & { localPort: number; ipv6: boolean }): Promise<TcpSocket>;
   close(): void;
@@ -25,6 +26,8 @@ export interface TcpPeerOptions {
   random: (length: number) => Uint8Array;
   signal: (signal: TcpSignal) => void;
   channel: (channel: Channel) => void;
+  diagnostic?: import('../diagnostics').ConnectionDiagnostic;
+  exhausted?: () => void;
 }
 
 const IP_V4 = /^(\d{1,3}\.){3}\d{1,3}$/;

@@ -2,6 +2,7 @@
 mod assets;
 mod commands;
 pub(crate) mod configuration;
+mod connectivity;
 pub(crate) mod control;
 pub(crate) mod delegation;
 mod framing;

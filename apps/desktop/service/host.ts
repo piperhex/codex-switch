@@ -5,6 +5,7 @@ import { setChatPolicy } from '../../../shared/remote-chat/policy';
 import { parseMessage, type IceServer, type Signal } from '../../../shared/remote-chat/protocol';
 import { invoke } from './rpc';
 import { ServiceOperations } from './operations';
+import { createServiceNativePath } from './nativePath';
 
 interface Configuration { baseUrl: string; credential: string; deviceId: string; name: string; version: string }
 interface Session { link: ChatLink; resumeToken: string; lease: ReturnType<typeof setTimeout> }
@@ -30,6 +31,7 @@ function lease(id: string, expires: unknown) {
   const session = sessions.get(id);
   if (!session || typeof expires !== 'number' || !Number.isFinite(expires)) return;
   clearTimeout(session.lease);
+  session.link.renew(expires);
   session.lease = setTimeout(() => release(id), Math.max(0, expires - Date.now()));
 }
 
@@ -40,6 +42,8 @@ async function open(id: string, message: Record<string, unknown>) {
   operations.desktop.register(id, (message.desktopIceServers ?? message.iceServers) as IceServer[], Number(message.expiresAt));
   const link = new ChatLink({ sessionId: id, desktop: true, secret: keys.secret, publicKey: String(message.publicKey),
     transportVersion: Number(message.transportVersion), iceServers: [], relayBuffered: () => chat?.bufferedAmount ?? 0,
+    nativeTraversal: message.nativeTraversal as import('../../../shared/remote-chat/nativePath').NativeTraversalConfig,
+    createNativePath: createServiceNativePath,
     createPeer: () => ({ offer: async () => {}, accept: async () => {}, close: () => {} }),
     signal: send, mode: mode => { if (mode === 'offline') release(id); }, error: () => release(id),
     message: request => {
@@ -85,7 +89,8 @@ function connect(path: 'device-chat' | 'device-switch', attempt = 0) {
     refresh=setTimeout(()=>socket.close(1000),50*60_000);
     socket.send(JSON.stringify({ type: 'authenticate', role: 'desktop', accessToken: configuration.credential,
       deviceId: configuration.deviceId, name: configuration.name, platform: 'Windows', appVersion: configuration.version,
-      transportVersion: 2, sessions: [...sessions].map(([sessionId, value]) => ({ sessionId, resumeToken: value.resumeToken })) }));
+      transportVersion: 2, nativeTraversal: true,
+      sessions: [...sessions].map(([sessionId, value]) => ({ sessionId, resumeToken: value.resumeToken })) }));
   };
   socket.onmessage = event => {
     if (typeof event.data !== 'string' || event.data.length > 1024 * 1024) { socket.close(); return; }

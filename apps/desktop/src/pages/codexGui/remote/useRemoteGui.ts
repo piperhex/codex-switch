@@ -3,6 +3,7 @@ import { ChatController } from '../../../../../../shared/remote-chat/client/cont
 import { ChatConnection } from '../../../../../../shared/remote-chat/client/connection';
 import { setChatConnectionMode } from '../../../../../../shared/remote-chat/policy';
 import { createDesktopPeer } from '../../../remoteChat/peer';
+import { createDesktopNativePath } from '../../../remoteChat/nativePath';
 import { NativeGuiSocket } from './nativeSocket';
 import type { GuiCloudIdentity } from './types';
 import { browserTrustStore, trustedHost, trustScope } from '../../../../../../shared/remote-chat/trustedHost';
@@ -17,6 +18,7 @@ export function useRemoteGui(identity: GuiCloudIdentity, deviceId: string, activ
     authorize: async () => ({ baseUrl: identity.baseUrl, accessToken: '' }),
     createSocket: () => new NativeGuiSocket(identity),
     createPeer: createDesktopPeer,
+    createNativePath: createDesktopNativePath,
   })), [identity.baseUrl, identity.userId, deviceId]);
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot);
   useEffect(() => { controller.start(); return () => controller.stop(); }, [controller]);

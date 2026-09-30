@@ -167,6 +167,9 @@ export class ChatLink {
     this.implementation = options.transportVersion === 2 ? new HotLink(options) : new LegacyChatLink(options);
   }
   get resumable() { return this.implementation instanceof HotLink && this.implementation.resumable; }
+  renew(expiresAt: number) {
+    if (this.implementation instanceof HotLink) this.implementation.renew(expiresAt);
+  }
   get connectionMode() { return this.implementation.connectionMode; }
   offer() { return this.implementation.offer(); }
   acceptSignal(signal: Signal) { return this.implementation.acceptSignal(signal); }

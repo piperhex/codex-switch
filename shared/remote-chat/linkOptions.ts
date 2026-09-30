@@ -8,6 +8,8 @@ export interface LinkOptions {
   publicKey?: string;
   iceServers: IceServer[];
   tcp?: import('./tcp/types').TcpPunchConfig;
+  nativeTraversal?: import('./nativePath').NativeTraversalConfig;
+  createNativePath?: import('./nativePath').NativePathFactory;
   createPeer: PeerFactory;
   createPacketCipher?: PacketCipherFactory;
   signal: (message: object) => void;

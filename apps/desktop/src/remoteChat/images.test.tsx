@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatImage, ChatImageContext } from '../../../web/src/chat/ChatImage';
+import { ChatMarkdown } from '../../../web/src/chat/ChatMarkdown';
 
 const dataUrl = 'data:image/png;base64,aW1hZ2U=';
 const load = vi.fn<() => Promise<string>>();
@@ -63,4 +64,22 @@ it('never renders application endpoints or executable URLs as images', async () 
     expect(container.querySelector('img')).toBeNull();
   }
   expect(load).not.toHaveBeenCalled();
+});
+
+it('shows Windows Markdown table images as thumbnails and loads the original on click', async () => {
+  HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  load.mockResolvedValue(dataUrl);
+  const directory = 'F:/projects/codex-switch/.codex-tmp/lightning-vm';
+  const paths = ['normal', 'fast', 'ultrafast'].map(mode => `${directory}/lightning-${mode}.jpg`);
+  const text = '| 普通模式 | 快速模式 | Ultrafast |\n|---|---|---|\n'
+    + `| ${paths.map(path => `![截图](/${path})`).join(' | ')} |`;
+  await act(async () => root.render(<ChatImageContext.Provider value={{ ready: true, threadId: 'task', load }}>
+    <ChatMarkdown text={text} />
+  </ChatImageContext.Provider>));
+  expect(container.querySelectorAll('td img')).toHaveLength(3);
+  for (const path of paths) expect(load).toHaveBeenCalledWith('task', path);
+  expect(container.textContent).not.toContain('图片加载失败');
+  await act(async () => container.querySelector<HTMLButtonElement>('td button')!.click());
+  expect(load).toHaveBeenLastCalledWith('task', paths[0], true);
+  expect(container.querySelector('dialog[open] img')?.getAttribute('src')).toBe(dataUrl);
 });

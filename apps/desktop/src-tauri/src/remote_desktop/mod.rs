@@ -128,8 +128,15 @@ fn safe_error(error: DesktopError) -> String {
 }
 
 fn with_session<T>(id: &str, operation: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
-    #[cfg(windows)]
-    let _desktop = input_desktop::InputDesktop::enter()?;
+    with_lease(id, |session| {
+        #[cfg(windows)]
+        let _desktop = input_desktop::InputDesktop::enter()?;
+        operation(session)
+    })
+}
+
+// Heartbeat/authorization checks must not depend on an input desktop being available during a lock transition.
+fn with_lease<T>(id: &str, operation: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
     let mut guard = SESSION
         .get_or_init(|| Mutex::new(None))
         .lock()

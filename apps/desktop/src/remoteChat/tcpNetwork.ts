@@ -55,6 +55,7 @@ class Socket implements TcpSocket {
 
 /** Rust validates every destination against the authenticated session before opening a socket. */
 export class DesktopTcpNetwork implements TcpNetwork {
+  localAddresses() { return invoke<string[]>('remote_chat_local_addresses'); }
   private readonly events = new IpcChannel<Event>();
   private readonly group: Promise<string>;
   private readonly sockets = new Map<string, Socket>();

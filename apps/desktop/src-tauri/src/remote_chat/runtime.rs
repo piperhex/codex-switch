@@ -289,6 +289,7 @@ impl Runtime {
         let config = self.config.as_ref().ok_or(ChatError::Transport)?;
         let frame = json!({ "type": "authenticate", "role": "desktop", "transportVersion": 2, "binaryRelay": true,
             "tcpPunch": true,
+            "nativeTraversal": true,
             "accessToken": config.access_token, "deviceId": config.device_id,
             "sessions": self.sessions.authentication() });
         socket

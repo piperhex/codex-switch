@@ -1,4 +1,5 @@
 import type { Channel, Peer, PeerOptions, Signal } from './protocol';
+import { selectedIcePair } from './rtcDiagnostics';
 
 const MAX_PENDING_CANDIDATES = 128;
 
@@ -37,6 +38,9 @@ export class RtcPeer implements Peer {
       if (this.closed) return;
       const state = this.pc.connectionState;
       options.stateChanged?.(state);
+      if (state === 'connected' && this.pc.getStats) void this.pc.getStats().then(report => {
+        if (!this.closed) selectedIcePair(report, options.diagnostic);
+      }).catch(() => { /* Some native WebRTC versions do not expose transport statistics. */ });
       if (['failed', 'disconnected', 'closed'].includes(state)) options.disconnected();
     });
   }
@@ -79,6 +83,7 @@ export class RtcPeer implements Peer {
     try {
       await this.pc.addIceCandidate(candidate);
     } catch {
+      this.options.diagnostic?.('candidate-rejected', { transport: 'rtc' });
       // A platform can reject one address (for example an unsupported mDNS candidate).
       // Keep negotiating with the remaining addresses; ICE state and the link timer decide fallback.
     }

@@ -3,6 +3,7 @@ import { CHAT_POLICY_MESSAGE, setChatPolicy } from '../../../../shared/remote-ch
 import { keyPair } from '../../../../shared/remote-chat/cipher';
 import { ChatLink } from '../../../../shared/remote-chat/link';
 import { createDesktopPeer } from './peer';
+import { createDesktopNativePath } from './nativePath';
 import { parseMessage, type ConnectionMode, type IceServer, type Signal }
   from '../../../../shared/remote-chat/protocol';
 import { ChatOperations } from './operations';
@@ -102,6 +103,7 @@ export class ChatHost {
 
   private lease(sessionId: string, expiresAt: unknown) {
     if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)) throw new Error('Invalid lease');
+    this.links.get(sessionId)?.renew(expiresAt);
     clearTimeout(this.leases.get(sessionId));
     this.leases.set(sessionId, setTimeout(() => this.drop(sessionId), Math.max(0, expiresAt - Date.now())));
   }
@@ -167,6 +169,8 @@ export class ChatHost {
       iceServers: message.iceServers as IceServer[],
       tcp: message.tcpPunch as import('../../../../shared/remote-chat/tcp/types').TcpPunchConfig | undefined,
       createPeer: createDesktopPeer,
+      createNativePath: createDesktopNativePath,
+      nativeTraversal: message.nativeTraversal as import('../../../../shared/remote-chat/nativePath').NativeTraversalConfig,
       signal: (frame) => this.send(frame), relayBuffered: () => this.transport.bufferedAmount,
       mode: (mode) => this.updateConnection(sessionId, mode),
       error: () => this.drop(sessionId),

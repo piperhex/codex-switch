@@ -42,6 +42,7 @@ jobs:
         with:
           workspaces: "./apps/desktop/src-tauri -> target"
       - run: npm ci
+      - run: brew install protobuf
       - run: npm run build:desktop
       - run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
       - run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings

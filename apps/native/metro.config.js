@@ -18,6 +18,11 @@ const config = getDefaultConfig(projectRoot);
 // Keep bundle entries relative to this app while retaining access to packages
 // hoisted by npm workspaces.
 config.watchFolders = [workspaceRoot];
+// Rust outputs are not bundle inputs. Avoid crawling transient compiler files and multi-GB native libraries.
+const existingBlockList = config.resolver.blockList ?? [];
+config.resolver.blockList = [...(Array.isArray(existingBlockList) ? existingBlockList : [existingBlockList]),
+  /[/\\]crates[/\\]chat-connectivity[/\\]target[/\\].*/,
+  /[/\\]plugins[/\\]connectivity[/\\]build[/\\].*/];
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),

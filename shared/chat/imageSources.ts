@@ -16,6 +16,8 @@ export function localImageSource(source: string): string | undefined {
   }
   let path: string;
   try { path = decodeURIComponent(source); } catch { return undefined; }
+  // Markdown may prefix Windows drive paths with a slash, just like local file links.
+  path = path.replace(/^\/([a-z]:\/)/i, "$1");
   if (!/\.(png|jpe?g|webp|gif)$/i.test(path) || /[\0?#]/.test(path)
     || /^[\\/]{2}/.test(path) || path.startsWith("/__codex_switch__/")) return undefined;
   if (path.includes(":") && !/^[a-z]:[\\/][^:]*$/i.test(path)) return undefined;

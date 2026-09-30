@@ -230,3 +230,24 @@ Go 为兼容旧接口保留了 `X-Powered-By: Express`，该响应头不能判�
 项目和文件执行 `up -d --no-deps --no-build --pull never --force-recreate admin-go`，
 再执行相同验收。回滚只使用 Go 镜像，不启动 NestJS；不自动恢复数据库备份覆盖在线数据。
 首次迁移在旧服务停止前完成并行验证；缺少已验证的 Go 回滚镜像时应在切换前解决这一条件。
+## 聊天原生直连节点
+
+聊天直连可增加 EasyTier 用户态内核；配置未开启或任一端为旧客户端时，继续使用原有链路。
+需要先更新桌面和手机原生包，再配置 Go 服务。Web 浏览器继续使用 WebRTC。
+
+使用 `compose.chat-connectivity.yml` 作为现有 Go Compose 栈的附加文件，构建上下文为仓库根目录。
+节点源码固定在 `crates/chat-connectivity/Cargo.lock` 对应的版本；不要改用不固定版本的公共节点镜像。
+
+```dotenv
+CHAT_NATIVE_PEERS=udp://p2p.example.com:11010,tcp://p2p.example.com:11010
+CHAT_NATIVE_STUN=stun-a.example.com:3478,stun-b.example.com:3478
+CHAT_RENDEZVOUS_SECRET=replace-with-a-separate-random-secret-at-least-32-characters
+```
+
+`CHAT_NATIVE_PEERS` 最多四个自有节点地址。开放节点的 11010/TCP 和 11010/UDP；双栈域名应同时具备
+A/AAAA 记录及 IPv6 防火墙放行。`CHAT_NATIVE_STUN` 需要至少两个独立可用的 UDP STUN 端点，检测不同目的地址
+下的 NAT 映射；不要把同一端点的重复名称当成独立服务器。节点只负责发现和打洞协调，禁用数据转发，不计作 P2P 中继。
+原有 WebSocket 中继继续兜底。发布前检查节点监听、STUN 可达性，以及两端的 `path-state` / `path-selected` 诊断。
+
+回滚时清空 `CHAT_NATIVE_PEERS`，重启 admin-go；新会话自动回到原有连接方式。活跃会话会在正常关闭或过期时释放内核。
+这项变更不自动部署上述节点，也不代表已获得特定运营商网络下的成功率数据。

@@ -42,6 +42,10 @@ func newChatGateway(service *Service) (*ChatGateway, error) {
 	if err != nil {
 		return nil, err
 	}
+	native, err := nativeTraversalConfig(service.deps.Config)
+	if err != nil {
+		return nil, err
+	}
 	stun, err := startSTUN(service.deps.Config)
 	if err != nil {
 		return nil, err
@@ -57,6 +61,7 @@ func newChatGateway(service *Service) (*ChatGateway, error) {
 	service.deps.ReadBandwidth = traffic.bandwidth.Snapshot
 	gateway.sessions.deliver = gateway.deliverRelay
 	gateway.sessions.hot.deliver = gateway.deliverRelay
+	gateway.sessions.hot.nativeConfig = native
 	service.deps.ChatPolicyChanged = gateway.refreshPolicy
 	if err := gateway.startMediaRelay(); err != nil {
 		if stun != nil {

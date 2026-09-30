@@ -139,7 +139,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
             libxdo-dev libssl-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils \
-            squashfs-tools xvfb xauth dbus-x11 x11-utils
+            squashfs-tools xvfb xauth dbus-x11 x11-utils protobuf-compiler libprotobuf-dev clang cmake
+
+      - name: Install macOS connectivity build dependencies
+        if: startsWith(matrix.name, 'macos')
+        run: brew install protobuf
+
+      - name: Install Windows connectivity build dependencies
+        if: startsWith(matrix.name, 'windows')
+        run: choco install protoc --no-progress -y
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -273,6 +281,14 @@ jobs:
           echo "::error::Failed to install NDK $ndk_version after 3 attempts."
           exit 1
 
+      - name: Install Rust connectivity toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install connectivity build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler libprotobuf-dev clang cmake
+          cargo install cargo-ndk --version 4.1.2 --locked
+
       - name: Type-check native app
         run: npm run check -w @codex-switch/native
 
@@ -337,6 +353,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Install Rust connectivity toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install connectivity build dependencies
+        run: brew install protobuf
 
       - name: Type-check native app
         run: npm run check -w @codex-switch/native

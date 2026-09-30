@@ -26,6 +26,7 @@ serde_json = "1"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+csw-chat-connectivity = { path = "../../../crates/chat-connectivity" }
 arboard = { version = "3.6.1", default-features = false, features = ["image-data"] }
 base64 = "0.22"
 bytes = "1"

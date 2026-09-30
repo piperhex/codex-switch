@@ -6,6 +6,8 @@ apps/admin-go/public/
 apps/backend/coverage/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/installer-helper/target/
+crates/chat-connectivity/target/
+apps/native/plugins/connectivity/build/
 apps/native/android/
 apps/native/ios/
 apps/native/.expo/

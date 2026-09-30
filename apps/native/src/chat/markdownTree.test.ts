@@ -1,10 +1,20 @@
 import { expect, it } from 'vitest';
 import { parseMarkdown, renderMathParagraph, type MarkdownNode } from './markdownTree';
 import { answer } from '../../../../shared/chat/lineBreakFixture.json';
+import { localImageSource } from '../../../../shared/chat/imageSources';
 
 function descendants(nodes: MarkdownNode[]): MarkdownNode[] {
   return nodes.flatMap((node) => [node, ...descendants(node.children)]);
 }
+
+it('resolves Windows screenshots in native Markdown tables to readable image paths', () => {
+  const directory = 'F:/projects/codex-switch/.codex-tmp/lightning-vm';
+  const paths = ['normal', 'fast', 'ultrafast'].map(mode => `${directory}/lightning-${mode}.jpg`);
+  const text = '| 普通模式 | 快速模式 | Ultrafast |\n|---|---|---|\n'
+    + `| ${paths.map(path => `![截图](/${path})`).join(' | ')} |`;
+  const images = descendants(parseMarkdown(text)).filter(node => node.token.type === 'image');
+  expect(images.map(node => localImageSource(String(node.token.attrGet('src') ?? '')))).toEqual(paths);
+});
 
 it('keeps each answer line when native paragraphs use the HTML renderer', () => {
   const nodes = parseMarkdown(answer);

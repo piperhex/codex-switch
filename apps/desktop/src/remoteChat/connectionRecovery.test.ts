@@ -13,6 +13,7 @@ vi.mock('../../../../shared/remote-chat/link', () => ({ ChatLink: class {
   offer = async () => undefined;
   send = state.send;
   setRelayAvailable = state.relay;
+  renew = vi.fn();
   close = state.close;
 } }));
 

@@ -1,6 +1,7 @@
 const { withAndroidManifest, withInfoPlist } = require('expo/config-plugins');
 
 module.exports = function withChatTransport(config) {
+  config = require('./withChatConnectivity.cjs')(config);
   require('../scripts/patch-tcp-punch.cjs').applyTcpPunchPatch();
   require('../scripts/patch-webrtc-audio.cjs').applyWebrtcAudioPatch();
   config = require('./withIosTcpPunch.cjs')(config);

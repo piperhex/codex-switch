@@ -1,5 +1,6 @@
 import TcpSocket from 'react-native-tcp-socket';
 import { Buffer } from 'buffer';
+import { localChatAddresses } from './nativePath';
 import type { TcpAddress, TcpNetwork, TcpSocket as SocketPort } from '../../../../shared/remote-chat/tcp/types';
 
 type Socket = InstanceType<typeof TcpSocket.Socket>;
@@ -43,6 +44,7 @@ function port(socket: Socket): SocketPort {
 
 /** Native TCP sockets share a local port across discovery, listening and simultaneous outbound dialing. */
 export class NativeTcpNetwork implements TcpNetwork {
+  localAddresses() { return localChatAddresses(); }
   private stopped = false;
   private readonly sockets = new Set<Socket>();
   private readonly servers = new Set<InstanceType<typeof TcpSocket.Server>>();

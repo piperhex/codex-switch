@@ -10,6 +10,7 @@ import { RtcPeer } from '../../../../shared/remote-chat/rtcPeer';
 import { createNativePacketCipher } from './packetCipher';
 import { MultipathPeer } from '../../../../shared/remote-chat/multipathPeer';
 import { NativeTcpNetwork } from './tcpNetwork';
+import { createMobileNativePath } from './nativePath';
 import type { PeerFactory } from '../../../../shared/remote-chat/protocol';
 
 interface Options extends ConnectionEvents { session: AuthSession; deviceId: string }
@@ -22,6 +23,7 @@ export class MobileChatConnection extends ChatConnection {
       verifyHostKey: trustedHost({ read: SecureStore.getItemAsync, save: SecureStore.setItemAsync },
         trustScope(session.baseUrl, options.deviceId)),
       tcpPunch: Platform.OS === 'android' || Platform.OS === 'ios',
+      createNativePath: createMobileNativePath,
       createPacketCipher: createNativePacketCipher,
       clientInfo: { name: Platform.OS === 'android' ? Platform.constants.Model : 'iPhone / iPad',
         platform: Platform.OS === 'android' ? 'Android' : 'iOS' },

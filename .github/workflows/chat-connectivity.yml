@@ -1,0 +1,51 @@
+name: Chat native connectivity
+on:
+  push:
+    paths:
+      - 'crates/chat-connectivity/**'
+      - 'apps/native/plugins/connectivity/**'
+      - 'apps/native/plugins/withChatConnectivity.cjs'
+      - 'apps/native/scripts/build-chat-connectivity.cjs'
+      - '.github/workflows/chat-connectivity.yml'
+  pull_request:
+    paths:
+      - 'crates/chat-connectivity/**'
+      - 'apps/native/plugins/connectivity/**'
+      - 'apps/native/plugins/withChatConnectivity.cjs'
+      - 'apps/native/scripts/build-chat-connectivity.cjs'
+      - '.github/workflows/chat-connectivity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libprotobuf-dev clang cmake
+      - if: runner.os == 'macOS'
+        run: brew install protobuf
+      - if: runner.os == 'Windows'
+        run: choco install protoc --no-progress -y
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: crates/chat-connectivity
+      - run: cargo fmt --manifest-path crates/chat-connectivity/Cargo.toml --check
+      - run: cargo test --locked --manifest-path crates/chat-connectivity/Cargo.toml
+      - run: cargo clippy --locked --manifest-path crates/chat-connectivity/Cargo.toml --all-targets -- -D warnings
+      - if: runner.os == 'macOS'
+        run: node apps/native/scripts/build-chat-connectivity.cjs ios

@@ -11,6 +11,7 @@ mod protocol;
 mod runtime;
 mod sessions;
 pub(crate) mod tcp;
+pub(crate) mod traversal;
 mod wire;
 
 #[cfg(test)]
@@ -158,5 +159,6 @@ pub(crate) fn start<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
     let tcp = tcp::State::default();
     let authority = tcp.authority.clone();
     app.manage(tcp);
+    app.manage(traversal::State::default());
     std::thread::spawn(move || runtime::run(receiver, configs, upload_policy, authority));
 }

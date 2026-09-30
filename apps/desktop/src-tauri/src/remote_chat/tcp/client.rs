@@ -65,15 +65,21 @@ impl ClientSession {
         if message["type"] == "resumed" {
             if let Some(grant) = grants.get_mut(id) {
                 grant.expires = message["expiresAt"].as_u64().ok_or(Error::Invalid)?;
+                if let Some(native) = &mut grant.native {
+                    native.expires_at = grant.expires;
+                }
                 grant.owner = Some(self.owner.clone());
                 return Ok(());
             }
         }
-        if !message["tcpPunch"].is_object() {
+        if !message["tcpPunch"].is_object() && !message["nativeTraversal"].is_object() {
             return Ok(());
         }
         let mut grant = parse_grant(message)?;
         grant.owner = Some(self.owner.clone());
+        if let Some(native) = &mut grant.native {
+            native.desktop = false;
+        }
         if let Some(previous) = grants.insert(id.to_owned(), grant) {
             previous.revoked.send_replace(true);
         }

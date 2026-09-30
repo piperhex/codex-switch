@@ -64,7 +64,8 @@
       "resources/dream-skin/LICENSE",
       "resources/dream-skin/NOTICE.md",
       "resources/remote-desktop/**/*",
-      "resources/desktop-service/**/*"
+      "resources/desktop-service/**/*",
+      "resources/chat-connectivity/*"
     ],
     "icon": [
       "icons/32x32.png",

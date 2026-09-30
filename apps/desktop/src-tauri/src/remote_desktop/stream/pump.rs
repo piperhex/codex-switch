@@ -87,7 +87,10 @@ async fn video(stream: &Arc<Stream>, path: PathBuf, encoder: &mut Encoder) -> Re
                 if changed.is_err() { return Err(DesktopError::Platform); }
                 let requested = feedback.borrow_and_update().keyframes;
                 if requested != keyframe_version && keyframe_at.elapsed() >= Duration::from_millis(250) {
-                    encoder.request_keyframe().await?;
+                    if let Err(error) = encoder.request_keyframe().await {
+                        if !super::super::input_desktop::is_worker() { return Err(error); }
+                        // The helper may have exited during a desktop switch; stdout recovery reopens it below.
+                    }
                     keyframe_version = requested; keyframe_at = Instant::now();
                 }
             },
@@ -98,7 +101,15 @@ async fn video(stream: &Arc<Stream>, path: PathBuf, encoder: &mut Encoder) -> Re
                 progress.reset();
             },
             frame = encoder.next() => {
-                let frame = frame?;
+                let frame = match frame {
+                    Ok(frame) => frame,
+                    Err(error) if super::super::input_desktop::is_worker() => {
+                        eprintln!("desktop capture restarting: {error}");
+                        let profile = *settings.borrow();
+                        super::capture_recovery::reopen(stream, &path, encoder, profile).await?
+                    },
+                    Err(error) => return Err(error),
+                };
                 progress.bytes += frame.len();
                 send_frame(stream, frame).await?; progress.frames += 1;
             },
@@ -115,11 +126,21 @@ async fn reconfigure(
     encoder: &mut Encoder,
     profile: super::model::Profile,
 ) -> Result<()> {
-    if encoder.update(profile).await? {
-        return Ok(());
+    match encoder.update(profile).await {
+        Ok(true) => return Ok(()),
+        Err(error) if !super::super::input_desktop::is_worker() => return Err(error),
+        _ => {}
     }
     encoder.stop().await;
-    let (next, first) = Encoder::open(path, profile, &stream.display).await?;
+    let opened = Encoder::open(path, profile, &stream.display).await;
+    let (next, first) = match opened {
+        Ok(opened) => opened,
+        Err(_) if super::super::input_desktop::is_worker() => {
+            let first = super::capture_recovery::reopen(stream, path, encoder, profile).await?;
+            return send_frame(stream, first).await;
+        }
+        Err(error) => return Err(error),
+    };
     *encoder = next;
     send_frame(stream, first).await
 }
@@ -213,9 +234,17 @@ pub(super) async fn inputs(
         };
         let id = stream.id.clone();
         let result = tauri::async_runtime::spawn_blocking(move || apply_input(&id, &message)).await;
-        let Ok(Ok(reply)) = result else {
-            stream.cancel.send_replace(true);
-            return;
+        let reply = match result {
+            Ok(Ok(reply)) => reply,
+            Ok(Err(DesktopError::Platform)) if super::super::input_desktop::is_worker() => {
+                // Windows may reject input while switching desktops. Do not replay a partially applied
+                // keystroke; keep video/authorization alive so the next input can use the new desktop.
+                continue;
+            }
+            _ => {
+                stream.cancel.send_replace(true);
+                return;
+            }
         };
         if let Some(reply) = reply {
             let channel = if clipboard {

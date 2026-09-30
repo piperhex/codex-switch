@@ -3,28 +3,32 @@ import type { Channel, PeerOptions } from './protocol';
 const PROBE_MS = 1000;
 const PATH_TIMEOUT_MS = 3000;
 const MAX_ENVELOPE_CHARS = 100_000;
-interface Path { channel: Channel; priority: number; pong: number; probe: number; pending: Set<number> }
+const MIN_SWITCH_GAIN_MS = 20;
+const MIN_SWITCH_INTERVAL_MS = 5000;
+interface Path { channel: Channel; priority: number; pong: number; probe: number;
+  rtt?: number; samples: number; transport: 'rtc' | 'tcp' | 'mesh'; pending: Map<number, number> }
 
 /** Peers may select different outgoing paths; every incoming path carries the same authenticated chat protocol. */
 export class MultipathChannel implements Channel {
   private readonly paths = new Set<Path>();
   private selected?: Path;
+  private selectedAt = 0;
   private state = 'connecting';
   private readonly opened = new Set<() => void>();
   private readonly closed = new Set<() => void>();
   private readonly messages = new Set<(text: string) => void>();
   private readonly timer = setInterval(() => this.tick(), PROBE_MS);
 
-  constructor(private readonly options: Pick<PeerOptions, 'stateChanged' | 'disconnected'>) {}
+  constructor(private readonly options: Pick<PeerOptions, 'stateChanged' | 'disconnected' | 'diagnostic'>) {}
   get readyState() { return this.state; }
   get bufferedAmount() { return this.selected?.channel.bufferedAmount ?? 0; }
   onOpen(callback: () => void) { this.opened.add(callback); }
   onClose(callback: () => void) { this.closed.add(callback); }
   onMessage(callback: (text: string) => void) { this.messages.add(callback); }
 
-  add(channel: Channel, priority: number) {
+  add(channel: Channel, priority: number, transport: Path['transport'] = priority === 0 ? 'rtc' : 'tcp') {
     if (this.state === 'closed') { channel.close(); return; }
-    const path: Path = { channel, priority, pong: 0, probe: 0, pending: new Set() };
+    const path: Path = { channel, priority, transport, pong: 0, probe: 0, samples: 0, pending: new Map() };
     this.paths.add(path);
     channel.onMessage(text => this.receive(path, text));
     channel.onOpen(() => this.probe(path));
@@ -35,8 +39,8 @@ export class MultipathChannel implements Channel {
   private probe(path: Path) {
     if (path.channel.readyState !== 'open') return;
     const sequence = ++path.probe;
-    path.pending.add(sequence);
-    if (path.pending.size > 4) path.pending.delete(path.pending.values().next().value!);
+    path.pending.set(sequence, Date.now());
+    if (path.pending.size > 4) path.pending.delete(path.pending.keys().next().value!);
     this.write(path, ['ping', sequence]);
   }
 
@@ -52,7 +56,11 @@ export class MultipathChannel implements Channel {
       const frame: unknown = JSON.parse(text);
       if (!Array.isArray(frame) || frame.length !== 2) throw new Error('Invalid path frame');
       if (frame[0] === 'ping' && Number.isSafeInteger(frame[1])) this.write(path, ['pong', frame[1]]);
-      else if (frame[0] === 'pong' && path.pending.delete(Number(frame[1]))) {
+      else if (frame[0] === 'pong' && path.pending.has(Number(frame[1]))) {
+        const measured = Date.now() - path.pending.get(Number(frame[1]))!;
+        path.rtt = path.rtt === undefined ? measured : path.rtt * 0.75 + measured * 0.25;
+        path.samples += 1;
+        path.pending.delete(Number(frame[1]));
         path.pong = Date.now(); this.choose();
       } else if (frame[0] === 'data' && typeof frame[1] === 'string') {
         this.messages.forEach(callback => callback(frame[1]));
@@ -63,14 +71,31 @@ export class MultipathChannel implements Channel {
   private choose() {
     if (this.state === 'closed') return;
     const now = Date.now();
-    this.selected = [...this.paths].filter(path => path.channel.readyState === 'open'
-      && path.pong > 0 && now - path.pong < PATH_TIMEOUT_MS).sort((a, b) => a.priority - b.priority)[0];
+    const previous = this.selected;
+    this.selected = this.bestPath(now);
+    if (previous !== this.selected) this.selectedAt = now;
+    if (previous !== this.selected && this.selected) this.options.diagnostic?.('path-selected', {
+      transport: this.selected.transport, rttMs: this.selected.rtt,
+    });
     const state = this.selected ? 'open' : 'connecting';
     if (state === this.state) return;
     this.state = state;
     this.options.stateChanged?.(state === 'open' ? 'connected' : 'disconnected');
     if (state === 'open') this.opened.forEach(callback => callback());
     else this.options.disconnected();
+  }
+
+  private bestPath(now: number) {
+    const healthy = [...this.paths].filter(path => path.channel.readyState === 'open'
+      && path.pong > 0 && now - path.pong < PATH_TIMEOUT_MS).sort((a, b) => a.priority - b.priority);
+    const preferred = healthy[0];
+    if (!this.selected || !healthy.includes(this.selected)) return preferred;
+    const fastest = healthy.filter(path => path.samples >= 3).sort((a, b) => a.rtt! - b.rtt!)[0];
+    // Preserve protocol preference on equal paths, but escape persistently slow direct routes.
+    if (preferred?.priority < this.selected.priority && (preferred.rtt ?? 0) <= (this.selected.rtt ?? 0)) return preferred;
+    if (fastest && now - this.selectedAt >= MIN_SWITCH_INTERVAL_MS
+      && this.selected.rtt! - fastest.rtt! > Math.max(MIN_SWITCH_GAIN_MS, this.selected.rtt! * 0.2)) return fastest;
+    return this.selected;
   }
 
   private tick() { this.paths.forEach(path => this.probe(path)); this.choose(); }

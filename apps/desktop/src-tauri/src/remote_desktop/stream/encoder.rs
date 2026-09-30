@@ -60,10 +60,8 @@ impl Encoder {
             Backend::Software,
             Backend::GdiSoftware,
         ] {
-            // Legacy FFmpeg capture does not bind the secure input desktop. Never use it in the SYSTEM worker.
-            if super::super::input_desktop::is_worker()
-                && !matches!(backend, Backend::DirtyGpu | Backend::DirtyGdi)
-            {
+            // WGC does not capture Winlogon. The service helper binds GDI to the current input desktop.
+            if super::super::input_desktop::is_worker() && !matches!(backend, Backend::DirtyGdi) {
                 continue;
             }
             // Opt-in device tests must prove the new path rather than silently passing via compatibility capture.

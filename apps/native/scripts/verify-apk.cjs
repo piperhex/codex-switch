@@ -4,6 +4,7 @@ const { execFileSync } = require('node:child_process');
 const RELEASE_ARCHITECTURES = ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'];
 const MAX_ARCHIVE_LISTING_BYTES = 16 * 1024 * 1024;
 const REQUIRED_LIBRARIES = [
+  'libcsw_chat_connectivity.so',
   'libappmodules.so',
   'libc++_shared.so',
   'libexpo-modules-core.so',

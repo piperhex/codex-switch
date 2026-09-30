@@ -1,6 +1,5 @@
 use super::super::{DesktopError, Result};
 use super::{
-    encoder::Encoder,
     model::*,
     peer::{self, Peer},
     pump,
@@ -40,13 +39,9 @@ impl Stream {
         for server in &request.ice_servers {
             server.validate()?;
         }
-        let id = request.id.clone();
-        let display = tauri::async_runtime::spawn_blocking(move || {
-            super::super::with_session(&id, |session| session.display.refresh())
-        })
-        .await
-        .map_err(|_| DesktopError::Platform)??;
-        let (mut encoder, _) = Encoder::open(&path, profile, &display).await?;
+        let display = super::capture_recovery::display(&request.id).await?;
+        let (mut encoder, _) =
+            super::capture_recovery::open(&path, profile, &display, &request.id).await?;
         let peer = match peer::create(request.ice_servers, request.clipboard_channel).await {
             Ok(peer) => peer,
             Err(error) => {
@@ -149,7 +144,7 @@ impl Stream {
             return Err(DesktopError::Expired);
         }
         let id = self.id.clone();
-        tauri::async_runtime::spawn_blocking(move || super::super::with_session(&id, |_| Ok(())))
+        tauri::async_runtime::spawn_blocking(move || super::super::with_lease(&id, |_| Ok(())))
             .await
             .map_err(|_| DesktopError::Platform)?
     }

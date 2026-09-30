@@ -13,6 +13,7 @@ type desktopInfo struct {
 	expires time.Time
 	version float64
 	tcp     bool
+	native  bool
 }
 type chatSessions struct {
 	mu         sync.Mutex
@@ -59,7 +60,8 @@ func (s *chatSessions) join(client *peer, identity chatIdentity, message platfor
 		if err := s.hot.register(client, identity, descriptors); err != nil {
 			return err
 		}
-		s.info[client] = desktopInfo{identity.expires, version, message["tcpPunch"] == true}
+		s.info[client] = desktopInfo{identity.expires, version,
+			message["tcpPunch"] == true, message["nativeTraversal"] == true}
 		if previous := s.desktops[key]; previous != nil && previous != client {
 			s.disconnectLocked(previous, false)
 			previous.close(4000, "Replaced by a newer connection")
@@ -95,7 +97,8 @@ func (s *chatSessions) joinMobile(
 	}
 	info := s.info[desktop]
 	if message["transportVersion"] == float64(2) && info.version == 2 {
-		return s.hot.join(hotJoin{client, identity, message, chatEndpoint{desktop, info.expires}, ice, info.tcp})
+		return s.hot.join(hotJoin{client, identity, message,
+			chatEndpoint{desktop, info.expires}, ice, info.tcp, info.native})
 	}
 	if resuming {
 		client.close(4004, "Session unavailable")

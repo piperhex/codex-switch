@@ -103,7 +103,7 @@ fn authentication_message(request: &OpenRequest, config: &Config) -> serde_json:
     let mut message = serde_json::json!({
         "type": "authenticate", "role": "mobile", "accessToken": config.access_token,
         "deviceId": request.device_id, "publicKey": request.public_key,
-        "transportVersion": 2, "binaryRelay": true, "tcpPunch": true,
+        "transportVersion": 2, "binaryRelay": true, "tcpPunch": true, "nativeTraversal": true,
         "clientInfo": { "name": "Remote AI PC", "platform": std::env::consts::OS },
     });
     // Both backends treat the presence of resume as a recovery attempt, including null.

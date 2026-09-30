@@ -146,7 +146,7 @@ func diagnosticFrame(message platform.JSON) ([]interface{}, string) {
 func diagnosticSignal(fields []interface{}, id string, payload platform.JSON) ([]interface{}, string) {
 	kind, _ := payload["kind"].(string)
 	switch kind {
-	case "key", "sdp", "ice":
+	case "key", "sdp", "ice", "tcp":
 	default:
 		return nil, ""
 	}
@@ -161,6 +161,10 @@ func diagnosticSignal(fields []interface{}, id string, payload platform.JSON) ([
 		candidate, _ := payload["candidate"].(string)
 		candidateType := diagnosticCandidateType(candidate)
 		return append(fields, "candidate_type", candidateType), "ice:" + id + ":" + candidateType
+	}
+	if kind == "tcp" {
+		addresses, _ := payload["addresses"].([]interface{})
+		return append(fields, "candidate_count", len(addresses)), ""
 	}
 	return fields, ""
 }

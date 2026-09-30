@@ -5,11 +5,11 @@ import { isInlineImage, localImageSource } from "./imageSources";
 export const ImageThreadContext = createContext<string | null>(null);
 const pending = new Map<string, Promise<string>>();
 
-function loadImage(threadId: string, source: string): Promise<string> {
-  const key = JSON.stringify([threadId, source]);
+function loadImage(threadId: string, source: string, variant: "thumbnail" | "original"): Promise<string> {
+  const key = JSON.stringify([threadId, source, variant]);
   const existing = pending.get(key);
   if (existing) return existing;
-  const request = guiApi.request<{ url: string }>({ operation: "imagePreview", threadId, source })
+  const request = guiApi.request<{ url: string }>({ operation: "imagePreview", threadId, source, variant })
     .then(({ url }) => {
       if (!isInlineImage(url)) throw new Error("图片暂时无法显示。");
       return url;
@@ -27,7 +27,7 @@ export function useImageSource(source?: string) {
     if (!local || !threadId) return;
     let cancelled = false;
     setResult(undefined);
-    void loadImage(threadId, local).then(
+    void loadImage(threadId, local, "thumbnail").then(
       (url) => { if (!cancelled) setResult({ source: local, threadId, url }); },
       () => { if (!cancelled) setResult({ source: local, threadId, failed: true }); },
     );
@@ -36,6 +36,6 @@ export function useImageSource(source?: string) {
   const current = result?.source === local && result?.threadId === threadId ? result : undefined;
   const remote = source && (/^https?:\/\//i.test(source) || isInlineImage(source)) ? source : undefined;
   return { url: remote || current?.url, failed: current?.failed,
-    original: async () => remote || (local && threadId ? loadImage(threadId, local) : ''),
+    original: async () => remote || (local && threadId ? loadImage(threadId, local, "original") : ''),
     loading: Boolean(local && threadId && !current), retry: () => setAttempt((value) => value + 1) };
 }

@@ -175,6 +175,7 @@ fn start_node() -> Result<tokio::process::Child> {
 }
 
 async fn host(stop: &mut watch::Receiver<bool>) -> Result<()> {
+    let _connectivity = super::connectivity::Lifetime;
     let config = configuration::read()?;
     let mut node = start_node()?;
     let _job = process::contain(node.raw_handle().ok_or(ServiceError::Unavailable)?)?;
@@ -240,6 +241,9 @@ async fn handle(call: Call, config: &configuration::Configuration) -> Result<Val
     }
     if call.command == "service_sign" {
         return signature(config, &call.args);
+    }
+    if call.command == "service_native_path" {
+        return super::connectivity::call(call.args).await;
     }
     desktop_call(call).await
 }
