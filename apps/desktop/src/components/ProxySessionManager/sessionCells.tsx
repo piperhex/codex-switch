@@ -121,6 +121,7 @@ export function RequestSpeed({ serviceTier, t }: {
   serviceTier?: ProxySessionRequest["serviceTier"];
   t: Translate;
 }) {
+  if (serviceTier === "ultrafast") return <Tag color="purple">Ultrafast</Tag>;
   if (serviceTier === "priority") {
     return <Tag color="orange">{t("providers.proxy.sessionsRequestSpeedFast")}</Tag>;
   }

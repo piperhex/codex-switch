@@ -2,6 +2,7 @@ import type { BrowserContext } from "@playwright/test";
 import type { ModelSettingsSnapshot } from "../src/pages/codexGui/threadModelSettings";
 import type { ModelSelection } from "../src/pages/codexGui/modelSelection";
 import type { QueueSnapshot } from "../src/pages/codexGui/queueJournal";
+import type { RequestSpeed } from '../../../shared/remote-chat/composer';
 
 export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpdate"]) {
   const saved = new Map<string | null, ModelSettingsSnapshot>();
@@ -10,6 +11,7 @@ export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpd
   const usage: (() => void)[] = [];
   const pendingModels: (() => void)[] = [];
   let modelsPaused = false;
+  let speed: RequestSpeed = 'normal';
   let queue: QueueSnapshot = { revision: 0, threads: {} };
   const thread = (id: string) => ({ id, cwd: "", preview: id, updatedAt: 1, turns: [] });
   const models = ["first", "second"].map((model, index) => ({ id: model, model,
@@ -21,11 +23,18 @@ export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpd
     await context.route("**/__codex_switch__/api/invoke", async (route) => {
       const { command, args } = route.request().postDataJSON() as {
         command: string; args: { threadId?: string; selection: ModelSelection;
-          cursor?: { sequence: number }; request: Record<string, unknown>; snapshot: QueueSnapshot };
+          cursor?: { sequence: number }; request: Record<string, unknown>; snapshot: QueueSnapshot; speed: RequestSpeed };
       };
       let result: unknown = {};
       const threadId = args.threadId ?? null;
       if (command === "codex_gui_connect") result = [];
+      if (command === 'codex_gui_set_request_speed') {
+        speed = args.speed;
+        events.push({ name: 'codex-gui-request-settings-changed', payload: { speed } });
+      }
+      if (command === 'codex_gui_set_request_speed' || command === 'codex_gui_request_settings') {
+        result = { speed, fastModeEnabled: speed !== 'normal', fastModeAvailable: true };
+      }
       if (command === "codex_gui_queue_read") result = queue;
       if (command === "codex_gui_queue_save") {
         queue = { ...args.snapshot, revision: queue.revision + 1 };

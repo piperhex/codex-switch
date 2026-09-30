@@ -19,9 +19,12 @@ it('uses the same host switch as the PC and reads the confirmed mode', async () 
   expect(await bridge.read()).toBe('normal');
   vi.mocked(invoke).mockResolvedValueOnce(fast);
   expect(await bridge.set('fast')).toBe('fast');
-  expect(invoke).toHaveBeenLastCalledWith('codex_gui_set_fast_mode', { enabled: true });
+  expect(invoke).toHaveBeenLastCalledWith('codex_gui_set_request_speed', { speed: 'fast' });
+  vi.mocked(invoke).mockResolvedValueOnce({ ...fast, speed: 'ultrafast' });
+  expect(await bridge.set('ultrafast')).toBe('ultrafast');
+  expect(invoke).toHaveBeenLastCalledWith('codex_gui_set_request_speed', { speed: 'ultrafast' });
   expect(await bridge.set('normal')).toBe('normal');
-  expect(invoke).toHaveBeenLastCalledWith('codex_gui_set_fast_mode', { enabled: false });
+  expect(invoke).toHaveBeenLastCalledWith('codex_gui_set_request_speed', { speed: 'normal' });
 });
 
 it('coalesces a slow poll and serializes a subsequent mode change after it', async () => {

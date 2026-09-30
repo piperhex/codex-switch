@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Switch, Tooltip } from "antd";
+import { Tooltip } from "antd";
 import { useUsageStatus } from "./useUsageStatus";
 import { ContextUsageButton } from "./ContextUsageButton";
 import { ContextSettingsDialog } from "./ContextSettingsDialog";
@@ -12,7 +12,7 @@ const TOOLTIP_STYLES = {
   root: { maxWidth: 400 },
   body: { fontSize: 12, lineHeight: "18px", padding: "6px 8px", overflowWrap: "anywhere" },
 } as const;
-type UsageHint = "context" | "tokens" | "cost" | "remaining" | "speed";
+type UsageHint = "context" | "tokens" | "cost" | "remaining";
 
 function tooltipStyles(open: boolean) {
   // Closing animations must not overlap the next hovered or focused value's tooltip.
@@ -30,7 +30,7 @@ function UsageValue({ text, description, className, open, onOpenChange }: {
 export function UsageStatus({ active, threadId, tokenUsage }: {
   active: boolean; threadId?: string | null; tokenUsage?: ThreadTokenUsage;
 }) {
-  const { usage, proxy, saving, error, setFastMode, canChangeFastMode } = useUsageStatus(active);
+  const { usage, error } = useUsageStatus(active);
   const [hint, setHint] = useState<UsageHint | null>(null);
   const [settingsThread, setSettingsThread] = useState<string | null>(null);
   const trailing = usageTrailing(usage);
@@ -47,8 +47,6 @@ export function UsageStatus({ active, threadId, tokenUsage }: {
       return current === key ? null : current;
     });
   };
-  const speedHint = canChangeFastMode === false ? "请在主机上切换快速模式" : !proxy ? "正在读取速度设置…"
-    : proxy.fastModeAvailable ? "仅影响 Codex GUI 的新请求" : "当前模型暂不支持快速模式";
   return <div className={styles.status} onKeyDown={(event) => {
     if (event.key === "Escape" && hint) { event.stopPropagation(); setHint(null); }
   }}>
@@ -69,15 +67,6 @@ export function UsageStatus({ active, threadId, tokenUsage }: {
           open={active && hint === "remaining"} onOpenChange={(open) => changeHint("remaining", open)} />
       </>}
     </span>
-    <Tooltip title={error || speedHint} styles={tooltipStyles(active && hint === "speed")}
-      fresh trigger={["hover", "focus"]}
-      mouseLeaveDelay={0} open={active && hint === "speed"} onOpenChange={(open) => changeHint("speed", open)}>
-      <label className={styles.speed}><span>快速模式</span>
-        <Switch size="small" aria-label="快速模式" checked={proxy?.fastModeEnabled ?? false} loading={saving}
-          disabled={canChangeFastMode === false || !proxy || (!proxy.fastModeEnabled && !proxy.fastModeAvailable)}
-          onChange={(enabled) => void setFastMode(enabled)} />
-      </label>
-    </Tooltip>
     {active && settingsThread && settingsThread === threadId && <ContextSettingsDialog key={settingsThread}
       threadId={settingsThread} onClose={() => setSettingsThread(null)} />}
   </div>;

@@ -14,6 +14,7 @@ export function settingOptions(field: SettingField, models: Model[], selection: 
   if (field === 'speed') return [
     { value: 'normal', label: '普通模式' },
     { value: 'fast', label: '快速模式', description: '与电脑端同步，对后续消息生效。' },
+    { value: 'ultrafast', label: 'Ultrafast 模式', description: '与电脑端同步，对后续消息生效。' },
   ];
   if (field === 'access') return ACCESS_OPTIONS;
   if (field === 'model') return models.map((model) => ({

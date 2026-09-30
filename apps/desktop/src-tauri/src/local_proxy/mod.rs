@@ -21,6 +21,7 @@ pub(crate) mod gui_context;
 mod gui_forwarding;
 mod gui_routing;
 pub(crate) mod gui_runtime;
+pub(crate) mod gui_speed;
 pub(crate) mod gui_system_prompts;
 pub(crate) mod lan_keys;
 mod lan_usage_capture;

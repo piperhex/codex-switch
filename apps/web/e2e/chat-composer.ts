@@ -69,11 +69,13 @@ export async function desktopComposer(page: Page, request: APIRequestContext, in
   await page.getByRole('menuitemradio', { name: /请求批准/ }).click();
   await expect.poll(async () => (await state(request)).composer.settings.access).toBe('read-only');
   await expect(access).toHaveAccessibleName('访问权限：请求批准');
-  const speed = page.getByRole('switch', { name: '快速模式' });
+  await page.getByRole('button', { name: /^模型与推理强度：/ }).click();
+  const speed = page.locator('.request-speed-button');
   await speed.click();
   await expect.poll(async () => (await state(request)).composer.settings.speed).toBe('fast');
   await request.post(`${fixtureUrl}/test/composer`, { data: { speed: 'normal' } });
-  await expect(speed).not.toBeChecked();
+  await expect(speed).toHaveAttribute('data-speed', 'normal');
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('group', { name: '今日用量' })).toContainText('USD');
   await input.fill('电脑输入第一行');
   await input.press('Shift+Enter');

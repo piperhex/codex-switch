@@ -10,6 +10,7 @@
 .composer-model-effort svg { color: #718078; }
 .composer-model-name { max-width: 100%; color: #718078; font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
 .composer-model-reset { position: absolute; top: -2px; right: -3px; color: #718078; }
+.composer-model-speed { position: absolute; top: -5px; left: -5px; z-index: 1; }
 .composer-model-slider-wrap { position: relative; height: 24px; margin-top: 6px; }
 .composer-model-slider { display: block; appearance: none; -webkit-appearance: none; width: 100%; height: 24px;
   margin: 0; border: 0; border-radius: 999px; outline-offset: 5px; cursor: pointer;

@@ -5,7 +5,7 @@ import { adb, apiUrl, output, prepare, serverState, waitFor, waitText, tap, tapN
   screenshot, hasText, nodes } from './android-chat-driver.mjs';
 
 const report = { passed: false, cases: [] };
-const speedLabels = { normal: '普通模式', fast: '快速模式' };
+const speedLabels = { normal: '普通模式', fast: '快速模式', ultrafast: 'Ultrafast 模式' };
 const composer = async () => (await nodes()).find((node) => node['content-desc']?.endsWith('，聊天设置'));
 
 async function fixture(route, data) {
@@ -16,8 +16,7 @@ async function fixture(route, data) {
 
 async function checkIndicator(speed) {
   await waitFor(async () => {
-    const node = await composer();
-    return node && node['content-desc'].includes('，快速模式') === (speed === 'fast');
+    return (await nodes()).some(node => node['content-desc']?.startsWith(speedLabels[speed] + ' · '));
   }, `${speed} composer indicator`);
 }
 
@@ -38,18 +37,32 @@ async function phoneSelect(speed) {
 try {
   report.device = await prepare();
   await waitText('云端服务器地址');
+  await waitFor(async () => {
+    if (await hasText('忽略本版本')) await tap('忽略本版本');
+    return (await nodes()).filter(node => node.class === 'android.widget.EditText').length >= 3;
+  }, 'login fields ready');
   await input(0, apiUrl);
   await input(1, 'mobile-test@example.test');
   await input(2, 'local-test');
   await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
   await tap('登录并查看');
+  if (await hasText('同意并登录')) await tap('同意并登录');
   await waitText('聊天消息');
   await waitFor(async () => (await hasText('P2P')) || (await hasText('Relay')), 'connected');
   await tap('打开聊天列表');
   await tap('移动端聊天体验');
   await waitText('你可以直接从手机继续这个任务。');
   await checkIndicator('normal');
+  for (const speed of ['fast', 'ultrafast', 'normal']) {
+    const button = (await nodes()).find(node => node['content-desc']?.includes(' · 点击切换为'));
+    await tapNode(button);
+    await waitFor(async () => (await serverState()).composer.settings.speed === speed, `${speed} lightning cycle`);
+    await checkIndicator(speed);
+    await screenshot(`lightning-${speed}`);
+  }
+  report.cases.push('lightning-three-state-cycle');
   await phoneSelect('fast');
+  await phoneSelect('ultrafast');
   await phoneSelect('normal');
 
   await tapNode(await composer());
@@ -68,6 +81,7 @@ try {
   await fixture('sidebar', { action: 'start' });
   await waitText('暂停生成');
   await phoneSelect('fast');
+  await phoneSelect('ultrafast');
   await waitText('暂停生成');
   await phoneSelect('normal');
   await waitText('暂停生成');

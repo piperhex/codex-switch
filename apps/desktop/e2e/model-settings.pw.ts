@@ -4,6 +4,27 @@ import { modelSettingsBackend } from "./model-settings-backend";
 const url = "/e2e/model-settings-harness.html";
 const trigger = (page: Page) => page.getByRole("button", { name: /^模型与推理强度/ });
 
+test('cycles lightning speed across desktop clients while usage polling is pending', async ({ browser }) => {
+  const backend = modelSettingsBackend();
+  const pcContext = await browser.newContext(); const webContext = await browser.newContext();
+  await backend.attach(pcContext); await backend.attach(webContext);
+  const pc = await pcContext.newPage(); const web = await webContext.newPage();
+  try {
+    await Promise.all([pc.goto(url), web.goto(url)]);
+    await trigger(pc).click(); await trigger(web).click();
+    const speed = pc.locator('.request-speed-button');
+    for (const [mode, count] of [['fast', 1], ['ultrafast', 2], ['normal', 0]] as const) {
+      await speed.click();
+      await expect(speed).toHaveAttribute('data-speed', mode);
+      await expect(speed.locator('.is-lit')).toHaveCount(count);
+      await expect(web.locator('.request-speed-button')).toHaveAttribute('data-speed', mode);
+      await pc.screenshot({ path: `../../.codex-tmp/gui-speed-${mode}.png`, animations: 'disabled' });
+    }
+    const beats = Number(await pc.getByLabel('刷新次数').textContent());
+    await expect.poll(async () => Number(await pc.getByLabel('刷新次数').textContent())).toBeGreaterThan(beats);
+  } finally { backend.releaseUsage(); await pcContext.close(); await webContext.close(); }
+});
+
 for (const width of [1280, 390]) {
   test(`discovers a new model while the picker and usage polling are open at ${width}px`, async ({ page }) => {
     const backend = modelSettingsBackend();

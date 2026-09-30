@@ -39,7 +39,7 @@ impl UsageServiceTier {
         if matches!(self.source, EstimateTierSource::CodexSubscription)
             && matches!(
                 self.requested.as_deref(),
-                Some("default" | "priority" | "fast")
+                Some("default" | "priority" | "fast" | "ultrafast")
             )
         {
             return self.requested.as_deref();
@@ -54,7 +54,7 @@ mod tests {
 
     #[test]
     fn subscription_estimates_preserve_each_explicit_forwarded_speed() {
-        for requested in ["priority", "fast", "default"] {
+        for requested in ["priority", "fast", "ultrafast", "default"] {
             let mut tier = UsageServiceTier::new(Some(requested.into()), true);
             for reported in [Some("default"), Some("priority"), None, Some("fast")] {
                 tier.observe_response(reported.map(str::to_owned));

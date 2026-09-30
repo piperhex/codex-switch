@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ChatSettings } from './ChatSettings';
+import { RequestSpeedButton } from './RequestSpeedButton';
 import type { ChatConnectionProps } from './ChatProfileMenu';
 import { ComposerGoal } from './ComposerGoal';
 import { useGoalMode } from '../../../../shared/remote-chat/client/useGoalMode';
@@ -213,15 +214,15 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
               else goalMode.exit();
             }} />}
           <Pressable accessibilityRole="button" style={[styles.composerModel, compactField && styles.composerModelCompact]}
-            accessibilityLabel={`${composerLabel(models, selection)}${selection.speed === 'fast' ? '，快速模式' : ''}，聊天设置`}
+            accessibilityLabel={`${composerLabel(models, selection)}，聊天设置`}
             onPress={() => setSettings(true)}>
             {compactField ? <Feather name="sliders" size={19} color={styles.composerModelText.color} /> : <>
             <Text numberOfLines={1} ellipsizeMode="head" style={styles.composerModelText}>
               {modelLabelTail(composerLabel(models, selection))}</Text>
-            {selection.speed === 'fast' && <Feather name="zap" size={14}
-              color={styles.composerModelText.color} accessibilityLabel="快速模式" />}
             <Feather name="chevron-down" size={12} color={styles.composerModelText.color} /></>}
           </Pressable>
+          {selection.speed !== undefined && <RequestSpeedButton speed={selection.speed} busy={settingsBusy}
+            onChange={speed => { void updateSettings({ speed }); }} />}
           <ComposerActionButton action={action} disabled={actionDisabled} busy={pausing || sending}
             onPress={() => { void submit(); }} />
         </View>

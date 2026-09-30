@@ -310,7 +310,7 @@ export interface ProxySessionRequest {
     startedAt: number;
     model?: string | null;
     reasoningEffort?: string | null;
-    serviceTier?: "default" | "priority" | null;
+    serviceTier?: "default" | "priority" | "ultrafast" | null;
     conversation?: string | null;
     response?: string | null;
     inputAttachments?: ProxyConversationAttachment[];

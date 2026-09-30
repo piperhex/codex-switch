@@ -3,7 +3,7 @@ import type { RequestSpeed } from '../../../../../shared/remote-chat/composer';
 import { subscribeGuiEvent } from './webEvents';
 
 const REFRESH_INTERVAL_MS = 5_000;
-export interface GuiRequestSettings { fastModeEnabled: boolean; fastModeAvailable: boolean }
+export interface GuiRequestSettings { speed?: RequestSpeed; fastModeEnabled: boolean; fastModeAvailable: boolean }
 export interface RequestSpeedSource {
   read(): Promise<RequestSpeed>;
   set(speed: RequestSpeed): Promise<RequestSpeed>;
@@ -12,6 +12,7 @@ export interface RequestSpeedSource {
 
 /** Shares the host GUI's independent speed without storing it as a per-conversation preference. */
 export class RequestSpeedBridge implements RequestSpeedSource {
+  settings?: GuiRequestSettings;
   private value?: RequestSpeed;
   private pending?: Promise<RequestSpeed>;
   private readonly listeners = new Set<(speed: RequestSpeed) => void>();
@@ -45,8 +46,10 @@ export class RequestSpeedBridge implements RequestSpeedSource {
   private request(operation: () => Promise<GuiRequestSettings>) {
     // Serialize reads and writes so a slow poll cannot restore the mode preceding a phone change.
     const result = (this.pending ?? Promise.resolve()).catch(() => undefined).then(operation).then((status) => {
-      const speed = status.fastModeEnabled ? 'fast' : 'normal';
-      if (speed !== this.value) {
+      const speed = status.speed ?? (status.fastModeEnabled ? 'fast' : 'normal');
+      const changed = speed !== this.value || status.fastModeAvailable !== this.settings?.fastModeAvailable;
+      this.settings = status;
+      if (changed) {
         this.value = speed;
         for (const listener of this.listeners) listener(speed);
       }
@@ -65,10 +68,12 @@ export class RequestSpeedBridge implements RequestSpeedSource {
   set(speed: RequestSpeed) {
     return this.request(async () => {
       try {
-        return await invoke<GuiRequestSettings>('codex_gui_set_fast_mode', { enabled: speed === 'fast' });
+        return await invoke<GuiRequestSettings>('codex_gui_set_request_speed', { speed });
       } catch {
         throw new Error('速度模式未能切换，请确认电脑端支持所选模式后重试。');
       }
     });
   }
 }
+
+export const guiRequestSpeed = new RequestSpeedBridge();

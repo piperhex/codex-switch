@@ -1,24 +1,27 @@
 //! Private GUI transport. External proxy lifecycle and speed never mutate this state.
+use super::gui_speed::GuiRequestSpeed;
 use super::*;
 use crate::codex_gui::{account_selection, GuiState};
+use std::sync::atomic::AtomicU8;
 
 #[derive(Default)]
 pub(crate) struct GuiProxyRuntime {
     listener: Mutex<Option<ProxyRuntime>>,
-    fast_mode: AtomicBool,
+    speed: AtomicU8,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum GuiProxyError {
     #[error("Codex GUI 连接暂时不可用，请重试。")]
     Unavailable,
-    #[error("当前账户暂不支持快速模式。")]
+    #[error("当前账户暂不支持加速模式。")]
     FastModeUnavailable,
 }
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GuiRequestSettings {
+    speed: GuiRequestSpeed,
     fast_mode_enabled: bool,
     fast_mode_available: bool,
 }
@@ -83,16 +86,11 @@ pub(crate) fn shutdown<R: Runtime>(app: &tauri::AppHandle<R>) {
 }
 
 pub(super) fn service_tier<R: Runtime>(app: &tauri::AppHandle<R>) -> ProxyServiceTier {
-    if app
-        .state::<GuiState>()
-        .proxy
-        .fast_mode
-        .load(Ordering::Relaxed)
-    {
-        ProxyServiceTier::Priority
-    } else {
-        ProxyServiceTier::Default
-    }
+    speed(app).service_tier()
+}
+
+fn speed<R: Runtime>(app: &tauri::AppHandle<R>) -> GuiRequestSpeed {
+    GuiRequestSpeed::from_stored(app.state::<GuiState>().proxy.speed.load(Ordering::Relaxed))
 }
 
 fn settings<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<GuiRequestSettings, GuiProxyError> {
@@ -108,25 +106,28 @@ fn settings<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<GuiRequestSettings,
         }
         GuiAccountSelection::None => false,
     };
+    let speed = speed(app);
     Ok(GuiRequestSettings {
-        fast_mode_enabled: service_tier(app) == ProxyServiceTier::Priority,
+        speed,
+        fast_mode_enabled: speed != GuiRequestSpeed::Normal,
         fast_mode_available: available,
     })
 }
 
-fn set_fast_mode<R: Runtime>(
+fn set_speed<R: Runtime>(
     app: &tauri::AppHandle<R>,
-    enabled: bool,
+    speed: GuiRequestSpeed,
 ) -> Result<GuiRequestSettings, GuiProxyError> {
     let mut current = settings(app)?;
-    if enabled && !current.fast_mode_available {
+    if speed != GuiRequestSpeed::Normal && !current.fast_mode_available {
         return Err(GuiProxyError::FastModeUnavailable);
     }
     app.state::<GuiState>()
         .proxy
-        .fast_mode
-        .store(enabled, Ordering::Relaxed);
-    current.fast_mode_enabled = enabled;
+        .speed
+        .store(speed as u8, Ordering::Relaxed);
+    current.speed = speed;
+    current.fast_mode_enabled = speed != GuiRequestSpeed::Normal;
     crate::codex_gui::web::publish(app, "codex-gui-request-settings-changed", &current);
     Ok(current)
 }
@@ -146,7 +147,20 @@ pub(crate) async fn codex_gui_set_fast_mode<R: Runtime>(
     app: tauri::AppHandle<R>,
     enabled: bool,
 ) -> Result<GuiRequestSettings, String> {
-    tauri::async_runtime::spawn_blocking(move || set_fast_mode(&app, enabled))
+    let speed = if enabled {
+        GuiRequestSpeed::Fast
+    } else {
+        GuiRequestSpeed::Normal
+    };
+    codex_gui_set_request_speed(app, speed).await
+}
+
+#[tauri::command]
+pub(crate) async fn codex_gui_set_request_speed<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    speed: GuiRequestSpeed,
+) -> Result<GuiRequestSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || set_speed(&app, speed))
         .await
         .map_err(|_| GuiProxyError::Unavailable.to_string())?
         .map_err(|error| error.to_string())

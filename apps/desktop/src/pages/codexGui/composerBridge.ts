@@ -4,7 +4,7 @@ import { resolveModelSelection } from './modelSelection';
 import type { Model, ListResponse } from './types';
 import { composerPatch, DEFAULT_COMPOSER, type ComposerSettings,
   type ComposerSnapshot, type RequestSpeed } from '../../../../../shared/remote-chat/composer';
-import { RequestSpeedBridge, type RequestSpeedSource } from './requestSpeedBridge';
+import { guiRequestSpeed, type RequestSpeedSource } from './requestSpeedBridge';
 
 type Binding = Pick<GuiController, 'getSnapshot' | 'subscribe' | 'settings' | 'setProviderModels' | 'modelSettings'>;
 const MAX_OBSERVED_CONVERSATIONS = 128;
@@ -157,4 +157,4 @@ export class ComposerBridge {
   }
 }
 
-export const guiComposer = new ComposerBridge(new RequestSpeedBridge());
+export const guiComposer = new ComposerBridge(guiRequestSpeed);

@@ -1,69 +1,31 @@
 // @vitest-environment jsdom
-import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "../../api/backend";
-import { useUsageStatus } from "./useUsageStatus";
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { invoke } from '../../api/backend';
+import { useUsageStatus } from './useUsageStatus';
 
-vi.mock("../../api/backend", () => ({ invoke: vi.fn(), isHostedWebApp: false, canManageCodexConnection: true }));
-const usage = { totalTokens: 50290000, estimatedCostUsd: 74.32, primaryRemainingPercent: 95,
-  primaryRemainingAggregated: false, providerEstimatedCost: null };
-const proxy = { fastModeEnabled: false, fastModeAvailable: true };
+vi.mock('../../api/backend', () => ({ invoke: vi.fn() }));
 let root: Root;
 let result: ReturnType<typeof useUsageStatus>;
 function Probe({ active = true }: { active?: boolean }) { result = useUsageStatus(active); return null; }
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (error: Error) => void;
-  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
-  return { promise, resolve, reject };
-}
-
 beforeEach(() => {
-  vi.useFakeTimers();
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  vi.mocked(invoke).mockReset();
-  root = createRoot(document.createElement("div"));
+  vi.useFakeTimers(); vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.mocked(invoke).mockReset(); root = createRoot(document.createElement('div'));
 });
 afterEach(async () => {
-  await act(async () => root.unmount());
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
+  await act(async () => root.unmount()); vi.useRealTimers(); vi.unstubAllGlobals();
 });
 
-describe("GUI usage refresh", () => {
-  it("waits for both requests after one fails and stops refreshing when hidden", async () => {
-    const pendingUsage = deferred<typeof usage>();
-    const pendingProxy = deferred<typeof proxy>();
-    vi.mocked(invoke).mockImplementation((command) =>
-      command === "codex_gui_usage_summary" ? pendingUsage.promise : pendingProxy.promise);
-    await act(async () => root.render(<Probe />));
-    expect(invoke).toHaveBeenCalledTimes(2);
-    await act(async () => { pendingUsage.reject(new Error("temporarily unavailable")); });
-    await act(async () => vi.advanceTimersByTimeAsync(15000));
-    expect(invoke).toHaveBeenCalledTimes(2);
-    await act(async () => { pendingProxy.resolve(proxy); });
-    expect(result.error).not.toBe("");
-    await act(async () => root.render(<Probe active={false} />));
-    await act(async () => vi.advanceTimersByTimeAsync(15000));
-    expect(invoke).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not overwrite a speed change with an older refresh result", async () => {
-    vi.mocked(invoke).mockImplementation(async (command) => command === "codex_gui_usage_summary" ? usage : proxy);
-    await act(async () => root.render(<Probe />));
-    const pendingProxy = deferred<typeof proxy>();
-    vi.mocked(invoke).mockImplementation(async (command) => {
-      if (command === "codex_gui_request_settings") return pendingProxy.promise;
-      if (command === "codex_gui_set_fast_mode") return { ...proxy, fastModeEnabled: true };
-      return usage;
-    });
-    await act(async () => vi.advanceTimersByTimeAsync(5000));
-    await act(async () => result.setFastMode(true));
-    expect(invoke).toHaveBeenCalledWith("codex_gui_set_fast_mode", { enabled: true });
-    expect(invoke).not.toHaveBeenCalledWith("set_local_proxy_fast_mode", { enabled: true });
-    expect(result.proxy?.fastModeEnabled).toBe(true);
-    await act(async () => { pendingProxy.resolve(proxy); });
-    expect(result.proxy?.fastModeEnabled).toBe(true);
-  });
+it('keeps polling single-flight, reports failures, and stops while hidden', async () => {
+  let reject!: (error: Error) => void;
+  vi.mocked(invoke).mockReturnValue(new Promise((_, fail) => { reject = fail; }));
+  await act(async () => root.render(<Probe />));
+  await act(async () => vi.advanceTimersByTimeAsync(15_000));
+  expect(invoke).toHaveBeenCalledExactlyOnceWith('codex_gui_usage_summary');
+  await act(async () => reject(new Error('private error')));
+  expect(result.error).not.toBe(''); expect(result.error).not.toContain('private');
+  await act(async () => root.render(<Probe active={false} />));
+  await act(async () => vi.advanceTimersByTimeAsync(15_000));
+  expect(invoke).toHaveBeenCalledTimes(1);
 });

@@ -132,7 +132,7 @@ fn gui_transport_runs_without_external_proxy_and_keeps_speed_usage_and_polling_i
     let (seen_tx, seen) = mpsc::channel();
     let (release, release_rx) = mpsc::channel();
     let upstream_worker = thread::spawn(move || {
-        for index in 0..4 {
+        for index in 0..5 {
             let mut request = upstream
                 .recv_timeout(Duration::from_secs(10))
                 .unwrap()
@@ -239,14 +239,15 @@ fn verify_runtime_requests_and_usage(fixture: &GuiRuntimeFixture, seen: &mpsc::R
         seen.recv_timeout(Duration::from_secs(10)).unwrap(),
         "priority"
     );
+    verify_ultrafast_request(fixture, seen);
     let entries = load_token_usage_summary_entries(fixture.app.handle(), 0).unwrap();
-    assert_eq!(entries.len(), 4);
+    assert_eq!(entries.len(), 5);
     assert_eq!(
         entries
             .iter()
             .map(|entry| entry.total_tokens.unwrap())
             .sum::<u64>(),
-        40
+        50
     );
     assert_eq!(
         entries
@@ -255,6 +256,31 @@ fn verify_runtime_requests_and_usage(fixture: &GuiRuntimeFixture, seen: &mpsc::R
             .count(),
         3
     );
+}
+
+fn verify_ultrafast_request(fixture: &GuiRuntimeFixture, seen: &mpsc::Receiver<String>) {
+    use super::gui_speed::GuiRequestSpeed;
+    let app = fixture.app.handle();
+    let settings = tauri::async_runtime::block_on(gui_runtime::codex_gui_set_request_speed(
+        app.clone(),
+        GuiRequestSpeed::Ultrafast,
+    ))
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(settings).unwrap()["speed"],
+        "ultrafast"
+    );
+    assert_eq!(proxy_service_tier(), ProxyServiceTier::Default);
+    assert_eq!(
+        runtime_request(&fixture.base_url, "gui-ultrafast")["service_tier"],
+        "ultrafast"
+    );
+    assert_eq!(
+        seen.recv_timeout(Duration::from_secs(10)).unwrap(),
+        "ultrafast"
+    );
+    fixture.speed(false);
+    assert_eq!(gui_runtime::service_tier(app), ProxyServiceTier::Default);
 }
 
 #[test]

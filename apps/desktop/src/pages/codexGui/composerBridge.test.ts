@@ -116,9 +116,11 @@ it('shares host speed changes without persisting speed in the conversation or lo
   expect((await bridge.read()).settings.speed).toBe('normal');
   expect((await bridge.update({ speed: 'fast' })).settings.speed).toBe('fast');
   expect(source.set).toHaveBeenCalledWith('fast');
+  expect((await bridge.update({ speed: 'ultrafast' })).settings.speed).toBe('ultrafast');
+  expect(source.set).toHaveBeenCalledWith('ultrafast');
   expect(settings).not.toHaveBeenCalled();
   controller.settings({ model: 'second', effort: 'xhigh' });
-  expect((await bridge.read()).settings).toMatchObject({ model: 'second', effort: 'xhigh', speed: 'fast' });
+  expect((await bridge.read()).settings).toMatchObject({ model: 'second', effort: 'xhigh', speed: 'ultrafast' });
   expect(controller.getSnapshot().settings).not.toHaveProperty('speed');
   speed = 'normal'; notify(speed);
   expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({

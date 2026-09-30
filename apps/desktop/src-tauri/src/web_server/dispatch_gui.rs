@@ -13,6 +13,9 @@ fn dispatch_gui_command(app: AppHandle, command: &str, args: Value) -> Result<Va
         "codex_gui_set_fast_mode" => serialize(block_on(
             crate::local_proxy::gui_runtime::codex_gui_set_fast_mode(app, argument(&args, "enabled")?),
         )),
+        "codex_gui_set_request_speed" => serialize(block_on(
+            crate::local_proxy::gui_runtime::codex_gui_set_request_speed(app, argument(&args, "speed")?),
+        )),
         "codex_gui_context_settings" => serialize(block_on(
             codex_gui::context_settings::codex_gui_context_settings(app, argument(&args, "threadId")?),
         )),

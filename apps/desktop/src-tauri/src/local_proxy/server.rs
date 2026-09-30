@@ -9,6 +9,7 @@ enum ProxyServiceTier {
     #[default]
     Default,
     Priority,
+    Ultrafast,
 }
 
 impl ProxyServiceTier {
@@ -16,6 +17,7 @@ impl ProxyServiceTier {
         match self {
             Self::Default => "default",
             Self::Priority => "priority",
+            Self::Ultrafast => "ultrafast",
         }
     }
 }
@@ -52,7 +54,8 @@ fn parse_proxy_service_tier_name(value: Option<&str>) -> Result<ProxyServiceTier
     match value {
         Some("default") => Ok(ProxyServiceTier::Default),
         Some("priority" | "fast") => Ok(ProxyServiceTier::Priority),
-        _ => Err("service_tier must be either default or priority"),
+        Some("ultrafast") => Ok(ProxyServiceTier::Ultrafast),
+        _ => Err("service_tier must be default, priority, fast or ultrafast"),
     }
 }
 

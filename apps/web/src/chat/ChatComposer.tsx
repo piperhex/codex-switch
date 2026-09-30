@@ -1,7 +1,8 @@
 import { t, useLanguage } from '../i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUp, ChevronDown, File, MessageSquare, Pause, Play, Plus,
-  SlidersHorizontal, Square, Target, X, Zap } from 'lucide-react';
+  SlidersHorizontal, Square, Target, X } from 'lucide-react';
+import { RequestSpeedButton } from '../../../../shared/remote-chat/RequestSpeedButton';
 import { COMPOSER_ACTION_LABELS } from '../../../../shared/remote-chat/composerAction';
 import { composerLabel } from '../../../../shared/remote-chat/composer';
 import { formatTokens } from '../../../../shared/remote-chat/usage';
@@ -162,14 +163,16 @@ export function ChatComposer(props: ComposerProps) {
             {desktop && <ComposerDesktopStatus key={`status:${threadId}:${cwd}:${active}`} props={props}
               beforeOpen={closeMenus} />}
             {desktop ? <ComposerModelPicker key={`model:${threadId}:${cwd}:${active}`} models={models}
-              selection={selection} updateSettings={updateSettings} beforeOpen={closeMenus} />
+              selection={selection} updateSettings={updateSettings} settingsBusy={settingsBusy} beforeOpen={closeMenus} />
               : <button type="button" className="chat-model" onPointerDown={event => event.preventDefault()}
-              aria-label={t("{value1}{value2}，聊天设置", { value1: label, value2: selection.speed === 'fast' ? t("，快速模式") : '' })}
+              aria-label={t("{value1}{value2}，聊天设置", { value1: label, value2: '' })}
               onClick={showSettings}>
               {compact && <SlidersHorizontal size={20} />}
               {!compact && <><span>{label}</span>
-                {selection.speed === 'fast' && <Zap size={14} aria-label={t("快速模式")} />}<ChevronDown size={12} /></>}
+                <ChevronDown size={12} /></>}
             </button>}
+            {!desktop && selection.speed !== undefined && <RequestSpeedButton speed={selection.speed}
+              busy={settingsBusy} translate={t} onChange={speed => { void updateSettings({ speed }); }} />}
             <button type="submit" className="chat-composer-submit" aria-label={t(COMPOSER_ACTION_LABELS[action])}
               onPointerDown={event => event.preventDefault()} aria-busy={state.pausing || sending} disabled={actionDisabled}>
               <ActionIcon size={desktop ? 18 : 22}

@@ -4,6 +4,7 @@ import { Check, ChevronLeft, ChevronRight, RotateCcw, Search } from "lucide-reac
 import type { Model } from "./types";
 import { resolveModelSelection, type ModelSelection } from "./modelSelection";
 import styles from "./ModelPicker.module.less";
+import { GuiSpeedButton } from './GuiSpeedButton';
 import { EFFORT_LABELS } from '../../../../../shared/remote-chat/composer';
 const EFFORT_ORDER = Object.keys(EFFORT_LABELS);
 const MODEL_SEARCH_THRESHOLD = 8;
@@ -82,6 +83,7 @@ export function ModelPicker(props: ModelPickerProps) {
     {choosingModel ? <ModelList models={models} model={model} onSelect={selectModel}
       onBack={() => setChoosingModel(false)} /> : <div className={styles.reasoning}>
       <div className={styles.summary}>
+        <span className={styles.speed}><GuiSpeedButton active={open && !disabled} /></span>
         <button className={styles.modelHeading} onClick={() => setChoosingModel(true)} aria-label="选择模型">
           <span className={styles.effortName}>{effortLabel}<ChevronRight size={12} /></span>
           <span className={styles.modelName}>{modelLabel}</span>

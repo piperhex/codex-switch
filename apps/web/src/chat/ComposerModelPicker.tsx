@@ -7,6 +7,7 @@ import { t, useLanguage } from '../i18n';
 import type { ComposerProps } from './composerProps';
 import type { Model } from './types';
 import './composerModelPicker.css';
+import { RequestSpeedButton } from '../../../../shared/remote-chat/RequestSpeedButton';
 
 const EFFORT_ORDER = Object.keys(EFFORT_LABELS);
 const MODEL_SEARCH_THRESHOLD = 8;
@@ -46,8 +47,8 @@ function ModelList({ models, model, onSelect, onBack }: {
   </div>;
 }
 
-export function ComposerModelPicker({ models, selection, updateSettings, beforeOpen }: Pick<ComposerProps,
-  'models' | 'selection' | 'updateSettings'> & { beforeOpen: () => void }) {
+export function ComposerModelPicker({ models, selection, updateSettings, settingsBusy, beforeOpen }: Pick<ComposerProps,
+  'models' | 'selection' | 'updateSettings' | 'settingsBusy'> & { beforeOpen: () => void }) {
   useLanguage();
   const [open, setOpen] = useState(false);
   const [choosingModel, setChoosingModel] = useState(false);
@@ -76,6 +77,10 @@ export function ComposerModelPicker({ models, selection, updateSettings, beforeO
         void updateSettings(resolveModelSelection(models, { model: value, effort: '' })); returnToReasoning();
       }} /> : <div className="composer-model-reasoning">
       <div className="composer-model-summary">
+        {selection.speed !== undefined && <span className="composer-model-speed">
+          <RequestSpeedButton speed={selection.speed} busy={settingsBusy} translate={t}
+            onChange={speed => { void updateSettings({ speed }); }} />
+        </span>}
         <button ref={heading} type="button" className="composer-model-heading" aria-label={t('选择模型')}
           onClick={() => setChoosingModel(true)}>
           <span className="composer-model-effort">{effortLabel}<ChevronRight size={12} /></span>
