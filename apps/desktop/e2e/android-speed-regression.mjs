@@ -14,10 +14,10 @@ async function fixture(route, data) {
   assert.equal(response.ok, true);
 }
 
-async function checkIndicator(speed) {
-  await waitFor(async () => {
-    return (await nodes()).some(node => node['content-desc']?.startsWith(speedLabels[speed] + ' · '));
-  }, `${speed} composer indicator`);
+async function checkNoSpeedButton() {
+  await waitText('聊天消息');
+  assert.equal((await nodes()).some(node => node['content-desc']?.includes(' · 点击切换为')), false,
+    'The mobile composer must not show a lightning speed button');
 }
 
 async function phoneSelect(speed) {
@@ -29,7 +29,7 @@ async function phoneSelect(speed) {
   await waitFor(async () => (await serverState()).composer.settings.speed === speed, `${speed} saved on PC`);
   await waitText('设置速度模式');
   await tap('关闭聊天设置');
-  await checkIndicator(speed);
+  await checkNoSpeedButton();
   await screenshot(`speed-composer-${speed}`);
   report.cases.push(`phone-${speed}`);
 }
@@ -52,15 +52,7 @@ try {
   await tap('打开聊天列表');
   await tap('移动端聊天体验');
   await waitText('你可以直接从手机继续这个任务。');
-  await checkIndicator('normal');
-  for (const speed of ['fast', 'ultrafast', 'normal']) {
-    const button = (await nodes()).find(node => node['content-desc']?.includes(' · 点击切换为'));
-    await tapNode(button);
-    await waitFor(async () => (await serverState()).composer.settings.speed === speed, `${speed} lightning cycle`);
-    await checkIndicator(speed);
-    await screenshot(`lightning-${speed}`);
-  }
-  report.cases.push('lightning-three-state-cycle');
+  await checkNoSpeedButton();
   await phoneSelect('fast');
   await phoneSelect('ultrafast');
   await phoneSelect('normal');
@@ -73,9 +65,15 @@ try {
   await screenshot('speed-pc-updated-open-menu');
   await tap('返回上一层');
   await tap('关闭聊天设置');
-  await checkIndicator('fast');
+  await checkNoSpeedButton();
   await fixture('composer', { speed: 'normal' });
-  await checkIndicator('normal');
+  await tapNode(await composer());
+  await tap('设置速度模式');
+  await waitFor(async () => (await nodes()).some(node => node['content-desc'] === '普通模式'
+    && node.checked === 'true'), 'PC reset updates the speed setting');
+  await tap('返回上一层');
+  await tap('关闭聊天设置');
+  await checkNoSpeedButton();
   report.cases.push('pc-changes');
 
   await fixture('sidebar', { action: 'start' });

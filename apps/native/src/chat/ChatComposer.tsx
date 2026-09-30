@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ChatSettings } from './ChatSettings';
-import { RequestSpeedButton } from './RequestSpeedButton';
 import type { ChatConnectionProps } from './ChatProfileMenu';
 import { ComposerGoal } from './ComposerGoal';
 import { useGoalMode } from '../../../../shared/remote-chat/client/useGoalMode';
@@ -221,8 +220,6 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
               {modelLabelTail(composerLabel(models, selection))}</Text>
             <Feather name="chevron-down" size={12} color={styles.composerModelText.color} /></>}
           </Pressable>
-          {selection.speed !== undefined && <RequestSpeedButton speed={selection.speed} busy={settingsBusy}
-            onChange={speed => { void updateSettings({ speed }); }} />}
           <ComposerActionButton action={action} disabled={actionDisabled} busy={pausing || sending}
             onPress={() => { void submit(); }} />
         </View>

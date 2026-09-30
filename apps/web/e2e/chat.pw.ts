@@ -86,36 +86,52 @@ for (const [code, message] of [[4004, '电脑的聊天连接尚未就绪。'], [
   });
 }
 
-test('cycles all three request speeds and syncs PC changes while responding', async ({ page, request }, info) => {
+test('shows speed icons only on desktop and syncs speed settings while responding', async ({ page, request }, info) => {
   await connect(page);
   await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 16_000 });
   await openChatList(page);
   await page.getByRole('button', { name: '移动端聊天体验', exact: true }).click();
   await expect(page.getByRole('heading', { name: '移动端聊天体验', exact: true })).toBeVisible();
-  const desktop = page.viewportSize()!.width > 860;
-  if (desktop) await page.getByRole('button', { name: /^模型与推理强度：/ }).click();
+  const desktop = isDesktop(page);
   const speed = page.locator('.request-speed-button');
-  for (const [mode, count] of [['fast', 1], ['ultrafast', 2], ['normal', 0]] as const) {
-    await speed.click();
+  await expect(speed).toHaveCount(0);
+  if (desktop) await page.getByRole('button', { name: /^模型与推理强度：/ }).click();
+  else await openChatSettings(page);
+  for (const [mode, label] of [['fast', '快速模式'], ['ultrafast', 'Ultrafast 模式'], ['normal', '普通模式']] as const) {
+    if (desktop) await speed.click();
+    else await chooseSetting(page, '速度模式', label);
     await expect.poll(async () => (await state(request)).composer.settings.speed, { timeout: 15_000 }).toBe(mode);
-    await expect(speed).toHaveAttribute('data-speed', mode);
-    await expect(speed.locator('.is-lit')).toHaveCount(count);
+    if (desktop) {
+      await expect(speed).toHaveAttribute('data-speed', mode);
+      await expect(speed.locator('.is-lit')).toHaveCount({ normal: 0, fast: 1, ultrafast: 2 }[mode]);
+    } else {
+      await expect(page.getByRole('button', { name: '设置速度模式' })).toContainText(label);
+      await expect(speed).toHaveCount(0);
+    }
     await screenshot(page, info, 'speed-' + mode);
   }
   await request.post(fixtureUrl + '/test/composer', { data: { speed: 'ultrafast' } });
-  await expect(speed).toHaveAttribute('data-speed', 'ultrafast');
-  if (desktop) {
-    await page.getByRole('button', { name: /^模型与推理强度：/ }).click();
-    await expect(speed).toHaveCount(0);
-  }
+  if (desktop) await expect(speed).toHaveAttribute('data-speed', 'ultrafast');
+  else await expect(page.getByRole('button', { name: '设置速度模式' })).toContainText('Ultrafast 模式');
+  if (desktop) await page.getByRole('button', { name: /^模型与推理强度：/ }).click();
+  else await closeChatSettings(page);
+  await expect(speed).toHaveCount(0);
   await request.post(fixtureUrl + '/test/sidebar', { data: { action: 'start' } });
   await expect(page.getByRole('button', { name: '暂停生成' })).toBeVisible();
   await expect(page.getByText(/处理中…/).last()).toBeVisible();
-  if (desktop) await page.getByRole('button', { name: /^模型与推理强度：/ }).click();
-  await speed.click();
+  if (desktop) {
+    await page.getByRole('button', { name: /^模型与推理强度：/ }).click();
+    await speed.click();
+  } else {
+    await openChatSettings(page);
+    await chooseSetting(page, '速度模式', '普通模式');
+  }
   await expect.poll(async () => (await state(request)).composer.settings.speed).toBe('normal');
-  await expect(page.getByRole('button', { name: '暂停生成' })).toBeVisible();
   if (desktop) await page.getByRole('button', { name: /^模型与推理强度：/ }).click();
+  else await closeChatSettings(page);
+  await expect(speed).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '暂停生成' })).toBeVisible();
+  await screenshot(page, info, 'composer-without-speed-icons');
   await page.getByRole('button', { name: '暂停生成' }).click();
 });
 

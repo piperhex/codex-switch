@@ -2,7 +2,6 @@ import { t, useLanguage } from '../i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUp, ChevronDown, File, MessageSquare, Pause, Play, Plus,
   SlidersHorizontal, Square, Target, X } from 'lucide-react';
-import { RequestSpeedButton } from '../../../../shared/remote-chat/RequestSpeedButton';
 import { COMPOSER_ACTION_LABELS } from '../../../../shared/remote-chat/composerAction';
 import { composerLabel } from '../../../../shared/remote-chat/composer';
 import { formatTokens } from '../../../../shared/remote-chat/usage';
@@ -171,8 +170,6 @@ export function ChatComposer(props: ComposerProps) {
               {!compact && <><span>{label}</span>
                 <ChevronDown size={12} /></>}
             </button>}
-            {!desktop && selection.speed !== undefined && <RequestSpeedButton speed={selection.speed}
-              busy={settingsBusy} translate={t} onChange={speed => { void updateSettings({ speed }); }} />}
             <button type="submit" className="chat-composer-submit" aria-label={t(COMPOSER_ACTION_LABELS[action])}
               onPointerDown={event => event.preventDefault()} aria-busy={state.pausing || sending} disabled={actionDisabled}>
               <ActionIcon size={desktop ? 18 : 22}
