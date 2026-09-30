@@ -1,8 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ConfigProvider, Popover } from "antd";
+import { Button, ConfigProvider, Popover } from "antd";
 import { Installer } from "../src/pages/codexGui/Installer";
 import { useCliInstaller } from "../src/pages/codexGui/useCliInstaller";
+import { CliUpdateIcon } from "../src/pages/codexGui/CliUpdateIcon";
+import { invoke } from "../src/api/backend";
+import { createGuiToolsClient } from "../../../shared/remote-chat/guiTools";
+import { useRemoteCliInstaller } from "../../../shared/remote-chat/useRemoteCliInstaller";
+
+const remoteClient = createGuiToolsClient(<T,>() => invoke<T>("codex_gui_cli_status"));
+function RemoteUpdateIndicator({ active }: { active: boolean }) {
+  const installer = useRemoteCliInstaller(remoteClient, active);
+  return <Button aria-label="远程 CLI 更新"
+    icon={<CliUpdateIcon version={installer.version} release={installer.release} />}>
+    {installer.version ?? "Codex"}
+  </Button>;
+}
 
 function Harness() {
   const [active, setActive] = useState(true);
@@ -24,7 +37,12 @@ function Harness() {
     <p>当前版本：<output aria-label="当前版本">{installer.version}</output></p>
     <textarea aria-label="聊天输入" value={text} onChange={event => setText(event.target.value)} />
     <Popover trigger="click" styles={{ root: { maxWidth: 400 } }}
-      content={<Installer installer={installer} compact />}><button>CLI 更新</button></Popover>
+      content={<Installer installer={installer} compact />}>
+      <Button aria-label="CLI 更新" icon={<CliUpdateIcon version={installer.version} release={installer.release} />}>
+        CLI 更新
+      </Button>
+    </Popover>
+    <RemoteUpdateIndicator active={active} />
     {error && <p role="alert">{error}</p>}
   </main></ConfigProvider>;
 }

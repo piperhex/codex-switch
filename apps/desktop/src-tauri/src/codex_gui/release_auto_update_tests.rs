@@ -1,11 +1,8 @@
 use super::*;
 use crate::codex_gui::releases::store::tests::Fixture;
 
-fn snapshot_at(root: &std::path::Path) -> Snapshot {
-    Snapshot {
-        version: store::installed(root).unwrap().version,
-        release: store::pending(root).unwrap(),
-    }
+fn snapshot_at(root: &std::path::Path) -> CliStatus {
+    store::status(root).unwrap()
 }
 
 fn installed_fixture() -> Fixture {

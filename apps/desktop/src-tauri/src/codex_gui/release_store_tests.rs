@@ -1,6 +1,25 @@
 use super::*;
 use std::path::PathBuf;
 
+#[test]
+fn cached_status_exposes_updates_through_download_and_clears_them_after_activation() {
+    let fixture = Fixture::new();
+    fixture.remember("0.99.0");
+    fixture.package("0.99.0");
+    activate(&fixture.0).unwrap();
+    assert!(status(&fixture.0).unwrap().release.is_none());
+    fixture.remember("0.100.0");
+    let downloading = status(&fixture.0).unwrap();
+    assert_eq!(downloading.version.as_deref(), Some("0.99.0"));
+    assert!(!downloading.release.unwrap().ready);
+    fixture.package("0.100.0");
+    assert!(status(&fixture.0).unwrap().release.unwrap().ready);
+    activate(&fixture.0).unwrap();
+    let installed = status(&fixture.0).unwrap();
+    assert_eq!(installed.version.as_deref(), Some("0.100.0"));
+    assert!(installed.release.is_none());
+}
+
 pub(in crate::codex_gui::releases) struct Fixture(pub PathBuf);
 impl Fixture {
     pub(in crate::codex_gui::releases) fn new() -> Self {

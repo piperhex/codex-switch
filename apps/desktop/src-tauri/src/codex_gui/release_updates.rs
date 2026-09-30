@@ -1,5 +1,6 @@
 use super::{
-    http_client, prepare_package, release, root, store, GuiError, Installed, ReleaseInfo, Result,
+    http_client, prepare_package, release, root, store, CliStatus, GuiError, Installed,
+    ReleaseInfo, Result,
 };
 use std::{
     path::Path,
@@ -33,6 +34,13 @@ pub(crate) fn start(app: &AppHandle) {
     app.state::<CliUpdateState>()
         .scheduler
         .get_or_init(|| automatic::start(app.clone()));
+}
+
+pub(super) fn status(app: &AppHandle) -> Result<CliStatus> {
+    initialize(app);
+    let state = app.state::<CliUpdateState>();
+    let _metadata = state.metadata.lock().map_err(|_| GuiError::Install)?;
+    store::status(&root(app)?)
 }
 
 fn check(app: &AppHandle) -> Result<ReleaseInfo> {

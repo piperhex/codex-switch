@@ -28,7 +28,7 @@ export function useRemoteCliInstaller(client: GuiToolsClient, active: boolean) {
     let timer: ReturnType<typeof setTimeout>;
     const refresh = async () => {
       let delay = STATUS_REFRESH_MS;
-      // A status requested before installation must not overwrite the new download state.
+      // A status requested before a check or installation must not overwrite its newer result.
       if (!scope.reading) scope.readMutation = scope.mutation;
       const revision = scope.readMutation;
       try {
@@ -37,6 +37,7 @@ export function useRemoteCliInstaller(client: GuiToolsClient, active: boolean) {
         if (cancelled) return;
         if (revision !== scope.mutation) { delay = INSTALL_REFRESH_MS; return; }
         setStatus(next); setReadError('');
+        if (next.release !== undefined) setRelease(next.release);
         if (next.installing) delay = INSTALL_REFRESH_MS;
       } catch {
         if (!cancelled && revision === scope.mutation) {
@@ -55,8 +56,12 @@ export function useRemoteCliInstaller(client: GuiToolsClient, active: boolean) {
     if (!scope.active || scope.busy || status.installing) return;
     const epoch = scope.epoch;
     const current = () => scope.active && scope.epoch === epoch;
+    scope.mutation += 1;
     scope.busy = true; setChecking(true); setError('');
-    try { const next = await client.release(); if (current()) setRelease(next); }
+    try {
+      const next = await client.release();
+      if (current()) { scope.mutation += 1; setRelease(next); }
+    }
     catch { if (current()) setError('未能检查远程 Codex 版本，请稍后重试。'); }
     finally {
       scope.busy = false;

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Button, Popover, Tooltip } from "antd";
-import { Download, PanelBottom, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
+import { PanelBottom, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { canManageCodexConnection, hasLocalBackend, isDesktopApp } from "../api/backend";
 import { getGuiController, retainGuiSession } from "./codexGui/session";
 import { canEditMessage } from "./codexGui/editMessage";
@@ -11,6 +11,7 @@ import { Messages } from "./codexGui/Messages";
 import { Approvals } from "./codexGui/Approvals";
 import { AsyncQuestions } from "./codexGui/AsyncQuestions";
 import { Installer } from "./codexGui/Installer";
+import { CliUpdateIcon } from "./codexGui/CliUpdateIcon";
 import { useCliInstaller } from "./codexGui/useCliInstaller";
 import { DetailsWorkspace } from "./codexGui/DetailsWorkspace";
 import { ConversationChangesButton } from "./codexGui/ConversationChangesButton";
@@ -130,7 +131,8 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
           <Popover trigger="click" placement="bottomRight"
             content={<Installer installer={installer} compact running={Boolean(running)} />}
             styles={{ root: { maxWidth: 400 } }}>
-            <Button type="text" icon={<Download size={16} />}>
+            <Button type="text" icon={<CliUpdateIcon version={installer.version} release={installer.release} />}
+              aria-label="Codex CLI 更新">
               {installer.version ? `v${installer.version}` : "Codex"}</Button>
           </Popover>
           {isDesktopApp && view === "conversation" && <Tooltip title={terminal.open ? "收起终端" : "打开终端"}

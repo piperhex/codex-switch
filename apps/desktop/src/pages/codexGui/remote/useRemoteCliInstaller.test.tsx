@@ -47,3 +47,45 @@ it('checks and installs on the remote computer and follows progress until comple
   await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
   expect(installer.installing).toBe(false);
 });
+
+it('observes host updates without a manual check and clears them after automatic installation', async () => {
+  const release = { version: '0.156.0', size: 100, ready: false };
+  request.mockResolvedValue({ ...status, release });
+  await act(async () => root.render(<Fixture />));
+  expect(installer.release).toEqual(release);
+  expect(request.mock.calls.every(([body]) => body.operation === 'guiCliStatus')).toBe(true);
+  request.mockResolvedValue({ ...status, release: { ...release, ready: true } });
+  await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+  expect(installer.release?.ready).toBe(true);
+  request.mockResolvedValue({ ...status, version: release.version, release: null });
+  await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+  expect(installer.version).toBe(release.version);
+  expect(installer.release).toBeNull();
+});
+
+it('does not let an older status read erase a manually discovered update', async () => {
+  const release = { version: '0.156.0', size: 100 };
+  let finish!: (value: RemoteCliStatus) => void;
+  request.mockImplementation(({ operation }) => operation === 'guiCliRelease' ? Promise.resolve(release)
+    : new Promise<RemoteCliStatus>(resolve => { finish = resolve; }));
+  await act(async () => root.render(<Fixture />));
+  await act(async () => installer.check());
+  await act(async () => finish({ ...status, release: null }));
+  expect(installer.release).toEqual(release);
+});
+
+it('ignores a delayed status requested while the manual update check is still running', async () => {
+  const release = { version: '0.156.0', size: 100 };
+  request.mockResolvedValue({ ...status, release: null });
+  await act(async () => root.render(<Fixture />));
+  let finishCheck!: (value: typeof release) => void;
+  let finishStatus!: (value: RemoteCliStatus) => void;
+  request.mockImplementation(({ operation }) => operation === 'guiCliRelease'
+    ? new Promise<typeof release>(resolve => { finishCheck = resolve; })
+    : new Promise<RemoteCliStatus>(resolve => { finishStatus = resolve; }));
+  await act(async () => { void installer.check(); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+  await act(async () => finishCheck(release));
+  await act(async () => finishStatus({ ...status, release: null }));
+  expect(installer.release).toEqual(release);
+});

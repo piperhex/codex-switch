@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Alert, Button, Popover, Tooltip } from 'antd';
-import { Download, PanelBottom, RefreshCw } from 'lucide-react';
+import { PanelBottom, RefreshCw } from 'lucide-react';
 import type { ChatState } from '../../../../../../shared/remote-chat/client/types';
 import type { ChatController } from '../../../../../../shared/remote-chat/client/controller';
 import type { TerminalPanelState } from '../terminal/useTerminalPanel';
 import { Installer } from '../Installer';
+import { CliUpdateIcon } from '../CliUpdateIcon';
 import { useRemoteCliInstaller } from './useRemoteCliInstaller';
 import { GuiToolbox } from '../GuiToolbox';
 
@@ -38,7 +39,8 @@ export function RemoteGuiTools({ controller, state, active, terminal, deviceName
       <Installer installer={installer} compact remote running={running} disabled={!connected} />
       {installer.error && <Alert type="error" message={installer.error} />}
     </>}>
-      <Button type="text" icon={<Download size={16} />} aria-label="远程 Codex CLI 更新">
+      <Button type="text" icon={<CliUpdateIcon version={installer.version} release={installer.release} />}
+        aria-label="远程 Codex CLI 更新">
         {installer.version ? `v${installer.version}` : 'Codex'}</Button>
     </Popover>
     <Tooltip title={terminalLabel} styles={{ root: { maxWidth: 400 } }}>

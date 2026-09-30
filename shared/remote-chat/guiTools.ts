@@ -3,10 +3,11 @@ import { desktopClient } from '../remote-desktop/protocol';
 import type { GitActionRequest, GitChanges, GitCommitFile, GitCommitRequest, GitDiff, GitHistory,
   GitRepository } from './gitTypes';
 
-export interface CliRelease { version: string; size: number }
+export interface CliRelease { version: string; size: number; ready?: boolean }
 export interface CliProgress { downloaded: number; total: number; phase: 'downloading' | 'installing' }
 export interface RemoteCliStatus {
   version: string | null;
+  release?: CliRelease | null;
   installing: boolean;
   progress: CliProgress | null;
   error: string;

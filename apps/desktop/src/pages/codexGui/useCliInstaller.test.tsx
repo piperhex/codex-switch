@@ -75,6 +75,26 @@ it("keeps background failures quiet and reports a failed manual check", async ()
   expect(controller.report).toHaveBeenCalledWith(new Error("offline"));
 });
 
+it("restores a cached update indicator even when the online check fails", async () => {
+  mocks.invoke.mockImplementation(async (command: string) => {
+    if (command === "codex_gui_cli_status") return { version: "0.99.0", release: latest };
+    throw new Error("offline");
+  });
+  await act(async () => root.render(<Fixture />));
+  expect(installer.release).toEqual(latest);
+  expect(controller.report).not.toHaveBeenCalled();
+});
+
+it("a delayed cached status cannot clear an update discovered by an online check", async () => {
+  const status = deferred<{ version: string; release: null }>();
+  mocks.invoke.mockImplementation(async (command: string) => command === "codex_gui_cli_status"
+    ? status.promise : { ...latest, ready: true });
+  await act(async () => root.render(<Fixture />));
+  await act(async () => status.resolve({ version: "0.99.0", release: null }));
+  expect(installer.version).toBe("0.99.0");
+  expect(installer.release?.version).toBe(latest.version);
+});
+
 it("a late old download does not overwrite a newer release", async () => {
   const download = deferred<typeof latest>();
   let checkedVersion = latest;

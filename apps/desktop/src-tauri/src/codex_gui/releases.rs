@@ -38,6 +38,13 @@ struct Asset {
 pub(crate) struct Installed {
     pub(crate) version: Option<String>,
 }
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CliStatus {
+    version: Option<String>,
+    release: Option<ReleaseInfo>,
+}
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReleaseInfo {
@@ -307,8 +314,8 @@ fn cleanup_package(root: &Path, archive: &Path, staging: &Path) {
 }
 
 #[tauri::command]
-pub(crate) async fn codex_gui_cli_status(app: AppHandle) -> std::result::Result<Installed, String> {
-    tauri::async_runtime::spawn_blocking(move || installed(&app))
+pub(crate) async fn codex_gui_cli_status(app: AppHandle) -> std::result::Result<CliStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || updates::status(&app))
         .await
         .map_err(|_| GuiError::Startup.to_string())?
         .map_err(|error| error.to_string())

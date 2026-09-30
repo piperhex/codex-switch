@@ -18,8 +18,8 @@ function requireIdle() {
 }
 
 async function status(): Promise<RemoteCliStatus> {
-  const { version } = await invoke<{ version: string | null }>('codex_gui_cli_status');
-  return { version, installing, progress, error: installError };
+  const cli = await invoke<Pick<RemoteCliStatus, 'version' | 'release'>>('codex_gui_cli_status');
+  return { ...cli, installing, progress, error: installError };
 }
 
 async function install(version: string) {
@@ -43,7 +43,7 @@ export async function guiToolRequest(body: Record<string, unknown>) {
     case 'guiGitCommitFiles': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'commitFiles' } });
     case 'guiGitCommit': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'commit' } });
     case 'guiCliStatus': return status();
-    case 'guiCliRelease': return invoke<CliRelease>('codex_gui_cli_release');
+    case 'guiCliRelease': return invoke<CliRelease>('codex_gui_cli_check');
     case 'guiCliInstall': {
       if (installing) throw new Error('远程 Codex 正在更新，请稍候。');
       if (typeof body.version !== 'string' || !/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(body.version)) {

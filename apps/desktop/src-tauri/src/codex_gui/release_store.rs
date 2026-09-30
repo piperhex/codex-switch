@@ -1,6 +1,8 @@
 //! Persistent candidates are replaced before downloading so a failed newer download
 //! can never cause an older cached update to be activated on the next launch.
-use super::{entrypoint, valid_version, GuiError, Installed, ReleaseInfo, Result, MAX_DOWNLOAD};
+use super::{
+    entrypoint, valid_version, CliStatus, GuiError, Installed, ReleaseInfo, Result, MAX_DOWNLOAD,
+};
 use std::{fs, path::Path};
 
 fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Option<T>> {
@@ -19,6 +21,17 @@ pub(super) fn installed(root: &Path) -> Result<Installed> {
     Ok(Installed {
         version: installed.version.filter(|version| ready(root, version)),
     })
+}
+
+/// Return cached update information without contacting the release server.
+pub(super) fn status(root: &Path) -> Result<CliStatus> {
+    let version = installed(root)?.version;
+    let release = pending(root)?.filter(|candidate| {
+        version
+            .as_deref()
+            .is_none_or(|installed| newer(&candidate.version, installed))
+    });
+    Ok(CliStatus { version, release })
 }
 
 pub(super) fn ready(root: &Path, version: &str) -> bool {

@@ -1,20 +1,11 @@
 //! One application-owned worker checks and stages CLI updates, independent of GUI visibility.
-use super::{
-    check, initialize, prepare, root, store, CliUpdateState, GuiError, ReleaseInfo, Result,
-};
+use super::{check, initialize, prepare, root, store, CliStatus, CliUpdateState, GuiError, Result};
 use crate::codex_gui::{client::Client, protocol::GuiEvent, releases::Executable, GuiState};
-use serde::Serialize;
 use std::{sync::atomic::Ordering, sync::Arc, time::Duration};
 use tauri::{AppHandle, Manager};
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(30 * 60);
 const IDLE_CHECK_TIMEOUT: Duration = Duration::from_secs(2);
-
-#[derive(Clone, Serialize)]
-struct Snapshot {
-    version: Option<String>,
-    release: Option<ReleaseInfo>,
-}
 
 pub(super) fn start(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -37,19 +28,11 @@ pub(super) fn start(app: AppHandle) {
     });
 }
 
-async fn snapshot(app: &AppHandle) -> Result<Snapshot> {
+async fn snapshot(app: &AppHandle) -> Result<CliStatus> {
     let app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<CliUpdateState>();
-        let _metadata = state.metadata.lock().map_err(|_| GuiError::Install)?;
-        let root = root(&app)?;
-        Ok(Snapshot {
-            version: store::installed(&root)?.version,
-            release: store::pending(&root)?,
-        })
-    })
-    .await
-    .map_err(|_| GuiError::Install)?
+    tauri::async_runtime::spawn_blocking(move || super::status(&app))
+        .await
+        .map_err(|_| GuiError::Install)?
 }
 
 async fn publish(app: &AppHandle) -> Result<()> {
@@ -96,7 +79,7 @@ pub(super) async fn apply_ready(app: &AppHandle) -> Result<()> {
     outcome
 }
 
-fn eligible_version(current: &Snapshot) -> Option<&str> {
+fn eligible_version(current: &CliStatus) -> Option<&str> {
     let installed = current.version.as_deref()?;
     current
         .release

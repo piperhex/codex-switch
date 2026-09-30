@@ -22,12 +22,16 @@ export function useCliInstaller(active: boolean,
   const mounted = useRef(true);
   const currentVersion = useRef<string | null>(null);
   const snapshotRevision = useRef(0);
+  const releaseRevision = useRef(0);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const prepare = useCallback(async () => {
     try {
       const prepared = await invoke<Release>("codex_gui_cli_prepare");
-      if (mounted.current) setRelease(value => value?.version === prepared.version ? prepared : value);
+      if (mounted.current) {
+        releaseRevision.current += 1;
+        setRelease(value => value?.version === prepared.version ? prepared : value);
+      }
     } catch {
       // Background failures stay quiet; the next scheduled check or manual update retries.
     }
@@ -44,6 +48,7 @@ export function useCliInstaller(active: boolean,
         const next = await invoke<Release>(autoUpdate ? "codex_gui_cli_check" : "codex_gui_cli_release");
         if (!mounted.current) return;
         if (revision !== snapshotRevision.current) continue;
+        releaseRevision.current += 1;
         setRelease(next);
         if (autoUpdate && next.size > 0 && next.version !== currentVersion.current && !next.ready) void prepare();
       } while (checkAgain.current);
@@ -60,12 +65,16 @@ export function useCliInstaller(active: boolean,
       const firstEntry = !started.current;
       try {
         const revision = snapshotRevision.current;
-        const installed = await invoke<{ version: string | null }>("codex_gui_cli_status");
+        const cachedRevision = releaseRevision.current;
+        const installed = await invoke<CliSnapshot>("codex_gui_cli_status");
         if (!mounted.current || cancelled) return;
         started.current = true;
         if (revision === snapshotRevision.current) {
           currentVersion.current = installed.version;
           setVersion(installed.version);
+        }
+        if (cachedRevision === releaseRevision.current && installed.release !== undefined) {
+          setRelease(installed.release);
         }
         setChecked(true);
         if (currentVersion.current && firstEntry) await controller.connect({ reuseExisting: true });
@@ -96,6 +105,7 @@ export function useCliInstaller(active: boolean,
     const subscription = subscribeGuiEvent<CliSnapshot>("codex-gui-cli-state", snapshot => {
       if (cancelled) return;
       snapshotRevision.current += 1;
+      releaseRevision.current += 1;
       currentVersion.current = snapshot.version;
       setVersion(snapshot.version);
       setRelease(snapshot.release);
@@ -114,6 +124,7 @@ export function useCliInstaller(active: boolean,
       const installed = await invoke<{ version: string }>("codex_gui_cli_install", { version: release.version });
       if (!mounted.current) return;
       snapshotRevision.current += 1;
+      releaseRevision.current += 1;
       currentVersion.current = installed.version;
       setVersion(installed.version);
       setRelease(value => value?.version === release.version

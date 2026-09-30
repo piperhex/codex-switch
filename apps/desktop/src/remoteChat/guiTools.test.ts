@@ -124,6 +124,17 @@ it('rejects updates and restarts while any remote conversation is running', asyn
   expect(invoke).not.toHaveBeenCalled(); expect(guiApi.connect).not.toHaveBeenCalled();
 });
 
+it('returns the host cached update with status and remembers manually checked releases', async () => {
+  const release = { version: '0.156.0', size: 100, ready: true };
+  vi.mocked(invoke).mockResolvedValue({ version: '0.155.0', release });
+  const operations = new ChatOperations();
+  const result = await operations.execute(request('cached', { operation: 'guiCliStatus' }));
+  expect(result.data).toMatchObject({ version: '0.155.0', release });
+  expect(invoke).toHaveBeenCalledExactlyOnceWith('codex_gui_cli_status');
+  await operations.execute(request('release', { operation: 'guiCliRelease' }));
+  expect(invoke).toHaveBeenLastCalledWith('codex_gui_cli_check');
+});
+
 it('returns an update job immediately, reports progress, and reconnects after completion', async () => {
   let finish!: () => void;
   vi.mocked(invoke).mockImplementation(async command => {
