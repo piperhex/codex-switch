@@ -62,11 +62,13 @@ export function ComposerPluginMenu({ catalog, query, load, chooseSkill, choosePl
 
 const pluginStyles = StyleSheet.create({
   root: { flexShrink: 1 },
-  heading: { fontSize: 13, color: '#8a8a8a', paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10 },
+  heading: { fontSize: 13, lineHeight: 20, includeFontPadding: true,
+    color: '#8a8a8a', paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10 },
   list: { maxHeight: 250, flexGrow: 0 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 50, paddingHorizontal: 14,
     borderRadius: 16 },
-  label: { fontSize: 16, color: '#161616', flexShrink: 1 },
+  label: { fontSize: 16, lineHeight: 24, includeFontPadding: true, paddingVertical: 2,
+    color: '#161616', flexShrink: 1 },
   highlight: { backgroundColor: '#f2f2f2' },
   message: { fontSize: 12, lineHeight: 18, color: '#888', padding: 12, maxWidth: 400 },
 });

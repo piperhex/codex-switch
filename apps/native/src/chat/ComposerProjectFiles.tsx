@@ -66,7 +66,8 @@ const fileStyles = StyleSheet.create({
   readable: { maxWidth: SHEET_READABLE_WIDTH, width: '100%', alignSelf: 'center' },
   list: { maxHeight: 380, flexGrow: 0 },
   row: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 12, minHeight: 48, borderRadius: 12 },
-  name: { fontSize: 15, color: '#222', flex: 1 },
+  // Leave room for Android font metrics and descenders in file and folder names.
+  name: { fontSize: 15, lineHeight: 22, includeFontPadding: true, paddingVertical: 2, color: '#222', flex: 1 },
   message: { fontSize: 13, lineHeight: 20, color: '#777', padding: 14, maxWidth: 400 },
   pressed: { backgroundColor: '#f3f3f3' },
 });

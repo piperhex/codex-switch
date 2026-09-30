@@ -7,10 +7,20 @@ use tauri::AppHandle;
 use toml_edit::{value, DocumentMut};
 
 const GUI_PROVIDER_ID: &str = "codex-switch-gui";
+const MODEL_CACHE_FILE: &str = "models_cache.json";
 
 #[cfg(test)]
 #[path = "home_catalog_tests.rs"]
 mod catalog_tests;
+
+/// The CLI sees one proxy credential, so account changes must expire its shared catalog cache.
+pub(super) fn clear_model_cache(home: &Path) -> Result<()> {
+    match fs::remove_file(home.join(MODEL_CACHE_FILE)) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(_) => Err(GuiError::Startup),
+    }
+}
 
 /// Older conversations can contain the shared provider; always resume them on the GUI route.
 pub(super) fn scope_thread_request(method: &str, params: &mut serde_json::Value) {
@@ -82,6 +92,7 @@ fn isolated_config(config: &str, target: &Path, base_url: &str) -> Result<String
     document["sqlite_home"] = value(target.to_string_lossy().as_ref());
     document["log_dir"] = value(target.join("log").to_string_lossy().as_ref());
     document["cli_auth_credentials_store"] = value("file");
+    configure_model_discovery(&mut document)?;
     configure_gui_proxy(&mut document, base_url)?;
     Ok(document.to_string())
 }
@@ -101,12 +112,26 @@ pub(super) fn prepare_title_home(gui_home: &Path, base_url: &str) -> Result<Path
     Ok(target)
 }
 
+fn configure_model_discovery(document: &mut DocumentMut) -> Result<()> {
+    use toml_edit::{Item, Table};
+    if !document.contains_key("features") {
+        document["features"] = Item::Table(Table::new());
+    }
+    // The GUI authenticates to its own proxy; CLI defaults otherwise use only bundled models.
+    document["features"]
+        .as_table_like_mut()
+        .ok_or(GuiError::Startup)?
+        .insert("api_key_model_discovery", value(true));
+    Ok(())
+}
+
 fn configure_gui_proxy(document: &mut DocumentMut, base_url: &str) -> Result<()> {
     use toml_edit::{Item, Table};
     document["model_provider"] = value(GUI_PROVIDER_ID);
     let mut provider = Table::new();
     provider["name"] = value("Codex GUI");
     provider["base_url"] = value(base_url);
+    provider["model_catalog_url"] = value(format!("{}/models", base_url.trim_end_matches('/')));
     provider["wire_api"] = value("responses");
     provider["requires_openai_auth"] = value(false);
     provider["experimental_bearer_token"] = value(crate::codex_config::LOCAL_PROXY_TOKEN);

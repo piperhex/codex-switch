@@ -31,7 +31,7 @@ export function validateUploadedFiles(attachments: readonly AttachmentReference[
 
 export function remoteAttachments(value: unknown, mode?: ConnectionMode): AttachmentReference[] {
   if (value === undefined) return [];
-  if (!Array.isArray(value) || value.length > MAX_CHAT_FILES) throw new Error('每条消息最多添加 8 个文件或插件。');
+  if (!Array.isArray(value) || value.length > MAX_CHAT_FILES) throw new Error('每条消息最多添加 8 个附件或对话引用。');
   const attachments = value.map((entry: unknown): AttachmentReference => {
     const item = entry && typeof entry === 'object' ? entry as Record<string, unknown> : {};
     if (typeof item.name !== 'string' || !item.name.trim() || item.name.length > MAX_NAME_LENGTH

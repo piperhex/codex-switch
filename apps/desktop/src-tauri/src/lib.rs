@@ -130,7 +130,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
         .manage(codex_gui::GuiState::default())
-        .manage(codex_gui::file_preview::PreviewWindows::default())
+        .manage(codex_gui::file_preview::PreviewSessions::default())
         .manage(codex_gui::notification_navigation::NavigationState::default())
         .manage(codex_gui::releases::CliUpdateState::default())
         .manage(codex_gui::scheduled_tasks::ScheduledTasksState::default())
@@ -231,6 +231,7 @@ pub fn run() {
             }
             Ok(())
         })
+        .on_page_load(codex_gui::file_preview::handle_page_load)
         .on_window_event(|window, event| {
             codex_gui::file_preview::handle_window_event(window, event);
             if window.label() == "main" {
@@ -349,7 +350,9 @@ pub fn run() {
             codex_gui::file_actions::codex_gui_file_applications,
             codex_gui::file_actions::codex_gui_file_action,
             codex_gui::file_preview::codex_gui_open_file_preview,
-            codex_gui::file_preview::codex_gui_read_file_preview,
+            codex_gui::file_preview::codex_gui_close_file_preview,
+            codex_gui::file_preview::website::codex_gui_sync_website_preview,
+            codex_gui::file_preview::website::codex_gui_close_website_preview,
             codex_gui::undo::codex_gui_undo,
             codex_gui::deletion::codex_gui_delete_thread,
             codex_gui::usage::codex_gui_usage_summary,

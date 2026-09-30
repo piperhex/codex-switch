@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "browser_list",
-      "description": "List connected Chrome profiles. If none are connected, ask the user to connect the Remote AI browser extension.",
+      "description": "List connected Chrome profiles. For missing connections, follow the Chrome skill's startup flow.",
       "inputSchema": {
         "type": "object",
         "properties": {},

@@ -50,7 +50,14 @@ fn dispatch(root: &Path, client_id: &str, request: &Value) -> Result<Value> {
         Some("initialize") => Ok(
             json!({"protocolVersion":"2024-11-05", "capabilities":{"tools":{}},
             "serverInfo":{"name":"codex-switch-chrome","version":super::PLUGIN_VERSION},
-            "instructions":"Use browser_list to select the requested Chrome profile. Unless the user explicitly \
+            "instructions":"Use browser_list to select the requested Chrome profile. If disconnected, use available \
+                app/process tools to check whether Chrome is running. If it is closed and the integration was not \
+                explicitly paused or disabled, launch installed Chrome once in the background without switching \
+                profiles. Retry browser_list with short waits for up to 30 seconds; continue only when the requested \
+                profile is connected and unpaused. If Chrome is already running without that connection, inspection \
+                or launching is unavailable, the profile is unclear, or the wait expires, ask the user to connect \
+                the extension. Never restart a running browser, silently resume/enable control, or bypass permission \
+                checks. Unless the user explicitly \
                 asks to use an already-open page, use browser_open for a new background tab in the Codex group. \
                 Continue in task-created tabs. Use browser_tabs to select an existing user page only when requested; \
                 keep its original group. Avoid browser_focus unless the user asks to bring the page forward. \

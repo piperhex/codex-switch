@@ -6,11 +6,13 @@ use std::{
 };
 use windows_sys::Win32::Networking::WinHttp::{
     ERROR_WINHTTP_LOGIN_FAILURE, ERROR_WINHTTP_UNABLE_TO_DOWNLOAD_SCRIPT,
-    WINHTTP_ACCESS_TYPE_NAMED_PROXY, WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_PROXY_INFO,
+    WINHTTP_ACCESS_TYPE_NAMED_PROXY, WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_AUTOPROXY_AUTO_DETECT,
+    WINHTTP_AUTOPROXY_CONFIG_URL, WINHTTP_AUTOPROXY_NO_CACHE_CLIENT,
+    WINHTTP_AUTOPROXY_NO_CACHE_SVC, WINHTTP_PROXY_INFO,
 };
 
 #[test]
-fn automatic_proxy_discovery_allows_caching_and_retries_only_authentication_challenges() {
+fn automatic_proxy_discovery_caches_scripts_and_retries_only_authentication_challenges() {
     let config = SystemProxyConfig {
         auto_detect: true,
         ..Default::default()
@@ -37,6 +39,29 @@ fn automatic_proxy_discovery_allows_caching_and_retries_only_authentication_chal
     });
     assert_eq!(result, Err(ERROR_WINHTTP_UNABLE_TO_DOWNLOAD_SCRIPT));
     assert_eq!(attempts, 1);
+}
+
+#[test]
+fn automatic_proxy_options_recheck_each_url_without_enabling_unconfigured_discovery() {
+    let config = SystemProxyConfig {
+        auto_detect: true,
+        ..Default::default()
+    };
+    let cache_flags = WINHTTP_AUTOPROXY_NO_CACHE_CLIENT | WINHTTP_AUTOPROXY_NO_CACHE_SVC;
+    let discovery = auto_proxy_options(&config, None).unwrap();
+    assert_eq!(
+        discovery.dwFlags,
+        WINHTTP_AUTOPROXY_AUTO_DETECT | cache_flags
+    );
+    assert_eq!(discovery.fAutoLogonIfChallenged, 0);
+    let pac_url = "http://127.0.0.1/proxy.pac\0"
+        .encode_utf16()
+        .collect::<Vec<_>>();
+    let explicit = auto_proxy_options(&config, Some(&pac_url)).unwrap();
+    assert_eq!(explicit.dwFlags, WINHTTP_AUTOPROXY_CONFIG_URL | cache_flags);
+    assert_eq!(explicit.dwAutoDetectFlags, 0);
+    assert_eq!(explicit.fAutoLogonIfChallenged, 0);
+    assert!(auto_proxy_options(&SystemProxyConfig::default(), None).is_none());
 }
 
 #[test]
@@ -80,7 +105,7 @@ fn native_pac_resolution_preserves_direct_and_uses_the_complete_url() {
         while pending.try_recv().is_err() && Instant::now() < deadline {
             if let Some(request) = server.recv_timeout(Duration::from_millis(50)).unwrap() {
                 let script = "function FindProxyForURL(url, host) { \
-                    if (url.indexOf('/direct') >= 0) return 'DIRECT'; \
+                    if (url.indexOf('/direct') >= 0 || url.indexOf('bypass=1') >= 0) return 'DIRECT'; \
                     return 'PROXY 127.0.0.1:54321'; }";
                 request
                     .respond(
@@ -96,13 +121,20 @@ fn native_pac_resolution_preserves_direct_and_uses_the_complete_url() {
             }
         }
     });
-    let direct = config.proxy_for(&Url::parse("http://destination.invalid/direct").unwrap());
-    let proxied = config.proxy_for(&Url::parse("http://destination.invalid/proxy").unwrap());
+    let decisions = [
+        "http://destination.invalid/direct",
+        "http://destination.invalid/proxy",
+        "http://destination.invalid/proxy?bypass=1",
+        "http://destination.invalid/proxy?bypass=0",
+        "http://other.invalid/proxy",
+        "http://other.invalid/direct",
+    ]
+    .map(|url| config.proxy_for(&Url::parse(url).unwrap()));
     finish.send(()).unwrap();
     worker.join().unwrap();
+    let proxy = Some(Url::parse("http://127.0.0.1:54321").unwrap());
     assert_eq!(
-        direct, None,
-        "PAC DIRECT must not fall back to the stale manual proxy"
+        decisions,
+        [None, proxy.clone(), None, proxy.clone(), proxy, None]
     );
-    assert_eq!(proxied, Some(Url::parse("http://127.0.0.1:54321").unwrap()));
 }

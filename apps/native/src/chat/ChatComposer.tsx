@@ -14,6 +14,8 @@ import { modelLabelTail } from './modelLabel';
 import { ComposerAddMenu, type ComposerAddAction } from './ComposerAddMenu';
 import { ComposerPopover } from './ComposerPopover';
 import { ComposerPluginMenu } from './ComposerPluginMenu';
+import { ComposerConversationMenu } from './ComposerConversationMenu';
+import type { ConversationSearch } from '../../../../shared/chat/useConversationCandidates';
 import { ComposerReferences } from './ComposerReferences';
 import type { UploadProgress } from '../../../../shared/remote-chat/uploadProgress';
 import { ComposerQuotes } from './ComposerQuotes';
@@ -70,12 +72,13 @@ interface Props {
   compact: () => Promise<boolean>;
   loadCatalog: (cwd: string) => Promise<RemoteComposerCatalog>;
   loadFiles: (options: ProjectFilesRequest) => Promise<ProjectFilesResponse>;
+  loadConversations: ConversationSearch;
 }
 
 export function ChatComposer({ models, selection, settingsBusy, settingsError, updateSettings,
   readUsage, usageActive, tokenUsage, contextSettings, connection, queue, goals, goal, goalBusy,
   threadId, active, ready, sending, running, upload, reconnecting = false, interrupted = false, send, interrupt,
-  catalog, cwd, compactReason, compacting, compact, loadCatalog, loadFiles }: Props) {
+  catalog, cwd, compactReason, compacting, compact, loadCatalog, loadFiles, loadConversations }: Props) {
   const [settings, setSettings] = useState(false);
   const goalMode = useGoalMode(threadId, sending);
   useEffect(() => { if (active && ready && threadId) void goals?.load(threadId); }, [goals, threadId, active, ready]);
@@ -158,8 +161,12 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
   };
   const menuContent = () => {
     if (adding) return <ComposerAddMenu busy={attachmentBusy} choose={chooseAdd} />;
+    if (menu.conversations) return <ComposerConversationMenu key={threadId} query={menu.query}
+      threadId={threadId} ready={ready && !attachmentBusy} load={loadConversations} close={menu.close}
+      choose={reference => { if (attachments.add(reference)) menu.consumeTrigger(); }} />;
     if (menu.plugins) return <ComposerPluginMenu catalog={catalog} query={menu.query} load={readCatalog}
-      chooseSkill={menu.choose} choosePlugin={(plugin) => { attachments.addPlugin(plugin); menu.consumeTrigger(); }} />;
+      chooseSkill={menu.choose}
+      choosePlugin={plugin => { if (attachments.addPlugin(plugin)) menu.consumeTrigger(); }} />;
     return <ChatCommandMenu catalog={catalog} query={menu.query} skillsOnly={menu.skillsOnly}
       compactReason={compactReason} choose={menu.choose}
       goal={goals ? () => { menu.consumeTrigger(); goalMode.enter(); } : undefined}
@@ -191,7 +198,8 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
         multiline value={draft.text} maxLength={100_000} selection={menu.selection} editable={!queueEditor.loading}
         placeholderTextColor="#999999" underlineColorAndroid="transparent"
         onSelectionChange={(event) => menu.setSelection(event.nativeEvent.selection)}
-        onChangeText={draft.setText} placeholder={ready ? (goalMode.enabled ? '描述想完成的目标…' : '发消息…') : '连接后发消息'} />
+        onChangeText={draft.setText}
+        placeholder={ready ? (goalMode.enabled ? '描述想完成的目标…' : '发消息，@ 引用对话…') : '连接后发消息'} />
       </ScrollView>
       <View pointerEvents="box-none" style={[styles.composerActions, compactField && styles.composerActionsCompact]}>
         <Pressable accessibilityRole="button" accessibilityLabel="添加内容" style={styles.composerAdd}
@@ -221,7 +229,7 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
     </View>
     {projectFiles && <ComposerProjectFiles imagesOnly={projectFiles === 'photos'} threadId={threadId} cwd={cwd}
       load={loadFiles} close={() => setProjectFiles(null)} choose={(file) => {
-        attachments.addFile({ kind: 'file', name: file.name, path: file.path }); setProjectFiles(null);
+        if (attachments.add({ kind: 'file', name: file.name, path: file.path })) setProjectFiles(null);
       }} />}
     {settings && <ChatSettings models={models} selection={selection} connection={connection}
       threadId={threadId} contextSettings={contextSettings}

@@ -5,6 +5,8 @@ import { BottomSheet } from '../components/BottomSheet';
 import { SheetScrollView, SheetInset, SHEET_READABLE_WIDTH } from '../components/SheetScrollView';
 import type { GuiAccountChoice, GuiAccountsClient } from '../../../../shared/remote-chat/guiAccounts';
 import { useGuiAccounts } from '../../../../shared/remote-chat/client/useGuiAccounts';
+import type { GuiToolsClient } from '../../../../shared/remote-chat/guiTools';
+import { ChatGuiUpdateSheet } from './ChatGuiUpdateSheet';
 import { palette, styles } from './styles';
 
 export interface ChatConnectionProps {
@@ -12,7 +14,8 @@ export interface ChatConnectionProps {
 }
 
 type Props = ChatConnectionProps & { ready: boolean; active: boolean } & (
-  { variant: 'settings' } | { variant?: 'avatar'; email: string; openTokenSummary: () => void }
+  { variant: 'settings' } | { variant?: 'avatar'; email: string; openTokenSummary: () => void;
+    guiTools: GuiToolsClient; running: boolean }
 );
 
 const ACCOUNT_REFRESH_INTERVAL_MS = 60_000;
@@ -20,7 +23,7 @@ const ACCOUNT_REFRESH_INTERVAL_MS = 60_000;
 export function ChatProfileMenu(props: Props) {
   const { client, deviceName, ready, active, chooseDevice } = props;
   const settings = props.variant === 'settings';
-  const [panel, setPanel] = useState<'profile' | 'accounts' | null>(null);
+  const [panel, setPanel] = useState<'profile' | 'accounts' | 'update' | null>(null);
   const [query, setQuery] = useState('');
   const accounts = useGuiAccounts(client, active && ready, panel === 'accounts' ? ACCOUNT_REFRESH_INTERVAL_MS : 0);
   const selection = accounts.snapshot?.selection;
@@ -63,7 +66,11 @@ export function ChatProfileMenu(props: Props) {
       onPress={() => setPanel('profile')}>
       <Text style={pickerStyles.initials}>{initials}</Text>
     </Pressable>}
-    <BottomSheet fullWidthContent visible={panel !== null && active} title={panel === 'accounts' ? '切换账户' : '账户与电脑'}
+    {panel === 'update' && active && props.variant !== 'settings' && <ChatGuiUpdateSheet
+      client={props.guiTools} active={active} connected={ready} running={props.running} deviceName={deviceName}
+      onClose={() => setPanel(null)} onBack={() => setPanel('profile')} />}
+    <BottomSheet fullWidthContent visible={panel !== null && panel !== 'update' && active}
+      title={panel === 'accounts' ? '切换账户' : '账户与电脑'}
       subtitle={panel === 'accounts' ? '与电脑共用当前聊天账户' : undefined}
       onClose={() => setPanel(null)} dismissible={!accounts.saving} dragFromHeaderOnly
       onBack={panel === 'accounts' && !accounts.saving ? () => setPanel(settings ? null : 'profile') : undefined}>
@@ -71,6 +78,13 @@ export function ChatProfileMenu(props: Props) {
         ? <SheetInset style={[pickerStyles.panel, pickerStyles.readable]}>
         <Text style={pickerStyles.email}>{props.email}</Text>
         {connectionOptions}
+        <Pressable accessibilityRole="button" accessibilityLabel="更新 Codex GUI" style={pickerStyles.option}
+          onPress={() => setPanel('update')}>
+          <Feather name="download" size={22} color={palette.ink} />
+          <View style={pickerStyles.copy}><Text style={styles.title}>更新 Codex GUI</Text>
+            <Text style={styles.subtitle}>检查并更新当前电脑上的 Codex GUI</Text></View>
+          <Feather name="chevron-right" size={18} color={palette.muted} />
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Token 汇总" style={pickerStyles.option}
           onPress={() => { setPanel(null); props.openTokenSummary(); }}>
           <Feather name="bar-chart-2" size={22} color={palette.ink} />

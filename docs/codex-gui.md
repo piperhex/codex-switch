@@ -254,6 +254,18 @@ if the imported configuration specifies other locations. Reconnect after editing
 Recent folders, pins, and per-conversation project choices are UI preferences stored in the Switch WebView;
 message content stays in `.codex`. Scratch folders are excluded from project labels and recent folder choices.
 
+The GUI enables `features.api_key_model_discovery` and sets its private Provider's `model_catalog_url`
+to the GUI proxy's `/models` endpoint. New upstream models therefore arrive with their advertised
+capabilities instead of depending on the CLI's bundled catalog. The endpoint follows the GUI account
+selection, independently of the shared account manager. Switching GUI accounts expires the CLI's catalog
+cache; slow model responses from a previous account are rejected. Other refreshes follow Codex's cache lifetime.
+The shared desktop/phone/Web composer copies the CLI catalog every minute, after account changes,
+and when the desktop model menu opens. Refreshes are single-flight, preserve the previous list on failure,
+and do not restart running conversations. Leaving the shared GUI session stops refresh subscriptions and timers.
+
+Run `node scripts/codex-gui-model-catalog-smoke.mjs <installed-package>/bin/codex.exe` to verify proxy
+discovery, hidden-model filtering and cache expiry against a local fixture without using model credits.
+
 Third-party Provider model catalogs default to `use_responses_lite = false`, including OpenAI-type
 Providers that relay an upstream catalog. The compatibility default is reapplied on every model-list
 refresh. Official account catalogs keep their advertised capabilities. An explicit `model_catalog_json`

@@ -34,6 +34,7 @@ beforeEach(() => {
     contextSettings: { read: vi.fn(), write: vi.fn() }, goals: { load: vi.fn(), clear: vi.fn() }, goalBusy: false,
     catalog: { skills: [], loaded: true, loading: false, error: '', refresh: vi.fn() }, cwd: '',
     compactReason: null, compacting: false, compact: vi.fn(), loadCatalog: vi.fn(), loadFiles: vi.fn(),
+    loadConversations: vi.fn(),
     settingsBusy: false, settingsError: '', updateSettings: vi.fn(), active: true, ready: true,
     sending: false, running: false, threadId: null, send: vi.fn().mockResolvedValue(true), interrupt: vi.fn() };
   mocks.pick.mockReset().mockImplementation(async () => [draftImage(url)]);

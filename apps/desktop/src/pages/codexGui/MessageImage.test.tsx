@@ -6,6 +6,7 @@ import { guiApi } from "./api";
 import { ImageThreadContext } from "./useImageSource";
 import { RichText } from "./RichText";
 import { filePreviewApi } from "./filePreview/api";
+import { DetailsWorkspace } from "./DetailsWorkspace";
 
 vi.mock("./api", () => ({ guiApi: { request: vi.fn() } }));
 const image = "data:image/png;base64,iVBORw0KGgo=";
@@ -79,9 +80,13 @@ it("keeps unsupported and executable URLs out of both IPC and the image element"
 
 it("opens local images in the desktop preview even when a thumbnail cannot be loaded", async () => {
   vi.stubGlobal("isTauri", true);
-  const open = vi.spyOn(filePreviewApi, "open").mockResolvedValue(true);
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
+  const open = vi.spyOn(filePreviewApi, "open").mockResolvedValue({ sessionId: "image-preview",
+    path: "C:/other/picture.png", name: "picture.png", kind: "image", text: null, url: image });
+  vi.spyOn(filePreviewApi, "close").mockResolvedValue();
   vi.mocked(guiApi.request).mockRejectedValue(new Error("thumbnail unavailable"));
-  await render("[图片](C:/other/picture.png)");
+  await act(async () => root.render(<DetailsWorkspace selected="task" active>
+    <RichText text="[图片](C:/other/picture.png)" /></DetailsWorkspace>));
   const button = container.querySelector<HTMLButtonElement>('button[aria-label="预览文件：C:/other/picture.png"]');
   expect(button).not.toBeNull();
   await act(async () => button!.click());

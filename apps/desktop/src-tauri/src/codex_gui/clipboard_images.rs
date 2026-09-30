@@ -109,7 +109,7 @@ async fn download_images(
 
 #[tauri::command]
 pub(crate) async fn codex_gui_remote_clipboard_images(
-    window: tauri::WebviewWindow,
+    window: tauri::Webview,
 ) -> Result<Vec<ClipboardImage>, String> {
     if window.label() != "main" {
         return Err(ClipboardImageError::Read.to_string());

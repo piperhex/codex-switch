@@ -5,7 +5,7 @@ use super::{
     State,
 };
 use serde::Deserialize;
-use tauri::{ipc::Channel, AppHandle, Manager, WebviewWindow};
+use tauri::{ipc::Channel, AppHandle, Manager, Webview};
 
 const UNAVAILABLE: &str = "暂时无法直连，正在尝试其他连接方式。";
 
@@ -43,7 +43,7 @@ enum SocketAction {
     Close,
 }
 
-fn authorize(window: &WebviewWindow) -> Result<(), String> {
+fn authorize(window: &Webview) -> Result<(), String> {
     if window.label() == "main" {
         Ok(())
     } else {
@@ -54,7 +54,7 @@ fn authorize(window: &WebviewWindow) -> Result<(), String> {
 #[tauri::command]
 pub(crate) async fn remote_tcp_open(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: OpenRequest,
     events: Channel<Event>,
 ) -> Result<String, String> {
@@ -68,7 +68,7 @@ pub(crate) async fn remote_tcp_open(
 #[tauri::command]
 pub(crate) async fn remote_tcp_listen(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: PathRequest,
 ) -> Result<u16, String> {
     authorize(&window)?;
@@ -85,7 +85,7 @@ pub(crate) async fn remote_tcp_listen(
 #[tauri::command]
 pub(crate) async fn remote_tcp_unlisten(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: PathRequest,
 ) -> Result<(), String> {
     authorize(&window)?;
@@ -103,7 +103,7 @@ pub(crate) async fn remote_tcp_unlisten(
 #[tauri::command]
 pub(crate) async fn remote_tcp_connect(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: ConnectRequest,
 ) -> Result<String, String> {
     authorize(&window)?;
@@ -116,7 +116,7 @@ pub(crate) async fn remote_tcp_connect(
 #[tauri::command]
 pub(crate) async fn remote_tcp_socket(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: SocketRequest,
 ) -> Result<(), String> {
     authorize(&window)?;
@@ -145,7 +145,7 @@ pub(crate) async fn remote_tcp_socket(
 #[tauri::command]
 pub(crate) async fn remote_tcp_close(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     group_id: String,
 ) -> Result<(), String> {
     authorize(&window)?;

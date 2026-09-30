@@ -58,8 +58,11 @@
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .chat-menu-options strong small { display: inline; }
 .chat-conversation-menu strong, .chat-conversation-menu small { max-width: 100%; overflow-wrap: anywhere; }
+.chat-conversation-menu strong { line-height: 1.5; padding-block: 2px; }
 .chat-menu-options > p { max-width: 400px; margin: 0; padding: 10px 14px; color: #7b8981; font-size: 12px; }
 .chat-project-file-list { max-height: 50dvh; }
+.chat-project-file-list .chat-ellipsis { font-size: 15px; line-height: 1.5; padding-block: 2px; }
+.chat-project-file-list svg { flex-shrink: 0; }
 .chat-context-presets { display: flex; flex-wrap: wrap; gap: 8px; }
 .chat-context-presets [aria-pressed="true"] { background: #14806f; color: #fff; }
 .chat-async-questions { max-height: 160px; padding: 6px 16px; flex-shrink: 0; }

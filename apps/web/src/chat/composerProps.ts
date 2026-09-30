@@ -43,5 +43,5 @@ export interface ComposerProps {
   compact: () => Promise<boolean>;
   loadCatalog: (cwd: string) => Promise<RemoteComposerCatalog>;
   loadFiles: (options: ProjectFilesRequest) => Promise<ProjectFilesResponse>;
-  loadConversations?: ConversationSearch;
+  loadConversations: ConversationSearch;
 }

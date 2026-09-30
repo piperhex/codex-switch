@@ -2,7 +2,7 @@
 use super::{DesktopError, Result};
 use serde::{Deserialize, Serialize};
 use std::{path::Path, sync::Mutex};
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager, Webview};
 
 static SETTINGS: Mutex<()> = Mutex::new(());
 #[derive(Clone, Copy, Deserialize, Serialize)]
@@ -62,7 +62,7 @@ pub(crate) fn snapshot(app: &AppHandle) -> Result<Permissions> {
 #[tauri::command]
 pub(crate) async fn remote_desktop_permissions(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     settings: Option<Permissions>,
 ) -> std::result::Result<Permissions, String> {
     if window.label() != "main" {

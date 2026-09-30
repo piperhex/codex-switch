@@ -46,7 +46,9 @@ const pickerStyles = StyleSheet.create({
   list: { maxHeight: 340, flexGrow: 0 },
   navigation: { flexDirection: 'row', gap: 16 },
   row: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 12, minHeight: 48 },
-  name: { flex: 1, color: '#13231c', fontSize: 15 },
+  // Leave room for Android font metrics and descenders when truncating to one line.
+  name: { flex: 1, color: '#13231c', fontSize: 15, lineHeight: 22,
+    includeFontPadding: true, paddingVertical: 2 },
   message: { color: '#6f8177', fontSize: 13, lineHeight: 20, padding: 12 },
-  link: { color: '#14806f', fontSize: 13, padding: 12 },
+  link: { color: '#14806f', fontSize: 13, lineHeight: 20, includeFontPadding: true, padding: 12 },
 });

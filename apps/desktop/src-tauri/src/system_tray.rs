@@ -119,7 +119,7 @@ fn build_initial_menu<R: Runtime>(
 }
 
 pub(crate) fn show_dashboard<R: Runtime>(app: &AppHandle<R>) {
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.get_window("main") {
         #[cfg(target_os = "macos")]
         crate::main_window::reset_to_default_size(app);
         let _ = window.unminimize();
@@ -130,7 +130,7 @@ pub(crate) fn show_dashboard<R: Runtime>(app: &AppHandle<R>) {
 
 fn show_settings<R: Runtime>(app: &AppHandle<R>) {
     show_dashboard(app);
-    let Some(window) = app.get_webview_window("main") else {
+    let Some(window) = app.get_webview("main") else {
         return;
     };
     if let Err(error) = window.emit(OPEN_SETTINGS_EVENT, ()) {

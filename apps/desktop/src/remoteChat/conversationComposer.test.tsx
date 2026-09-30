@@ -111,6 +111,21 @@ it('keeps polling single flight and ignores pending results after switching conv
   expect(load).toHaveBeenCalledOnce();
 });
 
+it('preserves a pending conversation query when choosing a plugin from the add menu', async () => {
+  await type('参考 @设计');
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="添加内容"]')!.click());
+  const plugins = [...host.querySelectorAll<HTMLButtonElement>('.chat-add-menu button')]
+    .find(button => button.textContent === '插件')!;
+  await act(async () => plugins.click());
+  expect(host.querySelector('[aria-label="插件列表"]')).not.toBeNull();
+  expect(host.querySelector('[aria-label="对话"]')).toBeNull();
+  expect(input().value).toBe('参考 @设计');
+  await key('Enter');
+  expect(host.querySelector('[aria-label="移除GitHub"]')).not.toBeNull();
+  expect(input().value).toBe('参考 @设计');
+  expect(props.send).not.toHaveBeenCalled();
+});
+
 it('does not submit an empty or failed search and stops polling when hidden or disconnected', async () => {
   vi.mocked(props.loadConversations!).mockRejectedValue(new Error('offline'));
   await type('@');

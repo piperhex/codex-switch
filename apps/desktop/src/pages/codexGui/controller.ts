@@ -20,6 +20,7 @@ import { restoreProcessing } from "./processing";
 import { trackProcessingApproval } from "./processingApprovals";
 import { initialState, savePreferences } from "./preferences";
 import { ThreadModelSettings } from "./threadModelSettings";
+import { GuiModelCatalog } from "./modelCatalog";
 import { GuiThreadTitles } from "./threadTitles";
 import type { ApprovalReply, GuiEvent, GuiState, ListResponse, Model, Settings, Thread, Turn } from "./types";
 import type { Item, SkillReference } from "./types";
@@ -41,6 +42,8 @@ export class GuiController {
   private connecting?: Promise<void>;
   private accountModels: Model[] | null = null;
   private providerModels: Model[] | null = null;
+  readonly modelCatalog = new GuiModelCatalog({ ready: () => this.state.connection === "ready",
+    accept: (models) => { this.accountModels = models; this.applyModels(); } });
   private streamEvents: GuiEvent[] = [];
   private streamTimer?: ReturnType<typeof setTimeout>;
   private remoteReads = new Map<string, Promise<void>>();
@@ -148,6 +151,7 @@ export class GuiController {
   };
 
   private async initialize(options?: { reuseExisting: boolean }) {
+    this.modelCatalog.suspend();
     this.patch({ connection: "connecting", error: "" });
     try {
       await this.queueJournal.restore();
@@ -158,24 +162,15 @@ export class GuiController {
       }
       const approvals = await (options ? guiApi.connect(options) : guiApi.connect());
       this.patch({ connection: "ready", approvals, error: "" });
-      const results = await Promise.allSettled([this.refresh(), this.loadModels(), this.modelSettings.refresh()]);
+      this.modelCatalog.activate();
+      const results = await Promise.allSettled([
+        this.refresh(), this.modelCatalog.invalidate(), this.modelSettings.refresh(),
+      ]);
       results.forEach((result) => { if (result.status === "rejected") this.report(result.reason); });
       if (this.state.selected) await this.select(this.state.selected);
       this.patch(this.state.approvals.reduce(trackProcessingApproval, this.state));
       Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
     } catch (error) { this.patch({ connection: "offline" }); this.report(error); }
-  }
-
-  private async loadModels() {
-    let cursor: string | undefined;
-    const models: Model[] = [];
-    do {
-      const response = await guiApi.request<ListResponse<Model>>({ operation: "models", cursor });
-      models.push(...response.data);
-      cursor = response.nextCursor || undefined;
-    } while (cursor && !this.disposed);
-    this.accountModels = models;
-    this.applyModels();
   }
 
   setProviderModels = (models: Model[] | null) => {
@@ -512,13 +507,15 @@ export class GuiController {
     } catch (error) { this.report(error); }
   };
 
-  activate = () => { this.disposed = false; };
+  activate = () => { this.disposed = false; this.modelCatalog.activate(); };
   suspend = () => {
+    this.modelCatalog.suspend();
     this.unlisten?.(); this.unlisten = undefined;
     this.flushStream();
     this.patch({ ...reduceEvent(this.state, { method: "connection/closed", params: {} }), error: "" });
   };
   dispose = () => {
+    this.modelCatalog.suspend();
     this.capacityRetry.cancel();
     this.disposed = true; this.unlisten?.(); this.unlisten = undefined;
     clearTimeout(this.streamTimer); this.streamTimer = undefined; this.streamEvents = []; this.listeners.clear();

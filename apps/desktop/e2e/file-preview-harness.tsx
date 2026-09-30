@@ -1,5 +1,11 @@
+import { useContext, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { FilePreviewWindow } from "../src/pages/codexGui/filePreview/FilePreviewWindow";
+import { ConfigProvider, theme } from "antd";
+import { DetailsWorkspace } from "../src/pages/codexGui/DetailsWorkspace";
+import { DetailsContext } from "../src/pages/codexGui/detailsContext";
+import { ConversationChangesButton } from "../src/pages/codexGui/ConversationChangesButton";
+import { MessageLink } from "../src/pages/codexGui/MessageLink";
+import { useThemeMode } from "../src/hooks/useThemeMode";
 import { filePreviewApi, type FilePreviewData } from "../src/pages/codexGui/filePreview/api";
 import { fileApi } from "../src/pages/codexGui/fileApi";
 import "../src/styles.css";
@@ -25,6 +31,7 @@ const html = '<!doctype html><html><head><link rel="stylesheet" href="preview-sa
   + '<script>try{parent.document.body.dataset.leaked="yes"}catch{document.body.dataset.isolated="yes"}</script>'
   + '</body></html>';
 const data: FilePreviewData = {
+  sessionId: "fixture-preview",
   path: `C:/project/docs/example.${variant}`, name: `example.${variant}`, kind: "text",
   text: code[variant] ?? "Unknown extension text", url: new URL("./fixtures/preview-sample.html", location.href).href,
 };
@@ -41,12 +48,42 @@ if (variant === "large") Object.assign(data, { text: "export const enabled = tru
   path: "C:/project/large.ts", line: 180 });
 if (params.has("dark")) localStorage.setItem("codex-switch:theme-mode", "dark");
 else localStorage.setItem("codex-switch:theme-mode", "light");
-Object.defineProperty(globalThis, "isTauri", { value: true, configurable: true });
-filePreviewApi.read = async () => data;
-filePreviewApi.open = async target => { document.body.dataset.opened = JSON.stringify(target); return true; };
-fileApi.applications = async () => [{ id: "vscode", name: "VS Code", kind: "editor" }];
-fileApi.perform = async (target, action) => {
-  document.body.dataset.action = JSON.stringify({ target, action });
-  return { path: target.path, saved: false, text: data.text ?? undefined };
-};
-createRoot(document.getElementById("root")!).render(<FilePreviewWindow />);
+const native = params.has("native");
+if (!native) {
+  Object.defineProperty(globalThis, "isTauri", { value: variant !== "website", configurable: true });
+  filePreviewApi.open = async target => {
+    document.body.dataset.opened = JSON.stringify(target);
+    return target.path.endsWith("settings.yaml") ? { ...data, sessionId: crypto.randomUUID(), ...target,
+      name: "settings.yaml", kind: "text", text: code.yaml } : { ...data, sessionId: crypto.randomUUID() };
+  };
+  filePreviewApi.close = async id => { document.body.dataset.closed = id; };
+  fileApi.applications = async () => [{ id: "vscode", name: "VS Code", kind: "editor" }];
+  fileApi.perform = async (target, action) => {
+    document.body.dataset.action = JSON.stringify({ target, action });
+    return { path: target.path, saved: false, text: data.text ?? undefined };
+  };
+}
+function Conversation() {
+  const panel = useContext(DetailsContext);
+  const openFile = panel?.openFile;
+  useEffect(() => {
+    if (variant !== "website") void openFile?.({ path: params.get("path") ?? data.path, threadId: null });
+  }, [openFile]);
+  return <div style={{ padding: 24 }}>
+    <ConversationChangesButton />
+    <h1>对话</h1>
+    <p><MessageLink href={params.get("path") ?? data.path}>查看文件</MessageLink></p>
+    <p><MessageLink href={native ? "https://example.com" : `${location.origin}/e2e/fixtures/preview-sample.html`}>
+      查看网页</MessageLink></p>
+  </div>;
+}
+function Harness() {
+  const { mode } = useThemeMode();
+  return <ConfigProvider theme={{ algorithm: mode === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm }}>
+    <div style={{ height: "100vh" }}><DetailsWorkspace selected="fixture" active>
+      <Conversation />
+    </DetailsWorkspace></div>
+  </ConfigProvider>;
+}
+document.body.style.minWidth = "0";
+createRoot(document.getElementById("root")!).render(<Harness />);

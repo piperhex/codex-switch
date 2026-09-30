@@ -147,8 +147,9 @@ fn auto_proxy_options(
     auto_config_url: Option<&[u16]>,
 ) -> Option<windows_sys::Win32::Networking::WinHttp::WINHTTP_AUTOPROXY_OPTIONS> {
     use windows_sys::Win32::Networking::WinHttp::{
-        WINHTTP_AUTOPROXY_AUTO_DETECT, WINHTTP_AUTOPROXY_CONFIG_URL, WINHTTP_AUTOPROXY_OPTIONS,
-        WINHTTP_AUTO_DETECT_TYPE_DHCP, WINHTTP_AUTO_DETECT_TYPE_DNS_A,
+        WINHTTP_AUTOPROXY_AUTO_DETECT, WINHTTP_AUTOPROXY_CONFIG_URL,
+        WINHTTP_AUTOPROXY_NO_CACHE_CLIENT, WINHTTP_AUTOPROXY_NO_CACHE_SVC,
+        WINHTTP_AUTOPROXY_OPTIONS, WINHTTP_AUTO_DETECT_TYPE_DHCP, WINHTTP_AUTO_DETECT_TYPE_DNS_A,
     };
     // Automatic logon disables WinHTTP's shared PAC/WPAD cache. Enable it only after
     // an authentication challenge, as recommended by Microsoft's AutoProxy Cache guidance.
@@ -161,7 +162,13 @@ fn auto_proxy_options(
         options.dwFlags = WINHTTP_AUTOPROXY_AUTO_DETECT;
         options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP | WINHTTP_AUTO_DETECT_TYPE_DNS_A;
     }
-    (options.dwFlags != 0).then_some(options)
+    if options.dwFlags == 0 {
+        return None;
+    }
+    // WinHTTP's host-to-proxy result caches discard paths and queries. Reevaluate each URL,
+    // while retaining the downloaded PAC/WPAD script cache controlled by automatic logon above.
+    options.dwFlags |= WINHTTP_AUTOPROXY_NO_CACHE_CLIENT | WINHTTP_AUTOPROXY_NO_CACHE_SVC;
+    Some(options)
 }
 
 fn proxy_decision(

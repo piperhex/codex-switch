@@ -1,4 +1,4 @@
-//! A per-window loopback stream, scoped to the selected file and adjacent web assets.
+//! A per-preview loopback stream, scoped to the selected file and adjacent web assets.
 use super::{content, range, PreviewError, Result};
 use std::{
     fs::File,

@@ -1,0 +1,112 @@
+// @vitest-environment jsdom
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { DetailsWorkspace } from "./DetailsWorkspace";
+import { ConversationChangesButton } from "./ConversationChangesButton";
+import { MessageLink } from "./MessageLink";
+import { filePreviewApi, type FilePreviewData } from "./filePreview/api";
+import { websitePreviewApi } from "./filePreview/websiteApi";
+
+vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => true, invoke: vi.fn() }));
+let root: Root;
+let host: HTMLDivElement;
+const data: FilePreviewData = { sessionId: "first", name: "readme.md", path: "./readme.md", kind: "markdown",
+  text: "# Preview content", url: "http://127.0.0.1/readme.md" };
+const click = (label: string) => act(async () => host.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!.click());
+const preview = () => host.querySelector('[aria-label="文件预览"]');
+function Fixture({ selected = "first", active = true }: { selected?: string; active?: boolean }) {
+  return <DetailsWorkspace selected={selected} active={active}>
+    <ConversationChangesButton />
+    <MessageLink href="./readme.md">Readme</MessageLink>
+    <MessageLink href="./second.md">Second</MessageLink>
+    <MessageLink href="https://example.com/page">Website</MessageLink>
+  </DetailsWorkspace>;
+}
+
+beforeEach(async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 1200, 800));
+  vi.spyOn(filePreviewApi, "open").mockResolvedValue(data);
+  vi.spyOn(filePreviewApi, "close").mockResolvedValue();
+  vi.spyOn(websitePreviewApi, "sync").mockResolvedValue();
+  vi.spyOn(websitePreviewApi, "close").mockResolvedValue();
+  host = document.createElement("div"); document.body.append(host); root = createRoot(host);
+  await act(async () => root.render(<Fixture />));
+});
+afterEach(async () => {
+  await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+});
+
+it("shares one drawer with file changes and keeps the file view when switching tabs", async () => {
+  await click("预览文件：./readme.md");
+  expect(preview()?.textContent).toContain("readme.md");
+  const source = [...host.querySelectorAll("button")].find(button => button.textContent === "源码")!;
+  await act(async () => source.click());
+  await click("查看文件更改");
+  expect(host.querySelectorAll("aside")).toHaveLength(1);
+  expect(host.querySelector('[aria-label="文件更改详情"]')?.textContent).toContain("暂无文件更改");
+  await act(async () => host.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="false"]')!.click());
+  expect(source.getAttribute("aria-pressed")).toBe("true");
+  expect(filePreviewApi.close).not.toHaveBeenCalled();
+  await click("关闭详情抽屉");
+  expect(host.querySelector("aside")).toBeNull();
+  expect(filePreviewApi.close).toHaveBeenCalledWith("first");
+});
+
+it("releases replaced files and cancels pending reads when changing conversations", async () => {
+  await click("预览文件：./readme.md");
+  vi.mocked(filePreviewApi.open).mockResolvedValueOnce({ ...data, sessionId: "second", name: "second.md" });
+  await click("预览文件：./second.md");
+  expect(filePreviewApi.close).toHaveBeenCalledWith("first");
+  let resolve!: (value: FilePreviewData) => void;
+  vi.mocked(filePreviewApi.open).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+  await click("预览文件：./readme.md");
+  await act(async () => root.render(<Fixture selected="other" />));
+  await act(async () => resolve({ ...data, sessionId: "late" }));
+  expect(preview()).toBeNull();
+  expect(filePreviewApi.close).toHaveBeenCalledWith("second");
+  expect(filePreviewApi.close).toHaveBeenCalledWith("late");
+});
+
+it("keeps the latest click when different file reads finish out of order", async () => {
+  let resolve!: (value: FilePreviewData) => void;
+  vi.mocked(filePreviewApi.open).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+  await click("预览文件：./readme.md");
+  vi.mocked(filePreviewApi.open).mockResolvedValueOnce({ ...data, sessionId: "second", name: "second.md" });
+  await click("预览文件：./second.md");
+  await act(async () => resolve(data));
+  expect(preview()?.textContent).toContain("second.md");
+  expect(filePreviewApi.close).toHaveBeenCalledWith("first");
+});
+
+it("opens websites in the same drawer and hides their native content on minimize and page changes", async () => {
+  const nextFrame = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 30)); });
+  await click("预览文件：./readme.md");
+  const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+  await act(async () => host.querySelector("a")!.dispatchEvent(event));
+  await nextFrame();
+  expect(event.defaultPrevented).toBe(true);
+  expect(host.querySelectorAll("aside")).toHaveLength(1);
+  expect(filePreviewApi.close).toHaveBeenCalledWith("first");
+  expect(websitePreviewApi.sync).toHaveBeenLastCalledWith(expect.objectContaining({
+    url: "https://example.com/page", visible: true,
+  }));
+  await click("最小化详情抽屉"); await nextFrame();
+  expect(websitePreviewApi.sync).toHaveBeenLastCalledWith(expect.objectContaining({ visible: false }));
+  await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "恢复预览")!.click());
+  await nextFrame();
+  expect(websitePreviewApi.sync).toHaveBeenLastCalledWith(expect.objectContaining({ visible: true }));
+  const dialog = document.createElement("div");
+  dialog.setAttribute("aria-modal", "true");
+  vi.spyOn(dialog, "getClientRects").mockReturnValue([new DOMRect(0, 0, 800, 600)] as unknown as DOMRectList);
+  await act(async () => { document.body.append(dialog); }); await nextFrame();
+  expect(websitePreviewApi.sync).toHaveBeenLastCalledWith(expect.objectContaining({ visible: false }));
+  await act(async () => dialog.remove()); await nextFrame();
+  expect(websitePreviewApi.sync).toHaveBeenLastCalledWith(expect.objectContaining({ visible: true }));
+  await act(async () => root.render(<Fixture active={false} />)); await nextFrame();
+  expect(websitePreviewApi.sync).toHaveBeenLastCalledWith(expect.objectContaining({ visible: false }));
+  await act(async () => root.render(<Fixture selected="other" />));
+  expect(websitePreviewApi.close).toHaveBeenCalledOnce();
+});

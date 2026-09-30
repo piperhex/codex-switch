@@ -4,6 +4,31 @@ import { modelSettingsBackend } from "./model-settings-backend";
 const url = "/e2e/model-settings-harness.html";
 const trigger = (page: Page) => page.getByRole("button", { name: /^模型与推理强度/ });
 
+for (const width of [1280, 390]) {
+  test(`discovers a new model while the picker and usage polling are open at ${width}px`, async ({ page }) => {
+    const backend = modelSettingsBackend();
+    await backend.attach(page.context());
+    await page.setViewportSize({ width, height: 900 });
+    try {
+      await page.goto(url);
+      await expect(trigger(page)).toContainText("模型一");
+      backend.pauseModels();
+      await trigger(page).click();
+      await page.getByRole("button", { name: "选择模型", exact: true }).click();
+      await expect(page.getByRole("menuitemradio", { name: "模型一" })).toBeEnabled();
+      const beats = Number(await page.getByLabel("刷新次数").textContent());
+      await expect.poll(async () => Number(await page.getByLabel("刷新次数").textContent())).toBeGreaterThan(beats);
+      await expect(page.getByText("正在刷新用量")).toBeVisible();
+      backend.addModel("gpt-6.1-sol");
+      backend.releaseModels();
+      await page.getByRole("menuitemradio", { name: "gpt-6.1-sol" }).click();
+      await expect(trigger(page)).toContainText("gpt-6.1-sol");
+      expect((await page.locator(".ant-popover-inner").boundingBox())!.width).toBeLessThanOrEqual(400);
+      await page.screenshot({ path: `../../.codex-tmp/model-catalog-${width}.png`, animations: "disabled" });
+    } finally { backend.releaseModels(); backend.releaseUsage(); }
+  });
+}
+
 async function choose(page: Page, model: string, effort: "low" | "xhigh") {
   await trigger(page).click();
   await page.getByRole("button", { name: "选择模型", exact: true }).click();

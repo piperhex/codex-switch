@@ -12,6 +12,8 @@ test("renders Markdown with relative assets and keeps original actions in the to
   await expect(page.locator(".katex")).toBeVisible();
   await page.getByRole("button", { name: "预览文件：C:/project/docs/settings.yaml" }).click();
   await expect(page.locator("body")).toHaveAttribute("data-opened", /"line":2/);
+  await expect(page.getByLabel("文件内容", { exact: true })).toContainText("name: preview");
+  await page.getByRole("button", { name: "预览文件：C:/project/docs/项目说明.md", exact: true }).click();
   await page.getByRole("button", { name: "文件操作：C:/project/docs/项目说明.md" }).click();
   await expect(page.getByRole("menuitem", { name: "另存为…", exact: true })).toBeVisible();
   await page.getByRole("menuitem", { name: "在 VS Code 中打开", exact: true }).click();
@@ -50,6 +52,10 @@ test("videos play, pause and seek using browser controls", async ({ page }) => {
   await video.evaluate((element: HTMLVideoElement) => { element.pause(); element.currentTime = element.duration / 2; });
   await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.seeking)).toBe(false);
   expect(await video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeGreaterThan(0);
+  await video.evaluate((element: HTMLVideoElement) => element.play());
+  await page.getByRole("tab", { name: "文件更改" }).click();
+  expect(await video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
+  await page.getByRole("tab", { name: "预览", exact: true }).click();
   await page.screenshot({ path: "../../.codex-tmp/file-preview-video.png" });
 });
 
@@ -73,7 +79,7 @@ test("large highlighted files keep the menu responsive and navigate to the refer
 test("image sizing and the file menu fit a narrow preview window", async ({ page }) => {
   await page.setViewportSize({ width: 540, height: 700 });
   await page.goto("/e2e/file-preview-harness.html?kind=image&dark=1");
-  await expect(page.getByRole("img")).toBeVisible();
+  await expect(page.getByRole("img", { name: "预览.svg" })).toBeVisible();
   await page.getByRole("button", { name: "原始大小" }).click();
   await page.getByRole("button", { name: "适应窗口" }).click();
   await page.getByRole("button", { name: /文件操作：/ }).click();
@@ -81,4 +87,53 @@ test("image sizing and the file menu fit a narrow preview window", async ({ page
   await expect(menu).toBeVisible();
   expect((await menu.boundingBox())!.width).toBeLessThanOrEqual(400);
   await page.screenshot({ path: "../../.codex-tmp/file-preview-image-dark.png" });
+});
+
+test("file previews share the changes sidebar, resize, restore, and close without a popup", async ({ page, context }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/e2e/file-preview-harness.html");
+  const sidebar = page.getByRole("complementary", { name: "预览详情" });
+  await expect(sidebar).toBeVisible();
+  expect(context.pages()).toHaveLength(1);
+  const content = page.getByRole("heading", { name: "项目说明" });
+  const before = (await sidebar.boundingBox())!;
+  const grip = page.getByRole("separator", { name: "调整详情抽屉宽度" });
+  await grip.focus(); await page.keyboard.press("ArrowLeft");
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeGreaterThan(before.width);
+  await page.getByRole("button", { name: "查看文件更改" }).click();
+  await expect(page.getByText("暂无文件更改", { exact: true })).toBeVisible();
+  await expect(content).toBeHidden();
+  await page.getByRole("tab", { name: "预览", exact: true }).click();
+  await expect(content).toBeVisible();
+  await page.getByRole("button", { name: "最小化详情抽屉" }).click();
+  await expect(sidebar).toBeHidden();
+  await page.getByRole("button", { name: "恢复预览" }).click();
+  await expect(content).toBeVisible();
+  await page.getByRole("button", { name: "展开详情抽屉" }).click();
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(1440);
+  await page.getByRole("button", { name: "还原抽屉宽度" }).click();
+  await page.screenshot({ path: "../../.codex-tmp/file-preview-sidebar.png" });
+  await page.getByRole("button", { name: "关闭详情抽屉" }).click();
+  await expect(sidebar).toHaveCount(0);
+  await expect(page.locator("body")).toHaveAttribute("data-closed", /.+/);
+});
+
+test("web links use the same sidebar with explicit browser and reload actions", async ({ page, context }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/e2e/file-preview-harness.html?kind=website");
+  await page.getByRole("link", { name: "查看网页" }).click();
+  const sidebar = page.getByRole("complementary", { name: "预览详情" });
+  await expect(sidebar).toBeVisible();
+  const frame = page.frameLocator('iframe[title="网页预览"]');
+  await expect(frame.getByRole("heading", { name: "HTML 预览" })).toBeVisible();
+  await frame.getByRole("button", { name: "试一试" }).click();
+  await expect(frame.getByRole("button", { name: "已点击" })).toBeVisible();
+  expect(context.pages()).toHaveLength(1);
+  await expect(page.getByRole("button", { name: "在浏览器中打开" })).toBeVisible();
+  await page.getByRole("button", { name: "重新加载网页" }).click();
+  await expect(frame.getByRole("button", { name: "试一试" })).toBeVisible();
+  await page.getByRole("tab", { name: "文件更改" }).click();
+  await expect(page.getByText("暂无文件更改", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "预览", exact: true }).click();
+  await page.screenshot({ path: "../../.codex-tmp/website-preview-sidebar.png" });
 });

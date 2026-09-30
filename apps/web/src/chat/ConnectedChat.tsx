@@ -145,6 +145,8 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
         : <ChatThreads state={state} controller={controller} newChat={newChat} onClose={selectedFromList}
         openSearch={() => setSearching(true)} accountPicker={accountPicker} profile={!accountPicker && <ChatProfileMenu client={controller.guiAccounts}
           deviceName={device?.name ?? t("选择电脑")} email={email} ready={ready}
+          guiTools={controller.guiTools} active={active && foreground && !searching}
+          running={state.sending || running || Object.values(state.sidebar.threads).some(thread => thread.running)}
           chooseDevice={() => { setDrawer(false); setPickingDevice(true); }}
           openTokenSummary={() => { setDrawer(false); setTokenSummary(true); }} />} />}
     </ChatSidebar>

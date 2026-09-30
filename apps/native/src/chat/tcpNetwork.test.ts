@@ -1,4 +1,4 @@
-import { createServer, type Socket } from 'node:net';
+import { createServer, type ListenOptions, type Socket } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
@@ -12,7 +12,16 @@ const mapping = vi.hoisted(() => new Map<number, number>());
 // exercises the actual Android SO_REUSEPORT implementation with the same listening/source port.
 vi.mock('react-native-tcp-socket', async () => {
   const net = await import('node:net');
-  return { default: { ...net, createConnection: (options: {
+  return { default: { ...net, createServer: (accept: (socket: Socket) => void) => {
+    const server = net.createServer(accept);
+    const listen = server.listen.bind(server);
+    // Port reuse is simulated below; Node rejects native reusePort listeners on Windows.
+    server.listen = ((options: ListenOptions, callback?: () => void) => {
+      expect(options.reusePort).toBe(true);
+      return listen({ ...options, reusePort: false }, callback);
+    }) as typeof server.listen;
+    return server;
+  }, createConnection: (options: {
     localPort: number; host: string; port: number; reusePort: boolean;
   }, callback: () => void) => {
     expect(options.reusePort).toBe(true);

@@ -11,6 +11,7 @@ interface ModelPickerProps extends ModelSelection {
   models: Model[];
   disabled: boolean;
   onChange: (selection: ModelSelection) => void;
+  onOpen?: () => void;
 }
 
 function moveModelFocus(event: KeyboardEvent<HTMLDivElement>) {
@@ -69,7 +70,7 @@ export function ModelPicker(props: ModelPickerProps) {
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
   const changeOpen = (next: boolean) => {
     setOpen(next);
-    if (next) setChoosingModel(false);
+    if (next) { setChoosingModel(false); props.onOpen?.(); }
   };
   const selectModel = (value: string) => {
     onChange(resolveModelSelection(models, { model: value, effort: "" }));

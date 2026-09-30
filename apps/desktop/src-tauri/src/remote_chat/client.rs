@@ -7,7 +7,7 @@ use std::{
 };
 
 use serde::Deserialize;
-use tauri::{ipc::Channel, AppHandle, Manager, WebviewWindow};
+use tauri::{ipc::Channel, AppHandle, Manager, Webview};
 use tokio::sync::{mpsc, watch, Mutex};
 
 use super::{bridge::Batch, config::Config, protocol::Outgoing, AckRequest, ClientRequest};
@@ -114,7 +114,7 @@ struct ClientState {
     configs: watch::Receiver<Option<Config>>,
 }
 
-fn require_main(window: &WebviewWindow) -> Result<(), String> {
+fn require_main(window: &Webview) -> Result<(), String> {
     if window.label() != "main" {
         return Err("请在主窗口选择电脑。".into());
     }
@@ -124,7 +124,7 @@ fn require_main(window: &WebviewWindow) -> Result<(), String> {
 #[tauri::command]
 pub(crate) async fn gui_remote_open(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: OpenRequest,
     events: Channel<Batch>,
 ) -> Result<(), String> {
@@ -172,7 +172,7 @@ async fn submit(app: AppHandle, client_id: String, command: ClientCommand) -> Re
 #[tauri::command]
 pub(crate) async fn gui_remote_send(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: RemoteSendRequest,
 ) -> Result<(), String> {
     require_main(&window)?;
@@ -183,7 +183,7 @@ pub(crate) async fn gui_remote_send(
 #[tauri::command]
 pub(crate) async fn gui_remote_ack(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: AckRequest,
 ) -> Result<(), String> {
     require_main(&window)?;
@@ -193,7 +193,7 @@ pub(crate) async fn gui_remote_ack(
 #[tauri::command]
 pub(crate) async fn gui_remote_close(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: ClientRequest,
 ) -> Result<(), String> {
     require_main(&window)?;

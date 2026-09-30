@@ -69,6 +69,26 @@ it("updates an open menu and accepts selections while usage polling waits for a 
   expect(controller.getSnapshot().settings.model).toBe("deepseek-v3");
 });
 
+it("keeps an open picker usable while refreshing and then displays the new model", async () => {
+  const onChange = vi.fn();
+  let finish!: (models: Model[]) => void;
+  const pending = new Promise<Model[]>((resolve) => { finish = resolve; });
+  const onOpen = vi.fn(() => { void pending.then(render); });
+  const render = (catalog: Model[]) => root.render(<ModelPicker models={catalog} model={models[0].model}
+    effort="high" disabled={false} onChange={onChange} onOpen={onOpen} />);
+  await act(async () => render([models[0]]));
+  await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+  await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="选择模型"]')!.click());
+  expect(onOpen).toHaveBeenCalledOnce();
+  const released = { ...models[1], id: "gpt-6.1-sol", model: "gpt-6.1-sol", displayName: "GPT-6.1 Sol" };
+  await act(async () => finish([models[0], released]));
+  const option = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'))
+    .find((button) => button.textContent === "GPT-6.1 Sol")!;
+  expect(option.disabled).toBe(false);
+  await act(async () => option.click());
+  expect(onChange).toHaveBeenCalledWith({ model: "gpt-6.1-sol", effort: "high" });
+});
+
 it("shows a concrete initial selection and restores the recommended effort by name", async () => {
   const catalog = [{ ...models[0], displayName: "Kimi K3",
     supportedReasoningEfforts: ["low", "high", "max"].map((reasoningEffort) => ({ reasoningEffort, description: "" })) }];

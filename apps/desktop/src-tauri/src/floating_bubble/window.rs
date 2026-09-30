@@ -74,7 +74,7 @@ fn restored_or_default_position<R: Runtime>(
     }
 
     let monitor = app
-        .get_webview_window("main")
+        .get_window("main")
         .and_then(|window| window.current_monitor().ok().flatten())
         .or_else(|| app.primary_monitor().ok().flatten());
     let Some(monitor) = monitor else {

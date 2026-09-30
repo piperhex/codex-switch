@@ -43,17 +43,16 @@ export function useComposerAttachments({ threadId, sending }: { threadId: string
         && /文件|附件/.test(cause.message) ? cause.message : '文件添加失败，请重新选择。');
     } finally { picking.current = false; if (mounted.current) setBusy(false); }
   };
-  const addPlugin = (plugin: ComposerPlugin) => {
-    const item: AttachmentReference = { kind: 'plugin', name: plugin.interface?.displayName || plugin.name,
-      path: `plugin://${plugin.id}` };
-    try { setItems(remoteAttachments([...items.filter((entry) => entry.path !== item.path), item])); setError(''); }
-    catch { setError('每条消息最多添加 8 个文件或插件。'); }
+  const add = (item: AttachmentReference) => {
+    if (sending || picking.current) return false;
+    try {
+      setItems(remoteAttachments([...items.filter((entry) => entry.path !== item.path), item])); setError('');
+      return true;
+    } catch { setError('每条消息最多添加 8 个附件或对话引用。'); return false; }
   };
-  const addFile = (item: AttachmentReference) => {
-    try { setItems(remoteAttachments([...items.filter((entry) => entry.path !== item.path), item])); setError(''); }
-    catch { setError('每条消息最多添加 8 个文件或插件。'); }
-  };
-  return { items, busy, error, pick, addPlugin, addFile, restore: setItems,
+  return { items, busy, error, pick, add,
+    addPlugin: (plugin: ComposerPlugin) => add({ kind: 'plugin', name: plugin.interface?.displayName || plugin.name,
+      path: `plugin://${plugin.id}` }), restore: setItems,
     remove: (item: AttachmentReference) => setItems((current) => current.filter((entry) => entry !== item)),
     clearSubmitted: (submitted: AttachmentReference[]) =>
       setItems((current) => current.filter((entry) => !submitted.includes(entry))) };

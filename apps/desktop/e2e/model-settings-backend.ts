@@ -1,12 +1,16 @@
 import type { BrowserContext } from "@playwright/test";
 import type { ModelSettingsSnapshot } from "../src/pages/codexGui/threadModelSettings";
 import type { ModelSelection } from "../src/pages/codexGui/modelSelection";
+import type { QueueSnapshot } from "../src/pages/codexGui/queueJournal";
 
 export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpdate"]) {
   const saved = new Map<string | null, ModelSettingsSnapshot>();
   const events: { name: string; payload: unknown }[] = [];
   const sends: Record<string, unknown>[] = [];
   const usage: (() => void)[] = [];
+  const pendingModels: (() => void)[] = [];
+  let modelsPaused = false;
+  let queue: QueueSnapshot = { revision: 0, threads: {} };
   const thread = (id: string) => ({ id, cwd: "", preview: id, updatedAt: 1, turns: [] });
   const models = ["first", "second"].map((model, index) => ({ id: model, model,
     displayName: index === 0 ? "模型一" : "模型二", isDefault: index === 0, defaultReasoningEffort: "medium",
@@ -17,11 +21,16 @@ export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpd
     await context.route("**/__codex_switch__/api/invoke", async (route) => {
       const { command, args } = route.request().postDataJSON() as {
         command: string; args: { threadId?: string; selection: ModelSelection;
-          cursor?: { sequence: number }; request: Record<string, unknown> };
+          cursor?: { sequence: number }; request: Record<string, unknown>; snapshot: QueueSnapshot };
       };
       let result: unknown = {};
       const threadId = args.threadId ?? null;
       if (command === "codex_gui_connect") result = [];
+      if (command === "codex_gui_queue_read") result = queue;
+      if (command === "codex_gui_queue_save") {
+        queue = { ...args.snapshot, revision: queue.revision + 1 };
+        result = queue;
+      }
       if (command === "codex_gui_model_settings") {
         result = saved.get(threadId) ?? { threadId, selection: null, revision: 0 };
       }
@@ -36,7 +45,10 @@ export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpd
       if (command === "codex_gui_request") {
         const request = args.request;
         let data: unknown = {};
-        if (request.operation === "models") data = { data: models, nextCursor: null };
+        if (request.operation === "models") {
+          if (modelsPaused) await new Promise<void>((resolve) => pendingModels.push(resolve));
+          data = { data: models, nextCursor: null };
+        }
         if (request.operation === "list") data = { data: [thread("a"), thread("b")], nextCursor: null };
         if (["read", "resume", "start"].includes(String(request.operation))) {
           data = { thread: thread(String(request.threadId ?? "created")) };
@@ -53,7 +65,10 @@ export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpd
       await route.fulfill({ json: { ok: true, result } });
     });
   }
-  return { attach, sends, startTurn: (threadId: string) => events.push({ name: "codex-gui-event",
+  return { attach, sends, pauseModels: () => { modelsPaused = true; },
+    addModel: (model: string) => models.push({ ...models[0], id: model, model, displayName: model, isDefault: false }),
+    releaseModels: () => { modelsPaused = false; pendingModels.splice(0).forEach((resolve) => resolve()); },
+    startTurn: (threadId: string) => events.push({ name: "codex-gui-event",
     payload: { method: "turn/started", params: { threadId,
       turn: { id: "live", status: "inProgress", items: [] } } } }), releaseUsage: () => usage.splice(0).forEach((resolve) => resolve()) };
 }

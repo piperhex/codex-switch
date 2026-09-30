@@ -1,4 +1,23 @@
 export const app = {
+  "更新 Codex GUI": "Update Codex GUI",
+  "安装 Codex GUI 更新": "Install Codex GUI update",
+  "检查并更新当前电脑上的 Codex GUI": "Check and update Codex GUI on this computer",
+  "当前电脑": "Current computer",
+  "确认安装": "Confirm installation",
+  "将在这台电脑上更新 Codex GUI，完成后自动重新连接。":
+    "Codex GUI will update on this computer and reconnect automatically when finished.",
+  "Codex GUI 已是最新版本。": "Codex GUI is up to date.",
+  "正在读取版本…": "Reading version…",
+  "电脑上还有聊天任务在运行，请等任务完成后再安装。":
+    "Chat tasks are still running on this computer. Wait for them to finish before installing.",
+  "正在安装，即将完成…": "Installing, almost done…",
+  "连接电脑后即可检查和安装更新。": "Connect to your computer to check and install updates.",
+  "无法读取远程 Codex 版本，请确认远程电脑已更新 Remote AI。":
+    "Could not read the Codex version. Make sure Remote AI is up to date on your computer.",
+  "未能检查远程 Codex 版本，请稍后重试。": "Could not check for Codex updates. Try again later.",
+  "远程 Codex 更新未完成，请稍后重试。": "The Codex update did not finish. Try again later.",
+  "远程电脑上还有任务在运行，请等任务完成后再试。":
+    "Tasks are still running on your computer. Wait for them to finish and try again.",
   "切换目标": "Switch target",
   "代理接口模型": "Proxy API model",
   "代理接口": "Proxy API",

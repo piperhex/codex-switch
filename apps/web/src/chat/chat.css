@@ -83,6 +83,7 @@ html:has(.app-shell.chat-active), body:has(.app-shell.chat-active) { overscroll-
 .chat-project-picker { max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
 .chat-project-path { overflow-wrap: anywhere; }
 .chat-project-folders { max-height: 340px; }
+.chat-project-folders .chat-ellipsis { font-size: 15px; line-height: 1.5; padding-block: 2px; }
 .chat-project-folders svg { flex-shrink: 0; }
 @keyframes chat-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .chat-spinner { animation-duration: 3s; } }

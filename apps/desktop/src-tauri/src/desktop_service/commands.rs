@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager, Webview};
 use windows_service::service::ServiceState;
 
 #[derive(Serialize)]
@@ -23,7 +23,7 @@ fn status() -> Result<ServiceStatus> {
         running: service.is_some_and(|value| value.current_state == ServiceState::Running),
     })
 }
-fn local(window: &WebviewWindow) -> Result<()> {
+fn local(window: &Webview) -> Result<()> {
     if window.label() == "main" {
         Ok(())
     } else {
@@ -33,7 +33,7 @@ fn local(window: &WebviewWindow) -> Result<()> {
 
 #[tauri::command]
 pub(crate) async fn remote_desktop_service_status(
-    window: WebviewWindow,
+    window: Webview,
 ) -> std::result::Result<ServiceStatus, String> {
     local(&window).map_err(|error| error.to_string())?;
     tauri::async_runtime::spawn_blocking(status)
@@ -44,7 +44,7 @@ pub(crate) async fn remote_desktop_service_status(
 #[tauri::command]
 pub(crate) async fn remote_desktop_service_install(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
 ) -> std::result::Result<ServiceStatus, String> {
     local(&window).map_err(|error| error.to_string())?;
     tauri::async_runtime::spawn_blocking(move || {
@@ -65,7 +65,7 @@ pub(crate) async fn remote_desktop_service_install(
 }
 #[tauri::command]
 pub(crate) async fn remote_desktop_service_uninstall(
-    window: WebviewWindow,
+    window: Webview,
 ) -> std::result::Result<ServiceStatus, String> {
     local(&window).map_err(|error| error.to_string())?;
     tauri::async_runtime::spawn_blocking(|| {

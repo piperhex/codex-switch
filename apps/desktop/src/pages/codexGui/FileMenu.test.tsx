@@ -7,7 +7,8 @@ import { message } from "antd";
 import { FileMenu } from "./FileMenu";
 import { FileThreadContext, fileApi } from "./fileApi";
 import { RichText } from "./RichText";
-import { filePreviewApi } from "./filePreview/api";
+import { filePreviewApi, type FilePreviewData } from "./filePreview/api";
+import { DetailsWorkspace } from "./DetailsWorkspace";
 
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: vi.fn(() => true), invoke: vi.fn() }));
 let root: Root;
@@ -31,7 +32,10 @@ beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.mocked(isTauri).mockReturnValue(true);
   vi.spyOn(fileApi, "applications").mockResolvedValue(applications);
-  vi.spyOn(filePreviewApi, "open").mockResolvedValue(true);
+  vi.spyOn(filePreviewApi, "open").mockResolvedValue({ sessionId: "preview", path: "config.yaml", name: "config.yaml",
+    kind: "text", text: "enabled: true", url: "" });
+  vi.spyOn(filePreviewApi, "close").mockResolvedValue();
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
   vi.spyOn(fileApi, "perform").mockResolvedValue({ path: "C:/project/report.txt", text: "文件内容", saved: true });
   vi.spyOn(message, "success").mockImplementation(() => Object.assign(() => {}, { then: vi.fn() }));
   vi.spyOn(message, "error").mockImplementation(() => Object.assign(() => {}, { then: vi.fn() }));
@@ -126,9 +130,10 @@ it("preserves literal URL punctuation in paths supplied by edited-file cards", a
 });
 
 it("previews Markdown resources directly and preserves the original menu on right click", async () => {
-  await act(async () => root.render(<FileThreadContext.Provider value="thread-one">
+  await act(async () => root.render(<DetailsWorkspace selected="thread-one" active>
+    <FileThreadContext.Provider value="thread-one">
     <RichText text="[配置](./config.yaml#L12C3)" />
-  </FileThreadContext.Provider>));
+  </FileThreadContext.Provider></DetailsWorkspace>));
   await click(trigger());
   expect(filePreviewApi.open).toHaveBeenCalledWith({ path: "./config.yaml", line: 12, column: 3,
     threadId: "thread-one" });
@@ -138,12 +143,13 @@ it("previews Markdown resources directly and preserves the original menu on righ
 });
 
 it("opens the original menu for unsupported files and prevents duplicate preview requests", async () => {
-  let resolve!: (supported: boolean) => void;
+  let resolve!: (data: FilePreviewData | null) => void;
   vi.mocked(filePreviewApi.open).mockReturnValue(new Promise(done => { resolve = done; }));
-  await act(async () => root.render(<FileMenu path="archive.zip" preview>归档</FileMenu>));
+  await act(async () => root.render(<DetailsWorkspace selected="thread-one" active>
+    <FileMenu path="archive.zip" preview>归档</FileMenu></DetailsWorkspace>));
   await click(trigger()); await click(trigger());
   expect(filePreviewApi.open).toHaveBeenCalledOnce();
-  await act(async () => resolve(false));
+  await act(async () => resolve(null));
   expect(item("打开文件")).toBeTruthy();
   expect(trigger().disabled).toBe(false);
 });

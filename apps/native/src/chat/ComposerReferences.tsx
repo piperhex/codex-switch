@@ -5,6 +5,8 @@ import type { AttachmentReference } from '../../../desktop/src/pages/codexGui/at
 import { itemUploadProgress, type UploadProgress } from '../../../../shared/remote-chat/uploadProgress';
 import { ComposerUploadProgress } from './ComposerUploadProgress';
 
+const referenceIcons = { file: 'file-text', folder: 'folder', plugin: 'box', conversation: 'message-square' } as const;
+
 export function ComposerReferences({ items, disabled, remove, upload, reconnecting }: {
   items: AttachmentReference[]; disabled: boolean; remove: (item: AttachmentReference) => void;
   upload?: UploadProgress; reconnecting?: boolean;
@@ -15,11 +17,12 @@ export function ComposerReferences({ items, disabled, remove, upload, reconnecti
     onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
     contentContainerStyle={referenceStyles.list}>
     {items.map((item, index) => <View key={`${item.path}:${index}`} style={referenceStyles.item}>
-      <Feather name={item.kind === 'plugin' ? 'box' : 'file-text'} size={18} color="#555" />
-      <Text numberOfLines={1} style={referenceStyles.name}>{item.name}</Text>
+      <Feather name={referenceIcons[item.kind]} size={18} color="#555" />
+      <Text numberOfLines={1} style={referenceStyles.name}>{item.kind === 'conversation' ? `@${item.name}` : item.name}</Text>
       {!!item.data && <ComposerUploadProgress inline progress={itemUploadProgress(upload, 'attachment', index)}
         reconnecting={reconnecting} />}
-      <Pressable accessibilityRole="button" accessibilityLabel={`移除附件 ${item.name}`}
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={`移除${item.kind === 'conversation' ? '对话引用' : '附件'} ${item.name}`}
         disabled={disabled} onPress={() => remove(item)} hitSlop={8} style={referenceStyles.remove}>
         <Feather name="x" size={16} color="#666" />
       </Pressable>

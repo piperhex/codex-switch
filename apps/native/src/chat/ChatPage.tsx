@@ -124,6 +124,8 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
     navigation={<ChatThreads state={state} controller={controller} newChat={newChat}
       openSearch={() => setSearching(true)}
       profileMenu={<ChatProfileMenu client={controller.guiAccounts} deviceName={device?.name} email={session.email}
+        guiTools={controller.guiTools}
+        running={state.sending || running || Object.values(state.sidebar.threads).some(thread => thread.running)}
         chooseDevice={() => closeDrawer(() => setPickingDevice(true))}
         openTokenSummary={() => closeDrawer(openTokenSummary)}
         ready={ready} active={active && foreground && drawer && !searching} />}
@@ -186,6 +188,7 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
       contextSettings={controller.contextSettings}
       readUsage={controller.readUsage} usageActive={foreground && ready} tokenUsage={state.selected?.tokenUsage}
       loadCatalog={controller.loadComposerCatalog} loadFiles={controller.loadProjectFiles}
+      loadConversations={controller.searchThreads}
       catalog={catalog} cwd={state.selected?.cwd ?? state.draftProject?.cwd ?? ''}
       compactReason={compactUnavailableReason(state)} compacting={!!state.compacting
         && state.compacting === state.selected?.id} compact={controller.compact}

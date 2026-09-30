@@ -3,12 +3,13 @@ import { message } from "antd";
 import { isTauri } from "@tauri-apps/api/core";
 import { fileApi, FileThreadContext, type FileAction, type FileApplication } from "./fileApi";
 import type { FileReference } from "./fileReference";
-import { filePreviewApi } from "./filePreview/api";
+import { DetailsContext } from "./detailsContext";
 
 const FEEDBACK_STYLE = { maxWidth: 400, marginInline: "auto" };
 
 export function useFileMenu(target: FileReference) {
   const threadId = useContext(FileThreadContext);
+  const panel = useContext(DetailsContext);
   const desktop = isTauri();
   const [open, setOpen] = useState(false);
   const [applications, setApplications] = useState<FileApplication[]>([]);
@@ -51,7 +52,7 @@ export function useFileMenu(target: FileReference) {
     if (flight.current) return;
     flight.current = true; setBusy(true); setOpen(false);
     try {
-      if (!await filePreviewApi.open({ ...target, threadId })) setOpen(true);
+      if (!panel || !await panel.openFile({ ...target, threadId })) setOpen(true);
     } catch (error) {
       setOpen(true);
       void message.error({ content: typeof error === "string" ? error : "预览未能打开，请选择其他打开方式。",

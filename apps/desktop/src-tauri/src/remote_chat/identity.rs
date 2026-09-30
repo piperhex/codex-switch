@@ -64,7 +64,7 @@ fn sign_key(session: &str, payload: &mut Value) -> Result<(), IdentityError> {
 }
 
 #[tauri::command]
-pub(crate) async fn remote_chat_identity(window: tauri::WebviewWindow) -> Result<String, String> {
+pub(crate) async fn remote_chat_identity(window: tauri::Webview) -> Result<String, String> {
     if window.label() != "main" {
         return Err(IdentityError::Invalid.to_string());
     }

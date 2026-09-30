@@ -20,6 +20,7 @@ pub(super) enum PreviewKind {
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PreviewData {
+    pub(super) session_id: String,
     pub(super) path: String,
     pub(super) name: String,
     pub(super) kind: PreviewKind,
@@ -52,6 +53,7 @@ pub(super) fn load(path: &Path) -> Result<Option<PreviewData>> {
         None
     };
     Ok(Some(PreviewData {
+        session_id: String::new(),
         path: super::super::platform::execution_path(path),
         name: path
             .file_name()

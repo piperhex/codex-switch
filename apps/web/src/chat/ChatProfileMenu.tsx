@@ -1,24 +1,28 @@
 import { t, useLanguage } from '../i18n';
-import { useState } from 'react';
-import { BarChart3, Monitor, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { BarChart3, Download, Monitor, User } from 'lucide-react';
 import { AdaptiveSheet } from '../components/AdaptiveSheet';
 import type { GuiAccountChoice, GuiAccountsClient } from '../../../../shared/remote-chat/guiAccounts';
 import { useGuiAccounts } from '../../../../shared/remote-chat/client/useGuiAccounts';
+import type { GuiToolsClient } from '../../../../shared/remote-chat/guiTools';
+import { ChatGuiUpdateSheet } from './ChatGuiUpdateSheet';
 
 const ACCOUNT_REFRESH_MS = 60_000;
 export interface ChatConnectionProps {
   client: GuiAccountsClient; deviceName: string; chooseDevice: () => void;
 }
-type Props = ChatConnectionProps & { ready: boolean } & (
-  { variant: 'settings' } | { variant?: 'avatar'; email: string; openTokenSummary: () => void }
+type Props = ChatConnectionProps & { ready: boolean; active?: boolean } & (
+  { variant: 'settings' } | { variant?: 'avatar'; email: string; openTokenSummary: () => void;
+    guiTools: GuiToolsClient; running: boolean }
 );
 
 export function ChatProfileMenu(props: Props) {
-  const { client, deviceName, ready, chooseDevice } = props;
+  const { client, deviceName, ready, chooseDevice, active = true } = props;
   const settings = props.variant === 'settings';
   useLanguage();
-  const [panel, setPanel] = useState<'profile' | 'accounts' | null>(null);
+  const [panel, setPanel] = useState<'profile' | 'accounts' | 'update' | null>(null);
   const [query, setQuery] = useState('');
+  useEffect(() => { if (!active) setPanel(null); }, [active]);
   const accounts = useGuiAccounts(client, ready, panel === 'accounts' ? ACCOUNT_REFRESH_MS : 0);
   const selection = accounts.snapshot?.selection;
   const current = accounts.snapshot?.choices.find(choice => selection?.kind === choice.kind && selection.id === choice.id);
@@ -43,12 +47,20 @@ export function ChatProfileMenu(props: Props) {
     {settings ? connectionOptions : <button type="button" className="chat-profile-avatar"
       aria-label={t("打开头像菜单")} aria-expanded={panel !== null} onClick={() => setPanel('profile')}>
       {Array.from(current?.name.trim() || '').slice(0, 2).join('') || t("我")}</button>}
-    {panel && <AdaptiveSheet open title={panel === 'accounts' ? t("切换账户") : t("账户与电脑")} width={400}
+    {panel === 'update' && active && props.variant !== 'settings' && <ChatGuiUpdateSheet client={props.guiTools}
+      active={active} connected={ready} running={props.running} deviceName={deviceName}
+      onClose={close} onBack={() => setPanel('profile')} />}
+    {panel && panel !== 'update' && <AdaptiveSheet open
+      title={panel === 'accounts' ? t("切换账户") : t("账户与电脑")} width={400}
       subtitle={panel === 'accounts' ? t("与电脑共用当前聊天账户") : undefined} onClose={close}
       onBack={panel === 'accounts' && !accounts.saving ? () => setPanel(settings ? null : 'profile') : undefined}>
       {panel === 'profile' && props.variant !== 'settings' ? <div className="chat-detail-stack">
         <p className="chat-muted">{props.email}</p>
         {connectionOptions}
+        <button type="button" className="chat-profile-option" aria-label={t("更新 Codex GUI")}
+          onClick={() => setPanel('update')}><Download size={22} /><span className="chat-grow">
+            <strong>{t("更新 Codex GUI")}</strong><small>{t("检查并更新当前电脑上的 Codex GUI")}</small>
+          </span><span>›</span></button>
         <button type="button" className="chat-profile-option" aria-label={t("Token 汇总")}
           onClick={() => { close(); props.openTokenSummary(); }}><BarChart3 size={22} /><span className="chat-grow">
             <strong>{t("Token 汇总")}</strong><small>{t("查看用量趋势与消耗排行")}</small></span><span>›</span></button>

@@ -17,7 +17,7 @@ mod wire;
 mod tests;
 
 use serde::Deserialize;
-use tauri::{ipc::Channel, AppHandle, Manager, WebviewWindow};
+use tauri::{ipc::Channel, AppHandle, Manager, Webview};
 use tokio::sync::mpsc;
 
 use bridge::Batch;
@@ -55,7 +55,7 @@ pub(crate) struct ReconnectRequest {
     reset: bool,
 }
 
-async fn submit(app: AppHandle, window: WebviewWindow, command: Command) -> Result<(), String> {
+async fn submit(app: AppHandle, window: Webview, command: Command) -> Result<(), String> {
     if window.label() != "main" {
         return Err("请在主窗口连接手机聊天。".into());
     }
@@ -73,7 +73,7 @@ async fn submit(app: AppHandle, window: WebviewWindow, command: Command) -> Resu
 #[tauri::command]
 pub(crate) async fn remote_chat_attach(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: ClientRequest,
     events: Channel<Batch>,
 ) -> Result<(), String> {
@@ -92,7 +92,7 @@ pub(crate) async fn remote_chat_attach(
 #[tauri::command]
 pub(crate) async fn remote_chat_send(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     mut request: SendRequest,
 ) -> Result<(), String> {
     if window.label() != "main" {
@@ -124,7 +124,7 @@ pub(crate) async fn remote_chat_send(
 #[tauri::command]
 pub(crate) async fn remote_chat_ack(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: AckRequest,
 ) -> Result<(), String> {
     submit(app, window, Command::Ack(request)).await
@@ -133,7 +133,7 @@ pub(crate) async fn remote_chat_ack(
 #[tauri::command]
 pub(crate) async fn remote_chat_reconnect(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: ReconnectRequest,
 ) -> Result<(), String> {
     submit(app, window, Command::Reconnect(request)).await
@@ -142,7 +142,7 @@ pub(crate) async fn remote_chat_reconnect(
 #[tauri::command]
 pub(crate) async fn remote_chat_detach(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     request: ClientRequest,
 ) -> Result<(), String> {
     submit(app, window, Command::Detach(request.client_id)).await

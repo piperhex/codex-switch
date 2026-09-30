@@ -29,7 +29,8 @@ function Harness() {
     <Messages selected={state.selected} value={state.selected ? state.conversations[state.selected] : undefined} />
     <section><textarea aria-label="聊天消息" value={text} onChange={(event) => setText(event.target.value)} />
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-        <ModelPicker models={state.models} {...state.settings} disabled={false} onChange={controller.settings} />
+        <ModelPicker models={state.models} {...state.settings} disabled={false} onChange={controller.settings}
+          onOpen={() => void controller.modelCatalog.refresh().catch(controller.report)} />
         <ComposerSubmit state={state} controller={controller} hasDraft={Boolean(text.trim())}
           reading={Boolean(state.modelSettingsLoading)} onSend={async () => {
             if (await controller.send(text, [])) setText("");

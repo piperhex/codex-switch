@@ -37,6 +37,16 @@ GUI conversations support the upstream MCP tool confirmation form with single-us
 site access and tool approval remain separate controls. Chrome webpage tasks prefer the Chrome skill,
 which explicitly checks tool availability instead of assuming that an installed skill provides tools.
 
+For a website task with no connection to the requested profile, the skill and MCP instructions first
+direct the agent to inspect whether Chrome is running through available app/process tools. If Chrome
+is closed and the integration was not explicitly paused or disabled, the agent launches installed
+Chrome once, preferably in the background or minimized, and retries `browser_list` for up to 30 seconds.
+Work resumes only after the requested profile connects and is not paused. An already-running browser
+without that connection, unavailable inspection/launch tools, an unclear profile or an expired wait
+requires user help. Agents preserve profiles, pause state and permissions, and never restart a running
+browser to recover a connection. `browser_list` itself remains a read-only discovery tool; launching
+Chrome uses a separate app/process tool and its existing approval rules.
+
 The primary setup button opens the official listing directly in Chrome, without changing the clipboard.
 Store installations receive updates through Chrome Web Store. The setup dialog is 448 pixels wide,
 with at most 400 pixels of content, and adapts to narrow windows. Launch failures remain visible inside the dialog.

@@ -59,13 +59,18 @@ fn handle_selected<R: Runtime>(request: GuiProxyRequest<'_, R>) -> Result<Upstre
     if *request.method == Method::Get
         && matches!(request_path(request.url), "/models" | "/v1/models")
     {
-        let selection = account_selection::read(request.app).map_err(|error| error.to_string())?;
-        let target = selected_target(request.app, &selection)?;
-        let account_id = match &selection {
+        let snapshot =
+            account_selection::snapshot(request.app).map_err(|error| error.to_string())?;
+        let target = selected_target(request.app, &snapshot.selection)?;
+        let account_id = match &snapshot.selection {
             GuiAccountSelection::Account(id) => Some(id.as_str()),
             _ => None,
         };
-        return models(&request, &target, account_id);
+        let payload = models(&request, &target, account_id)?;
+        // A slow response from a previous account must not repopulate the CLI's catalog cache.
+        return account_selection::with_current(request.app, snapshot.revision, || payload)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "账户已切换，请重新刷新模型列表。".to_string());
     }
     super::gui_forwarding::forward(request)
 }

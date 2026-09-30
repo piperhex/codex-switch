@@ -36,7 +36,8 @@ export function ComposerProjectFiles({ threadId, cwd, imagesOnly, load, choose, 
       {!loading && !error && <div className="chat-project-file-list chat-scroll">
         {result?.entries.map(file => <button type="button" className="chat-thread" key={file.path}
           onClick={() => file.directory ? setDirectory(file.path) : choose(file)}>
-          {file.directory ? <Folder size={18} /> : <File size={18} />}<span>{file.name}</span></button>)}
+          {file.directory ? <Folder size={18} /> : <File size={18} />}
+          <span className="chat-grow chat-ellipsis">{file.name}</span></button>)}
         {!result?.entries.length && <p className="chat-muted">{t("此目录没有可选的")}{imagesOnly ? t("照片") : t("文件")}</p>}
         {result?.truncated && <p className="chat-muted">{t("文件较多，请进入具体目录查找。")}</p>}
       </div>}

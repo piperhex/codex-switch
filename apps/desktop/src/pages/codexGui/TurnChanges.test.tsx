@@ -9,7 +9,8 @@ import type { Conversation, Item, Turn } from "./types";
 
 let root: Root;
 let container: HTMLDivElement;
-const panel = { open: vi.fn(), update: vi.fn(), close: vi.fn(), visible: false };
+const panel = { open: vi.fn(), update: vi.fn(), close: vi.fn(), visible: false, showingChanges: true,
+  openFile: vi.fn(), openWebsite: vi.fn(), setConversationChanges: vi.fn() };
 const patch = "@@ -1 +1,2 @@\n-old\n+new\n+extra\n";
 const netDiff = `diff --git a/src/example.ts b/src/example.ts
 --- a/src/example.ts

@@ -127,6 +127,7 @@ pub(crate) fn compare_and_switch<R: Runtime>(
             .path()
             .app_data_dir()
             .map_err(|_| SelectionError::Storage)?;
+        expire_model_cache(app)?;
         let updated = save(&root.join(FILE_NAME), selection)?;
         super::web::publish(app, CHANGED_EVENT, selection);
         Ok(updated)
@@ -212,9 +213,15 @@ pub(crate) fn switch_account<R: Runtime>(
         .path()
         .app_data_dir()
         .map_err(|_| SelectionError::Storage)?;
+    expire_model_cache(app)?;
     save(&root.join(FILE_NAME), &selection)?;
     super::web::publish(app, CHANGED_EVENT, &selection);
     Ok(selection)
+}
+
+fn expire_model_cache<R: Runtime>(app: &AppHandle<R>) -> Result<(), SelectionError> {
+    let home = crate::codex_home::gui_home(app).map_err(|_| SelectionError::Storage)?;
+    super::home::clear_model_cache(&home).map_err(|_| SelectionError::Storage)
 }
 
 #[cfg(test)]

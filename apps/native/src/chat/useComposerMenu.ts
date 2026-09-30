@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { TextInput } from 'react-native';
 import type { useChatDraft } from '../../../../shared/remote-chat/client/useChatDraft';
 import type { TextSelection } from '../../../../shared/remote-chat/client/skillDraft';
-import { insertPluginTrigger, nativeComposerTrigger } from './composerTrigger';
+import { composerMenuTrigger } from './composerTrigger';
 import type { Skill } from './types';
 
 interface Options {
@@ -18,29 +18,30 @@ export function useComposerMenu({ draft, scope, active, refresh, compact }: Opti
   const focusFrame = useRef<number | null>(null);
   const [selection, setSelection] = useState<TextSelection>({ start: 0, end: 0 });
   const [expanded, setExpanded] = useState(false);
+  const [pickingPlugins, setPickingPlugins] = useState(false);
   const [dismissed, setDismissed] = useState('');
   const range = { start: Math.min(selection.start, draft.text.length),
     end: Math.min(selection.end, draft.text.length) };
-  const trigger = nativeComposerTrigger(draft.text, range);
+  const trigger = composerMenuTrigger(draft.text, range);
   const triggerKey = trigger ? JSON.stringify(trigger) : '';
   const open = active && (expanded || (!!trigger && triggerKey !== dismissed));
-  useEffect(() => { setExpanded(false); setDismissed(triggerKey); }, [scope, active]);
+  const conversations = Boolean(trigger?.conversations) && !pickingPlugins;
+  useEffect(() => { setExpanded(false); setPickingPlugins(false); setDismissed(triggerKey); }, [scope, active]);
   useEffect(() => { if (!triggerKey) setDismissed(''); }, [triggerKey]);
-  useEffect(() => { if (open) refresh(); }, [open, refresh]);
+  useEffect(() => { if (open && !conversations) refresh(); }, [open, conversations, refresh]);
   useEffect(() => () => {
     if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
   }, [scope, active]);
-  const close = () => { setExpanded(false); setDismissed(triggerKey); };
+  const close = () => { setExpanded(false); setPickingPlugins(false); setDismissed(triggerKey); };
   const openPlugins = () => {
-    const next = insertPluginTrigger(draft.text, trigger ?? range);
-    draft.setText(next.text); setSelection(next.selection); setDismissed(''); setExpanded(false);
+    setPickingPlugins(true); setExpanded(true);
     // Android can leave the input focused after Back hides its keyboard; refocus must cross a frame.
     if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
     input.current?.blur();
     focusFrame.current = requestAnimationFrame(() => { focusFrame.current = null; input.current?.focus(); });
   };
   const consumeTrigger = () => {
-    if (trigger) {
+    if (trigger && !pickingPlugins) {
       draft.removeText(trigger, draft.text);
       setSelection({ start: trigger.start, end: trigger.start });
     }
@@ -48,7 +49,7 @@ export function useComposerMenu({ draft, scope, active, refresh, compact }: Opti
   };
   const choose = (skill: Skill) => {
     if (!skill.enabled) return;
-    const target = trigger ?? range;
+    const target = pickingPlugins ? range : trigger ?? range;
     draft.insertSkill(target, skill);
     close();
     input.current?.focus();
@@ -62,7 +63,7 @@ export function useComposerMenu({ draft, scope, active, refresh, compact }: Opti
     if (trigger) draft.removeText(trigger, text);
     close();
   };
-  return { input, selection, setSelection, open, query: trigger?.query ?? '', skillsOnly: trigger?.skillsOnly ?? false,
-    plugins: trigger?.plugins ?? false, openPlugins, consumeTrigger,
+  return { input, selection, setSelection, open, query: pickingPlugins ? '' : trigger?.query ?? '',
+    skillsOnly: trigger?.skillsOnly ?? false, conversations, plugins: pickingPlugins, openPlugins, consumeTrigger,
     choose, close, runCompact, toggle: () => { if (open) close(); else setExpanded(true); } };
 }

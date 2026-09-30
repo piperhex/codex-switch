@@ -3,7 +3,7 @@ use std::{
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
     time::{Duration, Instant},
 };
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager, Webview};
 
 const STALE_SECONDS: u64 = 60;
 #[derive(Default)]
@@ -29,7 +29,7 @@ impl Health {
 #[tauri::command]
 pub(crate) async fn remote_chat_host_alive(
     app: AppHandle,
-    window: WebviewWindow,
+    window: Webview,
     active: bool,
 ) -> Result<(), String> {
     if window.label() != "main" {
@@ -60,7 +60,7 @@ async fn watch(app: AppHandle) {
         let handle = app.clone();
         if app
             .run_on_main_thread(move || {
-                if let Some(window) = handle.get_webview_window("main") {
+                if let Some(window) = handle.get_webview("main") {
                     if window.reload().is_err() {
                         eprintln!("remote chat renderer recovery failed");
                     }
