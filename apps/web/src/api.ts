@@ -74,7 +74,7 @@ async function responseError(response: Response) {
   return payload?.message || `请求失败（HTTP ${response.status}）`;
 }
 
-async function refreshSession() {
+export async function refreshSession() {
   if (refreshRequest) return refreshRequest;
   const session = activeSession;
   if (!session?.refreshToken) throw new Error("登录已过期，请重新登录");
@@ -84,11 +84,15 @@ async function refreshSession() {
     body: JSON.stringify({ refreshToken: session.refreshToken }),
   }).then(async (response) => {
     if (!response.ok) {
-      setActiveSession(null);
-      throw new Error("登录已过期，请重新登录");
+      if (response.status === 401 || response.status === 403) {
+        if (activeSession === session) setActiveSession(null);
+        throw Object.assign(new Error("登录已过期，请重新登录"), { status: response.status });
+      }
+      throw Object.assign(new Error("暂时无法刷新登录状态，请稍后重试"), { status: response.status });
     }
     const payload = await response.json() as AuthResponse;
     if (!payload.accessToken || !payload.refreshToken) throw new Error("刷新登录状态失败");
+    if (activeSession !== session) throw new Error("登录状态已改变，请重新连接");
     const next = { ...session, accessToken: payload.accessToken, refreshToken: payload.refreshToken };
     setActiveSession(next);
     return next;

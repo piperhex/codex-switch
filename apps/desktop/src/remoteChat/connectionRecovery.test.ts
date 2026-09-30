@@ -33,12 +33,16 @@ const mode = vi.fn();
 const ready = vi.fn();
 const error = vi.fn();
 const upload = vi.fn();
+const renewAuthorization = vi.fn(async (): Promise<void> => undefined);
+const credentials = { baseUrl: 'https://test', accessToken: 'token' };
 beforeEach(async () => {
   vi.useFakeTimers(); vi.setSystemTime(100_000); vi.clearAllMocks();
+  renewAuthorization.mockReset().mockResolvedValue(undefined);
+  credentials.accessToken = 'token';
   Socket.instances = [];
   vi.stubGlobal('WebSocket', Socket);
-  connection = new ChatConnection({ deviceId: 'pc', mode, ready, error, upload, event: vi.fn(),
-    authorize: async () => ({ baseUrl: 'https://test', accessToken: 'token' }),
+  connection = new ChatConnection({ deviceId: 'pc', mode, ready, error, upload, event: vi.fn(), renewAuthorization,
+    authorize: async () => credentials,
     randomBytes: (size) => new Uint8Array(size).fill(1),
     createPeer: () => { throw new Error('unused'); },
   });
@@ -128,6 +132,67 @@ it('still terminates P2P on authorization rejection or lease expiry', async () =
   expect(mode).toHaveBeenLastCalledWith('offline');
   connection.stop();
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it('renews before expiry and preserves P2P, pending requests and the authenticated session', async () => {
+  renewAuthorization.mockImplementationOnce(async () => { credentials.accessToken = 'renewed-token'; });
+  await vi.advanceTimersByTimeAsync(59_999);
+  expect(renewAuthorization).not.toHaveBeenCalled();
+  const pending = connection.request('request', { operation: 'send', text: 'once' });
+  const request = state.send.mock.calls.at(-1)![0] as { id: string };
+  await vi.advanceTimersByTimeAsync(1501);
+  expect(renewAuthorization).toHaveBeenCalledOnce();
+  expect(state.close).not.toHaveBeenCalled();
+  const socket = Socket.instances[1];
+  socket.onopen?.();
+  expect(JSON.parse(socket.send.mock.calls[0][0])).toMatchObject({
+    accessToken: 'renewed-token', resume: { sessionId: 'session' },
+  });
+  socket.receive({ type: 'resumed', sessionId: 'session', expiresAt: Date.now() + 900_000 });
+  await vi.advanceTimersByTimeAsync(0);
+  state.options!.message({ kind: 'response', id: request.id, data: 'accepted' });
+  await expect(pending).resolves.toBe('accepted');
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(ready).toHaveBeenCalledOnce();
+  expect(state.close).not.toHaveBeenCalled();
+  expect(error).not.toHaveBeenCalled();
+  expect(mode.mock.calls.flat()).not.toContain('offline');
+});
+
+it('keeps renewal valid when the coordinator reconnects during the credential refresh', async () => {
+  let finish!: () => void;
+  renewAuthorization.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+  await vi.advanceTimersByTimeAsync(60_000);
+  Socket.instances[0].onclose?.({ code: 1006 });
+  await vi.advanceTimersByTimeAsync(1500);
+  const reconnecting = Socket.instances[1];
+  finish();
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(reconnecting.close).toHaveBeenCalledOnce();
+  expect(Socket.instances).toHaveLength(3);
+  expect(state.close).not.toHaveBeenCalled();
+});
+
+it('keeps a healthy connection while renewal is pending and ignores its result after logout', async () => {
+  let finish!: () => void;
+  renewAuthorization.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(Socket.instances[0].close).not.toHaveBeenCalled();
+  connection.stop();
+  finish();
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(Socket.instances).toHaveLength(1);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('retries a transient renewal failure without closing P2P but stops on revoked credentials', async () => {
+  renewAuthorization.mockRejectedValueOnce({ status: 503 }).mockRejectedValueOnce({ status: 401 });
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(Socket.instances[0].close).not.toHaveBeenCalled();
+  expect(state.close).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(state.close).toHaveBeenCalledOnce();
+  expect(error).toHaveBeenCalled();
 });
 
 it('does not cancel a stalled socket handshake timeout when the data path changes', async () => {

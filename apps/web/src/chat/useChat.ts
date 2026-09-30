@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { apiJson, getActiveSession } from '../api';
+import { apiJson, getActiveSession, refreshSession } from '../api';
 import type { AuthSession } from '../types';
 import { ChatConnection } from '../../../../shared/remote-chat/client/connection';
 import { ChatController } from '../../../../shared/remote-chat/client/controller';
@@ -13,6 +13,13 @@ function createController(session: AuthSession, deviceId: string) {
   return new ChatController((events) => new ChatConnection({ ...events, deviceId,
     verifyHostKey: trustedHost(browserTrustStore, trustScope(session.baseUrl, deviceId)),
     randomBytes: (length) => crypto.getRandomValues(new Uint8Array(length)),
+    renewAuthorization: async () => {
+      const current = getActiveSession();
+      if (!current || current.baseUrl !== session.baseUrl || current.email !== session.email) {
+        throw Object.assign(new Error('请重新登录后连接电脑。'), { status: 401 });
+      }
+      await refreshSession();
+    },
     authorize: async () => {
       await apiJson('/auth/me');
       const current = getActiveSession();

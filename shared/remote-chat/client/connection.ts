@@ -9,6 +9,7 @@ import { browserClientInfo, type ChatClientInfo } from './clientInfo';
 import { RelayQuota, RELAY_QUOTA_MESSAGE } from '../relayUsage';
 import { hasUpload, uploadProgress, type UploadProgress } from '../uploadProgress';
 import { authorizationError, CONNECTION_ERRORS, socketConnectionError } from '../connectionErrors';
+import { SessionRenewal } from './sessionRenewal';
 import {
   chatSocketUrl, parseMessage, type ConnectionMode, type IceServer, type RpcRequest, type Signal,
 } from '../protocol';
@@ -31,6 +32,7 @@ interface ConnectionOptions extends ConnectionEvents {
   createSocket?: (url: string) => ChatSocket;
   deviceId: string;
   authorize: () => Promise<{ baseUrl: string; accessToken: string }>;
+  renewAuthorization?: () => Promise<void>;
   randomBytes: (length: number) => Uint8Array;
   createPacketCipher?: PacketCipherFactory;
   createPeer: (options: import('../protocol').PeerOptions) => import('../protocol').Peer;
@@ -54,6 +56,7 @@ export class ChatConnection {
   private sessionReady = false;
   private socketAuthenticated = false;
   private leaseTimer?: ReturnType<typeof setTimeout>;
+  private readonly renewal = new SessionRenewal(() => this.renewAuthorization());
 
   constructor(private readonly options: ConnectionOptions) {}
 
@@ -149,6 +152,23 @@ export class ChatConnection {
     if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)) throw new Error('Invalid lease');
     clearTimeout(this.leaseTimer);
     this.leaseTimer = setTimeout(() => this.fail(CONNECTION_ERRORS.expired), Math.max(0, expiresAt - Date.now()));
+    if (this.options.renewAuthorization) this.renewal.update(expiresAt);
+  }
+
+  private async renewAuthorization() {
+    if (!this.link?.resumable || !this.sessionReady) throw new Error('Session is not ready for renewal');
+    const session = this.resume;
+    try { await this.options.renewAuthorization?.(); }
+    catch (error) {
+      if (session !== this.resume || !this.active) return;
+      const status = (error as { status?: number } | null)?.status;
+      if (status === 401 || status === 403) { this.fail(authorizationError(error)); return; }
+      throw error;
+    }
+    if (session !== this.resume || !this.active || !this.resume) return;
+    // Keep the data channel, cipher and pending RPCs while authenticating a replacement coordinator socket.
+    this.link?.setRelayAvailable(false);
+    this.retrySocket();
   }
 
   private async receive(data: string, keys: ReturnType<typeof keyPair>) {
@@ -259,6 +279,7 @@ export class ChatConnection {
     this.socket = undefined;
     socket?.close();
     clearTimeout(this.leaseTimer);
+    this.renewal.clear();
     this.resume = undefined;
     this.sessionReady = false;
     const link = this.link;

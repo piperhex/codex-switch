@@ -340,7 +340,7 @@ async function performSessionRefresh(session: AuthSession): Promise<AuthSession>
   return session;
 }
 
-function refreshSession(session: AuthSession): Promise<AuthSession> {
+export function refreshSession(session: AuthSession): Promise<AuthSession> {
   const existing = refreshRequests.get(session);
   if (existing) return existing;
 

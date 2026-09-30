@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { trustedHost, trustScope } from '../../../../shared/remote-chat/trustedHost';
 import { Platform } from 'react-native';
 import { RTCPeerConnection as NativePeerConnection } from 'react-native-webrtc';
-import { fetchUserProfile } from '../api/client';
+import { fetchUserProfile, refreshSession } from '../api/client';
 import type { AuthSession } from '../types';
 import { ChatConnection, type ConnectionEvents } from '../../../../shared/remote-chat/client/connection';
 import { RtcPeer } from '../../../../shared/remote-chat/rtcPeer';
@@ -26,6 +26,7 @@ export class MobileChatConnection extends ChatConnection {
       clientInfo: { name: Platform.OS === 'android' ? Platform.constants.Model : 'iPhone / iPad',
         platform: Platform.OS === 'android' ? 'Android' : 'iOS' },
       authorize: async () => { await fetchUserProfile(session); return session; },
+      renewAuthorization: async () => { await refreshSession(session); },
       // Native WebRTC implements the browser subset, but ships independent TypeScript declarations.
       createPeer: peer => peer.tcp ? new MultipathPeer(peer,
         { rtc, network: new NativeTcpNetwork(), random: getRandomBytes }) : rtc(peer),
