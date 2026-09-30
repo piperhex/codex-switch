@@ -111,9 +111,13 @@ async fn prepare_serialized(app: AppHandle, activate: bool) -> Result<ReleaseInf
     let state = app.state::<CliUpdateState>();
     let _guard = state.download.lock().await;
     let worker_app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || prepare(&worker_app, activate))
+    let prepared = tauri::async_runtime::spawn_blocking(move || prepare(&worker_app, activate))
         .await
-        .map_err(|_| GuiError::Install)?
+        .map_err(|_| GuiError::Install)??;
+    if !activate {
+        automatic::apply_ready(&app).await?;
+    }
+    Ok(prepared)
 }
 
 #[tauri::command]

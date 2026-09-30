@@ -28,13 +28,11 @@ pub(super) fn start(app: AppHandle) {
         }
         let mut timer = tokio::time::interval(CHECK_INTERVAL);
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        let mut allow_activation = false;
         loop {
             timer.tick().await;
-            if let Err(error) = cycle(&app, allow_activation).await {
+            if let Err(error) = cycle(&app).await {
                 eprintln!("Codex GUI automatic update deferred: {error}");
             }
-            allow_activation = true;
         }
     });
 }
@@ -59,44 +57,51 @@ async fn publish(app: &AppHandle) -> Result<()> {
     Ok(())
 }
 
-async fn cycle(app: &AppHandle, allow_activation: bool) -> Result<()> {
+async fn cycle(app: &AppHandle) -> Result<()> {
     let state = app.state::<CliUpdateState>();
     let Ok(_download) = state.download.try_lock() else {
         return Ok(());
     };
-    let before = snapshot(app).await?;
     // First installation stays an explicit user action.
-    if before.version.is_none() {
+    if snapshot(app).await?.version.is_none() {
         return Ok(());
     }
     let worker_app = app.clone();
     let checked = tauri::async_runtime::spawn_blocking(move || check(&worker_app))
         .await
         .map_err(|_| GuiError::Release)?;
-    if let Some(version) = eligible_version(&before, allow_activation) {
-        activate_idle(app, version).await?;
-    }
     publish(app).await?;
-    let candidate = checked?;
-    if candidate.size > 0 && !candidate.ready {
+    if checked
+        .as_ref()
+        .is_ok_and(|candidate| candidate.size > 0 && !candidate.ready)
+    {
         let worker_app = app.clone();
         tauri::async_runtime::spawn_blocking(move || prepare(&worker_app, false))
             .await
             .map_err(|_| GuiError::Install)??;
-        publish(app).await?;
     }
-    Ok(())
+    apply_ready(app).await?;
+    checked.map(|_| ())
 }
 
-fn eligible_version(before: &Snapshot, allow_activation: bool) -> Option<&str> {
-    before
+/// Check fresh state after every background download, including downloads requested by the GUI.
+/// A failed online check still allows an already cached update to be applied while idle.
+pub(super) async fn apply_ready(app: &AppHandle) -> Result<()> {
+    let current = snapshot(app).await?;
+    let outcome = match eligible_version(&current) {
+        Some(version) => activate_idle(app, version).await,
+        None => Ok(()),
+    };
+    publish(app).await?;
+    outcome
+}
+
+fn eligible_version(current: &Snapshot) -> Option<&str> {
+    let installed = current.version.as_deref()?;
+    current
         .release
         .as_ref()
-        .filter(|candidate| {
-            allow_activation
-                && candidate.ready
-                && before.version.as_deref() != Some(&candidate.version)
-        })
+        .filter(|candidate| candidate.ready && installed != candidate.version)
         .map(|candidate| candidate.version.as_str())
 }
 

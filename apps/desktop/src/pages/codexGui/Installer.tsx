@@ -10,7 +10,7 @@ export function Installer({ installer, compact = false, running = false, remote 
 }) {
   const { version, release, checking, installing, progress, checked, check, install } = installer;
   const available = release && release.version !== version;
-  const description = version ? "每 30 分钟自动检查并下载更新，下次检查时若无进行中的对话，或重启应用后自动安装。"
+  const description = version ? "每 30 分钟自动检查并下载更新。下载完成后，若无进行中的对话就立即安装，否则等待后续检查或重启应用。"
     : "下载 Codex 后，就能在这里开始对话、处理代码和管理任务。";
   return <div className={compact ? styles.installCompact : styles.install}>
     {!compact && <div className={styles.welcomeIcon}><Terminal size={30} /></div>}
@@ -30,7 +30,7 @@ export function Installer({ installer, compact = false, running = false, remote 
         target="_blank" rel="noopener noreferrer">官方发布页</Button>
     </div>
     {available && !installing && <small>{release.ready
-      ? "更新已下载，将在下次空闲检查或重启应用时安装，也可立即更新。"
+      ? "更新已下载，无进行中的对话时会自动安装；若暂未安装，将在后续检查或重启应用时重试。"
       : `下载约 ${Math.ceil(release.size / 1024 / 1024)} MB`}</small>}
     {running && available && <small>当前任务完成后即可更新。</small>}
     {installing && <div className={styles.downloadProgress}>

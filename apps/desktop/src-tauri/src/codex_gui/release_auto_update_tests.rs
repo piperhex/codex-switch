@@ -17,21 +17,48 @@ fn installed_fixture() -> Fixture {
 }
 
 #[test]
-fn download_waits_for_the_next_cycle_and_restart_can_apply_it_offline() {
+fn completed_download_is_eligible_in_the_same_cycle() {
     assert_eq!(CHECK_INTERVAL, Duration::from_secs(1800));
     let fixture = installed_fixture();
     fixture.remember("0.100.0");
-    let before = snapshot_at(&fixture.0);
+    assert!(eligible_version(&snapshot_at(&fixture.0)).is_none());
     fixture.package("0.100.0");
-    assert!(eligible_version(&before, true).is_none());
-    let next = snapshot_at(&fixture.0);
-    assert!(eligible_version(&next, false).is_none());
-    assert_eq!(eligible_version(&next, true), Some("0.100.0"));
+    let ready = snapshot_at(&fixture.0);
+    let expected = eligible_version(&ready).unwrap();
+    assert_eq!(expected, "0.100.0");
+    assert_eq!(
+        store::activate_expected(&fixture.0, expected)
+            .unwrap()
+            .unwrap()
+            .version
+            .as_deref(),
+        Some("0.100.0")
+    );
+    assert!(eligible_version(&snapshot_at(&fixture.0)).is_none());
+}
+
+#[test]
+fn cached_download_can_still_be_applied_on_offline_restart() {
+    let fixture = installed_fixture();
+    fixture.remember("0.100.0");
+    fixture.package("0.100.0");
+    assert_eq!(eligible_version(&snapshot_at(&fixture.0)), Some("0.100.0"));
+    assert_eq!(
+        store::installed(&fixture.0).unwrap().version.as_deref(),
+        Some("0.99.0")
+    );
     assert_eq!(
         store::activate(&fixture.0).unwrap().version.as_deref(),
         Some("0.100.0")
     );
-    assert!(eligible_version(&snapshot_at(&fixture.0), true).is_none());
+}
+
+#[test]
+fn background_download_does_not_opt_into_first_installation() {
+    let fixture = Fixture::new();
+    fixture.remember("0.100.0");
+    fixture.package("0.100.0");
+    assert!(eligible_version(&snapshot_at(&fixture.0)).is_none());
 }
 
 #[test]
@@ -44,7 +71,7 @@ fn later_cycle_activates_only_the_same_complete_candidate() {
     fixture.package("0.100.0");
     let earlier = snapshot_at(&fixture.0);
     fixture.remember("0.101.0");
-    let expected = eligible_version(&earlier, true).unwrap();
+    let expected = eligible_version(&earlier).unwrap();
     assert!(store::activate_expected(&fixture.0, expected)
         .unwrap()
         .is_none());

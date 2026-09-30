@@ -42,7 +42,7 @@ test("silent downloads preserve input and connections, and every entry checks fo
     expect(installs).toBe(0);
     releaseDownload();
     await page.getByRole("button", { name: "CLI 更新", exact: true }).click();
-    await expect(page.getByText("更新已下载，将在下次空闲检查或重启应用时安装，也可立即更新。")).toBeVisible();
+    await expect(page.getByText("更新已下载，无进行中的对话时会自动安装；若暂未安装，将在后续检查或重启应用时重试。")).toBeVisible();
     expect((await page.locator(".ant-popover-inner").boundingBox())!.width).toBeLessThanOrEqual(400);
     await expect(page.getByLabel("当前版本")).toHaveText("0.99.0");
     await expect(page.getByLabel("聊天输入")).toHaveValue("下载时继续输入");
@@ -54,14 +54,21 @@ test("silent downloads preserve input and connections, and every entry checks fo
   } finally { releaseDownload(); }
 });
 
-test("automatic activation refreshes the version while preserving the draft", async ({ page }) => {
+test("download completion can activate immediately while preserving the draft", async ({ page }) => {
   const events: { name: string; payload: unknown }[] = [];
   let sequence = 0;
+  let finishDownload!: () => void;
+  const download = new Promise<void>(resolve => { finishDownload = resolve; });
   await page.route("**/__codex_switch__/api/invoke", async route => {
     const { command } = route.request().postDataJSON() as { command: string };
     let result: unknown = {};
     if (command === "codex_gui_cli_status") result = { version: "0.99.0" };
-    if (command === "codex_gui_cli_check") result = { version: "0.100.0", size: 100, ready: true };
+    if (command === "codex_gui_cli_check") result = { version: "0.100.0", size: 100, ready: false };
+    if (command === "codex_gui_cli_prepare") {
+      await download;
+      result = { version: "0.100.0", size: 100, ready: true };
+      events.push({ name: "codex-gui-cli-state", payload: { version: "0.100.0", release: result } });
+    }
     if (command === "codex_gui_events") {
       result = { cursor: { streamId: "updates", sequence: ++sequence }, reset: false, events: events.splice(0) };
     }
@@ -70,8 +77,7 @@ test("automatic activation refreshes the version while preserving the draft", as
   await page.goto("/e2e/cli-update-harness.html");
   await expect(page.getByLabel("当前版本")).toHaveText("0.99.0");
   await page.getByLabel("聊天输入").fill("保留这条未发送的消息");
-  events.push({ name: "codex-gui-cli-state", payload: { version: "0.100.0",
-    release: { version: "0.100.0", size: 100, ready: true } } });
+  finishDownload();
   await expect(page.getByLabel("当前版本")).toHaveText("0.100.0");
   await expect(page.getByLabel("聊天输入")).toHaveValue("保留这条未发送的消息");
   await expect(page.getByLabel("连接次数")).toHaveText("1");
