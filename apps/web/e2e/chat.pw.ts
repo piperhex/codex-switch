@@ -190,7 +190,7 @@ test('keeps the PC chat after login renewal and disconnects on logout', async ({
   await connect(page);
   await expect(page.getByRole('status').filter({ hasText: 'P2P' })).toBeVisible({ timeout: 15_000 });
   await openChatList(page);
-  await page.getByRole('button', { name: /移动端聊天体验/ }).click();
+  await page.getByRole('button', { name: '移动端聊天体验', exact: true }).click();
   await navigate(page, '账号');
   await expect.poll(async () => (await state(request)).connectedMobiles).toBe(1);
   let expired = false;
