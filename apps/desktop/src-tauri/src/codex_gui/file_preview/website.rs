@@ -1,7 +1,7 @@
 //! Unprivileged web content embedded inside the existing conversation window.
 use super::{PreviewError, Result};
 use serde::Deserialize;
-use tauri::{webview::WebviewBuilder, LogicalPosition, LogicalSize, Manager, Webview, WebviewUrl};
+use tauri::{LogicalPosition, LogicalSize, Manager, Webview, WebviewUrl};
 
 const MAX_PREVIEW_EXTENT: f64 = 32_768.0;
 pub(super) const LABEL_PREFIX: &str = "main-website-preview-";
@@ -69,15 +69,19 @@ fn create(webview: &Webview, request: &WebsitePreviewRequest, label: &str) -> Re
     let popup_app = webview.app_handle().clone();
     let popup_label = label.to_owned();
     let popup_origin = dev_origin.clone();
-    let builder = WebviewBuilder::new(label, WebviewUrl::External(url))
-        .on_navigation(move |url| is_website(url) && dev_origin.as_ref() != Some(&url.origin()))
-        .on_new_window(move |url, _| {
-            if is_website(&url) && popup_origin.as_ref() != Some(&url.origin()) {
-                navigate_popup(popup_app.clone(), popup_label.clone(), url);
-            }
-            tauri::webview::NewWindowResponse::Deny
-        })
-        .on_download(|_, _| false);
+    let builder = crate::webview_windows::child_builder(
+        webview.app_handle(),
+        label,
+        WebviewUrl::External(url),
+    )
+    .on_navigation(move |url| is_website(url) && dev_origin.as_ref() != Some(&url.origin()))
+    .on_new_window(move |url, _| {
+        if is_website(&url) && popup_origin.as_ref() != Some(&url.origin()) {
+            navigate_popup(popup_app.clone(), popup_label.clone(), url);
+        }
+        tauri::webview::NewWindowResponse::Deny
+    })
+    .on_download(|_, _| false);
     let bounds = request.bounds;
     webview
         .window()

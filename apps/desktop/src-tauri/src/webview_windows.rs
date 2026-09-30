@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri::{webview::WebviewBuilder, AppHandle, Runtime, WebviewUrl, WebviewWindowBuilder};
 
 /// Keeps dynamically created windows compatible with the main window's WebView2 environment.
 /// Call `build` from an async command or worker, never from a Windows UI event handler.
@@ -10,6 +10,20 @@ pub(crate) fn builder<'a, R: Runtime>(
     let builder = WebviewWindowBuilder::new(app, label, url);
     // WebViews sharing a data directory must use identical browser arguments; otherwise
     // WebView2 rejects the new controller with ERROR_INVALID_STATE (0x8007139f).
+    match browser_arguments(app.config()) {
+        Some(arguments) => builder.additional_browser_args(arguments),
+        None => builder,
+    }
+}
+
+/// Child previews share the main WebView2 environment just like auxiliary windows.
+/// Create them from an async command or worker to keep the Windows message loop responsive.
+pub(crate) fn child_builder<R: Runtime>(
+    app: &AppHandle<R>,
+    label: &str,
+    url: WebviewUrl,
+) -> WebviewBuilder<R> {
+    let builder = WebviewBuilder::new(label, url);
     match browser_arguments(app.config()) {
         Some(arguments) => builder.additional_browser_args(arguments),
         None => builder,

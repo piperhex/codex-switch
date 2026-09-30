@@ -8,7 +8,15 @@ fn opens_real_webview_preview() {
     let path = std::env::var("FILE_PREVIEW_SMOKE_PATH").expect("set the preview fixture path");
     let mut context = tauri::generate_context!();
     context.config_mut().identifier = "dev.codex.switch.file-preview-smoke".into();
-    context.config_mut().app.windows.clear();
+    // Keep production browser options: clearing the config hid mismatched child-WebView arguments.
+    for window in &mut context.config_mut().app.windows {
+        window.create = false;
+        if let Ok(port) = std::env::var("WEBSITE_PREVIEW_DEBUG_PORT") {
+            let port: u16 = port.parse().expect("set a valid debugging port");
+            let arguments = window.additional_browser_args.get_or_insert_default();
+            arguments.push_str(&format!(" --remote-debugging-port={port}"));
+        }
+    }
     context.config_mut().build.dev_url = Some("http://127.0.0.1:1489".parse().unwrap());
     tauri::Builder::default()
         .any_thread()
@@ -31,9 +39,15 @@ fn opens_real_webview_preview() {
             url.query_pairs_mut()
                 .append_pair("native", "1")
                 .append_pair("path", &path);
-            tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::External(url))
+            if let Ok(website) = std::env::var("WEBSITE_PREVIEW_SMOKE_URL") {
+                url.query_pairs_mut()
+                    .append_pair("kind", "website")
+                    .append_pair("website", &website);
+            }
+            crate::webview_windows::builder(app.handle(), "main", tauri::WebviewUrl::External(url))
                 .title("Sidebar preview smoke test")
                 .inner_size(1280.0, 800.0)
+                .focused(false)
                 .build()?;
             Ok(())
         })

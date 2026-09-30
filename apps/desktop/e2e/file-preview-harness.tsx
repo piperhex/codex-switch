@@ -9,6 +9,7 @@ import { RichText } from "../src/pages/codexGui/RichText";
 import { useThemeMode } from "../src/hooks/useThemeMode";
 import { filePreviewApi, type FilePreviewData } from "../src/pages/codexGui/filePreview/api";
 import { fileApi } from "../src/pages/codexGui/fileApi";
+import { WebsitePreviewControls } from "./website-preview-controls";
 import "../src/styles.css";
 import "antd/dist/reset.css";
 
@@ -77,8 +78,10 @@ function Conversation() {
     {variant === "links" && <RichText text={"前端 **http://localhost:3002**、后端 **http://127.0.0.1:8082** "
       + "均保持运行。本轮发现的问题尚未修复。"} />}
     <p><MessageLink href={params.get("path") ?? data.path}>查看文件</MessageLink></p>
-    <p><MessageLink href={native ? "https://example.com" : `${location.origin}/e2e/fixtures/preview-sample.html`}>
+    <p><MessageLink href={params.get("website")
+      ?? (native ? "https://example.com" : `${location.origin}/e2e/fixtures/preview-sample.html`)}>
       查看网页</MessageLink></p>
+    {variant === "website" && <WebsitePreviewControls />}
   </div>;
 }
 function Harness() {

@@ -135,5 +135,18 @@ test("web links use the same sidebar with explicit browser and reload actions", 
   await page.getByRole("tab", { name: "文件更改" }).click();
   await expect(page.getByText("暂无文件更改", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "预览", exact: true }).click();
+  await page.getByRole("button", { name: "切换主机：本地" }).click();
+  await expect(page.getByRole("menu", { name: "主机列表" })).toBeVisible();
+  await page.getByRole("textbox", { name: "搜索主机" }).press("Escape");
+  await expect(page.getByRole("menu", { name: "主机列表" })).toBeHidden();
+  await page.getByRole("button", { name: "选择电脑", exact: true }).click();
+  await page.getByRole("dialog", { name: "选择电脑" }).getByRole("button", { name: "关闭" }).click();
+  await expect(page.getByRole("dialog", { name: "选择电脑" })).toBeHidden();
+  await page.getByRole("button", { name: "立即发送", exact: true }).click();
+  await expect(page.getByLabel("操作结果")).toHaveText("queueSendNow");
+  await page.getByRole("button", { name: "编辑待发送消息" }).click();
+  await expect(page.getByLabel("操作结果")).toHaveText("edited");
   await page.screenshot({ path: "../../.codex-tmp/website-preview-sidebar.png" });
+  await page.getByRole("button", { name: "关闭详情抽屉" }).click();
+  await expect(sidebar).toHaveCount(0);
 });

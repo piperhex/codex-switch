@@ -389,3 +389,22 @@ Run the local protocol fixture (no model credits required):
 ```powershell
 node scripts/codex-gui-live-model-smoke.mjs <installed-package>/bin/codex.exe
 ```
+
+## Website preview regression on Windows
+
+Sidebar child WebViews must use `webview_windows::child_builder`, which copies the main window's
+exact browser arguments. WebView2 instances sharing a data directory require matching environment
+options; a mismatch can leave the preview blank and block native UI operations. Keep creation in an
+async command with a blocking worker. The native fixture preserves the production window options.
+
+Start the desktop Vite server on port 1489, then run from the repository root:
+
+```powershell
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch_lib_tests --no-run
+node scripts/website-preview-smoke.mjs <path-to-codex_switch_lib_tests.exe-from-build-output>
+```
+
+The smoke script launches an isolated test app and a local website. It verifies page loading, host
+selection, both dialog dismissal methods, queue buttons, native IPC, and preview cleanup after
+minimizing, reloading and reopening. It stops its test process afterward. Port 1491 is reserved for
+this test's WebView2 debugging connection (`WEBSITE_PREVIEW_DEBUG_PORT` overrides it).
