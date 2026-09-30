@@ -5,6 +5,7 @@
 .agents
 .codex
 apps/desktop/*
+!apps/desktop/package.json
 !apps/desktop/src
 node_modules
 **/node_modules

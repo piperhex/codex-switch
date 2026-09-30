@@ -2,6 +2,8 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 COPY apps/web/package*.json ./apps/web/
+# Web previews reuse desktop components and their workspace dependencies.
+COPY apps/desktop/package.json ./apps/desktop/
 RUN npm ci
 
 FROM deps AS build
