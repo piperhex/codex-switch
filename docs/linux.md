@@ -32,6 +32,27 @@ chmod +x "./CodexSwitch.AppImage"
 同样需要将文件名替换为实际名称。AppImage 若提示缺少系统库或 FUSE，可改用 `.deb` 安装。
 后面的后台服务示例使用 `.deb` 提供的 `/usr/bin/csw`。
 
+### AppImage 提示 `AppRun.wrapped: Permission denied`
+
+已确认 v1.6.17 和 v1.6.18 的 AppImage 内部启动文件缺少其他用户的执行权限，
+在保留包内文件归属的解包或沙箱环境中可能无法打开窗口。仅给外层 `.AppImage` 文件添加执行权限无法修复它。
+遇到这个错误时，Ubuntu 用户可先改用同版本的 `.deb`。
+
+需要继续使用原 AppImage 时，可以在自己的用户目录解包后启动；以下操作不需要 `sudo`：
+
+```bash
+mkdir -p "$HOME/remote-ai-appimage"
+cd "$HOME/remote-ai-appimage"
+# 将下面路径替换为下载的 AppImage 文件路径。
+chmod +x "$HOME/Downloads/CodexSwitch.AppImage"
+"$HOME/Downloads/CodexSwitch.AppImage" --appimage-extract
+chmod 755 squashfs-root/AppRun.wrapped
+./squashfs-root/AppRun
+```
+
+源码中的打包修复会在生成安装包和签名前设置正确权限，发布流程也会检查成品权限并验证窗口启动。
+这不会更改已经发布的 v1.6.17、v1.6.18 安装包。
+
 ## 无桌面服务器启动
 
 `--headless` 不创建主窗口、托盘和悬浮球，但当前 Linux 包仍需初始化图形运行环境。

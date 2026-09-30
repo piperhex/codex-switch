@@ -137,7 +137,9 @@ jobs:
         if: startsWith(matrix.name, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils \
+            squashfs-tools xvfb xauth dbus-x11 x11-utils
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -177,6 +179,10 @@ jobs:
         if: startsWith(matrix.name, 'windows')
         run: node scripts/prepare-remote-desktop-runtime.mjs
 
+      - name: Test Linux AppImage preparation
+        if: startsWith(matrix.name, 'ubuntu')
+        run: node --test scripts/prepare-linux-appimage.test.mjs
+
       - name: Build and upload release assets
         uses: tauri-apps/tauri-action@v1
         env:
@@ -192,6 +198,17 @@ jobs:
           # complete updater manifest after every platform has finished.
           uploadUpdaterJson: false
           updaterJsonPreferNsis: true
+
+      # A successful build is insufficient: mode 0770 launchers can work for
+      # the builder but fail for other users. Gate publication on the final image.
+      - name: Verify Linux AppImage permissions and startup
+        if: startsWith(matrix.name, 'ubuntu')
+        shell: bash
+        run: |
+          set -euo pipefail
+          for appimage in apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage; do
+            python3 scripts/verify-linux-appimage.py "$appimage"
+          done
 
   native-android:
     name: Build Android APK

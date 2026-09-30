@@ -2,6 +2,11 @@ import { readFileSync } from "node:fs";
 import { buildInstallerHelper } from "./build-installer-helper.mjs";
 import { packagedExecutable } from "./verify-tauri-assets.mjs";
 import { verifyWindowsRuntime } from "./verify-windows-runtime.mjs";
+import { prepareLinuxAppImage } from "./prepare-linux-appimage.mjs";
+
+if (process.platform === "linux") {
+  await prepareLinuxAppImage();
+}
 
 if (process.platform === "win32") {
   verifyWindowsRuntime(packagedExecutable);
