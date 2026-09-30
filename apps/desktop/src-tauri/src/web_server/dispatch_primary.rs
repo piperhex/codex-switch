@@ -1,5 +1,11 @@
 fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value, String> {
     match command {
+        "codex_gui_open_file_preview" => serialize(block_on(
+            crate::codex_gui::file_preview::hosted::open(app, argument(&args, "target")?),
+        )),
+        "codex_gui_close_file_preview" => serialize(block_on(
+            crate::codex_gui::file_preview::hosted::close(app, argument(&args, "sessionId")?),
+        )),
         "import_account_json_text" => serialize(block_on(crate::commands::import_account_json_text(
             app,
             argument(&args, "content")?,

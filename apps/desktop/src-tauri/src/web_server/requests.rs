@@ -1,4 +1,8 @@
 fn handle_request(app: AppHandle, request: Request, security: WebRequestSecurity) {
+    if request.url().starts_with(crate::codex_gui::file_preview::hosted::PATH_PREFIX) {
+        crate::codex_gui::file_preview::hosted::respond(&app, request);
+        return;
+    }
     if request.url().split('?').next() == Some(WEB_INVOKE_PATH) {
         handle_invoke_request(app, request, &security);
         return;

@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import { isTauri } from "@tauri-apps/api/core";
+import { isHostedWebApp } from "../../api/backend";
 import { fileApi, FileThreadContext, type FileAction, type FileApplication } from "./fileApi";
 import type { FileReference } from "./fileReference";
 import { DetailsContext } from "./detailsContext";
@@ -59,5 +60,6 @@ export function useFileMenu(target: FileReference) {
         style: FEEDBACK_STYLE });
     } finally { flight.current = false; setBusy(false); }
   };
-  return { open, setOpen, applications, desktop, loading, failed, busy, perform, preview };
+  return { open, setOpen, applications, desktop, canPreview: desktop || isHostedWebApp,
+    loading, failed, busy, perform, preview };
 }

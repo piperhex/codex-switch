@@ -29,23 +29,29 @@ impl Drop for PreviewServer {
     }
 }
 
-struct Scope {
+pub(super) struct Scope {
     file: PathBuf,
     root: PathBuf,
     token: String,
     host: String,
 }
 
+impl Scope {
+    pub(super) fn new(path: &Path, token: String, host: String) -> Result<Self> {
+        Ok(Self {
+            file: path.to_owned(),
+            root: path.parent().ok_or(PreviewError::Read)?.to_owned(),
+            token,
+            host,
+        })
+    }
+}
+
 impl PreviewServer {
     pub fn start(path: &Path) -> Result<Self> {
         let server = Arc::new(Server::http("127.0.0.1:0").map_err(|_| PreviewError::Open)?);
         let host = server.server_addr().to_string();
-        let scope = Arc::new(Scope {
-            file: path.to_owned(),
-            root: path.parent().ok_or(PreviewError::Read)?.to_owned(),
-            token: uuid::Uuid::new_v4().to_string(),
-            host,
-        });
+        let scope = Arc::new(Scope::new(path, uuid::Uuid::new_v4().to_string(), host)?);
         let mut url =
             url::Url::parse(&format!("http://{}/", scope.host)).map_err(|_| PreviewError::Open)?;
         url.path_segments_mut()
@@ -192,9 +198,14 @@ fn respond(request: Request, scope: &Scope) {
 }
 
 fn prepare(request: &Request, scope: &Scope) -> Result<tiny_http::ResponseBox> {
-    if request_header(request, "Host") != Some(&scope.host)
-        || !matches!(request.method(), Method::Get | Method::Head)
-    {
+    if request_header(request, "Host") != Some(&scope.host) {
+        return Ok(Response::empty(StatusCode(403)).boxed());
+    }
+    prepare_asset(request, scope)
+}
+
+pub(super) fn prepare_asset(request: &Request, scope: &Scope) -> Result<tiny_http::ResponseBox> {
+    if !matches!(request.method(), Method::Get | Method::Head) {
         return Ok(Response::empty(StatusCode(403)).boxed());
     }
     let path = resolve(scope, request.url()).ok_or(PreviewError::Read)?;
@@ -263,10 +274,10 @@ fn response_headers(path: &Path) -> Result<Vec<Header>> {
         header("Referrer-Policy", "no-referrer")?,
         header("Content-Disposition", "inline")?,
     ];
-    if matches!(
-        content::extension(path).as_str(),
-        "html" | "htm" | "xhtml" | "svg"
-    ) {
+    // XML and alternate HTML extensions can also run scripts when opened directly.
+    if mime_type.ends_with("+xml")
+        || matches!(mime_type, "text/html" | "text/xml" | "application/xml")
+    {
         headers.push(header("Content-Security-Policy", DOCUMENT_POLICY)?);
     }
     Ok(headers)

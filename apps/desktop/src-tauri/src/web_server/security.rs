@@ -25,14 +25,15 @@ impl WebRequestSecurity {
 
     // The access key grants the same administration rights as local access.
     fn authorize(&self, request: &Request) -> Result<(), StatusCode> {
+        // Sandboxed file previews have an opaque Origin, even on the host computer.
+        if !same_origin_request(request) {
+            return Err(StatusCode(403));
+        }
         if request
             .remote_addr()
             .is_some_and(|address| address.ip().is_loopback())
         {
             return Ok(());
-        }
-        if !same_origin_request(request) {
-            return Err(StatusCode(403));
         }
         let expected = self.lan_api_key.as_deref().ok_or(StatusCode(401))?;
         request_has_valid_api_key(request, expected)

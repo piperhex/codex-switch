@@ -52,7 +52,7 @@ if (variant === "large") Object.assign(data, { text: "export const enabled = tru
 if (params.has("dark")) localStorage.setItem("codex-switch:theme-mode", "dark");
 else localStorage.setItem("codex-switch:theme-mode", "light");
 const native = params.has("native");
-if (!native) {
+if (!native && !params.has("hosted")) {
   Object.defineProperty(globalThis, "isTauri", { value: !websiteOnly, configurable: true });
   filePreviewApi.open = async target => {
     document.body.dataset.opened = JSON.stringify(target);
@@ -70,7 +70,9 @@ function Conversation() {
   const panel = useContext(DetailsContext);
   const openFile = panel?.openFile;
   useEffect(() => {
-    if (!websiteOnly) void openFile?.({ path: params.get("path") ?? data.path, threadId: null });
+    if (!websiteOnly && !params.has("manual")) {
+      void openFile?.({ path: params.get("path") ?? data.path, threadId: null });
+    }
   }, [openFile]);
   return <div style={{ padding: 24 }}>
     <ConversationChangesButton />

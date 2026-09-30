@@ -195,6 +195,13 @@ Open the web address provided by the running Remote AI host, then choose **Codex
 available when Switch runs with `csw --headless --port=18080`. A standalone frontend preview has no conversation
 backend; the separate cloud account-sync client under `/web/` is not this hosted interface.
 
+File links open in the same preview sidebar as the desktop app, including text/code, Markdown, HTML,
+images, PDF, audio and video supported by the browser. Markdown images and HTML resources can load from
+the selected file's directory. Previews work on localhost and authenticated LAN connections, including
+headless hosts. Closing a preview releases its file access; abandoned previews expire after one hour
+without file requests. Opening host applications and showing files in the host's file manager remain
+desktop-only actions.
+
 Codex is installed and runs on the Switch host. Conversations, accounts, model configuration, tools and project
 files all belong to that host; nothing needs to be installed on the device running the browser. If Codex has not
 been installed on the host, use **下载并开始** on the page. For a project, enter the full folder path on the host,

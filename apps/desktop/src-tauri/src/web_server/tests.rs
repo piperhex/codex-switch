@@ -124,4 +124,21 @@ mod tests {
             Some("192.168.1.20:18765"),
         ));
     }
+
+    #[test]
+    fn sandboxed_previews_cannot_invoke_commands_even_on_loopback() {
+        let security = WebRequestSecurity { lan_api_key: None };
+        for origin in ["null", "http://attacker.invalid"] {
+            let request = tiny_http::TestRequest::new()
+                .with_remote_addr("127.0.0.1:54321".parse().unwrap())
+                .with_header(header("Host", "127.0.0.1:18080"))
+                .with_header(header("Origin", origin)).into();
+            assert_eq!(security.authorize(&request), Err(StatusCode(403)));
+        }
+        let request = tiny_http::TestRequest::new()
+            .with_remote_addr("127.0.0.1:54321".parse().unwrap())
+            .with_header(header("Host", "127.0.0.1:18080"))
+            .with_header(header("Origin", "http://127.0.0.1:18080")).into();
+        assert_eq!(security.authorize(&request), Ok(()));
+    }
 }

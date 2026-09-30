@@ -16,7 +16,7 @@ export function FileMenu({ path, line, column, children, className, onReview, pr
 }) {
   const target = { path, ...(line && { line }), ...(column && { column }) };
   const menu = useFileMenu(target);
-  const previewsFile = preview && menu.desktop && !onReview;
+  const previewsFile = preview && menu.canPreview && !onReview;
   const openApplication = (application: string) => { void menu.perform({ type: "open", application }); };
   const applications: MenuProps["items"] = menu.applications.map((app) => ({
     key: app.id, label: app.name,

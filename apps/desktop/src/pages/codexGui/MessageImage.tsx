@@ -3,6 +3,7 @@ import { ImagePreview } from "./ImagePreview";
 import styles from "./MessageImage.module.less";
 import { useImageSource } from "./useImageSource";
 import { isTauri } from "@tauri-apps/api/core";
+import { isHostedWebApp } from "../../api/backend";
 import { FileMenu } from "./FileMenu";
 import { parseFileReference } from "./fileReference";
 
@@ -13,7 +14,7 @@ export function MessageImage({ src, alt, title }: MessageImageProps) {
   const [preview, setPreview] = useState(false);
   const image = useImageSource(src);
   const description = alt?.trim() || "图片";
-  const file = src && isTauri() ? parseFileReference(src) : undefined;
+  const file = src && (isTauri() || isHostedWebApp) ? parseFileReference(src) : undefined;
   if (file && (!image.url || image.failed || failedSource === image.url)) {
     return <FileMenu {...file} preview>{description}</FileMenu>;
   }

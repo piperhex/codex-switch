@@ -1,5 +1,6 @@
 //! Sidebar file previews with scoped, explicitly released streaming sessions.
 mod content;
+pub(crate) mod hosted;
 mod lifecycle;
 #[cfg(all(test, windows))]
 mod native_smoke;
@@ -39,6 +40,7 @@ struct PreviewSession {
 
 #[derive(Default)]
 pub(crate) struct PreviewSessions {
+    hosted: Mutex<hosted::HostedSessions>,
     generation: AtomicU64,
     sessions: Mutex<HashMap<String, PreviewSession>>,
 }
