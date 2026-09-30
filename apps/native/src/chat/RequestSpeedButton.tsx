@@ -12,7 +12,7 @@ export function RequestSpeedButton({ speed, busy, onChange }: {
   return <Pressable accessibilityRole="button" accessibilityLabel={requestSpeedLabel(speed)}
     accessibilityState={{ disabled: busy, busy }} disabled={busy}
     style={[styles.button, busy && styles.busy]} onPress={() => onChange(nextRequestSpeed(speed))}>
-    {[0, 1].map(index => <Feather key={index} name="zap" size={18}
+    {[0, 1].map(index => <Feather key={index} name="zap" size={16}
       color={index < bolts ? activeColor : palette.muted} accessible={false} />)}
   </Pressable>;
 }

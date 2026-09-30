@@ -16,7 +16,7 @@ export function RequestSpeedButton({ speed, disabled, busy, onChange, translate 
     <button type="button" className="request-speed-button" data-speed={current}
       disabled={disabled || busy || speed === undefined || (!available && current === 'normal')}
       aria-busy={busy} aria-label={label} onClick={() => onChange(nextRequestSpeed(current, available))}>
-      <svg width="30" height="20" viewBox="0 0 30 20" fill="none" aria-hidden="true">
+      <svg width="28" height="18" viewBox="0 0 30 20" fill="none" aria-hidden="true">
         {[0, 1].map((index) => <path key={index} transform={`translate(${index * 12} 0)`}
           d="M10 1 2 11h6l-1 8 9-11h-6l1-7Z" className={index < bolts ? 'is-lit' : undefined}
           stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />)}
