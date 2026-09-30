@@ -3,6 +3,7 @@ const { execFileSync } = require('node:child_process');
 
 const RELEASE_ARCHITECTURES = ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'];
 const MAX_ARCHIVE_LISTING_BYTES = 16 * 1024 * 1024;
+const EASYTIER_TARGET_LIBRARY = /^libeasytier_core-[0-9a-f]{16}\.so$/;
 const REQUIRED_LIBRARIES = [
   'libcsw_chat_connectivity.so',
   'libappmodules.so',
@@ -25,8 +26,15 @@ function validateNativeEntries(entries) {
     if (!match) continue;
     const [, abi, library] = match;
     if (!libraries.has(abi)) throw new Error(`Unexpected APK architecture: ${abi}`);
-    libraries.get(abi).add(library);
-    requiredLibraries.add(library);
+    // Rust fingerprints differ between targets. Require the same library family for every ABI,
+    // without requiring an ARM build's filename to appear in an x86 directory.
+    const identity = EASYTIER_TARGET_LIBRARY.test(library) ? 'libeasytier_core.so' : library;
+    const names = libraries.get(abi);
+    if (identity !== library && names.has(identity)) {
+      throw new Error(`Multiple EasyTier builds packaged for ${abi}`);
+    }
+    names.add(identity);
+    requiredLibraries.add(identity);
   }
 
   const missing = [];
