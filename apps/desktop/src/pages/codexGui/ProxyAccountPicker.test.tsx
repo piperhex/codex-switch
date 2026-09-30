@@ -146,8 +146,11 @@ it.each(["custom", "openai"] as const)(
   await click(option(provider.name));
   await click(option(provider.name));
   expect(option(account.email).disabled).toBe(true);
+  const usageCalls = () => vi.mocked(invoke).mock.calls
+    .filter(([command]) => command === "codex_gui_usage_summary");
+  expect(usageCalls()).toHaveLength(1);
   await act(async () => vi.advanceTimersByTimeAsync(10_000));
-  expect(invoke).toHaveBeenCalledTimes(6);
+  expect(usageCalls()).toHaveLength(3);
   expect(props.onSwitchProvider).toHaveBeenCalledOnce();
   expect(trigger().getAttribute("aria-expanded")).toBe("true");
   props.accounts = [{ ...account, usage: { primary: { usedPercent: 75, remainingPercent: 25 } } }];

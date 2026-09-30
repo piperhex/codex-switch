@@ -9,9 +9,13 @@ test('switches landscape and portrait displays, preserves settings, and recovers
   await page.getByRole('button', { name: '打开工具' }).click();
   await page.getByRole('button', { name: '远程桌面', exact: true }).click();
   await expect.poll(() => page.locator('video').evaluate(video => video.videoWidth)).toBeGreaterThan(0);
+  if (info.project.name !== 'desktop') {
+    await expect(page.getByRole('navigation', { name: '显示器', exact: true })).toHaveCount(0);
+  }
   await page.getByRole('button', { name: '显示', exact: true }).click();
-  const primary = page.getByRole('button', { name: '显示器 1 · 主屏 · 1600 × 900', exact: true });
-  const secondary = page.getByRole('button', { name: '显示器 2 · 900 × 1600', exact: true });
+  const panel = page.getByRole('complementary', { name: '显示设置' });
+  const primary = panel.getByRole('button', { name: '显示器 1 · 主屏 · 1600 × 900', exact: true });
+  const secondary = panel.getByRole('button', { name: '显示器 2 · 900 × 1600', exact: true });
   await expect(primary).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: '高清', exact: true }).click();
   await secondary.click();
@@ -21,7 +25,6 @@ test('switches landscape and portrait displays, preserves settings, and recovers
   await expect(page.getByRole('button', { name: '高清', exact: true })).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate(() => window.desktopTest.selectedDisplays)).toEqual(['display-1', 'display-2']);
   expect(await page.evaluate(() => window.desktopTest.closed)).toBe(1);
-  const panel = page.getByRole('complementary', { name: '显示设置' });
   expect(await panel.evaluate(node => node.scrollWidth <= node.clientWidth && node.clientWidth <= 400)).toBe(true);
   await page.screenshot({ path: info.outputPath('multi-display-settings.png') });
   await page.getByRole('button', { name: '完成', exact: true }).click();

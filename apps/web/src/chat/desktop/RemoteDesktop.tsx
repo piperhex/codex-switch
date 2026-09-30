@@ -5,6 +5,7 @@ import type { DesktopClient } from '../../../../../shared/remote-desktop/protoco
 import type { LocalDesktopClipboard } from '../../../../../shared/remote-desktop/clipboard';
 import { useDesktopSession } from '../../../../../shared/remote-desktop/useDesktopSession';
 import { DisplaySettings } from './DisplaySettings';
+import { DesktopDisplayBar } from './DesktopDisplayBar';
 import { DesktopStats } from './DesktopStats';
 import { DesktopMouse } from './MousePad';
 import { useTrackpad } from './useTrackpad';
@@ -84,6 +85,9 @@ export function RemoteDesktop({ client, active, close, localClipboard }: {
   return createPortal(<div ref={root} tabIndex={-1} className="rd-root" style={keyboardViewport}
     role="dialog" aria-modal="true"
     aria-label={t('远程桌面')} onContextMenu={event => event.preventDefault()}>
+    {hardware && <DesktopDisplayBar displays={session.displays} selected={session.settings.displayId}
+      disabled={session.saving || !session.stream}
+      select={displayId => { void session.update({ ...session.settings, displayId }); }} />}
     <div className="rd-workspace">
     <div ref={stage} className="rd-stage">
       <video ref={video} autoPlay playsInline className="rd-video" style={{
