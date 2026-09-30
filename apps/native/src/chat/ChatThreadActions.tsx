@@ -32,7 +32,7 @@ export function ChatThreadActions({ actions }: { actions: ThreadActionsModel }) 
         style={actionStyles.input} maxLength={THREAD_NAME_LIMIT} autoFocus selectTextOnFocus editable={!busy}
         returnKeyType="done" onSubmitEditing={() => { if (!hint && name.trim()) void actions.submit('rename'); }} />}
       {view === 'delete' && <Text style={actionStyles.copy}>
-        删除后可在电脑端“会话管理”的回收站中恢复。</Text>}
+        这条对话及其所有子对话将一起移入回收站，可在电脑端“会话管理”中恢复。</Text>}
       {!!(error || hint) && <Text accessibilityRole="alert" style={error ? styles.error : styles.subtitle}>
         {error || hint}</Text>}
     </View>

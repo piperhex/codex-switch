@@ -28,7 +28,7 @@ export function ChatThreadActions({ actions }: { actions: ThreadActionsModel }) 
         {view === 'rename' ? <input aria-label={t('对话名称')} autoFocus value={name} disabled={busy}
           maxLength={THREAD_NAME_LIMIT} onChange={event => actions.setName(event.target.value)}
           onFocus={event => event.target.select()} />
-          : <p>{t('删除后可在电脑端“会话管理”的回收站中恢复。')}</p>}
+          : <p>{t('这条对话及其所有子对话将一起移入回收站，可在电脑端“会话管理”中恢复。')}</p>}
         <div className="chat-thread-action-buttons">
           <button type="button" disabled={busy} onClick={actions.close}>{t('取消')}</button>
           <button type="submit" className={view === 'delete' ? 'chat-thread-danger' : ''}

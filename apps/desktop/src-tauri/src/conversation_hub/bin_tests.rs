@@ -1,7 +1,6 @@
 use super::*;
 
-#[path = "bin_test_support.rs"]
-mod support;
+use super::bin_test_support as support;
 use support::*;
 
 #[path = "bin_recovery_tests.rs"]

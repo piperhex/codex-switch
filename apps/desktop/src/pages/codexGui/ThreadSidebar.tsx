@@ -120,7 +120,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
           </span>);
         }
       }}>
-      <p className="compact-confirm-copy">删除后可在“会话管理”的回收站中找到，并恢复到指定的 Codex Home。</p>
+      <p className="compact-confirm-copy">这条对话及其所有子对话将一起移入回收站，可在“会话管理”中恢复。</p>
     </Modal>
     <Modal title="重命名对话" open={Boolean(renaming)} width={400} okText="保存" cancelText="取消"
       okButtonProps={{ disabled: !name.trim() }} onCancel={() => setRenaming(null)}

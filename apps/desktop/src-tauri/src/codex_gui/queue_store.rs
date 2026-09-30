@@ -9,7 +9,7 @@ const MAX_THREADS: usize = 1000;
 const MAX_MESSAGES: usize = 100;
 
 #[derive(Debug, thiserror::Error)]
-enum QueueError {
+pub(super) enum QueueError {
     #[error("待发送消息未能保存，请检查可用空间后重试。")]
     Storage,
     #[error("待发送消息已在另一窗口更新，请重新打开聊天。")]
@@ -24,6 +24,21 @@ type Result<T> = std::result::Result<T, QueueError>;
 pub(crate) struct QueueSnapshot {
     revision: u64,
     threads: BTreeMap<String, Vec<QueueMessage>>,
+}
+
+impl QueueSnapshot {
+    fn has_pending(&self, thread_ids: &[String]) -> bool {
+        thread_ids.iter().any(|id| {
+            self.threads
+                .get(id)
+                .is_some_and(|messages| !messages.is_empty())
+        })
+    }
+}
+
+/// Check the durable GUI outbox as well as the engine queue before deleting a tree.
+pub(super) async fn has_pending(app: AppHandle, thread_ids: &[String]) -> Result<bool> {
+    Ok(access(app, None).await?.has_pending(thread_ids))
 }
 
 #[derive(Deserialize, Serialize)]
@@ -222,6 +237,9 @@ mod tests {
         let restored = read(&connection).unwrap();
         assert_eq!(restored.revision, 1);
         assert_eq!(restored.threads["thread"][0].busy, Some(true));
+        assert!(restored.has_pending(&["parent".into(), "thread".into()]));
+        assert!(!restored.has_pending(&["unrelated".into()]));
+        assert!(!QueueSnapshot::default().has_pending(&["thread".into()]));
         drop(connection);
         std::fs::remove_dir_all(root).unwrap();
     }

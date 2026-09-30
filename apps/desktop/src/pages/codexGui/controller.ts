@@ -474,8 +474,8 @@ export class GuiController {
     if (this.state.selected === id) ++this.selectionGeneration;
     this.patch({ deleting: id, error: "" });
     try {
-      await deleteGuiThread(id);
-      this.forgetThread(id);
+      const report = await deleteGuiThread(id);
+      for (const deleted of report.deletedThreadIds ?? [id]) this.forgetThread(deleted);
       await this.refresh();
       return true;
     } catch (error) { this.report(error); return false; }

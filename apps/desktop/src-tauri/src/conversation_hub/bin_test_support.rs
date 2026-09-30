@@ -1,4 +1,4 @@
-use super::super::*;
+use super::*;
 
 pub(super) const THREAD: &str = "thread-a";
 pub(super) const OTHER: &str = "thread-b";

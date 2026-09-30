@@ -2,6 +2,7 @@ mod completion_notifications;
 mod context_capacity;
 mod context_change;
 mod conversation_awareness;
+mod deletion;
 mod idle_threads;
 mod live_settings;
 mod plugin_refresh;

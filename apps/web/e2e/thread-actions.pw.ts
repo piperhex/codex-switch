@@ -79,6 +79,11 @@ test('long press renames without selecting; archive, restore and confirmed delet
     await page.getByRole('button', { name: `管理对话：${renamedTitle}`, exact: true }).click();
     await page.getByRole('button', { name: '删除对话', exact: true }).click();
     await expect(page.getByText('删除这条对话？', { exact: true })).toBeVisible();
+    await expect(page.getByText('这条对话及其所有子对话将一起移入回收站，可在电脑端“会话管理”中恢复。'))
+      .toBeVisible();
+    expect(await page.locator('.chat-thread-actions').evaluate(element => element.getBoundingClientRect().width))
+      .toBeLessThanOrEqual(400);
+    await page.screenshot({ path: `../../.codex-tmp/thread-delete-${isMobile ? 'mobile' : 'desktop'}.png` });
     expect(calls.filter(call => call.operation === 'delete')).toHaveLength(0);
     await page.getByRole('button', { name: '取消', exact: true }).click();
     await page.getByRole('button', { name: `管理对话：${renamedTitle}`, exact: true }).click();

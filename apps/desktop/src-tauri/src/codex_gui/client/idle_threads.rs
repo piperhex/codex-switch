@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use serde_json::{json, Value};
 use tokio::{
-    sync::{Mutex, OwnedRwLockReadGuard, RwLock},
+    sync::{Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock},
     time::{Duration, Instant},
 };
 
@@ -22,6 +22,15 @@ struct Subscription {
 }
 
 impl IdleThreads {
+    pub(super) async fn deletion_guard(&self, id: &str) -> Result<OwnedRwLockWriteGuard<()>> {
+        self.thread(id)
+            .await
+            .requests
+            .clone()
+            .try_write_owned()
+            .map_err(|_| GuiError::Busy)
+    }
+
     async fn thread(&self, id: &str) -> Arc<Subscription> {
         self.0
             .lock()
@@ -44,14 +53,15 @@ impl IdleThreads {
         method: &str,
         params: &Value,
     ) -> Option<OwnedRwLockReadGuard<()>> {
+        let id = params["threadId"].as_str()?;
         // Reading history or polling goals must not keep unused tool processes alive.
         if matches!(
             method,
             "thread/read" | "thread/goal/get" | "thread/name/set"
         ) {
-            return None;
+            return Some(self.thread(id).await.requests.clone().read_owned().await);
         }
-        Some(self.protect(params["threadId"].as_str()?).await)
+        Some(self.protect(id).await)
     }
 
     pub(super) async fn response(&self, method: &str, params: &Value, result: &Value) {
@@ -209,7 +219,7 @@ impl Client {
 }
 
 #[derive(Debug, PartialEq)]
-enum ReleaseDecision {
+pub(super) enum ReleaseDecision {
     Wait,
     NotLoaded,
     Unsubscribe,
@@ -238,7 +248,7 @@ where
     Ok(true)
 }
 
-async fn inspect_thread<F, Fut>(id: &str, mut request: F) -> Result<ReleaseDecision>
+pub(super) async fn inspect_thread<F, Fut>(id: &str, mut request: F) -> Result<ReleaseDecision>
 where
     F: FnMut(&'static str, Value) -> Fut,
     Fut: std::future::Future<Output = Result<Value>>,
@@ -268,7 +278,7 @@ where
     Ok(ReleaseDecision::Unsubscribe)
 }
 
-fn released(response: &Value) -> bool {
+pub(super) fn released(response: &Value) -> bool {
     matches!(
         response["status"].as_str(),
         Some("unsubscribed" | "notSubscribed" | "notLoaded")

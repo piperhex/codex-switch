@@ -55,7 +55,7 @@ it("offers a compact confirmation and sends the selected conversation to trash",
   const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
   expect(dialog.style.width).toBe("400px");
   expect(dialog.textContent).toContain("会话管理");
-  expect(dialog.textContent).toContain("指定的 Codex Home");
+  expect(dialog.textContent).toContain("这条对话及其所有子对话将一起移入回收站");
   await act(async () => button("移入回收站").click());
   expect(controller.deleteThread).toHaveBeenCalledWith("one");
 });

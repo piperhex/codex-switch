@@ -53,6 +53,8 @@ it('keeps native actions compact, shows restore for archives and requires a seco
   expect(actions.changeView).toHaveBeenCalledWith('delete');
   expect(actions.submit).not.toHaveBeenCalled();
   const confirm = ChatThreadActions({ actions: { ...actions, view: 'delete' } })!;
+  expect(nodes(confirm).some(node => typeof node.props.children === 'string'
+    && node.props.children.includes('这条对话及其所有子对话将一起移入回收站'))).toBe(true);
   confirm.props.actions[1].onPress();
   expect(actions.submit).toHaveBeenCalledWith('delete');
 });

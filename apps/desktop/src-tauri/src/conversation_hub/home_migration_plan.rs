@@ -22,7 +22,7 @@ pub(super) fn plan_home_migration(
     requested: &HashSet<String>,
 ) -> Result<Vec<RolloutSnapshot>, MigrationPlanError> {
     let all = merge_bin_snapshots(gather_snapshots(source)?);
-    let edges = migration_edges(source, &all)?;
+    let edges = super::thread_relations::edges(source, &all)?;
     let selected = connected_sessions(&all, &edges, requested);
     let existing = target_session_ids(target)?;
     let target_history = live_bin_thread_ids(target)?;
@@ -76,41 +76,6 @@ fn has_target_path(item: &RolloutSnapshot, source: &Path, target: &Path) -> Resu
         }
     }
     Ok(false)
-}
-
-fn migration_edges(
-    source: &Path,
-    all: &[RolloutSnapshot],
-) -> Result<Vec<(String, String)>, String> {
-    let mut edges = all
-        .iter()
-        .flat_map(|item| {
-            [&item.history_base_thread_id, &item.parent_thread_id]
-                .into_iter()
-                .flatten()
-                .map(|parent| (parent.clone(), item.session_id.clone()))
-        })
-        .collect::<Vec<_>>();
-    let Some(path) = latest_state_db(source) else {
-        return Ok(edges);
-    };
-    let connection = Connection::open(path).map_err(|error| error.to_string())?;
-    if !table_exists(&connection, "thread_spawn_edges")? {
-        return Ok(edges);
-    }
-    let mut statement = connection
-        .prepare("SELECT parent_thread_id, child_thread_id FROM thread_spawn_edges")
-        .map_err(|error| error.to_string())?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })
-        .map_err(|error| error.to_string())?;
-    edges.extend(
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(|error| error.to_string())?,
-    );
-    Ok(edges)
 }
 
 fn connected_sessions(
