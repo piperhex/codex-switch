@@ -12,6 +12,7 @@ mod clipboard_dingtalk;
 pub(crate) mod clipboard_images;
 mod clipboard_paths;
 mod computer_use_setup;
+mod connection;
 pub(crate) mod context_settings;
 mod conversation_context;
 pub(crate) mod deletion;
@@ -67,6 +68,7 @@ use tauri::{AppHandle, Manager, State};
 use tokio::sync::Mutex;
 
 use client::Client;
+use connection::connected;
 use error::{GuiError, Result};
 use protocol::{ApprovalReply, GuiEvent, GuiRequest, GuiResponse};
 
@@ -75,6 +77,7 @@ pub(crate) struct GuiState {
     pub(crate) proxy: crate::local_proxy::gui_runtime::GuiProxyRuntime,
     pub(crate) upload_policy: Arc<upload_policy::UploadPolicyStore>,
     client: Mutex<Option<Arc<Client>>>,
+    activity: Arc<tokio::sync::RwLock<()>>,
     videos: Arc<file_stream::FileStreams>,
     downloads: DownloadStreams,
 }
@@ -92,17 +95,6 @@ async fn prepare_paths(app: AppHandle) -> Result<(PathBuf, PathBuf)> {
     })
     .await
     .map_err(|_| GuiError::Startup)?
-}
-
-async fn connected(state: &GuiState) -> Result<Arc<Client>> {
-    state
-        .client
-        .lock()
-        .await
-        .as_ref()
-        .filter(|client| client.alive.load(Ordering::Acquire))
-        .cloned()
-        .ok_or(GuiError::Disconnected)
 }
 
 #[tauri::command]
@@ -133,6 +125,7 @@ async fn connect(
     reuse_existing: bool,
     setup_computer_use: bool,
 ) -> Result<Vec<GuiEvent>> {
+    let _activity = state.activity.read().await;
     let mut current = state.client.lock().await;
     if let Some(client) = current.as_ref() {
         // A phone reconnect or transport switch must preserve idle, already loaded threads.

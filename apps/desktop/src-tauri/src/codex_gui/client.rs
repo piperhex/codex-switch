@@ -55,11 +55,24 @@ pub(super) struct Client {
     plugin_revision: Mutex<Option<String>>,
     next_id: AtomicU64,
     pub(super) alive: AtomicBool,
+    events_enabled: AtomicBool,
     app: AppHandle,
 }
 
 impl Client {
     pub(super) async fn start(
+        app: AppHandle,
+        executable: super::releases::Executable,
+        home: PathBuf,
+        projectless_root: PathBuf,
+    ) -> Result<Arc<Self>> {
+        let client = Self::start_staged(app, executable, home, projectless_root).await?;
+        client.activate();
+        Ok(client)
+    }
+
+    /// Handshake before replacing the current client; failed updates must not publish disconnects.
+    pub(super) async fn start_staged(
         app: AppHandle,
         executable: super::releases::Executable,
         home: PathBuf,
@@ -107,6 +120,7 @@ impl Client {
             plugin_revision: Mutex::new(None),
             next_id: AtomicU64::new(1),
             alive: AtomicBool::new(true),
+            events_enabled: AtomicBool::new(false),
             app,
         });
         tokio::spawn(client.clone().read(stdout));
@@ -120,9 +134,20 @@ impl Client {
             client.stop().await;
             return Err(GuiError::Startup);
         }
-        client.write(json!({"method": "initialized"})).await?;
-        client.start_idle_cleanup();
+        if client
+            .write(json!({"method": "initialized"}))
+            .await
+            .is_err()
+        {
+            client.stop().await;
+            return Err(GuiError::Startup);
+        }
         Ok(client)
+    }
+
+    pub(super) fn activate(self: &Arc<Self>) {
+        self.events_enabled.store(true, Ordering::Release);
+        self.start_idle_cleanup();
     }
 
     async fn write(&self, value: Value) -> Result<()> {
@@ -299,6 +324,9 @@ impl Client {
     }
 
     fn emit(&self, mut event: GuiEvent) {
+        if !self.events_enabled.load(Ordering::Acquire) {
+            return;
+        }
         super::push_notifications::receive(&self.app, &event);
         super::conversation_context::display(&mut event.params);
         super::web::publish(&self.app, "codex-gui-event", event);

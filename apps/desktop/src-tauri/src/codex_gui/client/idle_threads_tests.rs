@@ -1,5 +1,65 @@
 use super::*;
 
+#[tokio::test]
+async fn cli_update_defers_for_any_active_loaded_session_or_incomplete_list() {
+    for loaded in [
+        json!({}),
+        json!({"data": [], "nextCursor": "more"}),
+        json!({"data": [null], "nextCursor": null}),
+    ] {
+        assert!(
+            !inspect_loaded_threads(|_, _| std::future::ready(Ok(loaded.clone())))
+                .await
+                .unwrap()
+        );
+    }
+    let mut calls = Vec::new();
+    let idle = inspect_loaded_threads(|method, params| {
+        calls.push(method);
+        std::future::ready(Ok(match method {
+            "thread/loaded/list" => json!({"data": ["child"], "nextCursor": null}),
+            "thread/read" => {
+                json!({"thread": {"id": params["threadId"], "status": {"type": "active"}}})
+            }
+            _ => panic!("must stop inspecting a busy conversation"),
+        }))
+    })
+    .await
+    .unwrap();
+    assert!(!idle);
+    assert_eq!(calls, ["thread/loaded/list", "thread/read"]);
+}
+
+#[tokio::test]
+async fn cli_update_accepts_only_idle_sessions_without_goals_terminals_or_queued_work() {
+    for blocked in [
+        None,
+        Some("thread/goal/get"),
+        Some("thread/backgroundTerminals/list"),
+        Some("thread/queue/list"),
+    ] {
+        let idle = inspect_loaded_threads(|method, params| {
+            std::future::ready(Ok(match method {
+                "thread/loaded/list" => json!({"data": ["one", "two"], "nextCursor": null}),
+                "thread/read" => {
+                    json!({"thread": {"id": params["threadId"], "status": {"type": "idle"}}})
+                }
+                "thread/goal/get" if blocked == Some(method) => {
+                    json!({"goal": {"status": "active"}})
+                }
+                "thread/goal/get" => json!({"goal": null}),
+                _ if blocked == Some(method) => {
+                    json!({"data": [{"id": "work"}], "nextCursor": null})
+                }
+                _ => json!({"data": [], "nextCursor": null}),
+            }))
+        })
+        .await
+        .unwrap();
+        assert_eq!(idle, blocked.is_none());
+    }
+}
+
 fn old_activity() -> Instant {
     Instant::now() - IDLE_DELAY - Duration::from_secs(1)
 }

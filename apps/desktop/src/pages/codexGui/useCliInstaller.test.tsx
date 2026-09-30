@@ -4,9 +4,9 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useCliInstaller } from "./useCliInstaller";
 
-const mocks = vi.hoisted(() => ({ invoke: vi.fn(), stop: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invoke: vi.fn(), stop: vi.fn(), subscribe: vi.fn() }));
 vi.mock("../../api/backend", () => ({ invoke: mocks.invoke }));
-vi.mock("./webEvents", () => ({ subscribeGuiEvent: async () => mocks.stop }));
+vi.mock("./webEvents", () => ({ subscribeGuiEvent: mocks.subscribe }));
 const controller = { connect: vi.fn(), report: vi.fn(), clearError: vi.fn() };
 let root: ReturnType<typeof createRoot>;
 let installer: ReturnType<typeof useCliInstaller>;
@@ -25,6 +25,7 @@ const calls = (command: string) => mocks.invoke.mock.calls.filter(([name]) => na
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.clearAllMocks();
+  mocks.subscribe.mockResolvedValue(mocks.stop);
   root = createRoot(document.createElement("div"));
   mocks.invoke.mockImplementation(async (command: string) => {
     if (command === "codex_gui_cli_status") return { version: "0.99.0" };
@@ -108,7 +109,7 @@ it("silently retries a failed download on the next entry", async () => {
   expect(controller.report).not.toHaveBeenCalled();
 });
 
-it("only manual installation changes the active version and reconnects", async () => {
+it("manual installation changes the active version and reconnects", async () => {
   const installing = deferred<{ version: string }>();
   await act(async () => root.render(<Fixture />));
   mocks.invoke.mockImplementation(async (command: string) => command === "codex_gui_cli_install"
@@ -121,6 +122,42 @@ it("only manual installation changes the active version and reconnects", async (
   expect(installer.version).toBe("0.101.0");
   expect(installer.release?.version).toBe("0.101.0");
   expect(controller.connect).toHaveBeenCalledTimes(2);
+});
+
+it("receives background downloads and activation without installing or restarting again", async () => {
+  await act(async () => root.render(<Fixture />));
+  const receive = mocks.subscribe.mock.calls.find(([name]) => name === "codex-gui-cli-state")![1];
+  await act(async () => receive({ version: "0.99.0", release: { ...latest, ready: true } }));
+  expect(installer.release?.ready).toBe(true);
+  await act(async () => receive({ version: latest.version, release: { ...latest, ready: true } }));
+  expect(installer.version).toBe(latest.version);
+  expect(calls("codex_gui_cli_install")).toHaveLength(0);
+  expect(controller.connect).toHaveBeenCalledTimes(1);
+  await act(async () => root.render(<Fixture active={false} />));
+  await act(async () => receive({ version: "0.1.0", release: null }));
+  expect(installer.version).toBe(latest.version);
+});
+
+it("refreshes the installed version after an update while the GUI was hidden", async () => {
+  await act(async () => root.render(<Fixture />));
+  await act(async () => root.render(<Fixture active={false} />));
+  mocks.invoke.mockImplementation(async (command: string) => command === "codex_gui_cli_status"
+    ? { version: latest.version } : { ...latest, ready: true });
+  await act(async () => root.render(<Fixture />));
+  expect(installer.version).toBe(latest.version);
+  expect(controller.connect).toHaveBeenCalledTimes(1);
+});
+
+it("a delayed status response cannot undo a newer automatic activation", async () => {
+  const status = deferred<{ version: string }>();
+  mocks.invoke.mockImplementation(async (command: string) => command === "codex_gui_cli_status"
+    ? status.promise : { ...latest, ready: true });
+  await act(async () => root.render(<Fixture />));
+  const receive = mocks.subscribe.mock.calls.find(([name]) => name === "codex-gui-cli-state")![1];
+  await act(async () => receive({ version: latest.version, release: { ...latest, ready: true } }));
+  await act(async () => status.resolve({ version: "0.99.0" }));
+  expect(installer.version).toBe(latest.version);
+  expect(controller.connect).toHaveBeenCalledExactlyOnceWith({ reuseExisting: true });
 });
 
 it("does not download again when ready, or update automatically in other shared installer views", async () => {

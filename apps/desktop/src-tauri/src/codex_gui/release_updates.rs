@@ -7,9 +7,13 @@ use std::{
 };
 use tauri::{AppHandle, Manager};
 
+#[path = "release_auto_update.rs"]
+mod automatic;
+
 #[derive(Default)]
 pub(crate) struct CliUpdateState {
     startup: OnceLock<()>,
+    scheduler: OnceLock<()>,
     metadata: Mutex<()>,
     // Serialize package writes without blocking other callers from discovering newer releases.
     download: tokio::sync::Mutex<()>,
@@ -26,8 +30,9 @@ pub(super) fn initialize(app: &AppHandle) {
 }
 
 pub(crate) fn start(app: &AppHandle) {
-    let app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || initialize(&app));
+    app.state::<CliUpdateState>()
+        .scheduler
+        .get_or_init(|| automatic::start(app.clone()));
 }
 
 fn check(app: &AppHandle) -> Result<ReleaseInfo> {

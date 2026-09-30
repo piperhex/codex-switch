@@ -5,6 +5,7 @@ import type { GuiController } from "./controller";
 
 interface Release { version: string; size: number; ready?: boolean }
 interface Progress { downloaded: number; total: number; phase: "downloading" | "installing" }
+interface CliSnapshot { version: string | null; release: Release | null }
 
 export function useCliInstaller(active: boolean,
   controller: Pick<GuiController, "report" | "clearError" | "connect">, autoUpdate = false) {
@@ -20,6 +21,7 @@ export function useCliInstaller(active: boolean,
   const checkAgain = useRef(false);
   const mounted = useRef(true);
   const currentVersion = useRef<string | null>(null);
+  const snapshotRevision = useRef(0);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const prepare = useCallback(async () => {
@@ -27,7 +29,7 @@ export function useCliInstaller(active: boolean,
       const prepared = await invoke<Release>("codex_gui_cli_prepare");
       if (mounted.current) setRelease(value => value?.version === prepared.version ? prepared : value);
     } catch {
-      // Background failures stay quiet; the next visit or manual update retries the download.
+      // Background failures stay quiet; the next scheduled check or manual update retries.
     }
   }, []);
 
@@ -38,8 +40,10 @@ export function useCliInstaller(active: boolean,
     try {
       do {
         checkAgain.current = false;
+        const revision = snapshotRevision.current;
         const next = await invoke<Release>(autoUpdate ? "codex_gui_cli_check" : "codex_gui_cli_release");
         if (!mounted.current) return;
+        if (revision !== snapshotRevision.current) continue;
         setRelease(next);
         if (autoUpdate && next.size > 0 && next.version !== currentVersion.current && !next.ready) void prepare();
       } while (checkAgain.current);
@@ -49,19 +53,23 @@ export function useCliInstaller(active: boolean,
   const check = useCallback(() => checkVersion(false), [checkVersion]);
 
   useEffect(() => {
-    if (!active || started.current) return;
+    if (!active) return;
     let cancelled = false;
     queueMicrotask(async () => {
       if (cancelled) return;
-      started.current = true;
+      const firstEntry = !started.current;
       try {
+        const revision = snapshotRevision.current;
         const installed = await invoke<{ version: string | null }>("codex_gui_cli_status");
-        if (!mounted.current) return;
-        currentVersion.current = installed.version;
-        setVersion(installed.version);
+        if (!mounted.current || cancelled) return;
+        started.current = true;
+        if (revision === snapshotRevision.current) {
+          currentVersion.current = installed.version;
+          setVersion(installed.version);
+        }
         setChecked(true);
-        if (installed.version) await controller.connect({ reuseExisting: true });
-        else if (!autoUpdate) await check();
+        if (currentVersion.current && firstEntry) await controller.connect({ reuseExisting: true });
+        else if (!currentVersion.current && !autoUpdate) await check();
       } catch (error) { if (mounted.current) { setChecked(true); controller.report(error); } }
     });
     return () => { cancelled = true; };
@@ -82,6 +90,20 @@ export function useCliInstaller(active: boolean,
     return () => { cancelled = true; void subscription.then((stop) => stop()).catch(controller.report); };
   }, [active, controller]);
 
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    const subscription = subscribeGuiEvent<CliSnapshot>("codex-gui-cli-state", snapshot => {
+      if (cancelled) return;
+      snapshotRevision.current += 1;
+      currentVersion.current = snapshot.version;
+      setVersion(snapshot.version);
+      setRelease(snapshot.release);
+    });
+    void subscription.then(stop => { if (cancelled) stop(); }).catch(controller.report);
+    return () => { cancelled = true; void subscription.then(stop => stop()).catch(controller.report); };
+  }, [active, controller]);
+
   const install = async () => {
     if (!release || busy.current) return;
     busy.current = true;
@@ -91,6 +113,7 @@ export function useCliInstaller(active: boolean,
     try {
       const installed = await invoke<{ version: string }>("codex_gui_cli_install", { version: release.version });
       if (!mounted.current) return;
+      snapshotRevision.current += 1;
       currentVersion.current = installed.version;
       setVersion(installed.version);
       setRelease(value => value?.version === release.version

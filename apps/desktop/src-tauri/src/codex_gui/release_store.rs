@@ -91,6 +91,24 @@ pub(super) fn activate(root: &Path) -> Result<Installed> {
     Ok(installed)
 }
 
+pub(super) fn activation_candidate(root: &Path, expected: &str) -> Result<bool> {
+    Ok(
+        pending(root)?.is_some_and(|candidate| candidate.ready && candidate.version == expected)
+            && installed(root)?
+                .version
+                .as_deref()
+                .is_some_and(|version| newer(expected, version)),
+    )
+}
+
+/// Recheck under the metadata guard: a newer discovery can supersede a staged restart.
+pub(super) fn activate_expected(root: &Path, expected: &str) -> Result<Option<Installed>> {
+    if !activation_candidate(root, expected)? {
+        return Ok(None);
+    }
+    activate(root).map(Some)
+}
+
 #[cfg(test)]
 #[path = "release_store_tests.rs"]
 pub(super) mod tests;

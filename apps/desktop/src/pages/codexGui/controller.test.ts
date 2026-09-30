@@ -135,6 +135,19 @@ describe("Codex GUI controller", () => {
     controller.dispose();
   });
 
+  it("refreshes after an automatic CLI update while reusing the replacement connection", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    await controller.select(thread.id);
+    vi.mocked(guiApi.connect).mockClear();
+    receive({ method: "connection/updated", params: {} });
+    await controller.connect();
+    expect(guiApi.connect).toHaveBeenCalledExactlyOnceWith({ reuseExisting: true });
+    expect(controller.getSnapshot().selected).toBe(thread.id);
+    expect(controller.getSnapshot().connection).toBe("ready");
+    controller.dispose();
+  });
+
   it("stops the browser subscription while hidden and reloads the selected thread on return", async () => {
     const controller = new GuiController();
     await controller.connect();

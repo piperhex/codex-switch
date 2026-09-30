@@ -126,6 +126,7 @@ export class GuiController {
     }
     if (threadId && this.deletedThreads.has(threadId)) return;
     if (event.method === "connection/restored") { void this.connect(); return; }
+    if (event.method === "connection/updated") { void this.connect({ reuseExisting: true }); return; }
     if (event.method.endsWith("Delta") || event.method.endsWith("/delta")) {
       this.streamEvents.push(event);
       this.streamTimer ??= setTimeout(this.flushStream, STREAM_FRAME_MS);

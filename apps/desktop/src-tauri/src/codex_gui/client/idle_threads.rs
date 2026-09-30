@@ -132,6 +132,18 @@ impl Subscription {
 }
 
 impl Client {
+    /// Inspect every loaded session, including child sessions and autonomous goals.
+    /// The caller holds the GUI activity gate so no new GUI operation can start.
+    pub(in crate::codex_gui) async fn ready_for_update(&self) -> Result<bool> {
+        if self.is_running().await || !self.approvals.lock().await.is_empty() {
+            return Ok(false);
+        }
+        if !inspect_loaded_threads(|method, params| self.request_raw(method, params)).await? {
+            return Ok(false);
+        }
+        Ok(!self.is_running().await && self.approvals.lock().await.is_empty())
+    }
+
     pub(super) fn start_idle_cleanup(self: &Arc<Self>) {
         let client = Arc::downgrade(self);
         tokio::spawn(async move {
@@ -201,6 +213,29 @@ enum ReleaseDecision {
     Wait,
     NotLoaded,
     Unsubscribe,
+}
+
+async fn inspect_loaded_threads<F, Fut>(mut request: F) -> Result<bool>
+where
+    F: FnMut(&'static str, Value) -> Fut,
+    Fut: std::future::Future<Output = Result<Value>>,
+{
+    let loaded = request("thread/loaded/list", json!({})).await?;
+    let Some(ids) = loaded["data"]
+        .as_array()
+        .filter(|_| loaded["nextCursor"].is_null())
+    else {
+        return Ok(false);
+    };
+    for id in ids {
+        let Some(id) = id.as_str() else {
+            return Ok(false);
+        };
+        if inspect_thread(id, &mut request).await? == ReleaseDecision::Wait {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 async fn inspect_thread<F, Fut>(id: &str, mut request: F) -> Result<ReleaseDecision>
