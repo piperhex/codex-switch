@@ -7,6 +7,7 @@ import { RemoteDesktop } from './RemoteDesktop';
 import type { DesktopClient } from '../../../../../shared/remote-desktop/protocol';
 
 const runtime = vi.hoisted(() => ({ landscape: false, viewOnly: false, input: vi.fn(), rotate: vi.fn(),
+  orientation: vi.fn(), onShow: vi.fn(),
   session: vi.fn(), dimensions: vi.fn(), createPeer: vi.fn(), immersive: vi.fn(), mute: vi.fn(),
   stream: { toURL: vi.fn(() => 'native-ios-stream') } }));
 vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
@@ -24,9 +25,10 @@ vi.mock('react-native-webrtc', () => ({ RTCView: 'RTCView', RTCPeerConnection: c
 } }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Icon', MaterialCommunityIcons: 'Icon' }));
 vi.mock('expo-status-bar', () => ({ StatusBar: 'StatusBar' }));
-vi.mock('../terminal/useTerminalOrientation', () => ({ useTerminalOrientation: () => ({
-  landscape: runtime.landscape, rotate: runtime.rotate,
-}) }));
+vi.mock('../terminal/useTerminalOrientation', () => ({ useTerminalOrientation: (...options: unknown[]) => {
+  runtime.orientation(...options);
+  return { landscape: runtime.landscape, rotate: runtime.rotate, onShow: runtime.onShow };
+} }));
 vi.mock('../../../../../shared/remote-desktop/useDesktopSession', () => ({ useDesktopSession: (options: unknown) => {
   runtime.session(options);
   return { stream: runtime.stream, pointer: {}, input: runtime.input, hasAudio: true, muted: false, mute: runtime.mute,
@@ -49,7 +51,7 @@ interface Props {
   disabled?: boolean;
   children?: ReactNode; edges?: string[]; streamURL?: string;
   presentationStyle?: string; supportedOrientations?: string[];
-  visible?: boolean; onRequestClose?: () => void; accessibilityLabel?: string; onPress?: () => void;
+  visible?: boolean; onRequestClose?: () => void; onShow?: () => void; accessibilityLabel?: string; onPress?: () => void;
   onDimensionsChange?: (event: { nativeEvent: { width: number; height: number } }) => void;
 }
 function nodes(tree: ReactNode): ReactElement<Props>[] {
@@ -62,6 +64,15 @@ beforeEach(() => {
   vi.clearAllMocks(); vi.stubGlobal('React', React); runtime.landscape = false; runtime.viewOnly = false; Platform.OS = 'ios';
 });
 afterEach(() => vi.unstubAllGlobals());
+
+it.each(['ios', 'android'] as const)('coordinates automatic landscape with modal presentation on %s', platform => {
+  Platform.OS = platform;
+  const elements = render();
+  expect(runtime.orientation).toHaveBeenCalledWith(true, { initialLandscape: true, waitForShow: platform === 'ios' });
+  expect(runtime.onShow).not.toHaveBeenCalled();
+  elements.find(node => node.type === Modal)!.props.onShow!();
+  expect(runtime.onShow).toHaveBeenCalledOnce();
+});
 
 it('keeps display controls available but disables remote input in view-only mode', () => {
   runtime.viewOnly = true;

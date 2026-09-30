@@ -24,7 +24,12 @@ the WebRTC plugin restores the unused microphone permission. The generated confi
 See Apple's [local network privacy guidance](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
 
 The full-screen native viewer supports portrait and both landscape orientations, preserving the home-indicator
-safe area on iPhone and iPad. Web also preserves the bottom safe area in landscape, fits text and display
+safe area on iPhone and iPad. On iOS, automatic landscape waits for the native Modal's `onShow` callback,
+which fires after presentation completes, and runs only once per presentation. Requesting the orientation
+lock during mount races UIKit's full-screen presentation. A late callback after closing must not rotate the
+chat. Keep this ordering when changing the viewer; JavaScript error handling cannot catch a native UIKit
+exception. See the [React Native Modal lifecycle](https://reactnative.dev/docs/0.79/modal#onshow).
+Web also preserves the bottom safe area in landscape, fits text and display
 settings to the visual keyboard viewport, and only offers browser fullscreen when the browser supports it.
 Remote video continues to play inline, so its mouse and keyboard controls remain accessible.
 

@@ -32,7 +32,7 @@ export function RemoteDesktop({ client, active, close }: {
   const session = useDesktopSession({ client, active, createPeer });
   const viewOnly = session.capabilities.control === false;
   const audioUnavailable = !session.hasAudio || session.stats?.audio === 'unavailable';
-  const orientation = useTerminalOrientation(active, { initialLandscape: true });
+  const orientation = useTerminalOrientation(active, { initialLandscape: true, waitForShow: Platform.OS === 'ios' });
   const window = useDesktopWindow(orientation.landscape);
   const [display, setDisplay] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
@@ -83,7 +83,8 @@ export function RemoteDesktop({ client, active, close }: {
         : <Ionicons name={tool.icon} size={22} color="#e7edf8" />}<Text style={s.label}>{tool.label}</Text>
     </Pressable>);
   return <Modal visible={active} onRequestClose={close} hardwareAccelerated statusBarTranslucent navigationBarTranslucent
-    presentationStyle="fullScreen" supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
+    onShow={orientation.onShow} presentationStyle="fullScreen"
+    supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}>
     <SafeAreaProvider><SafeAreaView style={s.root} edges={safeEdges}>
       <StatusBar style="light" hidden={orientation.landscape} />
       <KeyboardAvoidingView style={s.workspace} behavior="padding"

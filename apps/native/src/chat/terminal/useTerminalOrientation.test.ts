@@ -19,12 +19,33 @@ vi.mock('expo-screen-orientation', () => ({
 }));
 
 const flush = async () => { for (let index = 0; index < 12; index++) await Promise.resolve(); };
-function open(initialLandscape = false) {
-  const orientation = useTerminalOrientation(true, { initialLandscape });
+function open(initialLandscape = false, waitForShow = false) {
+  const orientation = useTerminalOrientation(true, { initialLandscape, waitForShow });
   const cleanup = observed.effects[0]()!;
   return { ...orientation, cleanup };
 }
 beforeEach(() => { vi.clearAllMocks(); observed.effects = []; observed.updates = []; });
+
+it('waits for the iOS modal to finish presenting before requesting landscape, only once', async () => {
+  const orientation = open(true, true); await flush();
+  expect(ScreenOrientation.lockAsync).not.toHaveBeenCalled();
+  orientation.onShow(); orientation.onShow(); await flush();
+  expect(ScreenOrientation.lockAsync).toHaveBeenCalledExactlyOnceWith(ScreenOrientation.OrientationLock.LANDSCAPE);
+  orientation.cleanup(); await flush();
+  expect(ScreenOrientation.lockAsync).toHaveBeenLastCalledWith(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+});
+
+it('ignores a late iOS presentation callback after the desktop is closed', async () => {
+  const orientation = open(true, true); await flush();
+  orientation.cleanup(); orientation.onShow(); await flush();
+  expect(ScreenOrientation.lockAsync).toHaveBeenCalledExactlyOnceWith(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+});
+
+it('cancels landscape if the iOS modal is closed immediately after presentation', async () => {
+  const orientation = open(true, true); await flush();
+  orientation.onShow(); orientation.cleanup(); await flush();
+  expect(ScreenOrientation.lockAsync).toHaveBeenCalledExactlyOnceWith(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+});
 
 it('opens the desktop in landscape before any input panel is used, then restores portrait', async () => {
   const orientation = open(true); await flush();

@@ -3,7 +3,9 @@ import { Keyboard } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
 /** Serialize rotation and cleanup so hiding during a pending rotation still restores portrait. */
-export function useTerminalOrientation(visible: boolean, { initialLandscape = false } = {}) {
+export function useTerminalOrientation(visible: boolean, {
+  initialLandscape = false, waitForShow = false,
+} = {}) {
   const [landscape, setLandscape] = useState(false);
   const [rotating, setRotating] = useState(false);
   const [error, setError] = useState('');
@@ -11,9 +13,11 @@ export function useTerminalOrientation(visible: boolean, { initialLandscape = fa
   const busy = useRef(0);
   const generation = useRef(0);
   const pending = useRef(Promise.resolve());
+  const initialRotationRequested = useRef(false);
 
   useEffect(() => {
     active.current = visible;
+    initialRotationRequested.current = false;
     setError('');
     setRotating(busy.current > 0);
     if (!visible) return;
@@ -25,7 +29,7 @@ export function useTerminalOrientation(visible: boolean, { initialLandscape = fa
     const subscription = ScreenOrientation.addOrientationChangeListener(event => update(event.orientationInfo.orientation));
     void ScreenOrientation.getOrientationAsync().then(update)
       .catch(() => console.warn('Unable to read terminal orientation'));
-    if (initialLandscape) requestRotation(ScreenOrientation.OrientationLock.LANDSCAPE, true);
+    if (!waitForShow) onShow();
     return () => {
       observing = false;
       subscription.remove();
@@ -35,7 +39,7 @@ export function useTerminalOrientation(visible: boolean, { initialLandscape = fa
       pending.current = pending.current.then(() => ScreenOrientation.lockAsync(portrait))
         .catch(() => console.warn('Unable to restore terminal portrait orientation'));
     };
-  }, [visible, initialLandscape]);
+  }, [visible, initialLandscape, waitForShow]);
 
   const requestRotation = (target: ScreenOrientation.OrientationLock, queue = false) => {
     if (!active.current || (busy.current > 0 && !queue)) return;
@@ -54,7 +58,13 @@ export function useTerminalOrientation(visible: boolean, { initialLandscape = fa
       if (active.current) setRotating(busy.current > 0);
     });
   };
+  const onShow = () => {
+    if (!active.current || !initialLandscape || initialRotationRequested.current) return;
+    initialRotationRequested.current = true;
+    // UIKit must finish presenting the modal before the app's orientation mask changes.
+    requestRotation(ScreenOrientation.OrientationLock.LANDSCAPE, true);
+  };
   const rotate = () => requestRotation(landscape ? ScreenOrientation.OrientationLock.PORTRAIT_UP
     : ScreenOrientation.OrientationLock.LANDSCAPE);
-  return { landscape, rotate, rotating, error };
+  return { landscape, rotate, rotating, error, onShow };
 }
