@@ -20,13 +20,18 @@ export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { vi
   const panelSize = props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE;
   const panel = mousePanelPosition(cursor, zoomed ? props.viewport.stage : undefined, panelSize);
   return <>
-    <img className="rd-cursor" src={cursorImage} alt="" aria-hidden="true" draggable={false}
-      style={{ ...CURSOR_SIZE, left: cursor.x, top: cursor.y }} />
+    {props.panel.expanded && <img className="rd-cursor" src={cursorImage} alt="" aria-hidden="true" draggable={false}
+      style={{ ...CURSOR_SIZE, left: cursor.x, top: cursor.y }} />}
     {visible && <div className="rd-mouse-layer" style={{ ...panelSize, left: panel.x, top: panel.y }}>
-      {props.panel.expanded ? <MousePad {...props} />
-        : <button className="rd-mouse-icon" aria-label={t('展开鼠标面板')} onClick={props.panel.expand}><Mouse /></button>}
+      {props.panel.expanded ? <MousePad {...props} /> : <MouseIcon {...props} />}
     </div>}
   </>;
+}
+
+function MouseIcon({ pointer, viewport, panel }: Props) {
+  const drag = useTrackpad({ pointer, viewport, panel, id: 'icon', onTap: panel.expand });
+  return <button className="rd-mouse-icon" aria-label={t('展开鼠标面板')} {...drag}
+    onClick={event => { if (event.detail === 0) panel.expand(); }}><Mouse /></button>;
 }
 
 function MousePad({ pointer, viewport, panel, scroll }: Props) {

@@ -153,11 +153,14 @@ test('follows the local pointer, collapses when idle and maps direct touches thr
   await page.screenshot({ path: info.outputPath('mouse-follows-at-edge.png') });
   const icon = page.getByRole('button', { name: '展开鼠标面板' });
   await expect(icon).toBeVisible({ timeout: MOUSE_IDLE_DELAY + 2500 });
-  await expectAnchoredMouse(page);
+  await expect(page.locator('.rd-cursor')).toHaveCount(0);
+  const collapsed = (await icon.boundingBox())!;
+  expect(collapsed.x).toBeCloseTo(edgePanel.x); expect(collapsed.y).toBeCloseTo(edgePanel.y);
   expect((await page.locator('video').boundingBox())!).toEqual(edgeVideo);
   await expect(page.locator('.rd-mouse')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('mouse-idle-icon.png') });
   await icon.click(); await expect(page.locator('.rd-mouse')).toBeVisible();
+  await expectAnchoredMouse(page);
   const left = (await page.getByRole('button', { name: '鼠标左键', exact: true }).boundingBox())!;
   await page.mouse.move(left.x + left.width / 2, left.y + left.height / 2); await page.mouse.down();
   await expect(page.getByText('拖拽中', { exact: true })).toBeVisible(); await page.mouse.up();

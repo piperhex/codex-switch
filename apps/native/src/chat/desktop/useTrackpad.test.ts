@@ -9,12 +9,13 @@ vi.mock('react', () => ({ useEffect: vi.fn(), useMemo: (factory: () => unknown) 
 vi.mock('react-native', () => ({ PanResponder: { create: vi.fn(() => ({ panHandlers: {} })) } }));
 const event = (x: number, y: number) => ({ nativeEvent: { locationX: x, locationY: y } } as GestureResponderEvent);
 const gesture = (dx = 0, dy = 0) => ({ dx, dy } as PanResponderGestureState);
-function setup(direct = false, withZoom = false) {
+function setup(direct = false, withZoom = false, collapsed = false) {
   const send = vi.fn(); const pointer = new DesktopPointer(send);
   const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
   const viewport = desktopViewport({ width: 400, height: 800 }, { width: 1600, height: 900 });
   const zoom = { start: vi.fn(), move: vi.fn(), end: vi.fn() };
-  useTrackpad({ pointer, viewport, panel, direct, id: 'stage', zoom: withZoom ? zoom : undefined });
+  useTrackpad({ pointer, viewport, panel, direct, id: 'stage', zoom: withZoom ? zoom : undefined,
+    onTap: collapsed ? panel.expand : undefined });
   return { send, pointer, panel, zoom, handlers: vi.mocked(PanResponder.create).mock.calls.at(-1)![0] };
 }
 beforeEach(() => vi.clearAllMocks());
@@ -48,6 +49,43 @@ it('moves immediately at display scale and does not click after an out-and-back 
   handlers.onPanResponderRelease!(event(100, 650), gesture());
   expect(send.mock.calls.every(call => call[0].kind === 'move')).toBe(true);
   expect(panel.hold).toHaveBeenLastCalledWith('stage', false); pointer.dispose();
+});
+
+it('expands a collapsed mouse on a tap with small finger jitter without clicking the remote desktop', () => {
+  const { handlers, pointer, send, panel } = setup(false, false, true);
+  handlers.onPanResponderGrant!(event(20, 20), gesture());
+  handlers.onPanResponderMove!(event(21, 21), gesture(1, 1));
+  handlers.onPanResponderRelease!(event(21, 21), gesture(1, 1));
+  expect(panel.expand).toHaveBeenCalledOnce();
+  expect(send.mock.calls.every(call => call[0].kind === 'move')).toBe(true);
+  expect(panel.hold).toHaveBeenLastCalledWith('stage', false); pointer.dispose();
+});
+
+it('drags a collapsed mouse without expanding, including when the finger returns to its starting point', () => {
+  const { handlers, pointer, send, panel } = setup(false, false, true);
+  handlers.onPanResponderGrant!(event(20, 20), gesture());
+  handlers.onPanResponderMove!(event(50, 40), gesture(30, 20));
+  expect(pointer.getSnapshot().x).toBeCloseTo(0.5 + 30 / 399);
+  expect(pointer.getSnapshot().y).toBeCloseTo(0.5 + 20 / 224);
+  handlers.onPanResponderRelease!(event(50, 40), gesture(30, 20));
+  expect(panel.expand).not.toHaveBeenCalled();
+  handlers.onPanResponderGrant!(event(20, 20), gesture());
+  handlers.onPanResponderMove!(event(30, 20), gesture(10));
+  handlers.onPanResponderMove!(event(20, 20), gesture());
+  handlers.onPanResponderRelease!(event(20, 20), gesture());
+  expect(panel.expand).not.toHaveBeenCalled();
+  expect(send.mock.calls.every(call => call[0].kind === 'move')).toBe(true); pointer.dispose();
+});
+
+it('does not expand a cancelled collapsed mouse gesture and accepts the next tap', () => {
+  const { handlers, pointer, send, panel } = setup(false, false, true);
+  handlers.onPanResponderGrant!(event(20, 20), gesture());
+  handlers.onPanResponderTerminate!(event(20, 20), gesture());
+  expect(panel.expand).not.toHaveBeenCalled();
+  expect(panel.hold).toHaveBeenLastCalledWith('stage', false);
+  handlers.onPanResponderGrant!(event(20, 20), gesture());
+  handlers.onPanResponderRelease!(event(20, 20), gesture());
+  expect(panel.expand).toHaveBeenCalledOnce(); expect(send).not.toHaveBeenCalled(); pointer.dispose();
 });
 
 const touches = (xs: number[], target = 'stage', y = 150) => ({ nativeEvent: {

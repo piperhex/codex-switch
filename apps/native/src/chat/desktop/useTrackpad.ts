@@ -1,16 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder } from 'react-native';
-import type { DesktopPointer } from '../../../../../shared/remote-desktop/input';
-import { desktopPoint, type DesktopViewport } from '../../../../../shared/remote-desktop/geometry';
-import type { MousePanelActivity } from '../../../../../shared/remote-desktop/useMousePanel';
-import type { DesktopZoom } from '../../../../../shared/remote-desktop/zoom';
+import { desktopPoint } from '../../../../../shared/remote-desktop/geometry';
+import { TRACKPAD_TAP_DISTANCE, type TrackpadOptions } from '../../../../../shared/remote-desktop/trackpad';
 import { usePinchZoom } from './usePinchZoom';
 
-interface Options {
-  pointer: DesktopPointer; viewport: DesktopViewport; direct?: boolean; click?: boolean;
-  panel: MousePanelActivity; id: string; cancel?: () => void; zoom?: DesktopZoom;
-}
-export function useTrackpad(options: Options) {
+export function useTrackpad(options: TrackpadOptions) {
   const latest = useRef(options); latest.current = options;
   const pinch = usePinchZoom(options);
   const [pressed, setPressed] = useState(false);
@@ -48,11 +42,13 @@ export function useTrackpad(options: Options) {
         distance: before.distance + Math.abs(dx) + Math.abs(dy) };
     },
     onPanResponderRelease: () => {
-      const { pointer, direct, click = true, panel, id } = latest.current;
+      const { pointer, direct, click = true, panel, id, onTap } = latest.current;
       const pinched = pinch.end();
+      const tapped = !direct && !pinched && previous.current.distance < TRACKPAD_TAP_DISTANCE;
       if (direct) { if (previous.current.accepted) pointer.button('left', false); }
-      else if (!pinched && click && previous.current.distance < 5) pointer.click();
+      else if (tapped && click && !onTap) pointer.click();
       pointer.flush(); setPressed(false); panel.hold(id, false);
+      if (tapped) onTap?.();
     },
     onPanResponderTerminate: () => {
       const { pointer, panel, id, cancel } = latest.current;

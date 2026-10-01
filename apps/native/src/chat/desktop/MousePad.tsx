@@ -18,16 +18,24 @@ export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { vi
   const panelSize = props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE;
   const panel = mousePanelPosition(cursor, zoomed ? props.viewport.stage : undefined, panelSize);
   return <>
-    <View pointerEvents="none" accessible={false} style={[s.cursor, { left: cursor.x, top: cursor.y }]}>
+    {props.panel.expanded && <View pointerEvents="none" accessible={false}
+      style={[s.cursor, { left: cursor.x, top: cursor.y }]}>
       <Image accessible={false} source={require('../../../../../shared/remote-desktop/cursor.png')}
         resizeMode="contain" style={s.cursorImage} />
-    </View>
+    </View>}
     {visible && <View pointerEvents="box-none" style={[s.mouseLayer, panelSize, { left: panel.x, top: panel.y }]}>
-      {props.panel.expanded ? <MousePad {...props} /> : <Pressable accessibilityRole="button"
-        accessibilityLabel="展开鼠标面板" onPress={props.panel.expand} style={s.mouseIcon}>
-        <MaterialCommunityIcons name="mouse" size={23} color="#fff" /></Pressable>}
+      {props.panel.expanded ? <MousePad {...props} /> : <MouseIcon {...props} />}
     </View>}
   </>;
+}
+function MouseIcon({ pointer, viewport, panel }: Props) {
+  const drag = useTrackpad({ pointer, viewport, panel, id: 'icon', onTap: panel.expand });
+  return <View {...drag.panHandlers} accessible accessibilityRole="button" accessibilityLabel="展开鼠标面板"
+    onAccessibilityTap={panel.expand} accessibilityActions={[{ name: 'activate' }]}
+    onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'activate') panel.expand(); }}
+    style={s.mouseIcon}>
+    <MaterialCommunityIcons name="mouse" size={23} color="#fff" />
+  </View>;
 }
 function MousePad({ pointer, viewport, panel, scroll }: Props) {
   const buttons = useMouseButtons(pointer);

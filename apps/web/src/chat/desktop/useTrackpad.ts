@@ -1,15 +1,9 @@
 import { useEffect, useRef, type PointerEvent } from 'react';
-import type { DesktopPointer } from '../../../../../shared/remote-desktop/input';
-import { desktopPoint, type DesktopViewport } from '../../../../../shared/remote-desktop/geometry';
-import type { MousePanelActivity } from '../../../../../shared/remote-desktop/useMousePanel';
-import type { DesktopZoom } from '../../../../../shared/remote-desktop/zoom';
+import { desktopPoint } from '../../../../../shared/remote-desktop/geometry';
+import { TRACKPAD_TAP_DISTANCE, type TrackpadOptions } from '../../../../../shared/remote-desktop/trackpad';
 import { usePinchZoom } from './usePinchZoom';
 
-interface Options {
-  pointer: DesktopPointer; viewport: DesktopViewport; direct?: boolean; click?: boolean;
-  panel: MousePanelActivity; id: string; cancel?: () => void; zoom?: DesktopZoom;
-}
-export function useTrackpad({ pointer, viewport, direct, click = true, panel, id, cancel, zoom }: Options) {
+export function useTrackpad({ pointer, viewport, direct, click = true, panel, id, cancel, zoom, onTap }: TrackpadOptions) {
   const pinch = usePinchZoom({ pointer, viewport, zoom });
   const gesture = useRef<{ id: number; x: number; y: number; distance: number; accepted: boolean }>();
   useEffect(() => () => {
@@ -28,10 +22,12 @@ export function useTrackpad({ pointer, viewport, direct, click = true, panel, id
       return;
     }
     if (gesture.current?.id !== event.pointerId) return;
+    const tapped = !cancelled && !direct && gesture.current.distance < TRACKPAD_TAP_DISTANCE;
     if (cancelled) { pointer.release(); cancel?.(); }
     else if (direct) { if (gesture.current.accepted) pointer.button('left', false); }
-    else if (click && gesture.current.distance < 5) pointer.click();
+    else if (tapped && click && !onTap) pointer.click();
     pointer.flush(); gesture.current = undefined; panel.hold(id, false);
+    if (tapped) onTap?.();
   };
   return {
     onPointerDown: (event: PointerEvent<HTMLElement>) => {

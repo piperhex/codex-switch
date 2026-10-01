@@ -5,14 +5,16 @@ import { Image } from 'react-native';
 import { DesktopMouse } from './MousePad';
 import { DesktopPointer } from '../../../../../shared/remote-desktop/input';
 import { desktopViewport } from '../../../../../shared/remote-desktop/geometry';
+import { useTrackpad } from './useTrackpad';
 
 vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
   useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot() }));
 vi.mock('react-native', () => ({ View: 'View', Image: 'Image', Pressable: 'Pressable', Text: 'Text',
   StyleSheet: { create: <T,>(styles: T) => styles, absoluteFillObject: { position: 'absolute' } } }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Icon', MaterialCommunityIcons: 'Icon' }));
+vi.mock('./useTrackpad', () => ({ useTrackpad: vi.fn(() => ({ panHandlers: {} })) }));
 interface Props { children?: ReactNode; style?: Array<{ left?: number; top?: number; width?: number; height?: number }>;
-  accessibilityLabel?: string; pointerEvents?: string; onPress?: () => void; resizeMode?: string }
+  accessibilityLabel?: string; pointerEvents?: string; onAccessibilityTap?: () => void; resizeMode?: string }
 function nodes(tree: ReactNode): ReactElement<Props>[] {
   return Children.toArray(tree).flatMap(child => isValidElement<Props>(child)
     ? [child, ...nodes(child.props.children)] : []);
@@ -51,10 +53,16 @@ it('renders the native local pointer and small controls over black letterboxing,
   expect(style.top! + style.height!).toBeGreaterThan(viewport.content.y + viewport.content.height);
   panel.expanded = false;
   const collapsed = render();
-  const icon = collapsed.find(node => node.props.accessibilityLabel === '展开鼠标面板')!;
+  expect(collapsed.some(node => node.type === Image)).toBe(false);
+  const iconComponent = collapsed.find(node => typeof node.type === 'function')!;
+  const renderIcon = iconComponent.type as (props: unknown) => ReactNode;
+  const icon = nodes(renderIcon(iconComponent.props)).find(node => node.props.accessibilityLabel === '展开鼠标面板')!;
   const iconStyle = Object.assign({}, ...collapsed.find(node => node.props.pointerEvents === 'box-none')!.props.style!);
   expect(iconStyle).toMatchObject({ left: style.left, top: style.top, width: 40, height: 40 });
-  icon.props.onPress!(); expect(panel.expand).toHaveBeenCalledOnce();
+  expect(useTrackpad).toHaveBeenCalledWith(expect.objectContaining({ pointer, viewport, onTap: panel.expand }));
+  icon.props.onAccessibilityTap!(); expect(panel.expand).toHaveBeenCalledOnce();
+  panel.expanded = true;
+  expect(render().some(node => node.type === Image)).toBe(true);
   expect(nodes(DesktopMouse({ pointer, viewport, panel, visible: false, scroll: vi.fn() }))
     .some(node => node.props.pointerEvents === 'box-none')).toBe(false);
   pointer.dispose();
