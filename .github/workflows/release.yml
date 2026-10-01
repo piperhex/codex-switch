@@ -215,6 +215,14 @@ jobs:
           "import { prepareDesktopService } from './scripts/prepare-desktop-service.mjs';
           await prepareDesktopService();"
 
+      # Tauri boxes IPC futures differently in debug builds. Exercise the release
+      # dispatcher on a Windows-sized stack before publishing the desktop package.
+      - name: Test Windows release desktop IPC stack
+        if: matrix.name == 'windows-x86_64'
+        run: >-
+          cargo test --release --manifest-path apps/desktop/src-tauri/Cargo.toml
+          --test codex_switch_lib_tests remote_desktop::stream::stack_test -- --nocapture
+
       - name: Test Linux AppImage preparation
         if: startsWith(matrix.name, 'ubuntu')
         run: node --test scripts/prepare-linux-appimage.test.mjs

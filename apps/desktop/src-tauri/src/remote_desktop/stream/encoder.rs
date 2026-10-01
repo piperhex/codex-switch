@@ -12,6 +12,7 @@ use tokio::{
 
 const START_TIMEOUT: Duration = Duration::from_secs(3);
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+const READ_BUFFER_BYTES: usize = 32 * 1024;
 
 #[derive(Clone, Copy)]
 enum Backend {
@@ -37,6 +38,7 @@ struct Display {
 pub(super) struct Encoder {
     child: Child,
     output: BufReader<ChildStdout>,
+    read_buffer: Box<[u8]>,
     units: AccessUnits,
     packets: Option<Packets>,
     pub width: u32,
@@ -98,6 +100,9 @@ impl Encoder {
         Ok(Self {
             child,
             output: BufReader::new(output),
+            // An inline array lives across read().await and inflates every parent
+            // future, including the command constructed on Windows' 1 MiB UI stack.
+            read_buffer: vec![0; READ_BUFFER_BYTES].into_boxed_slice(),
             units: AccessUnits::default(),
             packets: dirty.then(Packets::default),
             width: size.width,
@@ -116,18 +121,17 @@ impl Encoder {
             if let Some(frame) = next {
                 return Ok(frame);
             }
-            let mut buffer = [0; 32 * 1024];
             let length = self
                 .output
-                .read(&mut buffer)
+                .read(&mut self.read_buffer)
                 .await
                 .map_err(|_| DesktopError::Platform)?;
             if length == 0 {
                 return Err(DesktopError::Platform);
             }
             match &mut self.packets {
-                Some(packets) => packets.push(&buffer[..length])?,
-                None => self.units.push(&buffer[..length])?,
+                Some(packets) => packets.push(&self.read_buffer[..length])?,
+                None => self.units.push(&self.read_buffer[..length])?,
             }
         }
     }

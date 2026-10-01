@@ -24,6 +24,8 @@ mod peer;
 mod pump;
 #[cfg(windows)]
 mod sample;
+#[cfg(all(test, windows))]
+mod stack_test;
 #[cfg(windows)]
 mod turn_transport;
 use super::{safe_error, DesktopError};
@@ -76,8 +78,8 @@ pub(super) async fn revoke() {
 }
 
 #[tauri::command]
-pub(crate) async fn remote_desktop_stream_open(
-    app: tauri::AppHandle,
+pub(crate) async fn remote_desktop_stream_open<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     request: OpenRequest,
 ) -> std::result::Result<Offer, String> {
     #[cfg(windows)]
