@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../../i18n';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,12 +16,13 @@ interface Props {
   files: FileClient;
 }
 export function VideoViewer({ close, ...options }: Props) {
+  useLanguage();
   const video = useVideoStream(options);
   const download = useManagedDownload({ ...options, client: options.files });
   const orientation = useImageOrientation();
   const [failedUrl, setFailedUrl] = useState('');
   const error = video.error || (video.url && video.url === failedUrl
-    ? '暂时无法播放此视频，请换一个 MP4 视频试试。' : '');
+    ? t("暂时无法播放此视频，请换一个 MP4 视频试试。") : '');
   const source = useMemo(() => video.url
     ? { html: videoPlayerHtml(video.url), baseUrl: video.url } : undefined, [video.url]);
   return <Modal visible animationType="fade" onRequestClose={close} statusBarTranslucent
@@ -35,11 +37,11 @@ export function VideoViewer({ close, ...options }: Props) {
             onPress={download.busy ? download.cancel : download.start} style={styles.download}>
             <Text style={styles.status}>{download.label}</Text>
           </Pressable>
-          {orientation.suggested && <Pressable accessibilityRole="button" accessibilityLabel="旋转视频"
+          {orientation.suggested && <Pressable accessibilityRole="button" accessibilityLabel={t("旋转视频")}
             disabled={orientation.rotating} onPress={orientation.rotate} style={styles.button}>
             <MaterialCommunityIcons name="screen-rotation" size={26} color="#fff" />
           </Pressable>}
-          <Pressable accessibilityRole="button" accessibilityLabel="关闭视频" onPress={close} style={styles.button}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("关闭视频")} onPress={close} style={styles.button}>
             <MaterialCommunityIcons name="close" size={28} color="#fff" />
           </Pressable>
         </View>
@@ -54,10 +56,10 @@ export function VideoViewer({ close, ...options }: Props) {
         {(!source || !!error) && <View style={styles.notice}>
           {!!error ? <>
             <Text accessibilityRole="alert" style={styles.status}>{error}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="重新加载视频" onPress={video.retry}
-              disabled={!options.ready} style={styles.retry}><Text style={styles.status}>重试</Text></Pressable>
-          </> : options.ready ? <ActivityIndicator color="#fff" accessibilityLabel="正在加载视频" />
-            : <Text style={styles.status}>请连接电脑后播放视频。</Text>}
+            <Pressable accessibilityRole="button" accessibilityLabel={t("重新加载视频")} onPress={video.retry}
+              disabled={!options.ready} style={styles.retry}><Text style={styles.status}>{t("重试")}</Text></Pressable>
+          </> : options.ready ? <ActivityIndicator color="#fff" accessibilityLabel={t("正在加载视频")} />
+            : <Text style={styles.status}>{t("请连接电脑后播放视频。")}</Text>}
         </View>}
         {!!orientation.error && <Text style={styles.status}>{orientation.error}</Text>}
         {download.busy && !!download.detail && <Text style={styles.status}>{download.detail}</Text>}

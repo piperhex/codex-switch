@@ -24,3 +24,8 @@ it('provides an enabled retry action for a failed update download', () => {
   button.props.onPress();
   expect(beginDownload).toHaveBeenCalledWith(release);
 });
+
+vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));

@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../../i18n';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -17,10 +18,11 @@ export function TerminalSession({ client, session, visible, deviceName, hide, cl
   hide: () => void; close: () => void;
   tabs?: ReactNode; notice?: string;
 }) {
+  useLanguage();
   const cwd = session.cwd;
   const webview = useRef<WebView>(null);
   const [html, setHtml] = useState('');
-  const [status, setStatus] = useState('正在打开终端…');
+  const [status, setStatus] = useState(t("正在打开终端…"));
   const [generation, setGeneration] = useState(0);
   const [wrap, setWrap] = useState(true);
   const orientation = useTerminalOrientation(visible);
@@ -43,7 +45,7 @@ export function TerminalSession({ client, session, visible, deviceName, hide, cl
   useEffect(() => {
     let cancelled = false;
     void terminalDocument().then(value => { if (!cancelled) setHtml(value); })
-      .catch(() => { if (!cancelled) setStatus('终端未能加载，请关闭后重新打开。'); });
+      .catch(() => { if (!cancelled) setStatus(t("终端未能加载，请关闭后重新打开。")); });
     return () => { cancelled = true; };
   }, []);
   useEffect(() => { if (visible) updateDisplay(); }, [wrap, visible, orientation.landscape]);
@@ -57,26 +59,26 @@ export function TerminalSession({ client, session, visible, deviceName, hide, cl
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <SafeAreaView style={[styles.overlay, orientation.landscape && styles.fullscreenOverlay]}
       edges={orientation.landscape ? ['top', 'right', 'bottom', 'left'] : ['bottom']}>
-      {!orientation.landscape && <Pressable accessibilityRole="button" accessibilityLabel="收起终端"
+      {!orientation.landscape && <Pressable accessibilityRole="button" accessibilityLabel={t("收起终端")}
         style={styles.backdrop} onPress={hide} />}
       <View style={[styles.drawer, orientation.landscape && styles.fullscreen]} accessibilityViewIsModal>
         <View style={[styles.header, orientation.landscape && styles.compactHeader]}>
-          {!orientation.landscape && <View style={styles.heading}><Text style={styles.title}>远程终端</Text>
+          {!orientation.landscape && <View style={styles.heading}><Text style={styles.title}>{t("远程终端")}</Text>
             <Text numberOfLines={1} style={styles.subtitle}>{deviceName}{cwd ? ` · ${cwd}` : ''}</Text></View>}
           {orientation.landscape && <View style={styles.inlineTabs}>{tabs}</View>}
           {orientation.landscape && <TerminalKeys input={inputKey} />}
-          <Pressable accessibilityRole="switch" accessibilityLabel="自动换行" accessibilityState={{ checked: wrap }}
+          <Pressable accessibilityRole="switch" accessibilityLabel={t("自动换行")} accessibilityState={{ checked: wrap }}
             style={[styles.wrapButton, wrap && styles.selected]} onPress={() => setWrap(value => !value)}>
             <Ionicons name="return-down-back-outline" size={20} color={wrap ? '#14806f' : '#718078'} />
-            <Text style={styles.wrapLabel}>自动换行</Text></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={orientation.landscape ? '切换竖屏' : '切换横屏'}
+            <Text style={styles.wrapLabel}>{t("自动换行")}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={orientation.landscape ? t("切换竖屏") : t("切换横屏")}
             accessibilityState={{ disabled: orientation.rotating }} disabled={orientation.rotating}
             style={[styles.button, orientation.rotating && styles.disabled]} onPress={orientation.rotate}>
             <Ionicons name={orientation.landscape ? 'phone-portrait-outline' : 'phone-landscape-outline'}
               size={22} color="#17211b" /></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="关闭终端" style={styles.button} onPress={close}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("关闭终端")} style={styles.button} onPress={close}>
             <Ionicons name="trash-outline" size={21} color="#718078" /></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="收起终端" style={styles.button} onPress={hide}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("收起终端")} style={styles.button} onPress={hide}>
             <Ionicons name="chevron-down" size={24} color="#17211b" /></Pressable>
         </View>
         {!orientation.landscape && tabs}
@@ -92,7 +94,7 @@ export function TerminalSession({ client, session, visible, deviceName, hide, cl
             if (parseTerminalMessage(nativeEvent.data)?.type === 'ready') updateDisplay();
             bridge.receive(nativeEvent.data);
           }}
-          onError={() => setStatus('终端显示遇到问题，请收起后重新打开。')} />
+          onError={() => setStatus(t("终端显示遇到问题，请收起后重新打开。"))} />
           : <ActivityIndicator style={styles.loading} color="#14806f" />}
         {!!message && <Text accessibilityRole="alert" style={styles.status}>{message}</Text>}
       </View>

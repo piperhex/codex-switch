@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../../i18n';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, type Edge } from 'react-native-safe-area-context';
@@ -29,6 +30,7 @@ const createPeer = (configuration: RTCConfiguration) =>
 export function RemoteDesktop({ client, active, close }: {
   client: DesktopClient; active: boolean; close: () => void;
 }) {
+  useLanguage();
   const session = useDesktopSession({ client, active, createPeer });
   const viewOnly = session.capabilities.control === false;
   const audioUnavailable = !session.hasAudio || session.stats?.audio === 'unavailable';
@@ -61,19 +63,19 @@ export function RemoteDesktop({ client, active, close }: {
   if (!orientation.landscape || Platform.OS === 'ios') safeEdges.push('bottom');
   const tools: { label: string; action?: string; icon: keyof typeof Ionicons.glyphMap | 'mouse';
     run: () => void; selected?: boolean; disabled?: boolean }[] = [
-    { label: direct ? '触屏' : '鼠标', action: direct ? '切换为鼠标模式' : '切换为触屏模式',
+    { label: direct ? t("触屏") : t("鼠标"), action: direct ? t("切换为鼠标模式") : t("切换为触屏模式"),
       icon: direct ? 'hand-left-outline' : 'mouse', run: () => switchMode(!direct), selected: true, disabled: viewOnly },
-    { label: '键盘', icon: 'keypad-outline', run: () => { setKeyboard(!keyboard); setDisplay(false); },
+    { label: t("键盘"), icon: 'keypad-outline', run: () => { setKeyboard(!keyboard); setDisplay(false); },
       selected: keyboard, disabled: viewOnly },
-    { label: session.muted ? '开启声音' : '声音',
-      action: audioUnavailable ? '声音暂不可用' : session.muted ? '开启声音' : '静音',
+    { label: session.muted ? t("开启声音") : t("声音"),
+      action: audioUnavailable ? t("声音暂不可用") : session.muted ? t("开启声音") : t("静音"),
       icon: session.muted || audioUnavailable ? 'volume-mute-outline' : 'volume-high-outline',
       run: () => session.mute(!session.muted), selected: !session.muted && !audioUnavailable, disabled: audioUnavailable },
-    { label: '显示桌面', icon: 'desktop-outline', run: () => session.input({ kind: 'key', key: 'desktop' }), disabled: viewOnly },
-    { label: '所有窗口', icon: 'grid-outline', run: () => session.input({ kind: 'key', key: 'windows' }), disabled: viewOnly },
-    { label: '显示', icon: 'options-outline', run: () => { setDisplay(!display); setKeyboard(false); }, selected: display },
-    { label: '旋转', icon: 'phone-landscape-outline', run: orientation.rotate },
-    { label: '关闭', icon: 'close', run: close },
+    { label: t("显示桌面"), icon: 'desktop-outline', run: () => session.input({ kind: 'key', key: 'desktop' }), disabled: viewOnly },
+    { label: t("所有窗口"), icon: 'grid-outline', run: () => session.input({ kind: 'key', key: 'windows' }), disabled: viewOnly },
+    { label: t("显示"), icon: 'options-outline', run: () => { setDisplay(!display); setKeyboard(false); }, selected: display },
+    { label: t("旋转"), icon: 'phone-landscape-outline', run: orientation.rotate },
+    { label: t("关闭"), icon: 'close', run: close },
   ];
   const buttons = tools.map(tool =>
     <Pressable key={tool.label} accessibilityRole="button" accessibilityLabel={tool.action ?? tool.label}
@@ -102,7 +104,7 @@ export function RemoteDesktop({ client, active, close }: {
                 if (nativeEvent.width > 0 && nativeEvent.height > 0) setSource(nativeEvent);
               }} />}
             <View key={direct ? 'direct' : 'trackpad'} style={s.fill} {...trackpad.panHandlers}
-              accessibilityLabel="远程桌面触控区域" />
+              accessibilityLabel={t("远程桌面触控区域")} />
             {session.stats && statsVisible && !keyboard
               && <DesktopStats stats={session.stats} close={() => setStatsVisible(false)} />}
             {session.stream && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
@@ -113,9 +115,9 @@ export function RemoteDesktop({ client, active, close }: {
               close={() => setScrolling(false)} />}
             {!!(session.status || orientation.error) && <View style={s.message}>
               <Text accessibilityRole="alert" style={s.text}>{session.status || orientation.error}</Text>
-              <Pressable onPress={session.retry}><Text style={s.text}>重新连接</Text></Pressable></View>}
+              <Pressable onPress={session.retry}><Text style={s.text}>{t("重新连接")}</Text></Pressable></View>}
             {viewOnly && !session.status && <View pointerEvents="none" style={s.message}>
-              <Text style={s.text}>仅观看</Text></View>}
+              <Text style={s.text}>{t("仅观看")}</Text></View>}
             {display && <DisplaySettings settings={session.settings} displays={session.displays} update={session.update}
               saving={session.saving || !session.stream}
               stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}

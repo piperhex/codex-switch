@@ -13,8 +13,11 @@ function storedLanguage(): Language {
 }
 
 export function useLanguage() {
-  const [language, setLanguageState] = useState<Language>(storedLanguage);
-  setGuiLanguage(language);
+  const [language, setLanguageState] = useState<Language>(() => {
+    const initial = storedLanguage();
+    setGuiLanguage(initial);
+    return initial;
+  });
 
   useEffect(() => {
     try { window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language); }
@@ -23,7 +26,10 @@ export function useLanguage() {
     void publishLanguageChange(language).catch(() => undefined);
   }, [language]);
 
-  useEffect(() => subscribeToLanguageChanges(setLanguageState), []);
+  useEffect(() => subscribeToLanguageChanges((next) => {
+    setGuiLanguage(next);
+    setLanguageState(next);
+  }), []);
 
   const setLanguage = useCallback((nextLanguage: Language) => {
     setGuiLanguage(nextLanguage);

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -26,7 +27,7 @@ export function useChatNotificationNavigation(session: AuthSession | null, openC
     let cancelled = false;
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!cancelled && !tapped && response) receive(response);
-    }).catch(() => setError('暂时无法打开通知，请进入聊天查看回复。'));
+    }).catch(() => setError(t("暂时无法打开通知，请进入聊天查看回复。")));
     return () => { cancelled = true; subscription.remove(); };
   }, []);
   useEffect(() => {
@@ -38,8 +39,8 @@ export function useChatNotificationNavigation(session: AuthSession | null, openC
       checking = true;
       try {
         const granted = await prepareChatNotifications();
-        if (!cancelled) setError(granted ? '' : '开启通知后，回复完成时会提醒你。');
-      } catch { if (!cancelled) setError('通知暂不可用，请检查系统通知设置。'); }
+        if (!cancelled) setError(granted ? '' : t("开启通知后，回复完成时会提醒你。"));
+      } catch { if (!cancelled) setError(t("通知暂不可用，请检查系统通知设置。")); }
       finally { checking = false; }
     };
     void check();

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { ImagePolicyError } from '../../../../shared/remote-chat/compressImage';
 import { validateChatImages } from '../../../../shared/remote-chat/attachments';
 import { useEffect, useRef, useState } from 'react';
@@ -41,7 +42,7 @@ export function useChatPhotos({ threadId, sending }: { threadId: string | null; 
   const fail = (failure: unknown, current: number) => {
     if (!mounted.current || current !== generation.current) return;
     setSettingsRequired(failure instanceof PhotoPermissionError && !failure.canAskAgain);
-    setError((failure instanceof PhotoPermissionError || failure instanceof ImagePolicyError) ? failure.message : '照片添加失败，请减少照片或重新选择后再试。');
+    setError((failure instanceof PhotoPermissionError || failure instanceof ImagePolicyError) ? failure.message : t("照片添加失败，请减少照片或重新选择后再试。"));
   };
   const finish = () => {
     picking.current = false;
@@ -64,7 +65,7 @@ export function useChatPhotos({ threadId, sending }: { threadId: string | null; 
     setError('');
     setSettingsRequired(false);
     if (photos.length >= MAX_CHAT_PHOTOS) {
-      setError(`每条消息最多添加 ${MAX_CHAT_PHOTOS} 张照片。`);
+      setError(t("每条消息最多添加 {value1} 张照片。", { value1: MAX_CHAT_PHOTOS }));
       return;
     }
     picking.current = true;
@@ -89,7 +90,7 @@ export function useChatPhotos({ threadId, sending }: { threadId: string | null; 
     setPhotos((current) => current.filter((photo) => !submitted.includes(photo)));
   };
   const openSettings = () => {
-    void Linking.openSettings().catch(() => setError('无法打开设置，请在手机设置中找到 Remote AI。'));
+    void Linking.openSettings().catch(() => setError(t("无法打开设置，请在手机设置中找到 Remote AI。")));
   };
   const restore = (images: string[]) => setPhotos(images.map((dataUrl, index) => ({
     id: `queued-${index}`, uri: dataUrl, dataUrl,

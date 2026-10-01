@@ -127,6 +127,7 @@ pub(crate) fn read_app_settings<R: Runtime>(
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .unwrap_or_default();
     model_context_settings::apply_saved_context_settings(&path, &mut settings)?;
+    language_settings::apply_saved_language(&path, &mut settings);
     Ok(settings)
 }
 

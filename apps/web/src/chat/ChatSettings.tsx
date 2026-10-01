@@ -43,7 +43,8 @@ export function ChatSettings({ models, selection, saving, ready, error, updateSe
       {visibleSettingsFields(selection).map((entry) => <button key={entry.field} type="button"
         className="chat-setting-entry"
         aria-label={t("设置{value1}", { value1: t(entry.label) })} onClick={() => setField(entry.field)} tabIndex={field ? -1 : 0}>
-        <strong>{t(entry.label)}</strong><span>{t(settingValue(entry.field, models, selection))}</span>
+        <strong>{t(entry.label)}</strong><span>{entry.field === 'model'
+          ? settingValue(entry.field, models, selection) : t(settingValue(entry.field, models, selection))}</span>
         <span aria-hidden="true">›</span>
       </button>)}
       {!!notice && <p role={error ? 'alert' : 'status'} className={error ? 'chat-error' : 'chat-muted'}>{t(notice)}</p>}

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { DownloadTask } from './types';
 
 const KIB = 1024;
@@ -13,7 +14,7 @@ export function downloadPercent(task: DownloadTask) {
   return task.size ? Math.min(100, Math.floor(task.received / task.size * 100)) : 0;
 }
 export const downloadStatus: Record<DownloadTask['status'], string> = {
-  queued: '等待下载', downloading: '正在下载', paused: '已暂停', completed: '已完成', failed: '下载中断',
+  get queued() { return t("等待下载"); }, get downloading() { return t("正在下载"); }, get paused() { return t("已暂停"); }, get completed() { return t("已完成"); }, get failed() { return t("下载中断"); },
 };
 export function downloadDetail(task: DownloadTask) {
   const speed = task.status === 'downloading' && task.bytesPerSecond

@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { accountColors as colors, styles } from './styles';
@@ -20,6 +21,7 @@ function OverviewStat({ value, label, icon }: {
   label: string;
   icon: 'people' | 'laptop-outline';
 }) {
+  useLanguage();
   const { width, fontScale } = useWindowDimensions();
   const narrow = width / fontScale < 380;
   return <View style={[styles.stat, narrow && styles.statNarrow]}>
@@ -32,58 +34,61 @@ function OverviewStat({ value, label, icon }: {
 }
 
 function OverviewActions(props: AccountOverviewProps) {
+  useLanguage();
   const refreshDisabled = props.refreshBusy || props.accountCount === 0;
   const consumeDisabled = props.refreshBusy || !props.canConsumeQuota;
   return <View style={styles.actions}>
-    <Pressable accessibilityRole="button" accessibilityLabel="消耗额度" disabled={consumeDisabled}
+    <Pressable accessibilityRole="button" accessibilityLabel={t("消耗额度")} disabled={consumeDisabled}
       onPress={props.onConsumeQuota}
       style={({ pressed }) => [styles.action, styles.consume,
         pressed && styles.pressed, consumeDisabled && styles.disabled]}>
       {props.consumingQuota ? <ActivityIndicator color={colors.green} size="small" /> : <>
         <Ionicons name="flash" size={24} color="#ffc400" />
-        <Text style={styles.consumeText}>消耗额度</Text>
+        <Text style={styles.consumeText}>{t("消耗额度")}</Text>
       </>}
     </Pressable>
-    <Pressable accessibilityRole="button" accessibilityLabel="批量刷新用量" disabled={refreshDisabled}
+    <Pressable accessibilityRole="button" accessibilityLabel={t("批量刷新用量")} disabled={refreshDisabled}
       onPress={props.onRefreshUsage}
       style={({ pressed }) => [styles.action, styles.refresh,
         pressed && styles.pressed, refreshDisabled && styles.disabled]}>
       {props.refreshingUsage ? <ActivityIndicator color="#fff" size="small" /> : <>
         <Ionicons name="sync-outline" size={18} color="#fff" />
-        <Text style={styles.refreshText}>批量刷新用量</Text>
+        <Text style={styles.refreshText}>{t("批量刷新用量")}</Text>
       </>}
     </Pressable>
   </View>;
 }
 
 export function AccountOverview(props: AccountOverviewProps) {
+  useLanguage();
   return <View style={styles.overview}>
     <View style={styles.headingRow}>
-      <Text style={styles.heading}>账户管理</Text>
+      <Text style={styles.heading}>{t("账户管理")}</Text>
       <Pressable accessibilityRole="button" onPress={props.onTogglePrivacy}
-        accessibilityLabel={props.privateMode ? '显示账号邮箱' : '隐藏账号邮箱'}
+        accessibilityLabel={props.privateMode ? t("显示账号邮箱") : t("隐藏账号邮箱")}
         style={({ pressed }) => [styles.privacyButton, pressed && styles.pressed]}>
         <Ionicons name={props.privateMode ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.muted} />
       </Pressable>
     </View>
     <View style={styles.overviewRow}>
-      <OverviewStat value={props.accountCount} label="个账号" icon="people" />
-      <OverviewStat value={props.onlineDeviceCount} label="在线设备" icon="laptop-outline" />
+      <OverviewStat value={props.accountCount} label={t("个账号")} icon="people" />
+      <OverviewStat value={props.onlineDeviceCount} label={t("在线设备")} icon="laptop-outline" />
       <OverviewActions {...props} />
     </View>
   </View>;
 }
 
 export function AccountToolbar({ updatedAt, onAddAccount }: { updatedAt: string; onAddAccount: () => void }) {
+  useLanguage();
   return <View style={styles.toolbar}>
     <View style={styles.updated}>
       <Ionicons name="time-outline" size={16} color={colors.muted} />
-      <Text style={styles.updatedText}>用量更新：{updatedAt}</Text>
+      <Text style={styles.updatedText}>{t("用量更新：")}{updatedAt}</Text>
     </View>
     <Pressable accessibilityRole="button" onPress={onAddAccount}
       style={({ pressed }) => [styles.add, pressed && styles.pressed]}>
       <Ionicons name="add" size={22} color={colors.green} />
-      <Text style={styles.addText}>添加账户</Text>
+      <Text style={styles.addText}>{t("添加账户")}</Text>
     </Pressable>
   </View>;
 }

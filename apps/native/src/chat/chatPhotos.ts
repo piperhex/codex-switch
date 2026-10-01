@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { EncodingType, getInfoAsync, readAsStringAsync } from 'expo-file-system';
 import { base64Bytes, getChatPolicy, isDirectChat, MIB } from '../../../../shared/remote-chat/policy';
 import { compressChatImage, ImagePolicyError } from '../../../../shared/remote-chat/compressImage';
@@ -15,7 +16,7 @@ export type PhotoSource = 'library' | 'camera';
 
 export class PhotoPermissionError extends Error {
   constructor(public readonly canAskAgain: boolean) {
-    super(canAskAgain ? '允许使用相机后，即可拍照。' : '相机权限已关闭，请在系统设置中允许使用相机。');
+    super(canAskAgain ? t("允许使用相机后，即可拍照。") : t("相机权限已关闭，请在系统设置中允许使用相机。"));
   }
 }
 
@@ -35,11 +36,11 @@ export async function preparePhoto(asset: ImagePicker.ImagePickerAsset): Promise
   let bytes = asset.fileSize;
   if (bytes === undefined) {
     const info = await getInfoAsync(asset.uri);
-    if (!info.exists || info.isDirectory) throw new ImagePolicyError('照片读取失败，请重新选择。');
+    if (!info.exists || info.isDirectory) throw new ImagePolicyError(t("照片读取失败，请重新选择。"));
     bytes = info.size;
   }
   if (bytes > policy.imageSourceMaxMb * MIB) {
-    throw new ImagePolicyError(`单张图片不能超过 ${policy.imageSourceMaxMb} MB，请选择较小的图片。`);
+    throw new ImagePolicyError(t("单张图片不能超过 {value1} MB，请选择较小的图片。", { value1: policy.imageSourceMaxMb }));
   }
   if (isDirectChat() && /^image\/(png|jpeg|webp|gif)$/.test(asset.mimeType ?? '')) {
     const data = await readAsStringAsync(asset.uri, { encoding: EncodingType.Base64 });
@@ -50,15 +51,15 @@ export async function preparePhoto(asset: ImagePicker.ImagePickerAsset): Promise
     const actions = Math.max(asset.width, asset.height) > edge ? [{ resize }] : [];
     const photo = await manipulateAsync(asset.uri, actions,
       { format: SaveFormat.JPEG, compress: quality, base64: true });
-    if (!photo.base64) throw new ImagePolicyError('照片读取失败，请重新选择。');
+    if (!photo.base64) throw new ImagePolicyError(t("照片读取失败，请重新选择。"));
     const value = { id: photo.uri, uri: photo.uri, dataUrl: `data:image/jpeg;base64,${photo.base64}` };
     return { value, bytes: base64Bytes(value.dataUrl) };
   }, policy, Math.floor((photoDataLimit() - 'data:image/jpeg;base64,'.length) / 4) * 3);
 }
 
 export function validatePhotos(photos: ChatPhoto[]) {
-  if (photos.length > MAX_CHAT_PHOTOS) throw new Error(`每条消息最多添加 ${MAX_CHAT_PHOTOS} 张照片。`);
+  if (photos.length > MAX_CHAT_PHOTOS) throw new Error(t("每条消息最多添加 {value1} 张照片。", { value1: MAX_CHAT_PHOTOS }));
   if (photos.reduce((total, photo) => total + photo.dataUrl.length, 0) > photoDataLimit()) {
-    throw new Error('照片总大小过大，请减少照片后再试。');
+    throw new Error(t("照片总大小过大，请减少照片后再试。"));
   }
 }

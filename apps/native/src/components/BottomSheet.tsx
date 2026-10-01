@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -59,6 +60,7 @@ export function BottomSheet({
   maxWidth,
   compactHeader = false,
 }: BottomSheetProps) {
+  useLanguage();
   const translateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -132,7 +134,7 @@ export function BottomSheet({
         <View style={styles.inset} {...(dragFromHeaderOnly ? dragResponder.panHandlers : {})}>
           <View style={[styles.handle, compactHeader && styles.compactHandle]} />
           <View style={[styles.header, compactHeader && styles.compactHeader]}>
-            {onBack && <Pressable accessibilityRole="button" accessibilityLabel="返回上一层"
+            {onBack && <Pressable accessibilityRole="button" accessibilityLabel={t("返回上一层")}
               hitSlop={8} onPress={onBack} style={styles.closeButton}>
               <Text style={styles.closeText}>‹</Text>
             </Pressable>}
@@ -145,7 +147,7 @@ export function BottomSheet({
             </View>
             {dismissible ? <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`关闭${title}`}
+              accessibilityLabel={t("关闭{value1}", { value1: title })}
               hitSlop={8}
               onPress={onClose}
               style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}

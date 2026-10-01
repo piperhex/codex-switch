@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useRef, useState } from 'react';
 import type { ApprovalReply, GuiEvent } from './types';
 import { approvalResponse, type ApprovalAnswers, type ApprovalDecision } from './approvalResponse';
@@ -16,7 +17,7 @@ export function useApprovalResponse({ event, answers, respond }: Options) {
     setBusy(true);
     setError('');
     try { await respond(reply); }
-    catch { setError('提交失败，请重试。'); }
+    catch { setError(t("提交失败，请重试。")); }
     finally { submitting.current = false; setBusy(false); }
   };
   return { busy, error, send };

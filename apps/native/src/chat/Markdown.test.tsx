@@ -8,6 +8,8 @@ vi.mock('react', async importOriginal => ({ ...await importOriginal<typeof React
   useMemo: <T,>(compute: () => T) => compute(),
   useState: <T,>(initial: T) => [initial, vi.fn()],
   useContext: () => undefined,
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({ Text: 'Text', View: 'View', ScrollView: 'ScrollView', Pressable: 'Pressable',
   Linking: { openURL: vi.fn() }, StyleSheet: { create: <T,>(styles: T) => styles },

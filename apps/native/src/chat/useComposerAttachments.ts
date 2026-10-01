@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import { readAsStringAsync, EncodingType } from 'expo-file-system';
@@ -40,7 +41,7 @@ export function useComposerAttachments({ threadId, sending }: { threadId: string
       if (current === generation.current) setItems((existing) => [...existing, ...additions]);
     } catch (cause) {
       if (current === generation.current) setError(cause instanceof Error
-        && /文件|附件/.test(cause.message) ? cause.message : '文件添加失败，请重新选择。');
+        && /文件|附件/.test(cause.message) ? cause.message : t("文件添加失败，请重新选择。"));
     } finally { picking.current = false; if (mounted.current) setBusy(false); }
   };
   const add = (item: AttachmentReference) => {
@@ -48,7 +49,7 @@ export function useComposerAttachments({ threadId, sending }: { threadId: string
     try {
       setItems(remoteAttachments([...items.filter((entry) => entry.path !== item.path), item])); setError('');
       return true;
-    } catch { setError('每条消息最多添加 8 个附件或对话引用。'); return false; }
+    } catch { setError(t("每条消息最多添加 8 个附件或对话引用。")); return false; }
   };
   return { items, busy, error, pick, add,
     addPlugin: (plugin: ComposerPlugin) => add({ kind: 'plugin', name: plugin.interface?.displayName || plugin.name,

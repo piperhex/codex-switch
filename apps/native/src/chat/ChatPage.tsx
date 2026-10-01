@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Keyboard, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,6 +43,7 @@ interface Props {
 }
 
 export function ChatPage(props: Props) {
+  useLanguage();
   const { session, active, notification, notificationError, notificationHandled } = props;
   const devices = useOfflineDevices(session, props.devices, props.devicesLoaded);
   const { device, chooseDevice: selectDevice } = useChatDevice({ session, devices,
@@ -53,9 +55,9 @@ export function ChatPage(props: Props) {
   };
   return <View style={[styles.page, !active && styles.hidden]}>
     {notification && devices.length > 0 && !device && <Text style={styles.error}>
-      通知对应的电脑暂不可用，请选择其他电脑。</Text>}
+      {t("通知对应的电脑暂不可用，请选择其他电脑。")}</Text>}
     {!!backgroundError && <Text accessibilityRole="alert" style={styles.error}>{backgroundError}</Text>}
-    {!!notificationError && <Pressable accessibilityRole="button" accessibilityLabel="打开通知设置"
+    {!!notificationError && <Pressable accessibilityRole="button" accessibilityLabel={t("打开通知设置")}
       onPress={() => { void Linking.openSettings(); }}><Text style={styles.error}>{notificationError}</Text></Pressable>}
     <ConnectedChat key={`${session.baseUrl}:${session.email}:${device?.deviceId ?? ''}`} {...props} session={session}
       device={device} devices={devices} active={active} chooseDevice={chooseDevice}
@@ -67,6 +69,7 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
   tokenSummary, openTokenSummary, closeTokenSummary }: Props & {
   device?: RemoteDevice; chooseDevice: (id: string) => void;
 }) {
+  useLanguage();
   const active = pageActive && !tokenSummary;
   const insets = useSafeAreaInsets();
   const { state, controller, foreground, catalog } = useChat(session, device?.deviceId ?? '', Boolean(device));
@@ -136,17 +139,17 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
       {...drawerSwipeHandlers}>
     <ChatOverlay>
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel="打开聊天列表" style={styles.back}
+      <Pressable accessibilityRole="button" accessibilityLabel={t("打开聊天列表")} style={styles.back}
         onPress={openDrawer}><Text style={styles.backText}>☰</Text></Pressable>
       <View style={styles.headerContent}>
         <Text numberOfLines={1} style={styles.headerTitle}>
-          {state.selected ? threadPresentation(state.selected, state.sidebar).title : '新聊天'}</Text>
+          {state.selected ? threadPresentation(state.selected, state.sidebar, t).title : t("新聊天")}</Text>
         <ChatConnectionInfo state={state} controller={controller} device={device} active={active && foreground} />
       </View>
       {state.selected && state.selectedArchived && <Pressable accessibilityRole="button"
         style={styles.compactButton} disabled={!ready || running}
         onPress={() => { void controller.archive().then(openDrawer); }}>
-        <Text style={styles.buttonText}>恢复</Text></Pressable>}
+        <Text style={styles.buttonText}>{t("恢复")}</Text></Pressable>}
       <View style={styles.headerTools}>
         <ChatTools client={controller.guiTools} active={active && foreground} connected={ready}
           deviceName={device?.name} cwd={state.selected?.cwd ?? state.draftProject?.cwd ?? ''} />
@@ -154,9 +157,9 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
     </View>
     {!!state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
     {state.desktopOnly && <Text style={[styles.subtitle, { maxWidth: 400, paddingHorizontal: 16 }]}>
-      桌面已就绪。打开远程桌面，登录电脑后即可继续聊天。</Text>}
+      {t("桌面已就绪。打开远程桌面，登录电脑后即可继续聊天。")}</Text>}
     {!ready && !!device && <Text style={[styles.subtitle, { maxWidth: 400, paddingHorizontal: 16 }]}>
-      离线浏览，仅显示已缓存的内容；连接后更新。</Text>}
+      {t("离线浏览，仅显示已缓存的内容；连接后更新。")}</Text>}
     {!!state.cacheError && <Text style={[styles.subtitle, { maxWidth: 400 }]}>{state.cacheError}</Text>}
     <ChatImageContext.Provider value={{ threadId: state.selected?.id ?? null, ready, offline: true,
       load: controller.imagePreview }}>

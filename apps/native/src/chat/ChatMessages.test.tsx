@@ -12,6 +12,8 @@ vi.mock('react', async importOriginal => ({ ...await importOriginal<typeof impor
   useMemo: <T,>(compute: () => T) => compute(),
   useCallback: <T,>(callback: T) => callback,
   useState: () => [state.selection, (value: unknown) => { state.selection = value; }],
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({ ActivityIndicator: 'Spinner', FlatList: 'FlatList', Pressable: 'Pressable',
   RefreshControl: 'RefreshControl', Text: 'Text', View: 'View', Keyboard: { dismiss: state.dismiss },

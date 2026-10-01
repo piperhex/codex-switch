@@ -1,18 +1,20 @@
+import { t, useLanguage } from '../i18n';
 import Feather from '@expo/vector-icons/Feather';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export type ComposerAddAction = 'camera' | 'library' | 'projectPhotos' | 'file' | 'projectFiles' | 'plugins';
 const OPTIONS = [
-  { action: 'camera', label: '相机', icon: 'camera' },
-  { action: 'library', label: '手机照片', icon: 'image' },
-  { action: 'projectPhotos', label: '电脑照片', icon: 'image' },
-  { action: 'file', label: '手机文件', icon: 'paperclip' },
-  { action: 'projectFiles', label: '电脑文件', icon: 'monitor' },
-  { action: 'plugins', label: '插件', icon: 'box' },
+  { action: 'camera', get label() { return t("相机"); }, icon: 'camera' },
+  { action: 'library', get label() { return t("手机照片"); }, icon: 'image' },
+  { action: 'projectPhotos', get label() { return t("电脑照片"); }, icon: 'image' },
+  { action: 'file', get label() { return t("手机文件"); }, icon: 'paperclip' },
+  { action: 'projectFiles', get label() { return t("电脑文件"); }, icon: 'monitor' },
+  { action: 'plugins', get label() { return t("插件"); }, icon: 'box' },
 ] as const;
 
 export function ComposerAddMenu({ busy, choose }: { busy: boolean; choose: (action: ComposerAddAction) => void }) {
-  return <ScrollView accessibilityLabel="添加内容菜单" keyboardShouldPersistTaps="always" style={menuStyles.list}>
+  useLanguage();
+  return <ScrollView accessibilityLabel={t("添加内容菜单")} keyboardShouldPersistTaps="always" style={menuStyles.list}>
     {OPTIONS.map(({ action, label, icon }) => <Pressable key={action} accessibilityRole="menuitem"
       accessibilityLabel={label} disabled={busy && action !== 'plugins'} onPress={() => choose(action)}
       style={({ pressed }) => [menuStyles.option, pressed && menuStyles.pressed,

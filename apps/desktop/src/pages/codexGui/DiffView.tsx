@@ -1,4 +1,5 @@
 import { guiText } from "../../i18n/guiText";
+import { useGuiLanguage } from '../../i18n/useGuiLanguage';
 import { memo, useId, useMemo, type ReactNode } from "react";
 import { DiffDocument, type DiffDocumentProps } from "./DiffDocument";
 import { EditedFilesSummary } from "./EditedFilesSummary";
@@ -9,6 +10,7 @@ export { DiffDocument } from "./DiffDocument";
 
 export const DiffView = memo(function DiffView({ files, title = guiText("文件修改"), status, undo }:
   DiffDocumentProps & { undo?: ReactNode }) {
+  useGuiLanguage();
   const id = useId();
   const entry = useMemo(() => ({ id, files, title, status }), [id, files, title, status]);
   const panel = useDetailsEntry(entry);

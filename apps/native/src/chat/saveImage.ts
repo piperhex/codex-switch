@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { base64Bytes, checkDownloadSize } from '../../../../shared/remote-chat/policy';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -15,7 +16,7 @@ const usesMediaStore = () => Platform.OS === 'android' && Number(Platform.Versio
 async function requestSavePermission() {
   if (usesMediaStore()) return;
   const permission = await MediaLibrary.requestPermissionsAsync(true);
-  if (!permission.granted) throw new ImageSavePermissionError('请允许保存照片后重试');
+  if (!permission.granted) throw new ImageSavePermissionError(t("请允许保存照片后重试"));
 }
 
 async function prepareImage(source: string, directory: string) {
@@ -33,7 +34,7 @@ async function prepareImage(source: string, directory: string) {
   const mime = header?.[1].split(';')[0].trim().toLowerCase() ?? '';
   if (download.status !== 200 || !EXTENSIONS[mime]) throw new Error('Invalid image response');
   const info = await FileSystem.getInfoAsync(download.uri);
-  if (!info.exists || info.isDirectory) throw new Error('图片暂时无法保存，请重试。');
+  if (!info.exists || info.isDirectory) throw new Error(t("图片暂时无法保存，请重试。"));
   checkDownloadSize(info.size);
   const uri = `${directory}image.${EXTENSIONS[mime]}`;
   await FileSystem.moveAsync({ from: download.uri, to: uri });

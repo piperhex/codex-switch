@@ -1,12 +1,14 @@
+import { t, useLanguage } from '../i18n';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { palette } from './styles';
 
 export function ComposerGoal({ disabled, remove }: { disabled: boolean; remove: () => void }) {
-  return <View style={styles.chip} accessibilityLabel="目标模式">
+  useLanguage();
+  return <View style={styles.chip} accessibilityLabel={t("目标模式")}>
     <Feather name="target" size={14} color={palette.ink} />
-    <Text style={styles.text}>目标</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="移除目标" disabled={disabled}
+    <Text style={styles.text}>{t("目标")}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={t("移除目标")} disabled={disabled}
       accessibilityState={{ disabled }} hitSlop={6} onPress={remove}
       style={[styles.remove, disabled && { opacity: 0.4 }]}>
       <Feather name="x" size={14} color={palette.ink} />

@@ -9,6 +9,8 @@ vi.mock('react', async importOriginal => ({
   useState: (initial: unknown) => initial === 'preview'
     ? [state.mode, (mode: string) => { state.mode = mode; }]
     : [state.failed, (failed: boolean) => { state.failed = failed; }],
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({ Pressable: 'Button', Text: 'Text', View: 'View',
   StyleSheet: { create: <T,>(styles: T) => styles }, useWindowDimensions: () => ({ height: 800 }),

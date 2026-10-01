@@ -9,11 +9,9 @@ import zhCNMobile from 'antd-mobile/es/locales/zh-CN';
 import enUSMobile from 'antd-mobile/es/locales/en-US';
 import ruRUMobile from 'antd-mobile/es/locales/ru-RU';
 import { getLocale, useLanguage } from './language';
-import { setGuiLanguage } from '../../../desktop/src/i18n/guiText';
 
 export function WebLocaleProvider({ children }: { children: ReactNode }) {
   const language = useLanguage();
-  setGuiLanguage(language);
   const mobileLocale = { en: enUSMobile, zh: zhCNMobile, ru: ruRUMobile }[language];
   useEffect(() => {
     document.documentElement.lang = getLocale();

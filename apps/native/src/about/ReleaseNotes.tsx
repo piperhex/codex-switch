@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { parseMarkdown, type MarkdownNode } from '../chat/markdownTree';
@@ -27,6 +28,7 @@ const INLINE_STYLES = {
 };
 
 function Inline({ nodes }: { nodes: MarkdownNode[] }) {
+  useLanguage();
   return <>{nodes.map(({ token, children }, index) => {
     if (token.type === 'softbreak') return ' ';
     if (token.type === 'hardbreak') return '\n';
@@ -39,6 +41,7 @@ function Inline({ nodes }: { nodes: MarkdownNode[] }) {
 }
 
 function List({ node }: { node: MarkdownNode }) {
+  useLanguage();
   const ordered = node.token.type === 'ordered_list_open';
   const start = Number(node.token.attrGet('start') ?? 1);
   return <View style={noteStyles.blocks}>{node.children.map((child, index) => <View key={index} style={noteStyles.row}>
@@ -48,6 +51,7 @@ function List({ node }: { node: MarkdownNode }) {
 }
 
 function Block({ node }: { node: MarkdownNode }) {
+  useLanguage();
   const { token, children } = node;
   if (PARAGRAPH_TYPES.has(token.type)) return <Text selectable
     accessibilityRole={token.type === 'heading_open' ? 'header' : undefined}
@@ -65,7 +69,8 @@ function Block({ node }: { node: MarkdownNode }) {
 }
 
 export function ReleaseNotes({ text }: { text: string }) {
+  useLanguage();
   const nodes = useMemo(() => parseMarkdown(extractReleaseNotes(text)), [text]);
-  if (!nodes.length) return <Text style={styles.detail}>本次版本未提供更新说明。</Text>;
+  if (!nodes.length) return <Text style={styles.detail}>{t("本次版本未提供更新说明。")}</Text>;
   return <View style={noteStyles.blocks}>{nodes.map((node, index) => <Block key={index} node={node} />)}</View>;
 }

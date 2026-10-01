@@ -1,6 +1,7 @@
 import { guiText } from "../i18n/guiText";
+import { useGuiLanguage } from '../i18n/useGuiLanguage';
 import { DiffTextContext } from "../../../../shared/chat/diffText";
-import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Button, Popover, Tooltip } from "antd";
 import { PanelBottom, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { canManageCodexConnection, hasLocalBackend, isDesktopApp } from "../api/backend";
@@ -61,6 +62,9 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
 
 function Workspace({ active, accountPicker, windowControls, plugins, hostPicker, notificationTarget,
   focused, onToggleFocus }: CodexGuiPageProps & GuiFocusMode) {
+  const language = useGuiLanguage();
+  const diffText = useCallback((source: string, values?: Record<string, string | number>) =>
+    guiText(source, values, language), [language]);
   const skinStyle = useDreamSkin(active);
   const [controller] = useState(getGuiController);
   const [view, setView] = useState<GuiView>("conversation");
@@ -99,7 +103,7 @@ function Workspace({ active, accountPicker, windowControls, plugins, hostPicker,
   const running = state.sending || Object.values(state.conversations).some((value) => value.activeTurn);
   const canQuote = state.connection === "ready" && !state.sending && !state.archived
     && state.compacting !== state.selected;
-  return <DiffTextContext.Provider value={guiText}><WorkspaceOperationContext.Provider value={{ busy: Boolean(state.workspaceBusy),
+  return <DiffTextContext.Provider value={diffText}><WorkspaceOperationContext.Provider value={{ busy: Boolean(state.workspaceBusy),
     setBusy: controller.setWorkspaceBusy }}><DetailsWorkspace selected={state.selected} active={conversationActive}>
     <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}
       data-dream-skin={skinStyle ? "true" : undefined} style={skinStyle}>

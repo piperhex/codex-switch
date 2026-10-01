@@ -6,6 +6,8 @@ import { AgreementConsent } from './AgreementConsent';
 const state = vi.hoisted(() => ({ reading: false, setReading: vi.fn(), dismiss: vi.fn() }));
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof React>(), useState: () => [state.reading, state.setReading],
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({
   Keyboard: { dismiss: state.dismiss }, Modal: 'Modal', Pressable: 'Pressable', ScrollView: 'ScrollView',

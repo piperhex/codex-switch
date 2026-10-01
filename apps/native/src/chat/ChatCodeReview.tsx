@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useContext } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,10 +10,11 @@ import { SelectableChatText } from './SelectableChatText';
 import type { CopyAction } from './CopyTextButton';
 
 export function ChatCodeReview({ comment, copy }: { comment: ReviewComment; copy?: CopyAction }) {
+  useLanguage();
   const openFile = useContext(ChatFileContext);
   const { label, reference } = reviewLocation(comment);
   const open = reference && openFile ? () => openFile(reference) : undefined;
-  return <View style={reviewStyles.comment} accessibilityLabel="代码审查意见">
+  return <View style={reviewStyles.comment} accessibilityLabel={t("代码审查意见")}>
     <View style={reviewStyles.title}>
       <MaterialCommunityIcons name="file-search-outline" size={16} color="#b07824" />
       <Text selectable style={[reviewStyles.text, reviewStyles.titleText, styles.fill]}>{comment.title}</Text>

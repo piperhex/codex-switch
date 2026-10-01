@@ -6,7 +6,9 @@ import type { AppRelease } from './appUpdate';
 const state = vi.hoisted(() => ({ release: null as AppRelease | null,
   ignore: vi.fn(), dismiss: vi.fn(), download: vi.fn(), error: '' }));
 vi.mock('react', async (original) => ({ ...await original<typeof React>(),
-  useState: () => [state.error, (error: string) => { state.error = error; }] }));
+  useState: () => [state.error, (error: string) => { state.error = error; }] ,
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));
 vi.mock('../../../../shared/app-update/useStartupUpdate', () => ({
   useStartupUpdate: () => ({ release: state.release, ignoreVersion: state.ignore, dismiss: state.dismiss }),
 }));

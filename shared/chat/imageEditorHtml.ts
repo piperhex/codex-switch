@@ -25,7 +25,8 @@ export function imageEditorHtml(dataUrl: string, translate = (text: string) => t
       eraserHint: translate('拖动擦除标注，原图不受影响。'),
       readFailed: translate('图片无法读取，请重新选择。'),
     } }).replace(/</g, '\\u003c');
-  return `<!doctype html><html lang="${language === 'en' ? 'en' : 'zh-CN'}"><head><meta charset="utf-8">
+  const locale = /^ru(?:-|$)/i.test(language) ? 'ru' : /^en(?:-|$)/i.test(language) ? 'en' : 'zh-CN';
+  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8">
 <meta name="viewport"
   content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:;

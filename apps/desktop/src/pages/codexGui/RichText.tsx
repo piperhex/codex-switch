@@ -1,4 +1,5 @@
 import { memo, useMemo, type ReactNode } from "react";
+import { useGuiLanguage } from '../../i18n/useGuiLanguage';
 import Markdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -25,6 +26,7 @@ const COMPONENTS: Components = {
 const PLUGINS = [remarkGfm, remarkWebLinks, remarkMath, remarkBreaks];
 
 export const RichText = memo(function RichText({ text, trailing }: { text: string; trailing?: ReactNode }) {
+  useGuiLanguage();
   const sections = useMemo(() => messageSections(text), [text]);
   return <div className={styles.markdown}>
     {sections.map((section, index) => section.type === "review"

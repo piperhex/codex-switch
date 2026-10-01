@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { AppRegistry, DeviceEventEmitter, NativeModules, Platform } from 'react-native';
 
 export const CHAT_SERVICE_STOPPED = 'codexChatConnectionStopped';
@@ -16,7 +17,7 @@ if (Platform.OS === 'android') {
 export function keepChatConnected(enabled: boolean): Promise<void> {
   const next = operation.then(async () => {
     if (Platform.OS !== 'android') return;
-    if (!native) throw new Error('请安装新版应用以使用后台聊天。');
+    if (!native) throw new Error(t("请安装新版应用以使用后台聊天。"));
     if (enabled) await native.start();
     else await native.stop();
   });

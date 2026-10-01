@@ -7,6 +7,55 @@ fn test_app() -> tauri::App<tauri::test::MockRuntime> {
     tauri::test::mock_builder().build(context).unwrap()
 }
 
+#[test]
+fn language_changes_do_not_overwrite_business_settings_or_lose_to_stale_snapshots() {
+    let app = test_app();
+    let path = app_settings_path(app.handle()).unwrap();
+    let mut settings = AppSettings {
+        language: Some("zh".into()),
+        ..AppSettings::default()
+    };
+    write_app_settings(app.handle(), &settings).unwrap();
+    let original = fs::read(&path).unwrap();
+    for language in ["en", "ru", "zh"] {
+        save_app_language(app.handle(), language).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), original);
+        assert_eq!(
+            read_app_settings(app.handle()).unwrap().language.as_deref(),
+            Some(language)
+        );
+    }
+    save_app_language(app.handle(), "ru").unwrap();
+    settings.cloud_last_sync_at = Some("2026-10-02T00:00:00Z".into());
+    write_app_settings(app.handle(), &settings).unwrap();
+    let reloaded = read_app_settings(app.handle()).unwrap();
+    assert_eq!(reloaded.language.as_deref(), Some("ru"));
+    assert_eq!(reloaded.cloud_last_sync_at, settings.cloud_last_sync_at);
+    fs::remove_dir_all(path.parent().unwrap()).unwrap();
+}
+
+#[test]
+fn language_preference_preserves_legacy_fallback_and_rejects_invalid_values() {
+    let app = test_app();
+    let path = app_settings_path(app.handle()).unwrap();
+    let settings = AppSettings {
+        language: Some("en".into()),
+        ..AppSettings::default()
+    };
+    write_app_settings(app.handle(), &settings).unwrap();
+    assert_eq!(
+        read_app_settings(app.handle()).unwrap().language,
+        settings.language
+    );
+    assert!(save_app_language(app.handle(), "unsupported").is_err());
+    fs::write(path.with_file_name("interface-language.json"), "invalid").unwrap();
+    assert_eq!(
+        read_app_settings(app.handle()).unwrap().language,
+        settings.language
+    );
+    fs::remove_dir_all(path.parent().unwrap()).unwrap();
+}
+
 fn set_model_window(
     app: &tauri::AppHandle<tauri::test::MockRuntime>,
     model: &str,

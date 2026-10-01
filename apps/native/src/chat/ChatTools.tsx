@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,9 +12,11 @@ import { palette, styles } from './styles';
 interface Props {
   client: GuiToolsClient; cwd: string; active: boolean; connected: boolean; deviceName?: string;
 }
-export function ChatTools(props: Props) { return <ProjectTools key={props.cwd} {...props} />; }
+export function ChatTools(props: Props) {
+  useLanguage(); return <ProjectTools key={props.cwd} {...props} />; }
 
 function ProjectTools({ client, ...props }: Props) {
+  useLanguage();
   const anchor = useRef<View>(null);
   const [menu, setMenu] = useState(false);
   const [launchId, setLaunchId] = useState(0);
@@ -21,7 +24,7 @@ function ProjectTools({ client, ...props }: Props) {
   const [desktop, setDesktop] = useState(false);
   useEffect(() => { if (!props.active) setMenu(false); }, [props.active]);
   return <>
-    <Pressable ref={anchor} collapsable={false} accessibilityRole="button" accessibilityLabel="打开工具"
+    <Pressable ref={anchor} collapsable={false} accessibilityRole="button" accessibilityLabel={t("打开工具")}
       accessibilityState={{ expanded: menu && props.active }}
       style={styles.back} onPress={() => { Keyboard.dismiss(); setMenu(value => !value); }}>
       <Ionicons name="construct-outline" size={24} color={palette.ink} /></Pressable>
@@ -31,13 +34,13 @@ function ProjectTools({ client, ...props }: Props) {
         style={({ pressed }) => [menuStyles.item, pressed && menuStyles.pressed, !props.connected && styles.disabled]}
         onPress={() => { setMenu(false); setDesktop(true); }}>
         <Ionicons name="desktop-outline" size={20} color={palette.ink} />
-        <Text style={menuStyles.label}>远程桌面</Text>
+        <Text style={menuStyles.label}>{t("远程桌面")}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" disabled={!props.connected}
         accessibilityState={{ disabled: !props.connected }}
         style={({ pressed }) => [menuStyles.item, pressed && menuStyles.pressed, !props.connected && styles.disabled]}
         onPress={() => { setMenu(false); setLaunchId(value => value + 1); }}>
-        <Ionicons name="terminal-outline" size={20} color={palette.ink} /><Text style={menuStyles.label}>终端</Text>
+        <Ionicons name="terminal-outline" size={20} color={palette.ink} /><Text style={menuStyles.label}>{t("终端")}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" style={({ pressed }) => [menuStyles.item, pressed && menuStyles.pressed]}
         onPress={() => { setMenu(false); setGit(true); }}>

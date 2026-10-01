@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useState } from 'react';
 import Feather from '@expo/vector-icons/Feather';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -14,6 +15,7 @@ interface Props {
   close: () => void;
 }
 export function ComposerProjectFiles({ imagesOnly, threadId, cwd, load, choose, close }: Props) {
+  useLanguage();
   const [directory, setDirectory] = useState('');
   const [result, setResult] = useState<ProjectFilesResponse>();
   const [loading, setLoading] = useState(true);
@@ -23,25 +25,25 @@ export function ComposerProjectFiles({ imagesOnly, threadId, cwd, load, choose, 
   useEffect(() => {
     let cancelled = false;
     if (!threadId && !cwd) {
-      setLoading(false); setError('请先选择一个聊天项目，再添加电脑文件。'); return;
+      setLoading(false); setError(t("请先选择一个聊天项目，再添加电脑文件。")); return;
     }
     setLoading(true); setError(''); setResult(undefined);
     void load({ threadId: threadId ?? undefined, cwd: cwd || undefined, directory, imagesOnly })
       .then((value) => { if (!cancelled) setResult(value); })
-      .catch(() => { if (!cancelled) setError('暂时无法读取项目，请确认电脑已更新并连接后重试。'); })
+      .catch(() => { if (!cancelled) setError(t("暂时无法读取项目，请确认电脑已更新并连接后重试。")); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [load, threadId, cwd, directory, imagesOnly, revision]);
-  return <BottomSheet fullWidthContent visible title={imagesOnly ? '电脑照片' : '电脑文件'} subtitle="当前聊天项目"
+  return <BottomSheet fullWidthContent visible title={imagesOnly ? t("电脑照片") : t("电脑文件")} subtitle={t("当前聊天项目")}
     onClose={close} dragFromHeaderOnly>
     <View style={fileStyles.root}>
       <SheetInset style={fileStyles.readable}>
         {result?.parent !== null && result?.parent !== undefined && <Pressable accessibilityRole="button"
           onPress={() => setDirectory(result.parent ?? '')} style={fileStyles.row}>
-          <Feather name="arrow-left" size={20} /><Text style={fileStyles.name}>返回上一级</Text>
+          <Feather name="arrow-left" size={20} /><Text style={fileStyles.name}>{t("返回上一级")}</Text>
         </Pressable>}
         {loading && <ActivityIndicator style={fileStyles.message} />}
-        {!!error && <Pressable accessibilityRole="button" accessibilityLabel="重试加载项目文件"
+        {!!error && <Pressable accessibilityRole="button" accessibilityLabel={t("重试加载项目文件")}
           onPress={() => setRevision((value) => value + 1)}><Text style={fileStyles.message}>{error}</Text></Pressable>}
       </SheetInset>
       <SheetFlatList data={result?.entries ?? []} keyExtractor={(entry) => entry.path} style={fileStyles.list}
@@ -55,8 +57,8 @@ export function ComposerProjectFiles({ imagesOnly, threadId, cwd, load, choose, 
           {item.directory && <Feather name="chevron-right" size={18} color="#888" />}
         </Pressable>}
         ListEmptyComponent={!loading && !error ? <Text style={fileStyles.message}>
-          {imagesOnly ? '此文件夹没有照片' : '此文件夹没有文件'}</Text> : null}
-        ListFooterComponent={result?.truncated ? <Text style={fileStyles.message}>文件较多，仅显示前 500 项。</Text> : null} />
+          {imagesOnly ? t("此文件夹没有照片") : t("此文件夹没有文件")}</Text> : null}
+        ListFooterComponent={result?.truncated ? <Text style={fileStyles.message}>{t("文件较多，仅显示前 500 项。")}</Text> : null} />
     </View>
   </BottomSheet>;
 }

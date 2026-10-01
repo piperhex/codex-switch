@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { NativeModules, Platform } from 'react-native';
 import type { PrepareHistoryObject, PreparedHistoryObject }
   from '../../../../shared/remote-chat/client/historyPreparation';
@@ -26,7 +27,7 @@ export function createHistoryPreparer(): PrepareHistoryObject | undefined {
       const batch = serializeBatch(pending);
       try {
         const results = await worker!.prepare(batch.map((entry) => entry.data));
-        if (results.length !== batch.length) throw new Error('聊天记录处理未完成，请重试。');
+        if (results.length !== batch.length) throw new Error(t("聊天记录处理未完成，请重试。"));
         batch.forEach((entry, index) => entry.task.resolve({ ...results[index], data: entry.data }));
       } catch (error) { batch.forEach(({ task }) => task.reject(error)); }
     }

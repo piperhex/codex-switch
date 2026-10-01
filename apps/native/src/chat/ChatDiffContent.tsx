@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useContext, useMemo, useState } from 'react';
 import { SelectableChatText } from './SelectableChatText';
 import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -16,6 +17,7 @@ const REDUNDANT_HEADER = /^(diff --git |index |--- |\+\+\+ |new file mode |delet
 function UnifiedRow({ line, language, wrap, copy }: {
   line: DiffLine; language: string; wrap: boolean; copy?: CopyAction;
 }) {
+  useLanguage();
   const marker = line.kind === 'add' ? '+' : line.kind === 'remove' ? '−' : ' ';
   const heading = line.kind === 'hunk' || line.kind === 'meta';
   return <View style={[diffStyles.line, diffStyles[line.kind]]}>
@@ -31,6 +33,7 @@ function SplitCell({ line, side, language, column, wrap, copy }: {
   line?: DiffLine; side: 'left' | 'right'; language: string; column: StyleProp<ViewStyle>; wrap: boolean;
   copy?: CopyAction;
 }) {
+  useLanguage();
   return <View style={[diffStyles.cell, column, line && diffStyles[line.kind]]}>
     <Text style={[styles.code, diffStyles.number]}>{side === 'left' ? line?.oldLine : line?.newLine}</Text>
     <SelectableChatText copy={copy} style={[styles.code, wrap ? diffStyles.wrappedText : diffStyles.unwrappedText]}>
@@ -40,6 +43,7 @@ function SplitCell({ line, side, language, column, wrap, copy }: {
 
 /** Measure with the native font in an unconstrained scroller; character counts miss CJK, tabs and font scaling. */
 function MeasureCode({ text, onMeasure }: { text: string; onMeasure: (width: number) => void }) {
+  useLanguage();
   return <ScrollView horizontal scrollEnabled={false} style={diffStyles.measure} pointerEvents="none"
     accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
     onContentSizeChange={(width) => onMeasure(Math.ceil(width))}>
@@ -50,6 +54,7 @@ function MeasureCode({ text, onMeasure }: { text: string; onMeasure: (width: num
 function SplitRows({ pairs, language, wrap, copy }: {
   pairs: DiffPair[]; language: string; wrap: boolean; copy: CopyAction;
 }) {
+  useLanguage();
   const [widths, setWidths] = useState({ left: 0, right: 0 });
   const text = useMemo(() => ({ left: pairs.map((pair) => pair.left?.text || ' ').join('\n'),
     right: pairs.map((pair) => pair.right?.text || ' ').join('\n') }), [pairs]);
@@ -66,8 +71,8 @@ function SplitRows({ pairs, language, wrap, copy }: {
         width > current.right ? { ...current, right: width } : current)} />
     </>}
     <View style={diffStyles.line}>
-      <Text style={[diffStyles.columnLabel, columns[0]]}>修改前</Text>
-      <Text style={[diffStyles.columnLabel, columns[1]]}>修改后</Text>
+      <Text style={[diffStyles.columnLabel, columns[0]]}>{t("修改前")}</Text>
+      <Text style={[diffStyles.columnLabel, columns[1]]}>{t("修改后")}</Text>
     </View>
     {pairs.map((pair, index) => pair.heading
       ? <SelectableChatText key={index} style={[styles.code, diffStyles.hunk]}
@@ -83,6 +88,7 @@ function SplitRows({ pairs, language, wrap, copy }: {
 }
 
 export function ChatDiffContent({ file }: { file: DiffFile }) {
+  useLanguage();
   const [limit, setLimit] = useState(PAGE_LINES);
   const [wrap, setWrap] = useState(false);
   const [split, setSplit] = useState(false);
@@ -92,7 +98,7 @@ export function ChatDiffContent({ file }: { file: DiffFile }) {
   const pairs = useMemo(() => split ? pairDiffLines(lines) : [], [lines, split]);
   const language = fileLanguage(file.path);
   const total = split ? pairs.length : lines.length;
-  const copy = { text: file.raw, label: '复制 diff' };
+  const copy = { text: file.raw, label: t("复制 diff") };
   const rows = split ? <SplitRows pairs={pairs.slice(0, limit)} language={language} wrap={wrap} copy={copy} />
     : <View>{lines.slice(0, limit).map((line, index) =>
       <UnifiedRow key={index} line={line} language={language} wrap={wrap}
@@ -102,18 +108,18 @@ export function ChatDiffContent({ file }: { file: DiffFile }) {
       {file.previousPath} → {file.path}</SelectableChatText>}
     <View style={diffStyles.toolbar}>
       <Pressable accessibilityRole="button" style={diffStyles.action} onPress={() => setWrap(!wrap)}>
-        <Text style={diffStyles.actionText}>{wrap ? '横向滚动' : '自动换行'}</Text></Pressable>
+        <Text style={diffStyles.actionText}>{wrap ? t("横向滚动") : t("自动换行")}</Text></Pressable>
       <Pressable accessibilityRole="button" style={diffStyles.action} onPress={() => setSplit(!split)}>
-        <Text style={diffStyles.actionText}>{split ? '统一' : '并排'}</Text></Pressable>
+        <Text style={diffStyles.actionText}>{split ? t("统一") : t("并排")}</Text></Pressable>
       {openFile && file.kind !== 'delete' && <Pressable accessibilityRole="button" style={diffStyles.action}
-        onPress={() => openFile({ path: file.path })}><Text style={diffStyles.actionText}>查看文件</Text></Pressable>}
+        onPress={() => openFile({ path: file.path })}><Text style={diffStyles.actionText}>{t("查看文件")}</Text></Pressable>}
     </View>
     {wrap ? rows : <ScrollView horizontal nestedScrollEnabled>{rows}</ScrollView>}
     {!total && <SelectableChatText style={styles.subtitle} copy={copy}>
-      {file.kind === 'add' ? '新增空文件' : '此文件没有可显示的文本差异。'}</SelectableChatText>}
+      {file.kind === 'add' ? t("新增空文件") : t("此文件没有可显示的文本差异。")}</SelectableChatText>}
     {total > limit && <Pressable accessibilityRole="button" style={styles.button}
       onPress={() => setLimit(limit + PAGE_LINES)}>
-      <Text style={styles.buttonText}>继续显示（还有 {total - limit} 行）</Text></Pressable>}
+      <Text style={styles.buttonText}>{t("继续显示（还有")}{' '}{total - limit}{' '}{t("行）")}</Text></Pressable>}
   </View>;
 }
 

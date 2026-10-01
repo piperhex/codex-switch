@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,31 +21,31 @@ import { palette, styles } from './styles';
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const PREVIEW_LENGTH = 160;
 const STATUS_LABELS: Record<string, string> = {
-  inProgress: '进行中', completed: '已完成', failed: '失败', declined: '已拒绝', interrupted: '已停止',
+  get inProgress() { return t("进行中"); }, get completed() { return t("已完成"); }, get failed() { return t("失败"); }, get declined() { return t("已拒绝"); }, get interrupted() { return t("已停止"); },
 };
 const ACTIVITIES: Record<string, { label: string; icon: IconName }> = {
-  fileChange: { label: '文件修改', icon: 'document-text-outline' },
-  mcpToolCall: { label: '调用工具', icon: 'construct-outline' },
-  dynamicToolCall: { label: '调用工具', icon: 'construct-outline' },
-  webSearch: { label: '搜索网页', icon: 'search-outline' },
-  contextCompaction: { label: '已整理对话上下文', icon: 'list-outline' },
-  imageView: { label: '查看图片', icon: 'image-outline' },
-  imageGeneration: { label: '生成图片', icon: 'sparkles-outline' },
-  plan: { label: '计划', icon: 'list-outline' },
-  enteredReviewMode: { label: '开始代码审查', icon: 'document-text-outline' },
-  exitedReviewMode: { label: '代码审查结果', icon: 'document-text-outline' },
-  functionCallOutput: { label: '工具输出', icon: 'construct-outline' },
-  hookPrompt: { label: '任务补充', icon: 'list-outline' },
+  fileChange: { get label() { return t("文件修改"); }, icon: 'document-text-outline' },
+  mcpToolCall: { get label() { return t("调用工具"); }, icon: 'construct-outline' },
+  dynamicToolCall: { get label() { return t("调用工具"); }, icon: 'construct-outline' },
+  webSearch: { get label() { return t("搜索网页"); }, icon: 'search-outline' },
+  contextCompaction: { get label() { return t("已整理对话上下文"); }, icon: 'list-outline' },
+  imageView: { get label() { return t("查看图片"); }, icon: 'image-outline' },
+  imageGeneration: { get label() { return t("生成图片"); }, icon: 'sparkles-outline' },
+  plan: { get label() { return t("计划"); }, icon: 'list-outline' },
+  enteredReviewMode: { get label() { return t("开始代码审查"); }, icon: 'document-text-outline' },
+  exitedReviewMode: { get label() { return t("代码审查结果"); }, icon: 'document-text-outline' },
+  functionCallOutput: { get label() { return t("工具输出"); }, icon: 'construct-outline' },
+  hookPrompt: { get label() { return t("任务补充"); }, icon: 'list-outline' },
 };
 
 function commandSummary(item: Item) {
   const action = item.commandActions?.find((entry) => entry.type !== 'unknown');
-  const labels: Record<string, string> = { read: '读取文件', listFiles: '浏览文件', search: '搜索代码' };
-  if (action) return `${labels[action.type] || '执行命令'} · ${action.name || action.query || action.path || ''}`;
+  const labels: Record<string, string> = { read: t("读取文件"), listFiles: t("浏览文件"), search: t("搜索代码") };
+  if (action) return `${labels[action.type] || t("执行命令")} · ${action.name || action.query || action.path || ''}`;
   const status: Record<string, string> = {
-    inProgress: '正在运行', completed: '已运行', failed: '运行失败', declined: '已拒绝',
+    inProgress: t("正在运行"), completed: t("已运行"), failed: t("运行失败"), declined: t("已拒绝"),
   };
-  return `${status[item.status ?? ''] || '执行命令'} ${commandPreview(item.command ?? '')}`;
+  return `${status[item.status ?? ''] || t("执行命令")} ${commandPreview(item.command ?? '')}`;
 }
 
 function fileName(path: string): string {
@@ -66,10 +67,10 @@ function activitySummary(item: Item): { preview: string; icon: IconName } {
   if (item.type === 'reasoning') return { icon: 'bulb-outline', preview: [...item.summary ?? [], messageContent(item)]
     .join('\n').slice(0, PREVIEW_LENGTH).trim().split('\n')[0].replace(/[*_`#]/g, '') };
   if (item.type === 'sleep') return { icon: 'time-outline',
-    preview: `等待${item.durationMs == null ? '' : ` · ${formatTurnDuration(item.durationMs)}`}` };
+    preview: t("等待{value1}", { value1: item.durationMs == null ? '' : ` · ${formatTurnDuration(item.durationMs)}` }) };
   if (item.type === 'webSearch' && item.action?.type === 'openPage') return { icon: 'search-outline',
-    preview: `阅读网页 · ${item.action.url ?? item.query ?? ''}` };
-  const { label, icon } = ACTIVITIES[item.type] ?? { label: messageLabel(item), icon: 'pulse-outline' };
+    preview: t("阅读网页 · {value1}", { value1: item.action.url ?? item.query ?? '' }) };
+  const { label, icon } = ACTIVITIES[item.type] ?? { label: t(messageLabel(item)), icon: 'pulse-outline' };
   const content = activityContent(item);
   return { icon, preview: [label, content, STATUS_LABELS[item.status ?? '']].filter(Boolean).join(' · ') };
 }
@@ -77,10 +78,11 @@ function activitySummary(item: Item): { preview: string; icon: IconName } {
 export function ChatActivityRow({ item, onOpen, running = false, count }: {
   item: Item; onOpen: (id: string) => void; running?: boolean; count?: number;
 }) {
+  useLanguage();
   const summary = activitySummary(item);
   if (item.type === 'reasoning' && !summary.preview.trim()) return null;
   const preview = summary.preview.slice(0, PREVIEW_LENGTH).replace(/\s+/g, ' ').trim();
-  const label = count ? `${preview}，查看全部 ${count} 项活动` : preview;
+  const label = count ? t("{value1}，查看全部 {value2} 项活动", { value1: preview, value2: count }) : preview;
   return <Pressable accessibilityRole="button" accessibilityLabel={label}
     style={messageStyles.activity} onPress={() => onOpen(item.id)}>
     <ChatActivityLabel icon={summary.icon} text={preview} active={running && item.status === 'inProgress'}
@@ -94,6 +96,7 @@ interface MessageProps {
 }
 
 export const ChatMessage = memo(function ChatMessage(props: MessageProps) {
+  useLanguage();
   return <QuoteSourceContext.Provider value={{ messageId: props.item.id, onQuote: props.onQuote,
     role: props.item.type === 'userMessage' ? 'user' : 'assistant' }}>
     <MessageBody {...props} />
@@ -101,6 +104,7 @@ export const ChatMessage = memo(function ChatMessage(props: MessageProps) {
 });
 
 function MessageBody({ item, onOpen, running = false, process = false }: MessageProps) {
+  useLanguage();
   const images = itemImageSources(item);
   const text = questionMessageText(item);
   if (item.type === 'userMessage') return <View style={messageStyles.user}>
@@ -113,7 +117,7 @@ function MessageBody({ item, onOpen, running = false, process = false }: Message
   if (item.type !== 'agentMessage') return <ChatActivityRow item={item} onOpen={onOpen} running={running} />;
   return <View style={styles.assistantMessage}>
     <ChatMarkdown text={text} tone={process ? 'process' : 'default'}
-      copy={!process && !running && text.trim() ? { text, label: '复制回复' } : undefined} />
+      copy={!process && !running && text.trim() ? { text, label: t("复制回复") } : undefined} />
   </View>;
 }
 

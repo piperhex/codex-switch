@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { keepChatConnected } from './backgroundConnection';
@@ -9,7 +10,7 @@ export function useChatBackground(enabled: boolean) {
     const start = () => {
       if (AppState.currentState !== 'active') return;
       void keepChatConnected(true).then(() => setError(''))
-        .catch(() => setError('后台聊天暂未开启，请重新打开应用后重试。'));
+        .catch(() => setError(t("后台聊天暂未开启，请重新打开应用后重试。")));
     };
     start();
     const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') start(); });

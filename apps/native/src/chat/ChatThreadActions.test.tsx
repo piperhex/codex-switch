@@ -69,3 +69,8 @@ it('disables empty names and busy confirmations while retaining errors for retry
   expect(busy.props.actions[0].disabled).toBe(true);
   expect(nodes(busy).some(node => node.props.children === actions.error)).toBe(true);
 });
+
+vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));

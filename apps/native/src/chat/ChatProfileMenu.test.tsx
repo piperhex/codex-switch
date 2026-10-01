@@ -8,7 +8,9 @@ import type { GuiAccountsClient } from '../../../../shared/remote-chat/guiAccoun
 const state = vi.hoisted(() => ({ panel: 'profile' as string | null }));
 vi.mock('react', async original => ({ ...await original<typeof React>(), useEffect: vi.fn(),
   useState: (initial: unknown) => initial === null
-    ? [state.panel, (value: string | null) => { state.panel = value; }] : ['', vi.fn()] }));
+    ? [state.panel, (value: string | null) => { state.panel = value; }] : ['', vi.fn()] ,
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));
 vi.mock('react-native', () => ({ Pressable: 'Pressable', Text: 'Text', TextInput: 'Input', View: 'View',
   ActivityIndicator: 'Spinner', StyleSheet: { create: <T,>(value: T) => value } }));
 vi.mock('@expo/vector-icons/Feather', () => ({ default: 'Icon' }));

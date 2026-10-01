@@ -4,7 +4,9 @@ include!("account_metadata.rs");
 include!("settings_and_import.rs");
 include!("tests.rs");
 
+mod language_settings;
 mod model_context_settings;
+pub(crate) use language_settings::save_app_language;
 pub(crate) use model_context_settings::{update_model_context_window, ModelContextWindowUpdate};
 
 #[cfg(test)]

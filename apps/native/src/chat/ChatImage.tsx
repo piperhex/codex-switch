@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { createContext, useContext } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useChatImage, type ImagePreviewOptions } from '../../../../shared/remote-chat/client/useChatImage';
@@ -7,7 +8,8 @@ import { useChatImagePreview } from './ChatImagePreview';
 export const ChatImageContext = createContext<ImagePreviewOptions | null>(null);
 const PREVIEW_ASPECT_RATIO = 4 / 3;
 
-export function ChatImage({ source, description = '图片' }: { source?: string; description?: string }) {
+export function ChatImage({ source, description = t("图片") }: { source?: string; description?: string }) {
+  useLanguage();
   const context = useContext(ChatImageContext);
   const image = useChatImage(source, context);
   const openPreview = useChatImagePreview();
@@ -16,14 +18,14 @@ export function ChatImage({ source, description = '图片' }: { source?: string;
   return <View style={imageStyles.container}>
     {image.failed && <View style={imageStyles.notice}>
       <Text style={styles.subtitle}>
-        {context?.ready ? `${description}：图片加载失败` : '这张图片尚未缓存，连接电脑后查看。'}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={`重新加载：${description}`} onPress={image.retry}>
-        <Text style={styles.buttonText}>重试</Text>
+        {context?.ready ? t("{value1}：图片加载失败", { value1: description }) : t("这张图片尚未缓存，连接电脑后查看。")}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("重新加载：{value1}", { value1: description })} onPress={image.retry}>
+        <Text style={styles.buttonText}>{t("重试")}</Text>
       </Pressable>
     </View>}
-    {!image.failed && !previewReady && <Text style={styles.status}>正在加载图片…</Text>}
+    {!image.failed && !previewReady && <Text style={styles.status}>{t("正在加载图片…")}</Text>}
     {previewReady && <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button"
-      accessibilityLabel={`放大查看：${description}`}
+      accessibilityLabel={t("放大查看：{value1}", { value1: description })}
       onPress={() => { if (image.url) openPreview({ key: image.key, thumbnail: image.url,
         description, load: image.original }); }}>
       <Image key={image.key} source={{ uri: image.url }} accessibilityLabel={description}

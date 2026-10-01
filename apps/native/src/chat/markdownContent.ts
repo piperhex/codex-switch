@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { messageSections, type ReviewComment } from '../../../desktop/src/pages/codexGui/messageDirectives';
 import { parseFileReference } from '../../../../shared/chat/fileReference';
 import { parseMarkdown, type MarkdownNode } from './markdownTree';
@@ -15,5 +16,5 @@ export function reviewLocation(comment: ReviewComment) {
   const location = comment.start ? `${comment.file}:${comment.start}` : comment.file;
   const end = comment.end && comment.start && comment.end > comment.start ? `–${comment.end}` : '';
   return { reference: parseFileReference(location),
-    label: `${comment.file}${comment.start ? ` · 第 ${comment.start}${end} 行` : ''}` };
+    label: `${comment.file}${comment.start ? t(" · 第 {value1}{value2} 行", { value1: comment.start, value2: end }) : ''}` };
 }

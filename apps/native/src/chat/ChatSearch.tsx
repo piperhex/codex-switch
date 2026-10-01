@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform,
   Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -12,22 +13,23 @@ import { palette, styles } from './styles';
 interface Props { state: ChatState; controller: ChatController; onClose: () => void; select: (thread: Thread) => void }
 
 export function ChatSearch({ state, controller, onClose, select }: Props) {
+  useLanguage();
   const [query, setQuery] = useState('');
   const input = useRef<TextInput>(null);
   const search = useChatSearch({ controller, query, archived: state.archived, ready: state.ready });
-  const emptyMessage = !state.ready ? '连接电脑后即可搜索聊天' : query.trim() ? '没有找到相关聊天' : '输入关键词，查找聊天';
+  const emptyMessage = !state.ready ? t("连接电脑后即可搜索聊天") : query.trim() ? t("没有找到相关聊天") : t("输入关键词，查找聊天");
   return <Modal visible animationType="slide" statusBarTranslucent
     onRequestClose={onClose} onShow={() => input.current?.focus()}>
     <SafeAreaView style={searchStyles.page}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={searchStyles.header}>
-          <Text accessibilityRole="header" style={searchStyles.label}>聊天</Text>
-          {state.archived && <Text style={styles.subtitle}>已归档</Text>}
+          <Text accessibilityRole="header" style={searchStyles.label}>{t("聊天")}</Text>
+          {state.archived && <Text style={styles.subtitle}>{t("已归档")}</Text>}
         </View>
         <FlatList data={search.threads} keyExtractor={(thread) => thread.id} style={styles.fill}
           contentContainerStyle={searchStyles.results} keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag" renderItem={({ item }) => {
-            const view = threadPresentation(item, state.sidebar);
+            const view = threadPresentation(item, state.sidebar, t);
             return <Pressable accessibilityRole="button" accessibilityLabel={view.title}
               disabled={!state.ready || state.sending} style={searchStyles.result} onPress={() => select(item)}>
               <View style={searchStyles.glyph}><Feather name="message-square" size={21} color={palette.ink} /></View>
@@ -38,26 +40,26 @@ export function ChatSearch({ state, controller, onClose, select }: Props) {
           ListEmptyComponent={!search.loading && !search.error
             ? <Text style={searchStyles.empty}>{emptyMessage}</Text> : null}
           ListFooterComponent={<View style={searchStyles.status}>
-            {search.loading && <ActivityIndicator accessibilityLabel="正在搜索" color={palette.green} />}
+            {search.loading && <ActivityIndicator accessibilityLabel={t("正在搜索")} color={palette.green} />}
             {!!search.error && <><Text accessibilityRole="alert" style={styles.error}>{search.error}</Text>
               <Pressable accessibilityRole="button" style={styles.button} onPress={search.reload}>
-                <Text style={styles.buttonText}>重试</Text></Pressable></>}
+                <Text style={styles.buttonText}>{t("重试")}</Text></Pressable></>}
             {!!search.cursor && !search.loading && !search.error && <Pressable accessibilityRole="button"
               disabled={!state.ready} style={styles.button} onPress={search.loadMore}>
-              <Text style={styles.buttonText}>加载更多</Text></Pressable>}
+              <Text style={styles.buttonText}>{t("加载更多")}</Text></Pressable>}
           </View>} />
         <View style={searchStyles.toolbar}>
           <View style={searchStyles.field}>
             <Feather name="search" size={21} color={palette.muted} />
-            <TextInput ref={input} accessibilityLabel="搜索聊天" placeholder="搜索聊天" value={query}
+            <TextInput ref={input} accessibilityLabel={t("搜索聊天")} placeholder={t("搜索聊天")} value={query}
               onChangeText={setQuery} style={searchStyles.input} placeholderTextColor={palette.muted}
               autoCapitalize="none" autoCorrect={false} returnKeyType="search" onSubmitEditing={search.reload}
               blurOnSubmit={false} />
-            {!!query && <Pressable accessibilityRole="button" accessibilityLabel="清空搜索"
+            {!!query && <Pressable accessibilityRole="button" accessibilityLabel={t("清空搜索")}
               style={searchStyles.clear} onPress={() => { setQuery(''); input.current?.focus(); }}>
               <Feather name="x-circle" size={21} color={palette.muted} /></Pressable>}
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="关闭搜索" style={searchStyles.close}
+          <Pressable accessibilityRole="button" accessibilityLabel={t("关闭搜索")} style={searchStyles.close}
             onPress={onClose}><Feather name="x" size={25} color={palette.ink} /></Pressable>
         </View>
       </KeyboardAvoidingView>

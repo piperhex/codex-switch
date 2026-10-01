@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
@@ -31,6 +32,7 @@ interface Props {
 
 export function ChatSettings({ models, selection, saving, ready, error, updateSettings, onClose,
   readUsage, usageActive, tokenUsage, threadId, contextSettings, connection }: Props) {
+  useLanguage();
   const [field, setField] = useState<SettingField | null>(null);
   const [contextOpen, setContextOpen] = useState(false);
   const nestedOpen = field !== null || contextOpen;
@@ -41,39 +43,41 @@ export function ChatSettings({ models, selection, saving, ready, error, updateSe
     if (value !== selection[field] || error) await updateSettings({ [field]: value });
     setField((current) => current === field ? null : current);
   };
-  return <BottomSheet visible fullWidthContent title="聊天设置" onClose={onClose}>
+  return <BottomSheet visible fullWidthContent title={t("聊天设置")} onClose={onClose}>
     <SheetScrollView contentContainerStyle={[styles.settings, menuStyles.content]}
       accessibilityElementsHidden={nestedOpen} importantForAccessibility={nestedOpen ? 'no-hide-descendants' : 'auto'}>
       <ChatProfileMenu {...connection} variant="settings" ready={ready} active={usageActive} />
       {visibleSettingsFields(selection).map((entry) => <Pressable key={entry.field} accessibilityRole="button"
-        accessibilityLabel={`设置${entry.label}`} onPress={() => setField(entry.field)} style={menuStyles.entry}>
-        <Text style={styles.title}>{entry.label}</Text>
-        <Text numberOfLines={1} style={menuStyles.value}>{settingValue(entry.field, models, selection)}</Text>
+        accessibilityLabel={t("设置{value1}", { value1: t(entry.label) })}
+        onPress={() => setField(entry.field)} style={menuStyles.entry}>
+        <Text style={[styles.title, { flexShrink: 1 }]}>{t(entry.label)}</Text>
+        <Text numberOfLines={1} style={menuStyles.value}>{entry.field === 'model'
+          ? settingValue(entry.field, models, selection) : t(settingValue(entry.field, models, selection))}</Text>
         <Text style={menuStyles.arrow}>›</Text>
       </Pressable>)}
       {!!notice && <Text accessibilityRole={error ? 'alert' : undefined}
-        style={error ? styles.error : styles.subtitle}>{notice}</Text>}
+        style={error ? styles.error : styles.subtitle}>{t(notice)}</Text>}
       {!!error && <Pressable accessibilityRole="button" style={styles.button}
-        onPress={() => { void updateSettings(selection); }}><Text style={styles.buttonText}>重新保存</Text></Pressable>}
+        onPress={() => { void updateSettings(selection); }}><Text style={styles.buttonText}>{t("重新保存")}</Text></Pressable>}
       <ChatUsage read={readUsage} active={usageActive && !nestedOpen} ready={ready} tokenUsage={tokenUsage}
         onContextSettings={threadId && ready ? () => setContextOpen(true) : undefined} />
     </SheetScrollView>
     {contextOpen && threadId && ready && <ChatContextSettings key={threadId} threadId={threadId}
       api={contextSettings} onClose={() => setContextOpen(false)} />}
     {field && <BottomSheet fullWidthContent
-      visible title={SETTINGS_FIELDS.find((entry) => entry.field === field)!.title}
+      visible title={t(SETTINGS_FIELDS.find((entry) => entry.field === field)!.title)}
       onBack={() => setField(null)} onClose={() => setField(null)}>
       <SheetScrollView key={field} contentContainerStyle={[styles.settings, menuStyles.content, menuStyles.options]}>
         {settingOptions(field, models, selection).map((option) => <Pressable key={option.value}
-          accessibilityRole="radio" accessibilityLabel={option.label}
+          accessibilityRole="radio" accessibilityLabel={field === 'model' ? option.label : t(option.label)}
           accessibilityState={{ checked: selection[field] === option.value }}
           style={[styles.choice, selection[field] === option.value && styles.chosen]}
           onPress={() => { void choose(option.value); }}>
           <View style={styles.row}>
-            <Text style={[styles.buttonText, styles.fill]}>{option.label}</Text>
+            <Text style={[styles.buttonText, styles.fill]}>{field === 'model' ? option.label : t(option.label)}</Text>
             {selection[field] === option.value && <Text style={styles.buttonText}>✓</Text>}
           </View>
-          {option.description && <Text style={styles.subtitle}>{option.description}</Text>}
+          {option.description && <Text style={styles.subtitle}>{t(option.description)}</Text>}
         </Pressable>)}
       </SheetScrollView>
     </BottomSheet>}

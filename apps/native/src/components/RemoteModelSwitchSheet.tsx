@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useState } from 'react';
 import { remoteModelOptions, type RemoteModelTarget } from '../../../../shared/remote-chat/modelTarget';
@@ -24,6 +25,7 @@ function ModelOption({
   loading,
   onPress,
 }: ModelOptionProps) {
+  useLanguage();
   return <Pressable
     accessibilityRole="button"
     accessibilityState={{ disabled, selected: current }}
@@ -46,7 +48,7 @@ function ModelOption({
     {loading
       ? <ActivityIndicator color="#14806f" size="small" />
       : current
-        ? <View style={styles.currentPill}><Text style={styles.currentText}>当前</Text></View>
+        ? <View style={styles.currentPill}><Text style={styles.currentText}>{t("当前")}</Text></View>
         : <Text style={styles.chevron}>›</Text>}
   </Pressable>;
 }
@@ -74,6 +76,7 @@ export function RemoteModelSwitchSheet({
   onSwitchProvider,
   onSwitchProviderGroup,
 }: RemoteModelSwitchSheetProps) {
+  useLanguage();
   const [target, setTarget] = useState<RemoteModelTarget>('proxy');
   const busy = Boolean(switchingAccountId || switchingProviderId);
   const options = remoteModelOptions(device, target);
@@ -95,8 +98,8 @@ export function RemoteModelSwitchSheet({
 
   return <BottomSheet fullWidthContent
     visible={Boolean(device)}
-    title="切换模型"
-    subtitle={device ? `${device.name} · 选择这台 PC 使用的模型来源` : undefined}
+    title={t("切换模型")}
+    subtitle={device ? t("{value1} · 选择这台 PC 使用的模型来源", { value1: device.name }) : undefined}
     onClose={onClose}
     dismissible={!busy}
     tall
@@ -108,22 +111,22 @@ export function RemoteModelSwitchSheet({
           disabled={busy} onPress={() => setTarget(value)}
           style={[styles.targetButton, target === value && styles.targetSelected]}>
           <Text style={[styles.targetText, target === value && styles.targetTextSelected]}>
-            {value === 'gui' ? 'Codex GUI 模型' : '代理接口模型'}
+            {value === 'gui' ? t("Codex GUI 模型") : t("代理接口模型")}
           </Text>
         </Pressable>)}
       </View>
       <Text style={styles.description}>{target === 'gui'
-        ? '仅切换 Codex GUI 使用的模型来源。' : '仅切换代理接口使用的模型来源。'}</Text>
+        ? t("仅切换 Codex GUI 使用的模型来源。") : t("仅切换代理接口使用的模型来源。")}</Text>
       {target === 'gui' && !providerSupported
-        ? <Text style={styles.emptyText}>请先更新 PC 端，再切换 Codex GUI 模型。</Text> : null}
-      <Text style={styles.sectionTitle}>官方模型</Text>
-      {!accounts.length ? <Text style={styles.emptyText}>暂无已同步的官方账号。</Text> : accounts.map((account) => {
+        ? <Text style={styles.emptyText}>{t("请先更新 PC 端，再切换 Codex GUI 模型。")}</Text> : null}
+      <Text style={styles.sectionTitle}>{t("官方模型")}</Text>
+      {!accounts.length ? <Text style={styles.emptyText}>{t("暂无已同步的官方账号。")}</Text> : accounts.map((account) => {
         const current = !options.providerId && !options.group && options.accountId === account.id;
         return <ModelOption
           key={`account:${account.id}`}
           badge="O"
           title={account.email}
-          subtitle={`官方模型 · ${account.plan || 'ChatGPT'}`}
+          subtitle={t("官方模型 · {value1}", { value1: account.plan || 'ChatGPT' })}
           current={current}
           disabled={busy || !device?.online || !options.accountAvailable || current}
           loading={switchingAccountId === account.id}
@@ -132,19 +135,19 @@ export function RemoteModelSwitchSheet({
       })}
 
       <View style={styles.providerHeading}>
-        <Text style={styles.sectionTitle}>第三方 Provider</Text>
+        <Text style={styles.sectionTitle}>{t("第三方 Provider")}</Text>
         {!providerSupported
-          ? <Text style={styles.hint}>请先更新 PC 端</Text>
+          ? <Text style={styles.hint}>{t("请先更新 PC 端")}</Text>
           : !providerAvailable
-            ? <Text style={styles.hint}>请先在 PC 端启动本地代理</Text>
+            ? <Text style={styles.hint}>{t("请先在 PC 端启动本地代理")}</Text>
             : null}
       </View>
-      {!providers.length ? <Text style={styles.emptyText}>暂无已同步的第三方 Provider。</Text> : <>
+      {!providers.length ? <Text style={styles.emptyText}>{t("暂无已同步的第三方 Provider。")}</Text> : <>
         {groups.map((group) => {
           const count = providers.filter((provider) => provider.group === group).length;
           const current = device?.activeProviderGroup === group;
           return <ModelOption key={`group:${group}`} badge="G" title={group}
-            subtitle={`同时启用 ${count} 个 API`} current={current}
+            subtitle={t("同时启用 {value1} 个 API", { value1: count })} current={current}
             disabled={busy || !device?.online || !providerAvailable || !groupSupported || current}
             loading={switchingProviderId === `group:${group}`}
             onPress={() => void selectProviderGroup(group)} />;
@@ -155,7 +158,7 @@ export function RemoteModelSwitchSheet({
             key={`provider:${provider.id}`}
             badge="P"
             title={provider.name}
-            subtitle={provider.model || '由 Codex 选择模型'}
+            subtitle={provider.model || t("由 Codex 选择模型")}
             current={current}
             disabled={busy || !device?.online || !providerAvailable || current}
             loading={switchingProviderId === provider.id}
@@ -164,8 +167,8 @@ export function RemoteModelSwitchSheet({
         })}
       </>}
       <Text style={styles.footerHint}>
-        {target === 'gui' ? '切换后，Codex GUI 的后续请求将使用所选来源，无需重启。'
-          : '在官方模型与第三方 Provider 之间切换后，需要重启 ChatGPT/Codex 才能加载当前模型。'}
+        {target === 'gui' ? t("切换后，Codex GUI 的后续请求将使用所选来源，无需重启。")
+          : t("在官方模型与第三方 Provider 之间切换后，需要重启 ChatGPT/Codex 才能加载当前模型。")}
       </Text>
     </SheetScrollView>
   </BottomSheet>;

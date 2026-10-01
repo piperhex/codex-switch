@@ -4,11 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { agreementCopy, getUserAgreement } from '../../../../shared/legal/agreement';
 import type { AgreementConsent as Consent } from '../../../../shared/legal/useAgreementConsent';
 import { styles } from './agreementStyles';
-
-const copy = agreementCopy.zh;
-const agreement = getUserAgreement('zh');
+import { useLanguage } from '../i18n';
 
 export function AgreementConsent({ consent, disabled }: { consent: Consent; disabled: boolean }) {
+  const language = useLanguage();
+  const copy = agreementCopy[language];
+  const agreement = getUserAgreement(language);
   const [reading, setReading] = useState(false);
   const close = () => reading ? setReading(false) : consent.cancel();
   const read = () => { Keyboard.dismiss(); setReading(true); };

@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { StyleSheet, Text, View } from 'react-native';
 import type { AdminDashboardOverview } from '../types';
 
@@ -12,6 +13,7 @@ const MAX_TREND_DAYS = 10;
 type PlatformCounts = AdminDashboardOverview['dailyActivePlatforms'];
 
 export function DailyActivePlatforms({ counts }: { counts?: PlatformCounts }) {
+  useLanguage();
   return <View style={styles.platforms}>
     {PLATFORMS.map((platform) => <Text key={platform.name} style={styles.platformCount}>
       {platform.label} {counts?.find((item) => item.name === platform.name)?.value ?? 0}
@@ -20,10 +22,11 @@ export function DailyActivePlatforms({ counts }: { counts?: PlatformCounts }) {
 }
 
 export function DashboardGrowth({ data }: { data: AdminDashboardOverview | null }) {
+  useLanguage();
   const trend = data?.trend.slice(-MAX_TREND_DAYS) ?? [];
   const maximum = Math.max(1, ...trend.map((item) => item.installations));
   return <View style={styles.growth}>
-    <Text style={styles.subtitle}>最近 {trend.length || MAX_TREND_DAYS} 天 · 总设备 {data?.summary.totalInstallations ?? 0}</Text>
+    <Text style={styles.subtitle}>{t("最近")}{' '}{trend.length || MAX_TREND_DAYS}{' '}{t("天 · 总设备")}{' '}{data?.summary.totalInstallations ?? 0}</Text>
     <View style={styles.platforms}>
       {PLATFORMS.map((platform) => <View key={platform.name} style={styles.legend}>
         <View style={[styles.dot, { backgroundColor: platform.color }]} />
@@ -33,9 +36,9 @@ export function DashboardGrowth({ data }: { data: AdminDashboardOverview | null 
     {trend.length ? trend.map((item) => <View key={item.date} style={styles.day}>
       <View style={styles.heading}>
         <Text style={styles.date}>{item.date.slice(5)}</Text>
-        <Text style={styles.total}>总设备 {item.totalInstallations ?? '—'}</Text>
+        <Text style={styles.total}>{t("总设备")}{' '}{item.totalInstallations ?? '—'}</Text>
       </View>
-      <Text style={styles.subtitle}>新增用户 {item.users} · 新增设备 {item.installations}</Text>
+      <Text style={styles.subtitle}>{t("新增用户")}{' '}{item.users}{' '}{t("· 新增设备")}{' '}{item.installations}</Text>
       <View style={styles.track}>
         {PLATFORMS.map((platform) => <View key={platform.name} style={{
           height: '100%', backgroundColor: platform.color,
@@ -43,7 +46,7 @@ export function DashboardGrowth({ data }: { data: AdminDashboardOverview | null 
         }} />)}
       </View>
       <DailyActivePlatforms counts={item.platforms} />
-    </View>) : <Text style={styles.subtitle}>暂无趋势数据</Text>}
+    </View>) : <Text style={styles.subtitle}>{t("暂无趋势数据")}</Text>}
   </View>;
 }
 

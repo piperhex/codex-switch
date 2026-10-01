@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
@@ -14,18 +15,19 @@ interface Props {
 }
 
 export function ChatThreads({ state, controller, newChat, openSearch, select, profileMenu }: Props) {
+  useLanguage();
   const [footerHeight, setFooterHeight] = useState(0);
   const actions = useThreadActions(state, controller);
   return <View style={styles.fill}>
     <View style={styles.padded}>
       <View style={styles.row}>
-        <Text style={[styles.heading, styles.fill]}>聊天</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="搜索聊天" onPress={openSearch}
+        <Text style={[styles.heading, styles.fill]}>{t("聊天")}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("搜索聊天")} onPress={openSearch}
           style={listStyles.search}><Feather name="search" size={23} color={palette.ink} /></Pressable>
       </View>
       <Pressable accessibilityRole="button" style={listStyles.filter} disabled={state.loading}
         onPress={() => { void controller.list({ archived: !state.archived }); }}>
-        <Text style={styles.subtitle}>{state.archived ? '已归档 ▾' : '最近聊天 ▾'}</Text>
+        <Text style={styles.subtitle}>{state.archived ? t("已归档 ▾") : t("最近聊天 ▾")}</Text>
       </Pressable>
     </View>
     <ChatThreadList state={state} controller={controller} newChat={newChat} select={select}
@@ -33,9 +35,9 @@ export function ChatThreads({ state, controller, newChat, openSearch, select, pr
     <ChatThreadActions actions={actions} />
     <View style={listStyles.footer} pointerEvents="box-none"
       onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
-      <Pressable accessibilityRole="button" accessibilityLabel="新聊天" disabled={state.sending}
+      <Pressable accessibilityRole="button" accessibilityLabel={t("新聊天")} disabled={state.sending}
         style={[listStyles.newChat, state.sending && styles.disabled]} onPress={() => newChat()}>
-        <Feather name="edit" size={21} color="#fff" /><Text style={listStyles.newChatText}>新聊天</Text>
+        <Feather name="edit" size={21} color="#fff" /><Text style={listStyles.newChatText}>{t("新聊天")}</Text>
       </Pressable>
       {profileMenu}
     </View>

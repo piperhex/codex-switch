@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RemoteDevice } from '../types';
@@ -14,18 +15,19 @@ interface DeviceOptionsMenuProps {
 }
 
 export function DeviceOptionsMenu(props: DeviceOptionsMenuProps) {
+  useLanguage();
   const { device, deletingDeviceId, switchingAuthDeviceId, onClose, onDelete, onSelectAuthAccount } = props;
   if (!device) return null;
   const deleteDisabled = device.online || Boolean(deletingDeviceId);
   const authDisabled = !device.online || Boolean(switchingAuthDeviceId);
   return <Modal transparent visible animationType="fade" onRequestClose={onClose}>
     <View style={styles.overlay}>
-      <Pressable accessibilityLabel="关闭菜单" accessibilityRole="button"
+      <Pressable accessibilityLabel={t("关闭菜单")} accessibilityRole="button"
         style={StyleSheet.absoluteFill} onPress={onClose} />
       <View style={styles.menu} accessibilityViewIsModal>
         <View style={styles.menuHeader}>
           <Text style={styles.menuTitle}>{device.name}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="关闭菜单" onPress={onClose} style={styles.close}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("关闭菜单")} onPress={onClose} style={styles.close}>
             <Ionicons name="close" size={22} color={deviceColors.muted} />
           </Pressable>
         </View>
@@ -33,23 +35,23 @@ export function DeviceOptionsMenu(props: DeviceOptionsMenuProps) {
           onPress={() => { onClose(); onSelectAuthAccount(device.deviceId); }}
           style={({ pressed }) => [styles.option, pressed && styles.pressed, authDisabled && styles.disabled]}>
           <Ionicons name="open-outline" size={21} color={deviceColors.green} />
-          <Text style={styles.optionLabel}>代理登录态账号</Text>
+          <Text style={styles.optionLabel}>{t("代理登录态账号")}</Text>
           {switchingAuthDeviceId === device.deviceId && <ActivityIndicator color={deviceColors.green} />}
         </Pressable>
         {device.platform.toLowerCase() === 'windows' && <Pressable accessibilityRole="button"
           onPress={() => { onClose(); props.onRevokeService(device); }} style={styles.option}>
           <Ionicons name="lock-closed-outline" size={21} color={deviceColors.danger} />
-          <Text style={[styles.optionLabel, styles.danger]}>撤销无人值守授权</Text>
+          <Text style={[styles.optionLabel, styles.danger]}>{t("撤销无人值守授权")}</Text>
         </Pressable>}
         <Pressable accessibilityRole="button"
           accessibilityState={{ disabled: deleteDisabled }} disabled={deleteDisabled}
           onPress={() => { onClose(); onDelete(device); }}
           style={({ pressed }) => [styles.option, pressed && styles.pressed, deleteDisabled && styles.disabled]}>
           <Ionicons name="trash-outline" size={21} color={deviceColors.danger} />
-          <Text style={[styles.optionLabel, styles.danger]}>{device.online ? '在线不可删除' : '删除设备'}</Text>
+          <Text style={[styles.optionLabel, styles.danger]}>{device.online ? t("在线不可删除") : t("删除设备")}</Text>
           {deletingDeviceId === device.deviceId && <ActivityIndicator color={deviceColors.danger} />}
         </Pressable>
-        {!device.online && <Text style={styles.hintText}>设备上线后可更换代理登录态账号。</Text>}
+        {!device.online && <Text style={styles.hintText}>{t("设备上线后可更换代理登录态账号。")}</Text>}
       </View>
     </View>
   </Modal>;

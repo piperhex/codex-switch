@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import Feather from '@expo/vector-icons/Feather';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { conversationCandidates,
@@ -15,32 +16,33 @@ interface Props {
 }
 
 export function ComposerConversationMenu({ query, threadId, ready, load, choose, close }: Props) {
+  useLanguage();
   const result = useConversationCandidates({ active: true, connected: ready, query, load });
   const threads = conversationCandidates({ remote: result.threads, known: [], conversations: {},
     currentId: threadId, query });
-  return <View accessibilityLabel="对话列表" style={menuStyles.root}>
+  return <View accessibilityLabel={t("对话列表")} style={menuStyles.root}>
     <View style={menuStyles.heading}>
-      <Text style={menuStyles.headingText}>对话</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="关闭对话列表" onPress={close} hitSlop={8}>
+      <Text style={menuStyles.headingText}>{t("对话")}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("关闭对话列表")} onPress={close} hitSlop={8}>
         <Feather name="x" size={18} color="#777" />
       </Pressable>
     </View>
     <FlatList data={threads} keyExtractor={thread => thread.id} style={menuStyles.list}
       keyboardShouldPersistTaps="always" nestedScrollEnabled
       renderItem={({ item }) => <Pressable accessibilityRole="menuitem" disabled={!ready}
-        accessibilityLabel={`引用对话 ${conversationReference(item).name}`}
+        accessibilityLabel={t("引用对话 {value1}", { value1: conversationReference(item).name })}
         onPress={() => choose(conversationReference(item))}
         style={({ pressed }) => [menuStyles.option, pressed && menuStyles.pressed]}>
         <Text numberOfLines={1} style={menuStyles.title}>{conversationReference(item).name}</Text>
         <Text numberOfLines={1} style={menuStyles.detail}>
-          {item.status?.type === 'active' ? '运行中' : '空闲'} · {item.cwd || '未选择项目'}</Text>
+          {item.status?.type === 'active' ? t("运行中") : t("空闲")} · {item.cwd || t("未选择项目")}</Text>
       </Pressable>}
       ListFooterComponent={<>
-        {!ready && <Text style={menuStyles.message}>连接后即可引用对话</Text>}
-        {ready && result.loading && !threads.length && <Text style={menuStyles.message}>正在加载对话…</Text>}
+        {!ready && <Text style={menuStyles.message}>{t("连接后即可引用对话")}</Text>}
+        {ready && result.loading && !threads.length && <Text style={menuStyles.message}>{t("正在加载对话…")}</Text>}
         {ready && !!result.error && <Text accessibilityRole="alert" style={menuStyles.message}>{result.error}</Text>}
         {ready && !result.loading && !result.error && !threads.length
-          && <Text style={menuStyles.message}>没有找到可引用的对话</Text>}
+          && <Text style={menuStyles.message}>{t("没有找到可引用的对话")}</Text>}
       </>} />
   </View>;
 }

@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
@@ -21,6 +22,7 @@ type Props = ChatConnectionProps & { ready: boolean; active: boolean } & (
 const ACCOUNT_REFRESH_INTERVAL_MS = 60_000;
 
 export function ChatProfileMenu(props: Props) {
+  useLanguage();
   const { client, deviceName, ready, active, chooseDevice } = props;
   const settings = props.variant === 'settings';
   const [panel, setPanel] = useState<'profile' | 'accounts' | 'update' | null>(null);
@@ -29,8 +31,8 @@ export function ChatProfileMenu(props: Props) {
   const selection = accounts.snapshot?.selection;
   const current = accounts.snapshot?.choices.find((choice) =>
     selection?.kind === choice.kind && selection.id === choice.id);
-  const name = current?.name || '选择账户';
-  const initials = Array.from(current?.name.trim() || '').slice(0, 2).join('') || '我';
+  const name = current?.name || t("选择账户");
+  const initials = Array.from(current?.name.trim() || '').slice(0, 2).join('') || t("我");
   const disabled = accounts.loading || Boolean(accounts.saving) || !ready || !accounts.snapshot?.running;
   const search = query.trim().toLowerCase();
   const choices = accounts.snapshot?.choices.filter((choice) =>
@@ -43,25 +45,25 @@ export function ChatProfileMenu(props: Props) {
   };
 
   const connectionOptions = <>
-    <Pressable accessibilityRole="button" accessibilityLabel="切换电脑"
+    <Pressable accessibilityRole="button" accessibilityLabel={t("切换电脑")}
       style={[pickerStyles.option, settings && pickerStyles.settingOption]}
       onPress={() => { setPanel(null); chooseDevice(); }}>
       <Feather name="monitor" size={22} color={palette.ink} />
-      <View style={pickerStyles.copy}><Text style={styles.title}>切换电脑</Text>
-        <Text numberOfLines={1} style={styles.subtitle}>{deviceName || '选择电脑'}</Text></View>
+      <View style={pickerStyles.copy}><Text style={styles.title}>{t("切换电脑")}</Text>
+        <Text numberOfLines={1} style={styles.subtitle}>{deviceName || t("选择电脑")}</Text></View>
       <Feather name="chevron-right" size={18} color={palette.muted} />
     </Pressable>
-    <Pressable accessibilityRole="button" accessibilityLabel="切换账户"
+    <Pressable accessibilityRole="button" accessibilityLabel={t("切换账户")}
       style={[pickerStyles.option, settings && pickerStyles.settingOption]}
       onPress={() => { setQuery(''); setPanel('accounts'); if (ready) accounts.refresh(); }}>
       <Feather name="user" size={22} color={palette.ink} />
-      <View style={pickerStyles.copy}><Text style={styles.title}>切换账户</Text>
+      <View style={pickerStyles.copy}><Text style={styles.title}>{t("切换账户")}</Text>
         <Text numberOfLines={1} style={styles.subtitle}>{name}</Text></View>
       <Feather name="chevron-right" size={18} color={palette.muted} />
     </Pressable>
   </>;
   return <>
-    {settings ? connectionOptions : <Pressable accessibilityRole="button" accessibilityLabel="打开头像菜单"
+    {settings ? connectionOptions : <Pressable accessibilityRole="button" accessibilityLabel={t("打开头像菜单")}
       accessibilityState={{ expanded: panel !== null && active }} style={pickerStyles.trigger}
       onPress={() => setPanel('profile')}>
       <Text style={pickerStyles.initials}>{initials}</Text>
@@ -70,41 +72,41 @@ export function ChatProfileMenu(props: Props) {
       client={props.guiTools} active={active} connected={ready} running={props.running} deviceName={deviceName}
       onClose={() => setPanel(null)} onBack={() => setPanel('profile')} />}
     <BottomSheet fullWidthContent visible={panel !== null && panel !== 'update' && active}
-      title={panel === 'accounts' ? '切换账户' : '账户与电脑'}
-      subtitle={panel === 'accounts' ? '与电脑共用当前聊天账户' : undefined}
+      title={panel === 'accounts' ? t("切换账户") : t("账户与电脑")}
+      subtitle={panel === 'accounts' ? t("与电脑共用当前聊天账户") : undefined}
       onClose={() => setPanel(null)} dismissible={!accounts.saving} dragFromHeaderOnly
       onBack={panel === 'accounts' && !accounts.saving ? () => setPanel(settings ? null : 'profile') : undefined}>
       {panel === 'profile' && props.variant !== 'settings'
         ? <SheetInset style={[pickerStyles.panel, pickerStyles.readable]}>
         <Text style={pickerStyles.email}>{props.email}</Text>
         {connectionOptions}
-        <Pressable accessibilityRole="button" accessibilityLabel="更新 Codex GUI" style={pickerStyles.option}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("更新 Codex GUI")} style={pickerStyles.option}
           onPress={() => setPanel('update')}>
           <Feather name="download" size={22} color={palette.ink} />
-          <View style={pickerStyles.copy}><Text style={styles.title}>更新 Codex GUI</Text>
-            <Text style={styles.subtitle}>检查并更新当前电脑上的 Codex GUI</Text></View>
+          <View style={pickerStyles.copy}><Text style={styles.title}>{t("更新 Codex GUI")}</Text>
+            <Text style={styles.subtitle}>{t("检查并更新当前电脑上的 Codex GUI")}</Text></View>
           <Feather name="chevron-right" size={18} color={palette.muted} />
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Token 汇总" style={pickerStyles.option}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Token 汇总")} style={pickerStyles.option}
           onPress={() => { setPanel(null); props.openTokenSummary(); }}>
           <Feather name="bar-chart-2" size={22} color={palette.ink} />
-          <View style={pickerStyles.copy}><Text style={styles.title}>Token 汇总</Text>
-            <Text style={styles.subtitle}>查看用量趋势与消耗排行</Text></View>
+          <View style={pickerStyles.copy}><Text style={styles.title}>{t("Token 汇总")}</Text>
+            <Text style={styles.subtitle}>{t("查看用量趋势与消耗排行")}</Text></View>
           <Feather name="chevron-right" size={18} color={palette.muted} />
         </Pressable>
       </SheetInset> : <View style={pickerStyles.panel}>
         <SheetInset style={[pickerStyles.fields, pickerStyles.readable]}>
-          <TextInput accessibilityLabel="搜索账户" placeholder="搜索名称或备注" value={query} onChangeText={setQuery}
+          <TextInput accessibilityLabel={t("搜索账户")} placeholder={t("搜索名称或备注")} value={query} onChangeText={setQuery}
             autoCapitalize="none" autoCorrect={false} style={styles.search} />
-          {!ready && <Text style={styles.subtitle}>连接电脑后即可切换账户。</Text>}
-          {accounts.loading && <ActivityIndicator color={palette.green} accessibilityLabel="正在同步账户" />}
+          {!ready && <Text style={styles.subtitle}>{t("连接电脑后即可切换账户。")}</Text>}
+          {accounts.loading && <ActivityIndicator color={palette.green} accessibilityLabel={t("正在同步账户")} />}
           {ready && accounts.snapshot && !accounts.snapshot.running &&
-            <Text style={styles.subtitle}>请先在电脑上开启本地代理，再切换账户。</Text>}
+            <Text style={styles.subtitle}>{t("请先在电脑上开启本地代理，再切换账户。")}</Text>}
           {!!accounts.error && <View style={styles.row}>
             <Text accessibilityRole="alert" style={[styles.error, styles.fill]}>{accounts.error}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="重试读取账户"
+            <Pressable accessibilityRole="button" accessibilityLabel={t("重试读取账户")}
               disabled={!ready || accounts.loading || Boolean(accounts.saving)} onPress={accounts.refresh}>
-              <Text style={styles.buttonText}>重试</Text>
+              <Text style={styles.buttonText}>{t("重试")}</Text>
             </Pressable>
           </View>}
         </SheetInset>
@@ -121,15 +123,15 @@ export function ChatProfileMenu(props: Props) {
               <View style={pickerStyles.copy}>
                 <Text numberOfLines={1} style={styles.title}>{choice.name}</Text>
                 <Text style={styles.subtitle}>{choice.detail}</Text>
-                {!choice.available && <Text style={styles.subtitle}>此账户暂不可用</Text>}
+                {!choice.available && <Text style={styles.subtitle}>{t("此账户暂不可用")}</Text>}
               </View>
               {accounts.saving === `${choice.kind}:${choice.id}`
-                ? <ActivityIndicator color={palette.green} accessibilityLabel="正在切换" />
-                : selected && <Text style={styles.buttonText}>当前</Text>}
+                ? <ActivityIndicator color={palette.green} accessibilityLabel={t("正在切换")} />
+                : selected && <Text style={styles.buttonText}>{t("当前")}</Text>}
             </Pressable>;
           })}
           {!choices.length && accounts.snapshot && !accounts.loading && <Text style={pickerStyles.empty}>
-            {accounts.snapshot.choices.length ? '没有找到匹配的账户。' : '暂无可选账户，请先在电脑上添加账户。'}</Text>}
+            {accounts.snapshot.choices.length ? t("没有找到匹配的账户。") : t("暂无可选账户，请先在电脑上添加账户。")}</Text>}
         </SheetScrollView>
       </View>}
     </BottomSheet>

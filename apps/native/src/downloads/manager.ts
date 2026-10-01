@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { DeviceEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import type { AuthSession } from '../types';
@@ -13,7 +14,7 @@ let initialized: Promise<void> | undefined;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(listener => listener());
 const requireNative = () => {
-  if (!native) throw new Error('请安装支持下载管理的新版 Android 应用。');
+  if (!native) throw new Error(t("请安装支持下载管理的新版 Android 应用。"));
   return native;
 };
 
@@ -35,13 +36,13 @@ export const downloadManager = {
         const client = current?.owner === request.source.owner && current.deviceId === request.source.deviceId
           ? current.client : undefined;
         void forwardDownloadRequest({ request, client, native: bridge })
-          .catch(() => { error = '下载暂时中断，请稍后继续。'; emit(); });
+          .catch(() => { error = t("下载暂时中断，请稍后继续。"); emit(); });
       });
       try { tasks = JSON.parse(await bridge.list()) as DownloadTask[]; error = ''; emit(); }
       catch (cause) { changed.remove(); requests.remove(); throw cause; }
     }).catch(cause => {
       initialized = undefined;
-      error = cause instanceof Error ? cause.message : '暂时无法读取下载记录。'; emit();
+      error = cause instanceof Error ? cause.message : t("暂时无法读取下载记录。"); emit();
     });
     return initialized;
   },
@@ -57,7 +58,7 @@ export const downloadManager = {
         return native?.connection(value.owner, value.deviceId, value.ready);
       }
     })
-      .catch(() => { error = '暂时无法连接下载管理。'; emit(); });
+      .catch(() => { error = t("暂时无法连接下载管理。"); emit(); });
   },
   unbind(files: DownloadConnection['files']) {
     if (connection?.files !== files) return;
@@ -70,11 +71,11 @@ export const downloadManager = {
   async enqueue(source: DownloadSource) {
     await this.initialize();
     if (!connection?.ready || connection.owner !== source.owner || connection.deviceId !== source.deviceId) {
-      throw new Error('请先连接这台电脑，再开始下载。');
+      throw new Error(t("请先连接这台电脑，再开始下载。"));
     }
     if (Platform.OS === 'android' && Number(Platform.Version) < 29) {
       const permission = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
-      if (permission !== PermissionsAndroid.RESULTS.GRANTED) throw new Error('允许保存文件后，即可开始下载。');
+      if (permission !== PermissionsAndroid.RESULTS.GRANTED) throw new Error(t("允许保存文件后，即可开始下载。"));
     }
     return requireNative().enqueue(JSON.stringify(source));
   },

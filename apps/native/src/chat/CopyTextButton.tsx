@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -26,8 +27,8 @@ function useTextCopy(text: string) {
   const notice = (value: string) => {
     if (!mounted.current) return;
     setStatus(value);
-    AccessibilityInfo.announceForAccessibility(value);
-    if (value === '复制失败，请重试') Toast.fail(value);
+    AccessibilityInfo.announceForAccessibility(t(value));
+    if (value === '复制失败，请重试') Toast.fail(t(value));
     else if (value !== '已复制') Toast.success(value);
     clearTimeout(timer.current);
     timer.current = setTimeout(() => setStatus(''), 2000);
@@ -50,28 +51,29 @@ function useTextCopy(text: string) {
       const result = await saveTextFile(request.text);
       if (result && mounted.current) {
         setRequest(null);
-        notice(result.location === 'downloads' ? '已保存到下载文件夹' : '已保存到所选文件夹');
+        notice(result.location === 'downloads' ? t("已保存到下载文件夹") : t("已保存到所选文件夹"));
       }
-    } catch { if (mounted.current) setError('保存失败，请重试。'); }
+    } catch { if (mounted.current) setError(t("保存失败，请重试。")); }
     finally { busy.current = false; if (mounted.current) setSaving(false); }
   };
   return { status, request, saving, error, copy, save, close: () => setRequest(null) };
 }
 
-export function CopyTextButton({ text, label = '复制', variant = 'inline' }: {
+export function CopyTextButton({ text, label = t("复制"), variant = 'inline' }: {
   text: string; label?: string; variant?: 'inline' | 'labeled';
 }) {
+  useLanguage();
   const copy = useTextCopy(text);
   const labeled = variant === 'labeled';
   return <View style={!labeled && copyStyles.inline}><Pressable accessibilityRole="button" accessibilityLabel={label}
     style={labeled ? copyStyles.labeledButton : copyStyles.button} hitSlop={8}
     disabled={copy.saving} onPress={() => void copy.copy()}>
     <Feather name={copy.status === '已复制' ? 'check' : 'copy'} size={15} color={palette.muted} />
-    {labeled && <Text style={copyStyles.label}>{copy.status || label}</Text>}</Pressable>
-    {copy.request && <BottomSheet visible title="保存完整内容" onClose={copy.close} dismissible={!copy.saving}
-      actions={[{ label: '保存完整内容', onPress: copy.save, loading: copy.saving, disabled: copy.saving }]}>
+    {labeled && <Text style={copyStyles.label}>{copy.status ? t(copy.status) : label}</Text>}</Pressable>
+    {copy.request && <BottomSheet visible title={t("保存完整内容")} onClose={copy.close} dismissible={!copy.saving}
+      actions={[{ label: t("保存完整内容"), onPress: copy.save, loading: copy.saving, disabled: copy.saving }]}>
       <Text style={[styles.messageText, { maxWidth: 400 }]}>{copy.request.reason === 'too-large'
-        ? '内容较长，可将完整内容保存为文本文件。' : '复制未成功，可将完整内容保存为文本文件。'}</Text>
+        ? t("内容较长，可将完整内容保存为文本文件。") : t("复制未成功，可将完整内容保存为文本文件。")}</Text>
       {!!copy.error && <Text accessibilityRole="alert" style={styles.error}>{copy.error}</Text>}
     </BottomSheet>}
   </View>;

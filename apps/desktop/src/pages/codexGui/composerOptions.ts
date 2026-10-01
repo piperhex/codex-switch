@@ -47,7 +47,7 @@ export function composerOptions(skills: Skill[], query: string, command?: Compac
     description: skillDescription(skill), enabled: skill.enabled, skill }))];
   return options.filter((option) => {
     const name = option.kind === "skill" ? option.skill.name
-      : { compact: guiText("compact 压缩 上下文"), goal: guiText("goal 目标"), conversation: guiText("对话") }[option.kind];
+      : { compact: "compact 压缩 上下文", goal: "goal 目标", conversation: "对话" }[option.kind];
     return `${name} ${option.label} ${option.description}`.toLocaleLowerCase().includes(query.toLocaleLowerCase());
   });
 }

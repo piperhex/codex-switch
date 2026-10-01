@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 import type { AccountSummary, UsageWindow } from '../types';
@@ -34,14 +35,15 @@ function usageAppearance(remaining: number | null, plan: string) {
 }
 
 function AccountUsage({ usage, plan }: { usage?: UsageWindow | null; plan: string }) {
+  useLanguage();
   const remaining = usage && Number.isFinite(usage.remainingPercent)
     ? Math.max(0, Math.min(100, Math.round(usage.remainingPercent))) : null;
   const { fill, textColor, gradient } = usageAppearance(remaining, plan);
   return <View style={styles.usage}>
     <View style={styles.meter}>
       <View style={styles.track} accessibilityRole="progressbar"
-        accessibilityLabel="剩余额度" accessibilityValue={remaining === null
-          ? { text: '用量暂不可用' } : { min: 0, max: 100, now: remaining }}>
+        accessibilityLabel={t("剩余额度")} accessibilityValue={remaining === null
+          ? { text: t("用量暂不可用") } : { min: 0, max: 100, now: remaining }}>
         {remaining !== null ? <View style={[styles.fill, {
           width: `${remaining}%`, backgroundColor: fill,
           experimental_backgroundImage: gradient,
@@ -53,17 +55,18 @@ function AccountUsage({ usage, plan }: { usage?: UsageWindow | null; plan: strin
     </View>
     <View style={styles.reset}>
       <Ionicons name="time-outline" size={15} color={colors.muted} />
-      <Text style={styles.resetText}>{remaining === null ? '用量暂不可用' : resetLabel(usage?.resetsAt)}</Text>
+      <Text style={styles.resetText}>{remaining === null ? t("用量暂不可用") : resetLabel(usage?.resetsAt)}</Text>
     </View>
   </View>;
 }
 
 export function AccountCard({ account, privateMode, onOpenDetails }: AccountCardProps) {
+  useLanguage();
   const email = privateMode ? maskEmail(account.email) : account.email;
   const plan = account.plan || 'ChatGPT';
   const accent = planColors(plan);
-  return <Pressable accessibilityRole="button" accessibilityLabel={`${email} 的账号信息`}
-    accessibilityHint="打开完整账号信息" onPress={() => onOpenDetails(account)}
+  return <Pressable accessibilityRole="button" accessibilityLabel={t("{value1} 的账号信息", { value1: email })}
+    accessibilityHint={t("打开完整账号信息")} onPress={() => onOpenDetails(account)}
     style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
     <View style={styles.cardContent}>
       <View style={styles.identity}>

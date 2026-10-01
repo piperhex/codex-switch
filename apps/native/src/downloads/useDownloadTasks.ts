@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { AuthSession } from '../types';
 import { downloadManager, downloadOwner } from './manager';
@@ -27,8 +28,8 @@ export function useDownloadTasks(session: AuthSession) {
       else if (task.status === 'queued' || task.status === 'downloading') await downloadManager.pause(task.id);
       else await downloadManager.resume(task.id);
     } catch {
-      setError(operation === 'delete' ? '删除未完成，请稍后重试。'
-        : '操作未完成，请检查电脑连接、手机空间或是否有可打开此文件的应用。');
+      setError(operation === 'delete' ? t("删除未完成，请稍后重试。")
+        : t("操作未完成，请检查电脑连接、手机空间或是否有可打开此文件的应用。"));
     } finally {
       pending.current = false;
       setBusy('');

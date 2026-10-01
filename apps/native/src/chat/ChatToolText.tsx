@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChatMarkdown } from './Markdown';
@@ -9,20 +10,21 @@ import { SelectableChatText } from './SelectableChatText';
 export function ChatToolText({ text, markdown = false, prose = false }: {
   text: string; markdown?: boolean; prose?: boolean;
 }) {
+  useLanguage();
   const [requestedPage, setPage] = useState(0);
   const { page, pages, visible } = toolOutputPage(text, requestedPage);
-  const copy = { text, label: '复制完整内容' };
+  const copy = { text, label: t("复制完整内容") };
   return <View style={toolStyles.content}>
     {markdown ? <ChatMarkdown text={visible} copy={copy} />
       : <SelectableChatText style={prose ? toolStyles.prose : styles.code} copy={copy}>
         {visible.trimEnd()}</SelectableChatText>}
     {pages > 1 && <View style={toolStyles.paging}>
-      <Text style={styles.subtitle}>内容较长，分段显示</Text>
+      <Text style={styles.subtitle}>{t("内容较长，分段显示")}</Text>
       <Pressable accessibilityRole="button" disabled={!page} onPress={() => setPage(page - 1)}>
-        <Text style={[styles.subtitle, !page && styles.disabled]}>上一段</Text></Pressable>
+        <Text style={[styles.subtitle, !page && styles.disabled]}>{t("上一段")}</Text></Pressable>
       <Text style={styles.subtitle}>{page + 1} / {pages}</Text>
       <Pressable accessibilityRole="button" disabled={page === pages - 1} onPress={() => setPage(page + 1)}>
-        <Text style={[styles.subtitle, page === pages - 1 && styles.disabled]}>下一段</Text></Pressable>
+        <Text style={[styles.subtitle, page === pages - 1 && styles.disabled]}>{t("下一段")}</Text></Pressable>
     </View>}
   </View>;
 }

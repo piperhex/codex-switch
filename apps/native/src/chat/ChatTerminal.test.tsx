@@ -60,3 +60,8 @@ it('enables an explicit retry after connecting and restores the normal icon when
   panel.error = '';
   expect(nodes(render(true)).find(node => node.type === 'Icon')?.props.color).toBe(palette.ink);
 });
+
+vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));

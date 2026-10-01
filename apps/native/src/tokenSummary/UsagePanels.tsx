@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { Text, View } from 'react-native';
 import type { TokenSummary, UsageRanking } from '../../../../shared/remote-chat/tokenSummary';
 import { formatTokens } from '../../../desktop/src/components/TokenUsageDashboard/chartUtils';
@@ -10,38 +11,41 @@ export const TOKEN_FIELDS = [
 ] as const;
 
 export function UsageTotals({ data }: { data: TokenSummary }) {
+  const language = useLanguage();
   return <View style={s.card}>
-    <Text style={s.hint}>最近 {data.weeks} 周 · Token 总消耗</Text>
-    <Text style={s.number}>{formatTokens(data.dailyUsage.reduce((sum, day) => sum + day.totalTokens, 0), 'zh')}</Text>
-    <Text style={s.sectionTitle}>Token 类型累计</Text>
+    <Text style={s.hint}>{t("最近")}{' '}{data.weeks}{' '}{t("周 · Token 总消耗")}</Text>
+    <Text style={s.number}>{formatTokens(data.dailyUsage.reduce((sum, day) => sum + day.totalTokens, 0), language)}</Text>
+    <Text style={s.sectionTitle}>{t("Token 类型累计")}</Text>
     <View style={s.wrap}>{TOKEN_FIELDS.slice(1).map(([label, field]) => <View key={field} style={s.metric}>
-      <Text style={s.hint}>{label}</Text>
-      <Text style={s.value}>{formatTokens(data.dailyUsage.reduce((sum, day) => sum + day[field], 0), 'zh')}</Text>
+      <Text style={s.hint}>{t(label)}</Text>
+      <Text style={s.value}>{formatTokens(data.dailyUsage.reduce((sum, day) => sum + day[field], 0), language)}</Text>
     </View>)}</View>
-    {data.errors.usage && <Text style={s.error}>部分 Token 数据加载失败，请刷新重试。</Text>}
+    {data.errors.usage && <Text style={s.error}>{t("部分 Token 数据加载失败，请刷新重试。")}</Text>}
   </View>;
 }
 
 export function UsageTrend({ data }: { data: TokenSummary }) {
+  const language = useLanguage();
   const daily = new Map(data.dailyUsage.map((day) => [day.date, day]));
-  return <View style={s.card}><Text style={s.sectionTitle}>每日 Token 趋势</Text>
-    <TimeBars labels={TOKEN_FIELDS.map(([label]) => label)} points={data.dateKeys.map((date) => ({
+  return <View style={s.card}><Text style={s.sectionTitle}>{t("每日 Token 趋势")}</Text>
+    <TimeBars labels={TOKEN_FIELDS.map(([label]) => t(label))} points={data.dateKeys.map((date) => ({
       label: date, values: TOKEN_FIELDS.map(([, field]) => daily.get(date)?.[field] ?? 0),
     }))} />
   </View>;
 }
 
 export function RankingPanel({ title, ranking, count }: { title: string; ranking: UsageRanking; count: number }) {
+  const language = useLanguage();
   const total = ranking.reduce((sum, [, tokens]) => sum + tokens, 0);
   const maximum = Math.max(1, ...ranking.map(([, tokens]) => tokens));
   return <View style={s.card}><Text style={s.sectionTitle}>{title}</Text>
-    <Text style={s.hint}>基于最近 {count} 条代理请求 · 前 8 名</Text>
+    <Text style={s.hint}>{t("基于最近")}{' '}{count}{' '}{t("条代理请求 · 前 8 名")}</Text>
     {ranking.map(([name, tokens], index) => <View key={name} style={{ gap: 6 }}>
       <Text selectable style={s.hint}>{index + 1}. {name}</Text>
-      <View style={s.row}><Text style={[s.value, s.fill]}>{formatTokens(tokens, 'zh')}</Text>
+      <View style={s.row}><Text style={[s.value, s.fill]}>{formatTokens(tokens, language)}</Text>
         <Text style={s.hint}>{total ? (tokens / total * 100).toFixed(1) : '0.0'}%</Text></View>
       <View style={s.barTrack}><View style={[s.bar, { width: `${tokens / maximum * 100}%` }]} /></View>
     </View>)}
-    {!ranking.length && <Text style={s.hint}>暂无 Token 数据</Text>}
+    {!ranking.length && <Text style={s.hint}>{t("暂无 Token 数据")}</Text>}
   </View>;
 }

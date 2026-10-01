@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { CopyAction } from './CopyTextButton';
@@ -11,8 +12,9 @@ interface Props {
 }
 
 /** Limit native text layout work while keeping the entire output available to read and copy. */
-export function ChatCodeBlock({ text, label = '代码', language = '', lineNumbers = false,
-  copyLabel = '复制代码', replyCopy }: Props) {
+export function ChatCodeBlock({ text, label = t("代码"), language = '', lineNumbers = false,
+  copyLabel = t("复制代码"), replyCopy }: Props) {
+  useLanguage();
   const { limit, ...pagination } = useCodePagination(text.length);
   const [wrap, setWrap] = useState(false);
   const visible = text.slice(0, limit);
@@ -20,14 +22,14 @@ export function ChatCodeBlock({ text, label = '代码', language = '', lineNumbe
     ? visible.split('\n').map((line, index) => `${index + 1}  ${line}`).join('\n') : visible;
   const actions = [{ text, label: copyLabel }, ...replyCopy ? [replyCopy] : []];
   const content = <SelectableChatText style={[styles.code, codeStyles.content]} copy={actions}>
-    <HighlightedCode text={displayed.trimEnd() || '（空文件）'} language={language} />
+    <HighlightedCode text={displayed.trimEnd() || t("（空文件）")} language={language} />
   </SelectableChatText>;
   return <View style={codeStyles.block}>
     <View style={codeStyles.toolbar}>
       <Text style={[codeStyles.label, styles.fill]}>{label}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="自动换行" accessibilityState={{ selected: wrap }}
+      <Pressable accessibilityRole="button" accessibilityLabel={t("自动换行")} accessibilityState={{ selected: wrap }}
         onPress={() => setWrap(!wrap)} style={codeStyles.action}>
-        <Text style={[codeStyles.label, wrap && codeStyles.selected]}>自动换行</Text></Pressable>
+        <Text style={[codeStyles.label, wrap && codeStyles.selected]}>{t("自动换行")}</Text></Pressable>
     </View>
     <ScrollView nestedScrollEnabled style={codeStyles.viewport} {...pagination}>
       {wrap ? content : <ScrollView horizontal nestedScrollEnabled>{content}</ScrollView>}

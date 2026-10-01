@@ -4,7 +4,9 @@ import { DisplaySettings } from './DisplaySettings';
 import { DEFAULT_SETTINGS, type DesktopDisplay } from '../../../../../shared/remote-desktop/protocol';
 
 vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
-  useState: (value: unknown) => [value, vi.fn()] }));
+  useState: (value: unknown) => [value, vi.fn()] ,
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));
 vi.mock('react-native', () => ({ View: 'View', Pressable: 'Pressable', Text: 'Text',
   ScrollView: 'ScrollView', TextInput: 'TextInput', StyleSheet: { create: <T,>(value: T) => value } }));
 interface Props {

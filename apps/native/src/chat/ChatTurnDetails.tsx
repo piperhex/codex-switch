@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheet } from '../components/BottomSheet';
@@ -12,9 +13,10 @@ import { palette, styles } from './styles';
 import type { Turn } from './types';
 
 interface Props { turn: Turn; panel: TurnPanel; onClose: () => void }
-const PANEL_TITLES: Record<TurnPanel, string> = { plan: '任务计划', changes: '本轮修改', error: '报错详情' };
+const PANEL_TITLES: Record<TurnPanel, string> = { get plan() { return t("任务计划"); }, get changes() { return t("本轮修改"); }, get error() { return t("报错详情"); } };
 
 function PlanDetails({ turn }: { turn: Turn }) {
+  useLanguage();
   return <View style={detailStyles.plan}>
     {!!turn.planExplanation && <ChatMarkdown text={turn.planExplanation} />}
     {turn.plan?.map((step, index) => {
@@ -24,21 +26,23 @@ function PlanDetails({ turn }: { turn: Turn }) {
         <Ionicons name={completed ? 'checkmark-circle-outline' : running ? 'sync-outline' : 'ellipse-outline'}
           size={15} color={completed ? palette.green : palette.muted} />
         <Text style={[styles.messageText, styles.fill, running && detailStyles.activeStep]}>{step.step}</Text>
-        <Text style={styles.subtitle}>{completed ? '已完成' : running ? '进行中' : '待开始'}</Text>
+        <Text style={styles.subtitle}>{completed ? t("已完成") : running ? t("进行中") : t("待开始")}</Text>
       </View>;
     })}
   </View>;
 }
 
 function ErrorDetails({ turn }: { turn: Turn }) {
+  useLanguage();
   const error = turn.error ?? turn.retryError;
   const text = error ? requestErrorDetails(error) : turnErrorNotice(turn);
   return <View style={detailStyles.error}>
-    <SelectableChatText style={styles.messageText} copy={{ text, label: '复制报错详情' }}>{text}</SelectableChatText>
+    <SelectableChatText style={styles.messageText} copy={{ text, label: t("复制报错详情") }}>{text}</SelectableChatText>
   </View>;
 }
 
 export function ChatTurnDetails({ turn, panel, onClose }: Props) {
+  useLanguage();
   return <BottomSheet fullWidthContent visible tall title={PANEL_TITLES[panel]} onClose={onClose} dragFromHeaderOnly>
     <SheetScrollView style={detailStyles.scroll} contentContainerStyle={detailStyles.content}>
       {panel === 'plan' && <PlanDetails turn={turn} />}

@@ -7,6 +7,8 @@ const state = vi.hoisted(() => ({ mode: 'preview' }));
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof React>(),
   useState: () => [state.mode, (mode: string) => { state.mode = mode; }],
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({ Pressable: 'Button', Text: 'Text', View: 'View',
   StyleSheet: { create: <T,>(styles: T) => styles },

@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import type { DownloadTask } from './types';
@@ -8,12 +9,13 @@ export function DownloadCard({ task, connected, busy, action, remove }: {
   task: DownloadTask; connected: boolean; busy: boolean;
   action: () => void; remove: () => void;
 }) {
+  useLanguage();
   const active = task.status === 'downloading' || task.status === 'queued';
   const complete = task.status === 'completed';
   const paused = task.status === 'paused';
   const failed = task.status === 'failed';
   const disabled = busy || (!connected && !active && !complete);
-  const label = active ? '暂停' : complete ? '打开文件' : '继续下载';
+  const label = active ? t("暂停") : complete ? t("打开文件") : t("继续下载");
   const icon = active ? 'pause-outline' : complete ? 'open-outline' : 'play-outline';
   const percent = downloadPercent(task);
   return <View style={styles.card}>
@@ -33,7 +35,7 @@ export function DownloadCard({ task, connected, busy, action, remove }: {
         <Text style={styles.caption}>{complete ? formatBytes(task.size) : `${percent}%`}</Text>
       </View>
       {!complete && <>
-        <View accessibilityRole="progressbar" accessibilityLabel={`${task.name}下载进度`}
+        <View accessibilityRole="progressbar" accessibilityLabel={t("{value1}下载进度", { value1: task.name })}
           accessibilityValue={{ min: 0, max: 100, now: percent }} style={styles.track}>
           <View style={[styles.progress, paused && styles.pausedProgress, failed && styles.failedProgress,
             { width: `${percent}%` }]} />
@@ -42,12 +44,12 @@ export function DownloadCard({ task, connected, busy, action, remove }: {
       </>}
     </View>
     {!!task.message && <Text style={failed ? styles.error : styles.text}>{task.message}</Text>}
-    {!connected && !complete && <Text style={styles.text}>连接这台电脑后即可继续。</Text>}
+    {!connected && !complete && <Text style={styles.text}>{t("连接这台电脑后即可继续。")}</Text>}
     <View style={[styles.toolbar, styles.cardActions]}>
-      <Pressable accessibilityRole="button" accessibilityLabel="删除" disabled={busy} onPress={remove}
+      <Pressable accessibilityRole="button" accessibilityLabel={t("删除")} disabled={busy} onPress={remove}
         style={({ pressed }) => [styles.deleteButton, busy && styles.disabled, pressed && styles.pressed]}>
         <Ionicons name="trash-outline" size={16} color={colors.muted} />
-        <Text style={styles.deleteText}>删除</Text>
+        <Text style={styles.deleteText}>{t("删除")}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled, busy }}
         disabled={disabled} onPress={action}

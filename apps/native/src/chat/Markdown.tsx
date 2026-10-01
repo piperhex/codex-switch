@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { memo, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View, type TextStyle } from 'react-native';
 import { parseDiff } from '../../../../shared/chat/diff';
@@ -25,16 +26,18 @@ function childContext(context: MarkdownContext, index: number, length: number): 
 function MarkdownPage<Node>({ nodes, render }: {
   nodes: Node[]; render: (node: Node, index: number) => ReactNode;
 }) {
+  useLanguage();
   const [limit, setLimit] = useState(PAGE_BLOCKS);
   return <>{nodes.slice(0, limit).map(render)}
     {nodes.length > limit && <Pressable accessibilityRole="button" style={styles.button}
       onPress={() => setLimit((value) => value + PAGE_BLOCKS)}>
-      <Text style={styles.buttonText}>显示更多内容</Text>
+      <Text style={styles.buttonText}>{t("显示更多内容")}</Text>
     </Pressable>}
   </>;
 }
 
 function List({ node, context }: { node: MarkdownNode; context: MarkdownContext }) {
+  useLanguage();
   const ordered = node.token.type === 'ordered_list_open';
   const start = Number(node.token.attrGet('start') ?? 1);
   return <View style={markdownStyles.list}>
@@ -45,7 +48,7 @@ function List({ node, context }: { node: MarkdownNode; context: MarkdownContext 
           {ordered ? `${start + index}.` : '•'}
         </Text>
         : <View accessibilityRole="checkbox" accessibilityState={{ checked: child.task, disabled: true }}
-          accessibilityLabel={child.task ? '已完成' : '未完成'}
+          accessibilityLabel={child.task ? t("已完成") : t("未完成")}
           style={[markdownStyles.checkbox, child.task && markdownStyles.checked]}>
           {child.task && <Text style={markdownStyles.checkmark}>✓</Text>}
         </View>}
@@ -57,14 +60,16 @@ function List({ node, context }: { node: MarkdownNode; context: MarkdownContext 
 }
 
 function Code({ node, copy }: { node: MarkdownNode; copy?: CopyAction }) {
+  useLanguage();
   const language = node.token.info.trim().split(/\s/)[0].toLowerCase();
   const files = useMemo(() => ['diff', 'patch'].includes(language) ? parseDiff(node.token.content) : [],
     [language, node.token.content]);
   if (files.length) return <ChatDiff files={files} copy={copy} />;
-  return <ChatCodeBlock text={node.token.content} label={language || '代码'} language={language} replyCopy={copy} />;
+  return <ChatCodeBlock text={node.token.content} label={language || t("代码")} language={language} replyCopy={copy} />;
 }
 
 function TableRow({ node, context }: { node: MarkdownNode; context: MarkdownContext }) {
+  useLanguage();
   return <View style={markdownStyles.tableRow}>{node.children.map((child, index) => {
     const alignment = String(child.token.attrGet('style') ?? '').match(/text-align:(left|center|right)/)?.[1];
     return <View key={index} style={markdownStyles.cell}><Block node={child} context={{
@@ -75,6 +80,7 @@ function TableRow({ node, context }: { node: MarkdownNode; context: MarkdownCont
 }
 
 function Block({ node, context = {} }: { node: MarkdownNode; context?: MarkdownContext }) {
+  useLanguage();
   const { token, children } = node;
   if (token.type.startsWith('math_')) return <ChatMath markup={renderMathParagraph([node])}
     muted={context.muted || context.tone === 'process'} copy={context.copy} />;
@@ -104,6 +110,7 @@ function Block({ node, context = {} }: { node: MarkdownNode; context?: MarkdownC
 export const ChatMarkdown = memo(function ChatMarkdown({ text, tone = 'default', copy, user = false }: {
   text: string; tone?: 'default' | 'process'; copy?: CopyAction; user?: boolean;
 }) {
+  useLanguage();
   const content = useMemo(() => markdownContent(text, user), [text, user]);
   return <View><MarkdownPage nodes={content} render={(entry, index) => entry.type === 'review'
     ? <ChatCodeReview key={index} comment={entry.comment} copy={index === content.length - 1 ? copy : undefined} />

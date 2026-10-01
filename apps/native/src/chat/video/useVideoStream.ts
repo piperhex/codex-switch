@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { validateVideoInfo, type VideoClient } from '../../../../../shared/remote-chat/video';
@@ -7,7 +8,7 @@ import { createVideoServer, type VideoServer } from './videoServer';
 interface Options { threadId: string | null; path: string; ready: boolean; client: VideoClient }
 function errorMessage(error: unknown) {
   return error instanceof Error && /视频/.test(error.message)
-    ? error.message : '视频暂时无法播放，请检查电脑连接后重试。';
+    ? error.message : t("视频暂时无法播放，请检查电脑连接后重试。");
 }
 export function useVideoStream({ threadId, path, ready, client }: Options) {
   const [url, setUrl] = useState('');

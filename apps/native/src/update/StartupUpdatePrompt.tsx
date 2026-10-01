@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useStartupUpdate } from '../../../../shared/app-update/useStartupUpdate';
@@ -5,6 +6,7 @@ import { startupUpdateOptions } from './startupUpdate';
 import { beginAppUpdateDownload } from './updateActions';
 
 export function StartupUpdatePrompt() {
+  useLanguage();
   const update = useStartupUpdate(startupUpdateOptions);
   const [error, setError] = useState('');
   const release = update.release;
@@ -12,7 +14,7 @@ export function StartupUpdatePrompt() {
 
   const ignore = () => {
     setError('');
-    void update.ignoreVersion().catch(() => setError('未能保存，请重试'));
+    void update.ignoreVersion().catch(() => setError(t("未能保存，请重试")));
   };
   const install = () => {
     update.dismiss();
@@ -22,15 +24,15 @@ export function StartupUpdatePrompt() {
   return <Modal transparent visible animationType="fade" onRequestClose={update.dismiss}>
     <View style={styles.backdrop}>
       <View accessibilityViewIsModal style={styles.dialog}>
-        <Text accessibilityRole="header" style={styles.title}>发现新版本</Text>
-        <Text style={styles.message}>Remote AI v{release.version} 已发布，是否立即更新？</Text>
+        <Text accessibilityRole="header" style={styles.title}>{t("发现新版本")}</Text>
+        <Text style={styles.message}>Remote AI v{release.version}{' '}{t("已发布，是否立即更新？")}</Text>
         {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
         <View style={styles.actions}>
           <Pressable accessibilityRole="button" onPress={ignore} style={styles.button}>
-            <Text style={styles.ignore}>忽略本版本</Text>
+            <Text style={styles.ignore}>{t("忽略本版本")}</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={install} style={[styles.button, styles.primary]}>
-            <Text style={styles.install}>立即更新</Text>
+            <Text style={styles.install}>{t("立即更新")}</Text>
           </Pressable>
         </View>
       </View>

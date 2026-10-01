@@ -1,10 +1,12 @@
+import { t, useLanguage } from '../i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 import { colors, styles } from './styles';
 
-export function DownloadPageHeader({ title, back, backLabel = '返回上一级' }: {
+export function DownloadPageHeader({ title, back, backLabel = t("返回上一级") }: {
   title: string; back: () => void; backLabel?: string;
 }) {
+  useLanguage();
   return <View style={styles.navigation}>
     <Pressable accessibilityRole="button" accessibilityLabel={backLabel} onPress={back}
       style={({ pressed }) => [styles.back, pressed && styles.pressed]}>

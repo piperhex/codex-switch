@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { useGuiLanguage } from '../../i18n/useGuiLanguage';
 import { ModelChangeNotice } from "./ModelChangeNotice";
 import type { Item } from "./types";
 import type { SubmitMessageEdit } from "./messageEditContent";
@@ -41,6 +42,7 @@ export const MessageItem = memo(function MessageItem({ item, streaming, startedA
   onEdit?: SubmitMessageEdit; editDisabled?: boolean;
   completedAt?: number | null; onFork?: () => void; forkDisabled?: boolean;
 }) {
+  useGuiLanguage();
   if (item.type === "modelChange") return <ModelChangeNotice item={item} />;
   if (item.type === "userMessage") return <UserMessage item={item} startedAt={startedAt}
     onEdit={onEdit} editDisabled={editDisabled} />;

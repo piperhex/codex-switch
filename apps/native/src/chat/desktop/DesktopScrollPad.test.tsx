@@ -9,7 +9,9 @@ const runtime = vi.hoisted(() => ({ effects: [] as (() => void)[],
 vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
   useEffect: (effect: () => (() => void) | void) => { const cleanup = effect(); if (cleanup) runtime.effects.push(cleanup); },
   useMemo: (factory: () => unknown) => factory(), useRef: (current: unknown) => ({ current }),
-  useState: (value: unknown) => [value, vi.fn()] }));
+  useState: (value: unknown) => [value, vi.fn()] ,
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));
 vi.mock('react-native', () => ({ View: 'View', Pressable: 'Pressable', Text: 'Text',
   PanResponder: { create: vi.fn(() => ({ panHandlers: {} })) },
   AppState: { addEventListener: (_name: string, callback: (state: string) => void) => {

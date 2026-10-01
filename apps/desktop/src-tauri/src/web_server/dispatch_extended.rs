@@ -144,10 +144,10 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
             app,
             argument(&args, "color")?,
         )),
-        "set_app_language" => serialize(crate::floating_bubble::set_app_language(
+        "set_app_language" => serialize(block_on(crate::floating_bubble::set_app_language(
             app,
             argument(&args, "language")?,
-        )),
+        ))),
         "get_cloud_auth_state" => serialize(block_on(crate::cloud::get_cloud_auth_state(app))),
         "get_saved_cloud_login" => serialize(block_on(crate::cloud::get_saved_cloud_login(app))),
         "set_cloud_base_url" => serialize(block_on(crate::cloud::set_cloud_base_url(

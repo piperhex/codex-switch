@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchTotpVault, syncTotpVault } from '../api/client';
 import type { AuthSession } from '../types';
@@ -120,11 +121,11 @@ export function useTotpVault(
         setInitialized(true);
         if (enabled) {
           void synchronize(session, storedVault)
-            .catch((error) => notifyError(`2FA 云同步失败：${String(error)}`));
+            .catch((error) => notifyError(t("2FA 云同步失败：{value1}", { value1: String(error) })));
         }
       })
       .catch(() => {
-        if (!cancelled) notifyError('读取本机 2FA 密钥失败');
+        if (!cancelled) notifyError(t("读取本机 2FA 密钥失败"));
       });
     return () => { cancelled = true; };
   }, [notifyError, session, synchronize]);
@@ -139,10 +140,10 @@ export function useTotpVault(
     if (!next) return;
     vaultRef.current = next;
     setVault(next);
-    void persist(activeSession, next).catch(() => notifyError('保存 2FA 密钥失败'));
+    void persist(activeSession, next).catch(() => notifyError(t("保存 2FA 密钥失败")));
     if (syncEnabledRef.current) {
       void synchronize(activeSession, next)
-        .catch((error) => notifyError(`2FA 云同步失败：${String(error)}`));
+        .catch((error) => notifyError(t("2FA 云同步失败：{value1}", { value1: String(error) })));
     }
   }, [notifyError, persist, synchronize]);
 

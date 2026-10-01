@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ChatSettings } from './ChatSettings';
@@ -79,6 +80,7 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
   readUsage, usageActive, tokenUsage, contextSettings, connection, queue, goals, goal, goalBusy,
   threadId, active, ready, sending, running, upload, reconnecting = false, interrupted = false, send, interrupt,
   catalog, cwd, compactReason, compacting, compact, loadCatalog, loadFiles, loadConversations }: Props) {
+  useLanguage();
   const [settings, setSettings] = useState(false);
   const goalMode = useGoalMode(threadId, sending);
   useEffect(() => { if (active && ready && threadId) void goals?.load(threadId); }, [goals, threadId, active, ready]);
@@ -137,8 +139,8 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
     const size = submittedPhotos.reduce((total, photo) => total + photo.dataUrl.length, 0)
       + submittedAttachments.reduce((total, item) => total + (item.data?.length ?? 0), 0);
     try { validateUploadedFiles(submittedAttachments); }
-    catch (cause) { setAttachmentError(cause instanceof Error ? cause.message : '文件无法发送，请重新选择。'); return; }
-    if (size > chatAttachmentDataLimit()) { setAttachmentError('附件总大小过大，请减少照片或文件后再试。'); return; }
+    catch (cause) { setAttachmentError(cause instanceof Error ? cause.message : t("文件无法发送，请重新选择。")); return; }
+    if (size > chatAttachmentDataLimit()) { setAttachmentError(t("附件总大小过大，请减少照片或文件后再试。")); return; }
     setAttachmentError('');
     const text = replyWithQuotes(action === 'continue' ? CONTINUE_MESSAGE : draft.text, submittedQuotes);
     const sent = await draft.submit({ text, goalMode: goalMode.enabled,
@@ -176,10 +178,10 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
     {queue && <ChatQueue {...queue} {...queueEditor} />}
     <View style={[styles.composer, compactField && styles.composerCompact]}>
     {!!draft.error && <Text accessibilityRole="alert" style={styles.error}>{draft.error}</Text>}
-    {compacting && <Text style={styles.subtitle}>正在压缩上下文…</Text>}
+    {compacting && <Text style={styles.subtitle}>{t("正在压缩上下文…")}</Text>}
     {!!(attachmentError || attachments.error) && <Text accessibilityRole="alert" style={styles.error}>
       {attachmentError || attachments.error}</Text>}
-    {attachments.busy && <Text style={styles.status}>正在读取文件…</Text>}
+    {attachments.busy && <Text style={styles.status}>{t("正在读取文件…")}</Text>}
     {(adding || menu.open) && <ComposerPopover anchor={anchor} anchorHeight={anchorHeight} wide={!adding}
       close={() => { setAdding(false); menu.close(); }}>
       {menuContent()}
@@ -193,16 +195,16 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
       <ComposerReferences items={attachments.items} disabled={attachmentBusy} remove={attachments.remove}
         upload={sending ? upload : undefined} reconnecting={reconnecting} />
       <ComposerQuotes disabled={sending} active={active} />
-      <TextInput ref={menu.input} accessibilityLabel="聊天消息"
+      <TextInput ref={menu.input} accessibilityLabel={t("聊天消息")}
         style={[styles.input, compactField && styles.inputCompact]}
         multiline value={draft.text} maxLength={100_000} selection={menu.selection} editable={!queueEditor.loading}
         placeholderTextColor="#999999" underlineColorAndroid="transparent"
         onSelectionChange={(event) => menu.setSelection(event.nativeEvent.selection)}
         onChangeText={draft.setText}
-        placeholder={ready ? (goalMode.enabled ? '描述想完成的目标…' : '发消息，@ 引用对话…') : '连接后发消息'} />
+        placeholder={ready ? (goalMode.enabled ? t("描述想完成的目标…") : t("发消息，@ 引用对话…")) : t("连接后发消息")} />
       </ScrollView>
       <View pointerEvents="box-none" style={[styles.composerActions, compactField && styles.composerActionsCompact]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="添加内容" style={styles.composerAdd}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("添加内容")} style={styles.composerAdd}
           accessibilityState={{ expanded: adding }} onPress={() => { menu.close(); setAdding((current) => !current); }}>
           <Text style={styles.composerAddText}>+</Text>
         </Pressable>
@@ -213,11 +215,11 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
               else goalMode.exit();
             }} />}
           <Pressable accessibilityRole="button" style={[styles.composerModel, compactField && styles.composerModelCompact]}
-            accessibilityLabel={`${composerLabel(models, selection)}，聊天设置`}
+            accessibilityLabel={t("{value1}，聊天设置", { value1: composerLabel(models, selection, t) })}
             onPress={() => setSettings(true)}>
             {compactField ? <Feather name="sliders" size={19} color={styles.composerModelText.color} /> : <>
             <Text numberOfLines={1} ellipsizeMode="head" style={styles.composerModelText}>
-              {modelLabelTail(composerLabel(models, selection))}</Text>
+              {modelLabelTail(composerLabel(models, selection, t))}</Text>
             <Feather name="chevron-down" size={12} color={styles.composerModelText.color} /></>}
           </Pressable>
           <ComposerActionButton action={action} disabled={actionDisabled} busy={pausing || sending}

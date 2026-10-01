@@ -5,6 +5,8 @@ import type { Turn } from './types';
 
 vi.mock('react', async original => ({ ...await original<typeof import('react')>(),
   useMemo: <T,>(compute: () => T) => compute(),
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({ Pressable: 'Pressable', Text: 'Text', View: 'View',
   StyleSheet: { create: <T,>(styles: T) => styles },

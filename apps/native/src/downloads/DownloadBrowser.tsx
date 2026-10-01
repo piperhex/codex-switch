@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, BackHandler, FlatList, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,7 @@ import { colors, styles } from './styles';
 export function DownloadBrowser({ connection, scope, back }: {
   connection: DownloadConnection; scope: DownloadBrowse['scope']; back: () => void;
 }) {
+  useLanguage();
   const [directories, setDirectories] = useState(['']);
   const directory = directories[directories.length - 1];
   const [result, setResult] = useState<ProjectFilesResponse>();
@@ -35,7 +37,7 @@ export function DownloadBrowser({ connection, scope, back }: {
     setLoading(true);
     void client.browse({ scope, directory, threadId, cwd })
       .then(value => { if (!cancelled) setResult(value); })
-      .catch(() => { if (!cancelled) setError('无法读取文件夹，请确认电脑已更新并连接后重试。'); })
+      .catch(() => { if (!cancelled) setError(t("无法读取文件夹，请确认电脑已更新并连接后重试。")); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [client, ready, scope, directory, threadId, cwd, revision]);
@@ -47,32 +49,32 @@ export function DownloadBrowser({ connection, scope, back }: {
     try {
       await downloadManager.enqueue({ owner: connection.owner, deviceId: connection.deviceId,
         deviceName: connection.deviceName, scope, threadId, cwd, path: file.path });
-      setNotice('已加入下载管理。');
-    } catch (cause) { setError(cause instanceof Error ? cause.message : '暂时无法下载，请重试。'); }
+      setNotice(t("已加入下载管理。"));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : t("暂时无法下载，请重试。")); }
     finally { setAdding(false); }
   };
   return <View style={styles.page}>
-    <DownloadPageHeader title={scope === 'computer' ? '此电脑' : '当前项目'} back={goBack} />
+    <DownloadPageHeader title={scope === 'computer' ? t("此电脑") : t("当前项目")} back={goBack} />
     <FlatList data={result?.entries ?? []} keyExtractor={file => file.path}
       style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}
       ListHeaderComponent={<View style={styles.browserHeader}>
         <View style={styles.browserToolbar}>
-          <Text style={styles.sectionLabel}>选择要下载的文件</Text>
+          <Text style={styles.sectionLabel}>{t("选择要下载的文件")}</Text>
           <Pressable accessibilityRole="button" onPress={back}
             style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
             <Ionicons name="list-outline" size={17} color={colors.green} />
-            <Text style={styles.buttonText}>下载列表</Text></Pressable>
+            <Text style={styles.buttonText}>{t("下载列表")}</Text></Pressable>
         </View>
         <Text style={styles.path} numberOfLines={2} ellipsizeMode="middle">
           {result?.directory || directory || connection.deviceName}</Text>
-        {!ready && <Text style={styles.error}>请连接这台电脑后浏览文件。</Text>}
+        {!ready && <Text style={styles.error}>{t("请连接这台电脑后浏览文件。")}</Text>}
         {!!notice && <Text accessibilityLiveRegion="polite" style={styles.message}>{notice}</Text>}
-        {!!error && <Pressable accessibilityRole="button" accessibilityLabel="重试读取文件夹"
+        {!!error && <Pressable accessibilityRole="button" accessibilityLabel={t("重试读取文件夹")}
           onPress={() => setRevision(value => value + 1)}><Text style={styles.error}>{error}</Text></Pressable>}
-        {loading && <ActivityIndicator accessibilityLabel="正在读取文件夹" color={colors.green} />}
+        {loading && <ActivityIndicator accessibilityLabel={t("正在读取文件夹")} color={colors.green} />}
       </View>}
       renderItem={({ item }) => <Pressable accessibilityRole="button" disabled={adding || !ready}
-        accessibilityLabel={`${item.directory ? '打开文件夹' : '下载'}：${item.name}`}
+        accessibilityLabel={`${item.directory ? t("打开文件夹") : t("下载")}：${item.name}`}
         onPress={() => { void choose(item); }}
         style={({ pressed }) => [styles.row, (adding || !ready) && styles.disabled, pressed && styles.pressed]}>
         <View style={styles.sourceIcon}>
@@ -81,7 +83,7 @@ export function DownloadBrowser({ connection, scope, back }: {
         <Text style={styles.name} numberOfLines={2}>{item.name}</Text>
         <Ionicons name={item.directory ? 'chevron-forward' : 'download-outline'} size={20} color={colors.muted} />
       </Pressable>}
-      ListEmptyComponent={!loading && !error && ready ? <Text style={styles.text}>此文件夹没有文件。</Text> : null}
-      ListFooterComponent={result?.truncated ? <Text style={styles.text}>文件较多，仅显示前 500 项。</Text> : null} />
+      ListEmptyComponent={!loading && !error && ready ? <Text style={styles.text}>{t("此文件夹没有文件。")}</Text> : null}
+      ListFooterComponent={result?.truncated ? <Text style={styles.text}>{t("文件较多，仅显示前 500 项。")}</Text> : null} />
   </View>;
 }

@@ -45,3 +45,8 @@ it('uses guarded confirmation, shows progress and errors, and keeps back navigat
   expect(ready.props.actions[1].disabled).toBe(false);
   ready.props.actions[1].onPress(); expect(update.confirm).toHaveBeenCalledOnce();
 });
+
+vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));

@@ -3679,13 +3679,22 @@ export function subscribeToLocalProxyStartProgress(
   return () => void subscription.then((unlisten) => unlisten());
 }
 
+let languageSave = Promise.resolve();
+let languageRevision = 0;
+
 export async function publishLanguageChange(language: Language): Promise<void> {
-  window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  const revision = ++languageRevision;
+  try { window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language); }
+  catch { /* A blocked browser store must not prevent the other windows from updating. */ }
   if (!hasLocalBackend) {
     window.dispatchEvent(new CustomEvent<Language>(LANGUAGE_EVENT, { detail: language }));
     return;
   }
-  await invoke("set_app_language", { language });
+  // Preserve tap order across asynchronous storage workers and suppress obsolete broadcasts.
+  const saved = languageSave.then(() => invoke<void>("set_app_language", { language }));
+  languageSave = saved.catch(() => undefined);
+  await saved;
+  if (revision !== languageRevision) return;
   if (isDesktopApp) await emit(LANGUAGE_EVENT, language);
   else window.dispatchEvent(new CustomEvent<Language>(LANGUAGE_EVENT, { detail: language }));
 }

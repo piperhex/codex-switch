@@ -19,6 +19,8 @@ vi.mock('react', async importOriginal => ({
     ? [state.file, (file: FileReference | null) => { state.file = file; }]
     : [initial === undefined ? state.text : initial, vi.fn()],
   useContext: () => ({ threadId: 'thread-with-image', ready: state.ready, offline: true, load: state.load }),
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({ ActivityIndicator: 'Spinner', Modal: 'Modal', Pressable: 'Button',
   Text: 'Text', View: 'View', Keyboard: { dismiss: vi.fn() }, StyleSheet: {

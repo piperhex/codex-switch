@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SheetInset, SheetScrollView } from '../components/SheetScrollView';
@@ -6,9 +7,10 @@ import { CopyTextButton } from './CopyTextButton';
 import { ChatMarkdown } from './Markdown';
 import { palette, styles } from './styles';
 
-const PREVIEW_MODES = [{ value: 'preview', label: '预览' }, { value: 'source', label: '原文' }] as const;
+const PREVIEW_MODES = [{ value: 'preview', get label() { return t("预览"); } }, { value: 'source', get label() { return t("原文"); } }] as const;
 
 export function ChatMarkdownPreview({ text, line }: { text: string; line?: number }) {
+  useLanguage();
   const [mode, setMode] = useState<'preview' | 'source'>('preview');
   return <View style={previewStyles.container}>
     <SheetInset style={previewStyles.toolbar}>
@@ -19,14 +21,14 @@ export function ChatMarkdownPreview({ text, line }: { text: string; line?: numbe
           <Text style={previewStyles.tabText}>{item.label}</Text>
         </Pressable>)}
       </View>
-      <CopyTextButton text={text} label="复制原文" variant="labeled" />
+      <CopyTextButton text={text} label={t("复制原文")} variant="labeled" />
     </SheetInset>
     <SheetScrollView key={mode} contentContainerStyle={previewStyles.content}>
-      {!!line && <Text style={styles.subtitle}>引用位置：第 {line} 行</Text>}
-      {mode === 'source' && <ChatCodeBlock text={text} label="原文" language="markdown"
-        lineNumbers copyLabel="复制原文" />}
+      {!!line && <Text style={styles.subtitle}>{t("引用位置：第")}{' '}{line}{' '}{t("行")}</Text>}
+      {mode === 'source' && <ChatCodeBlock text={text} label={t("原文")} language="markdown"
+        lineNumbers copyLabel={t("复制原文")} />}
       {mode === 'preview' && (text.trim()
-        ? <ChatMarkdown text={text} /> : <Text style={styles.subtitle}>（空文件）</Text>)}
+        ? <ChatMarkdown text={text} /> : <Text style={styles.subtitle}>{t("（空文件）")}</Text>)}
     </SheetScrollView>
   </View>;
 }

@@ -6,6 +6,8 @@ import type { useAppUpdate } from './useAppUpdate';
 const observed = vi.hoisted(() => ({ openReleasePage: vi.fn() }));
 vi.mock('react', async (importOriginal) => ({
   ...await importOriginal<typeof React>(), useMemo: <T,>(compute: () => T) => compute(),
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({ Text: 'Text', View: 'View', StyleSheet: {
   create: <T,>(styles: T) => styles, hairlineWidth: 1,

@@ -1,9 +1,10 @@
+import { t } from '../i18n';
 import { Linking, Platform } from 'react-native';
 import { Toast } from '../components/AppToast';
 import { startAndroidUpdateDownload, type AppRelease } from './appUpdate';
 
 export function openReleasePage(url: string) {
-  void Linking.openURL(url).catch(() => Toast.fail('无法打开页面，请稍后重试'));
+  void Linking.openURL(url).catch(() => Toast.fail(t("无法打开页面，请稍后重试")));
 }
 
 export function beginAppUpdateDownload(release: AppRelease) {
@@ -11,6 +12,6 @@ export function beginAppUpdateDownload(release: AppRelease) {
     openReleasePage(release.releaseUrl);
     return;
   }
-  Toast.success('已开始下载，可在通知栏查看进度');
-  void startAndroidUpdateDownload(release).catch(() => Toast.fail('下载失败，请稍后重试'));
+  Toast.success(t("已开始下载，可在通知栏查看进度"));
+  void startAndroidUpdateDownload(release).catch(() => Toast.fail(t("下载失败，请稍后重试")));
 }

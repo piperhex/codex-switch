@@ -15,7 +15,7 @@ import { RefreshIntervalSheet } from './RefreshIntervalSheet';
 import { PasswordSheet } from './PasswordSheet';
 import { AboutPage } from './AboutPage';
 import { LanguageSheet } from './LanguageSheet';
-import { getLanguage } from '../i18n';
+import { getLanguage, languageLabel } from '../i18n';
 import { profileRole } from '../i18n/profile';
 import './styles.css';
 import { DownloadManagerPage } from '../downloads/DownloadManagerPage';
@@ -52,7 +52,7 @@ export function SettingsPage({ totpManager }: { totpManager: ReturnType<typeof u
       <div className="settings-preferences">
         <section className="settings-group">
           <SettingsRow label={t('下载管理')} icon={Download} onClick={() => setPanel('downloads')} />
-          <SettingsRow label={t("语言")} value={getLanguage() === 'en' ? 'English' : '简体中文'} icon={Languages}
+          <SettingsRow label={t("语言")} value={languageLabel(getLanguage())} icon={Languages}
             onClick={() => setPanel('language')} />
           <SettingsRow label={t("自动刷新用量")} value={t("{value1} 分钟", { value1: minutes })} icon={RefreshCw}
             onClick={() => setPanel('refresh')} />

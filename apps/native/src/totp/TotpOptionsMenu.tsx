@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { totpColors } from './pageStyles';
@@ -16,14 +17,15 @@ export function TotpOptionsMenu({ title, visible, onClose, options }: {
   onClose: () => void;
   options: MenuOption[];
 }) {
+  useLanguage();
   return <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
     <View style={styles.overlay}>
-      <Pressable accessibilityLabel="关闭菜单" accessibilityRole="button"
+      <Pressable accessibilityLabel={t("关闭菜单")} accessibilityRole="button"
         style={StyleSheet.absoluteFill} onPress={onClose} />
       <View style={styles.menu} accessibilityViewIsModal>
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="关闭菜单" onPress={onClose} style={styles.close}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("关闭菜单")} onPress={onClose} style={styles.close}>
             <Ionicons name="close" size={22} color={totpColors.muted} />
           </Pressable>
         </View>

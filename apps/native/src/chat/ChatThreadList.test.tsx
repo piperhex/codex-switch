@@ -15,6 +15,8 @@ vi.mock('react', async (importOriginal) => ({
       hooks.states[slot] = update(hooks.states[slot] as T);
     }];
   },
+
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({ Pressable: 'Pressable', SectionList: 'SectionList', Text: 'Text',
   View: 'View', ActivityIndicator: 'Spinner', StyleSheet: { create: <T,>(value: T) => value } }));

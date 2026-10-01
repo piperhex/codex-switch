@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { useChatUsage } from '../../../../shared/remote-chat/client/useChatUsage';
@@ -10,13 +11,14 @@ export function ChatUsage({ read, active, ready, tokenUsage, onContextSettings }
   read: ReadUsage; active: boolean; ready: boolean; tokenUsage?: ThreadTokenUsage;
   onContextSettings?: () => void;
 }) {
+  const language = useLanguage();
   const { usage, error } = useChatUsage(read, active && ready);
-  const trailing = usageTrailing(usage);
-  const notice = ready ? error || '正在读取今日用量…' : '连接后查看今日用量';
+  const trailing = usageTrailing(usage, t);
+  const notice = ready ? error || t("正在读取今日用量…") : t("连接后查看今日用量");
   return <View style={styles.container}>
     <View style={styles.context}>
-      <Text style={[styles.row, styles.contextText]}>{contextUsageLabel(tokenUsage)}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="设置当前对话的上下文容量"
+      <Text style={[styles.row, styles.contextText]}>{contextUsageLabel(tokenUsage, language)}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("设置当前对话的上下文容量")}
         accessibilityState={{ disabled: !onContextSettings }} disabled={!onContextSettings}
         style={({ pressed }) => [styles.settings, pressed && styles.pressed, !onContextSettings && styles.disabled]}
         onPress={onContextSettings}>
@@ -24,11 +26,11 @@ export function ChatUsage({ read, active, ready, tokenUsage, onContextSettings }
       </Pressable>
     </View>
     {usage ? <Text style={styles.row} accessibilityLabel={[
-      `今日 Token 用量：${usage.totalTokens.toLocaleString('en-US')}`,
-      `今日预估费用：${formatCost(usage.estimatedCostUsd)}`, trailing?.description,
+      t("今日 Token 用量：{value1}", { value1: usage.totalTokens.toLocaleString('en-US') }),
+      t("今日预估费用：{value1}", { value1: formatCost(usage.estimatedCostUsd) }), trailing?.description,
     ].filter(Boolean).join('，')}>
-      今日 <Text style={styles.tokens}>{formatTokens(usage.totalTokens)} Token</Text>
-      {' · 预估 '}<Text style={styles.cost}>{formatCost(usage.estimatedCostUsd)}</Text>
+      {t("今日")}{' '}<Text style={styles.tokens}>{formatTokens(usage.totalTokens)} Token</Text>
+      {t(" · 预估 ")}<Text style={styles.cost}>{formatCost(usage.estimatedCostUsd)}</Text>
       {trailing && <Text>{' · '}{trailing.label}
         <Text style={styles[trailing.tone]}>{trailing.text}</Text></Text>}
     </Text> : <Text style={styles.row}>{notice}</Text>}

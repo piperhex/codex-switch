@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -52,7 +53,7 @@ export function useTerminalOrientation(visible: boolean, {
       if (!active.current || current !== generation.current) return;
       await ScreenOrientation.lockAsync(target);
     }).catch(() => {
-      if (active.current && current === generation.current) setError('旋转失败，请重试');
+      if (active.current && current === generation.current) setError(t("旋转失败，请重试"));
     }).finally(() => {
       busy.current -= 1;
       if (active.current) setRotating(busy.current > 0);

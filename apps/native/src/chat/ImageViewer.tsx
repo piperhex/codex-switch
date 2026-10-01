@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
@@ -11,6 +12,7 @@ import { useSaveImage } from './useSaveImage';
 interface Props { thumbnail?: string; description: string; load: () => Promise<string>; close: () => void }
 
 export function ImageViewer({ thumbnail, description, load, close }: Props) {
+  useLanguage();
   const image = useImageViewer(load);
   const orientation = useImageOrientation();
   const { gesture, animatedStyle } = useImageGestures(close, orientation.displayed);
@@ -25,7 +27,7 @@ export function ImageViewer({ thumbnail, description, load, close }: Props) {
         <GestureDetector gesture={gesture}>
           <View style={styles.stage} collapsable={false} onAccessibilityEscape={close}>
             {source && <Animated.Image source={{ uri: source }} accessibilityLabel={description}
-              accessibilityHint="轻点关闭，双指缩放" accessibilityActions={[{ name: 'activate', label: '关闭预览' }]}
+              accessibilityHint={t("轻点关闭，双指缩放")} accessibilityActions={[{ name: 'activate', label: t("关闭预览") }]}
               onAccessibilityAction={close} resizeMode="contain" onError={image.fail}
               fadeDuration={0} style={[styles.image, animatedStyle]} />}
           </View>
@@ -33,11 +35,11 @@ export function ImageViewer({ thumbnail, description, load, close }: Props) {
         <SafeAreaView pointerEvents="box-none" style={styles.controls}>
           <View pointerEvents="box-none" style={styles.footer}>
             <View pointerEvents="box-none" style={styles.actions}>
-              {orientation.suggested && <Pressable accessibilityRole="button" accessibilityLabel="转到手机当前方向"
+              {orientation.suggested && <Pressable accessibilityRole="button" accessibilityLabel={t("转到手机当前方向")}
                 disabled={orientation.rotating} onPress={orientation.rotate} style={styles.rotate}>
                 <MaterialCommunityIcons name="screen-rotation" size={28} color="#fff" />
               </Pressable>}
-              <Pressable accessibilityRole="button" accessibilityLabel="下载图片到相册"
+              <Pressable accessibilityRole="button" accessibilityLabel={t("下载图片到相册")}
                 accessibilityState={{ disabled: !image.url || image.error || saving.saving, busy: saving.saving }}
                 disabled={!image.url || image.error || saving.saving} onPress={saving.save}
                 style={[styles.save, (!image.url || image.error) && styles.disabled]}>
@@ -48,11 +50,11 @@ export function ImageViewer({ thumbnail, description, load, close }: Props) {
             <View pointerEvents="box-none" style={styles.notices}>
               {!!message && <Text pointerEvents="none" accessibilityLiveRegion="polite"
                 style={styles.status}>{message}</Text>}
-              {!image.url && !image.error && <Text pointerEvents="none" style={styles.status}>正在加载原图…</Text>}
+              {!image.url && !image.error && <Text pointerEvents="none" style={styles.status}>{t("正在加载原图…")}</Text>}
               {image.error && <View style={styles.error}>
-                <Text style={styles.status}>原图加载失败</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="重新加载原图" onPress={image.retry}
-                  style={styles.retry}><Text style={styles.status}>重试</Text></Pressable>
+                <Text style={styles.status}>{t("原图加载失败")}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={t("重新加载原图")} onPress={image.retry}
+                  style={styles.retry}><Text style={styles.status}>{t("重试")}</Text></Pressable>
               </View>}
             </View>
           </View>

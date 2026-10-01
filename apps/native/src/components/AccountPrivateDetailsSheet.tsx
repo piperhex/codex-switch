@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { updateAccountDetails } from '../api/client';
@@ -11,7 +12,7 @@ import { useAccountTotp } from '../accounts/useAccountTotp';
 import { copyAccountValue as copyValue } from '../accounts/copyAccountValue';
 
 function messageOf(error: unknown) {
-  return error instanceof Error ? error.message : '保存失败，请稍后重试';
+  return error instanceof Error ? error.message : t("保存失败，请稍后重试");
 }
 
 function normalizeAccountTotp(value: string) {
@@ -36,30 +37,32 @@ function SecretInputRow({ label, value, onChangeText, hidden, onToggle, maxLengt
   onToggle: () => void;
   maxLength: number;
 }) {
+  useLanguage();
   return <View>
     <Text style={styles.label}>{label}</Text>
     <View style={styles.inputRow}>
       <TextInput value={value} onChangeText={onChangeText} secureTextEntry={hidden}
         autoCapitalize="none" autoCorrect={false} maxLength={maxLength}
-        placeholder="未设置" placeholderTextColor="#98a69f" style={[styles.input, styles.flexInput]} />
+        placeholder={t("未设置")} placeholderTextColor="#98a69f" style={[styles.input, styles.flexInput]} />
       <Pressable accessibilityRole="button" onPress={onToggle} style={styles.textButton}>
-        <Text style={styles.textButtonLabel}>{hidden ? '显示' : '隐藏'}</Text>
+        <Text style={styles.textButtonLabel}>{hidden ? t("显示") : t("隐藏")}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" disabled={!value} onPress={() => void copyValue(label, value)}
         style={[styles.copyButton, !value && styles.disabled]}>
-        <Text style={styles.copyButtonLabel}>复制</Text>
+        <Text style={styles.copyButtonLabel}>{t("复制")}</Text>
       </Pressable>
     </View>
   </View>;
 }
 
 function AccountTotpPreview({ secret }: { secret: string }) {
+  useLanguage();
   const totp = useAccountTotp(secret);
   if (!totp) return null;
-  return <Pressable accessibilityRole="button" accessibilityLabel="复制当前验证码"
-    onPress={() => void copyValue('验证码', totp.code)} style={styles.totpPreview}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={t("复制当前验证码")}
+    onPress={() => void copyValue(t("验证码"), totp.code)} style={styles.totpPreview}>
     <View>
-      <Text style={styles.totpCaption}>当前验证码 · 点击复制</Text>
+      <Text style={styles.totpCaption}>{t("当前验证码 · 点击复制")}</Text>
       <Text style={styles.totpCode}>{totp.code.slice(0, 3)} {totp.code.slice(3)}</Text>
     </View>
     <View style={styles.countdownBadge}><Text style={styles.countdownText}>{totp.remaining}</Text></View>
@@ -73,6 +76,7 @@ export function AccountPrivateDetailsSheet({ account, session, syncing, onClose,
   onClose: () => void;
   onUpdated: (account: AccountSummary) => void;
 }) {
+  useLanguage();
   const [note, setNote] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -115,19 +119,19 @@ export function AccountPrivateDetailsSheet({ account, session, syncing, onClose,
       setTotpError('');
     } catch {
       setPreviewSecret('');
-      setTotpError('2FA 密钥格式不正确');
+      setTotpError(t("2FA 密钥格式不正确"));
     }
   };
 
   const save = async () => {
     if (!account || saving) return;
     if (!validExpirationDate(expiresAt)) {
-      Toast.fail('截止日期请使用 YYYY-MM-DD 格式');
+      Toast.fail(t("截止日期请使用 YYYY-MM-DD 格式"));
       return;
     }
     let normalizedTotpSecret = '';
     try { normalizedTotpSecret = normalizeAccountTotp(totpSecret); }
-    catch { setTotpError('2FA 密钥格式不正确'); return; }
+    catch { setTotpError(t("2FA 密钥格式不正确")); return; }
     setSaving(true);
     try {
       const updated = await updateAccountDetails(session, account.id, {
@@ -136,7 +140,7 @@ export function AccountPrivateDetailsSheet({ account, session, syncing, onClose,
         privateDetails: { password, phoneNumber: phoneNumber.trim(), totpSecret: normalizedTotpSecret },
       });
       onUpdated(updated);
-      Toast.success('账号信息已保存');
+      Toast.success(t("账号信息已保存"));
       onClose();
     } catch (error) {
       Toast.fail(messageOf(error));
@@ -147,11 +151,11 @@ export function AccountPrivateDetailsSheet({ account, session, syncing, onClose,
 
   return <>
     <BottomSheet fullWidthContent dragFromHeaderOnly visible={Boolean(account) && !scannerOpen}
-      tall title="编辑账号信息" subtitle={account?.email}
+      tall title={t("编辑账号信息")} subtitle={account?.email}
       onClose={onClose} dismissible={!saving} actions={[
-        { label: '取消', onPress: onClose, disabled: saving },
+        { label: t("取消"), onPress: onClose, disabled: saving },
         {
-          label: '保存',
+          label: t("保存"),
           tone: 'primary',
           onPress: () => void save(),
           disabled: syncing,
@@ -160,53 +164,53 @@ export function AccountPrivateDetailsSheet({ account, session, syncing, onClose,
       ]}>
       {syncing ? <View style={styles.syncingBox}>
         <ActivityIndicator color="#14806f" />
-        <Text style={styles.syncingText}>正在同步最新账号资料…</Text>
+        <Text style={styles.syncingText}>{t("正在同步最新账号资料…")}</Text>
       </View> : <SheetScrollView style={styles.scroll} contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>预设可用截止日期</Text>
+        <Text style={styles.label}>{t("预设可用截止日期")}</Text>
         <TextInput value={expiresAt} onChangeText={setExpiresAt} editable={metadataEditable}
           placeholder="YYYY-MM-DD" placeholderTextColor="#98a69f" maxLength={10} style={styles.input} />
-        {!metadataEditable ? <Text style={styles.readOnlyHint}>该字段由管理员维护</Text> : null}
+        {!metadataEditable ? <Text style={styles.readOnlyHint}>{t("该字段由管理员维护")}</Text> : null}
 
-        <Text style={styles.label}>手机号</Text>
+        <Text style={styles.label}>{t("手机号")}</Text>
         <View style={styles.inputRow}>
           <TextInput value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad"
-            placeholder="未设置" placeholderTextColor="#98a69f" maxLength={64}
+            placeholder={t("未设置")} placeholderTextColor="#98a69f" maxLength={64}
             style={[styles.input, styles.flexInput]} />
           <Pressable accessibilityRole="button" disabled={!phoneNumber}
-            onPress={() => void copyValue('手机号', phoneNumber)}
+            onPress={() => void copyValue(t("手机号"), phoneNumber)}
             style={[styles.copyButton, !phoneNumber && styles.disabled]}>
-            <Text style={styles.copyButtonLabel}>复制</Text>
+            <Text style={styles.copyButtonLabel}>{t("复制")}</Text>
           </Pressable>
         </View>
 
-        <SecretInputRow label="密码" value={password} onChangeText={setPassword}
+        <SecretInputRow label={t("密码")} value={password} onChangeText={setPassword}
           hidden={passwordHidden} onToggle={() => setPasswordHidden((value) => !value)} maxLength={1024} />
 
-        <Text style={styles.label}>账号绑定 2FA</Text>
+        <Text style={styles.label}>{t("账号绑定 2FA")}</Text>
         <View style={styles.inputRow}>
           <TextInput value={totpSecret} onChangeText={(value) => {
             setTotpSecret(value);
             setPreviewSecret('');
             setTotpError('');
           }} onBlur={previewTotp} secureTextEntry={totpHidden} autoCapitalize="characters"
-            autoCorrect={false} placeholder="Base32 密钥" placeholderTextColor="#98a69f"
+            autoCorrect={false} placeholder={t("Base32 密钥")} placeholderTextColor="#98a69f"
             maxLength={512} style={[styles.input, styles.flexInput]} />
           <Pressable onPress={() => setTotpHidden((value) => !value)} style={styles.textButton}>
-            <Text style={styles.textButtonLabel}>{totpHidden ? '显示' : '隐藏'}</Text>
+            <Text style={styles.textButtonLabel}>{totpHidden ? t("显示") : t("隐藏")}</Text>
           </Pressable>
           <Pressable onPress={() => setScannerOpen(true)} style={styles.scanButton}>
-            <Text style={styles.scanButtonText}>扫码</Text>
+            <Text style={styles.scanButtonText}>{t("扫码")}</Text>
           </Pressable>
         </View>
         {totpError ? <Text style={styles.errorText}>{totpError}</Text> : null}
         <AccountTotpPreview secret={previewSecret} />
 
-        <Text style={styles.label}>备注</Text>
+        <Text style={styles.label}>{t("备注")}</Text>
         <TextInput value={note} onChangeText={setNote} editable={metadataEditable} multiline
-          textAlignVertical="top" placeholder="添加账号备注" placeholderTextColor="#98a69f"
+          textAlignVertical="top" placeholder={t("添加账号备注")} placeholderTextColor="#98a69f"
           style={[styles.input, styles.noteInput]} />
-        {!metadataEditable ? <Text style={styles.readOnlyHint}>该字段由管理员维护</Text> : null}
+        {!metadataEditable ? <Text style={styles.readOnlyHint}>{t("该字段由管理员维护")}</Text> : null}
       </SheetScrollView>}
     </BottomSheet>
     <TotpQrScanner visible={Boolean(account) && scannerOpen} onClose={() => setScannerOpen(false)}
@@ -217,7 +221,7 @@ export function AccountPrivateDetailsSheet({ account, session, syncing, onClose,
           setPreviewSecret(secret);
           setTotpError('');
         } catch {
-          setTotpError('没有识别到有效的 Authenticator 二维码');
+          setTotpError(t("没有识别到有效的 Authenticator 二维码"));
         } finally {
           setScannerOpen(false);
         }

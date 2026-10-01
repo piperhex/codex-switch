@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -10,15 +11,17 @@ import { palette, styles } from './styles';
 import { SelectableChatText } from './SelectableChatText';
 import type { CopyAction } from './CopyTextButton';
 
-const KINDS: Record<string, string> = { add: '新增', delete: '删除', update: '修改' };
+const KINDS: Record<string, string> = { get add() { return t("新增"); }, get delete() { return t("删除"); }, get update() { return t("修改"); } };
 
 export function DiffCounts({ added, removed }: { added: number; removed: number }) {
-  return <View style={diffStyles.counts} accessibilityLabel={`新增 ${added} 行，删除 ${removed} 行`}>
+  useLanguage();
+  return <View style={diffStyles.counts} accessibilityLabel={t("新增 {value1} 行，删除 {value2} 行", { value1: added, value2: removed })}>
     <Text style={diffStyles.added}>+{added}</Text><Text style={diffStyles.removed}>−{removed}</Text>
   </View>;
 }
 
 export function ChatDiff({ files, copy }: { files: DiffFile[]; copy?: CopyAction }) {
+  useLanguage();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const groups = groupDiffFiles(files);
   const lastIndex = groups.at(-1)?.entries.at(-1)?.index;
@@ -28,7 +31,7 @@ export function ChatDiff({ files, copy }: { files: DiffFile[]; copy?: CopyAction
   const removed = files.reduce((sum, file) => sum + file.removed, 0);
   return <View style={diffStyles.document}>
     <View style={diffStyles.summary}>
-      <Text style={styles.subtitle}>{new Set(files.map((file) => file.path)).size} 个文件</Text>
+      <Text style={styles.subtitle}>{new Set(files.map((file) => file.path)).size}{' '}{t("个文件")}</Text>
       <DiffCounts added={added} removed={removed} />
     </View>
     {groups.map((group) => <View key={group.directory} style={diffStyles.group}>
@@ -40,17 +43,17 @@ export function ChatDiff({ files, copy }: { files: DiffFile[]; copy?: CopyAction
         </View>
       </View>
       {group.entries.map(({ file, index }) => <Pressable key={`${file.path}:${index}`} accessibilityRole="button"
-        accessibilityLabel={`查看 ${file.path} 的修改`} style={diffStyles.file}
+        accessibilityLabel={t("查看 {value1} 的修改", { value1: file.path })} style={diffStyles.file}
         onPress={() => setSelectedKey(`${file.path}:${index}`)}>
         <Feather name="file-text" size={15} color={palette.muted} />
         <SelectableChatText style={[styles.messageText, styles.fill]}
           copy={index === lastIndex ? copy : undefined}>{file.path.split(/[\\/]/).pop()}</SelectableChatText>
-        <Text style={styles.subtitle}>{file.previousPath ? '重命名' : KINDS[file.kind] ?? '修改'}</Text>
+        <Text style={styles.subtitle}>{file.previousPath ? t("重命名") : KINDS[file.kind] ?? t("修改")}</Text>
         <DiffCounts added={file.added} removed={file.removed} />
         <Feather name="chevron-right" size={15} color={palette.muted} />
       </Pressable>)}
     </View>)}
-    {selected && <BottomSheet fullWidthContent visible tall title="文件差异" subtitle={selected.path}
+    {selected && <BottomSheet fullWidthContent visible tall title={t("文件差异")} subtitle={selected.path}
       onClose={() => setSelectedKey(null)} onBack={() => setSelectedKey(null)} dragFromHeaderOnly>
       <SheetScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
         <ChatDiffContent key={selectedKey} file={selected} />

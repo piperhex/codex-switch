@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../../i18n';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { gitGraph, GRAPH_ROW_HEIGHT, type GraphLine, type GraphRow } from '../../../../../shared/remote-chat/gitGraph';
@@ -5,6 +6,7 @@ import type { RemoteGit } from '../../../../../shared/remote-chat/useRemoteGit';
 import { gitStyles as styles } from './styles';
 
 function Line({ line }: { line: GraphLine }) {
+  useLanguage();
   const dx = line.x2 - line.x1;
   const dy = line.y2 - line.y1;
   const length = Math.hypot(dx, dy);
@@ -14,6 +16,7 @@ function Line({ line }: { line: GraphLine }) {
 }
 
 function Graph({ row, width }: { row: GraphRow; width: number }) {
+  useLanguage();
   return <View accessible={false} style={{ width, height: GRAPH_ROW_HEIGHT }}>
     {row.lines.map((line, index) => <Line key={index} line={line} />)}
     <View style={{ position: 'absolute', width: 9, height: 9, borderRadius: 5, backgroundColor: row.color,
@@ -22,9 +25,10 @@ function Graph({ row, width }: { row: GraphRow; width: number }) {
 }
 
 export function GitHistory({ panel, connected }: { panel: RemoteGit; connected: boolean }) {
+  useLanguage();
   const graph = useMemo(() => gitGraph(panel.commits), [panel.commits]);
   return <ScrollView style={styles.fill}>
-    {!panel.busy && !panel.commits.length && <Text style={styles.notice}>还没有提交记录。</Text>}
+    {!panel.busy && !panel.commits.length && <Text style={styles.notice}>{t("还没有提交记录。")}</Text>}
     <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 16 }}>
       <View>{graph.rows.map(row => <Pressable key={row.commit.hash} accessibilityRole="button"
         accessibilityLabel={`${row.commit.hash.slice(0, 8)} ${row.commit.subject}`} style={styles.historyRow}
@@ -39,6 +43,6 @@ export function GitHistory({ panel, connected }: { panel: RemoteGit; connected: 
       </Pressable>)}</View>
     </ScrollView>
     {panel.hasMore && <Pressable accessibilityRole="button" style={styles.button} disabled={panel.busy || !connected}
-      onPress={() => void panel.more()}><Text style={styles.buttonText}>加载更多提交</Text></Pressable>}
+      onPress={() => void panel.more()}><Text style={styles.buttonText}>{t("加载更多提交")}</Text></Pressable>}
   </ScrollView>;
 }

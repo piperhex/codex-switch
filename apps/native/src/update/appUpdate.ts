@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import * as Application from 'expo-application';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -108,7 +109,7 @@ export async function checkForAppUpdate(): Promise<AppUpdateCheck> {
     },
   });
   if (!response.ok) {
-    throw new Error(`检查更新服务返回 HTTP ${response.status}`);
+    throw new Error(t("检查更新服务返回 HTTP {value1}", { value1: response.status }));
   }
 
   const payload = await response.json() as GitHubRelease;
@@ -118,7 +119,7 @@ export async function checkForAppUpdate(): Promise<AppUpdateCheck> {
   const version = versionFromReleaseMetadata([tagName, payload.name, ...assetNames]);
   const releaseUrl = textValue(payload.html_url);
   if (!version || !releaseUrl) {
-    throw new Error('最新版本信息格式无效');
+    throw new Error(t("最新版本信息格式无效"));
   }
 
   const release: AppRelease = {
@@ -155,7 +156,7 @@ async function blobUtil() {
   try {
     return (await import('react-native-blob-util')).default;
   } catch {
-    throw new Error('当前安装包不包含后台下载组件，请安装最新完整版本后重试');
+    throw new Error(t("当前安装包不包含后台下载组件，请安装最新完整版本后重试"));
   }
 }
 
@@ -223,8 +224,8 @@ export function refreshAndroidUpdateDownloadState(): Promise<AndroidUpdateDownlo
 }
 
 export async function startAndroidUpdateDownload(release: AppRelease) {
-  if (Platform.OS !== 'android') throw new Error('应用内安装目前仅支持 Android');
-  if (!release.androidAsset) throw new Error('该版本没有可用的 Android 安装包');
+  if (Platform.OS !== 'android') throw new Error(t("应用内安装目前仅支持 Android"));
+  if (!release.androidAsset) throw new Error(t("该版本没有可用的 Android 安装包"));
   if (activeDownload) return activeDownload;
   const androidAsset = release.androidAsset;
 
@@ -249,7 +250,7 @@ export async function startAndroidUpdateDownload(release: AppRelease) {
           mediaScannable: true,
           path,
           title: `Remote AI ${release.version}`,
-          description: '下载完成后可安装更新',
+          description: t("下载完成后可安装更新"),
           mime: APK_MIME_TYPE,
         },
       }).fetch('GET', androidAsset.downloadUrl);
@@ -271,7 +272,7 @@ export async function startAndroidUpdateDownload(release: AppRelease) {
 }
 
 export async function installDownloadedAndroidUpdate(path: string) {
-  if (Platform.OS !== 'android') throw new Error('应用内安装目前仅支持 Android');
+  if (Platform.OS !== 'android') throw new Error(t("应用内安装目前仅支持 Android"));
   const util = await blobUtil();
   await util.android.actionViewIntent(path, APK_MIME_TYPE);
 }

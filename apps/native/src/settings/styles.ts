@@ -33,7 +33,9 @@ export const styles = StyleSheet.create({
   },
   divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: settingsColors.border },
   profileDivider: { height: StyleSheet.hairlineWidth, backgroundColor: settingsColors.border, marginLeft: 96 },
-  label: { ...textInsets, color: settingsColors.ink, fontSize: 16, lineHeight: 24, flexShrink: 0 },
+  label: {
+    ...textInsets, color: settingsColors.ink, fontSize: 16, lineHeight: 24, flexShrink: 1, maxWidth: '65%',
+  },
   value: {
     ...textInsets, color: settingsColors.muted, fontSize: 15, lineHeight: 23,
     flex: 1, minWidth: 0, textAlign: 'right',

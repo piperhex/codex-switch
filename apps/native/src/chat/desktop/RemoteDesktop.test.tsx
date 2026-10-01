@@ -12,7 +12,9 @@ const runtime = vi.hoisted(() => ({ landscape: false, viewOnly: false, input: vi
   stream: { toURL: vi.fn(() => 'native-ios-stream') } }));
 vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
   useState: (value: unknown) => [value, runtime.dimensions], useRef: () => ({ current: null }),
-  useEffect: vi.fn(), useCallback: (callback: unknown) => callback }));
+  useEffect: vi.fn(), useCallback: (callback: unknown) => callback ,
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));
 vi.mock('react-native', () => ({ Modal: 'Modal', View: 'View', Pressable: 'Pressable', Text: 'Text',
   ScrollView: 'ScrollView', KeyboardAvoidingView: 'KeyboardAvoidingView', Platform: { OS: 'ios' },
   NativeModules: { DesktopWindow: { setImmersive: runtime.immersive } }, findNodeHandle: vi.fn(),

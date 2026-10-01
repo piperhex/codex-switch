@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../../i18n';
 import { useEffect, useMemo, useRef } from 'react';
 import { AppState, PanResponder, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +7,7 @@ import { useScrollPad, type ScrollPadProps } from '../../../../../shared/remote-
 import { scrollPadStyles as s } from './scrollPadStyles';
 
 export function DesktopScrollPad(props: ScrollPadProps) {
+  useLanguage();
   const { controller, position } = useScrollPad(props);
   const layout = scrollPadLayout(props.viewport, props.pointer.getSnapshot());
   const scale = layout.size / SCROLL_PAD_SIZE;
@@ -34,9 +36,9 @@ export function DesktopScrollPad(props: ScrollPadProps) {
     { name: 'chevron-back', x: .15, y: .5 }, { name: 'chevron-forward', x: .85, y: .5 },
   ] as const;
   return <View style={s.layer}>
-    <Pressable style={s.dismiss} accessibilityRole="button" accessibilityLabel="收起滚动滑块" onPress={props.close} />
+    <Pressable style={s.dismiss} accessibilityRole="button" accessibilityLabel={t("收起滚动滑块")} onPress={props.close} />
     <View style={[s.pad, { left: layout.x, top: layout.y, width: layout.size, height: layout.size }]}
-      accessibilityLabel="十字滚动滑块" {...pan.panHandlers}>
+      accessibilityLabel={t("十字滚动滑块")} {...pan.panHandlers}>
       <View pointerEvents="none" style={[s.cross, s.vertical]} />
       <View pointerEvents="none" style={[s.cross, s.horizontal]} />
       <View pointerEvents="none" style={s.center} />
@@ -50,6 +52,6 @@ export function DesktopScrollPad(props: ScrollPadProps) {
       }]} />
     </View>
     {!props.horizontal && <View pointerEvents="none" style={s.hint}>
-      <Text style={s.hintText}>更新远程电脑上的应用后，即可左右滚动。</Text></View>}
+      <Text style={s.hintText}>{t("更新远程电脑上的应用后，即可左右滚动。")}</Text></View>}
   </View>;
 }

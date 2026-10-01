@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Keyboard, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ type Selection = ProcessSelection | { type: 'item'; id: string; parent?: Process
 const PROCESS_SEPARATOR_STYLE = { height: 14 };
 
 function MessageSeparator({ leadingItem }: { leadingItem?: Entry }) {
+  useLanguage();
   const process = leadingItem?.kind === 'process' || leadingItem?.kind === 'activities'
     || (leadingItem?.kind === 'work' && leadingItem.inline);
   return <View style={process ? PROCESS_SEPARATOR_STYLE : styles.messageSeparator} />;
@@ -30,6 +32,7 @@ function MessageSeparator({ leadingItem }: { leadingItem?: Entry }) {
 const TimelineEntry = memo(function TimelineEntry({ entry, open, onInline }: {
   entry: Entry; open: (selection: Selection) => void; onInline: (turnId: string, inline: boolean) => void;
 }) {
+  useLanguage();
   const openItem = useCallback((id: string) => {
     if (entry.kind === 'process') onInline(entry.turn.id, true);
     open({ type: 'item', id });
@@ -53,6 +56,7 @@ const TimelineEntry = memo(function TimelineEntry({ entry, open, onInline }: {
 });
 
 export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder, offline }: ChatMessagesProps) {
+  useLanguage();
   const turns = useMemo(() => (thread?.turns ?? []).map((turn) => offline && turn.status === 'inProgress'
     ? { ...turn, status: 'cached' } : turn), [thread?.turns, offline]);
   const { entries, hasObservedLiveTurn, setInline } = useConversationEntries(turns);
@@ -97,28 +101,28 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder,
     {...scrollHandlers}
     ListHeaderComponent={<View style={hasMore && [styles.historyStatus, styles.messageHeader]}>
       {hasMore && (loadingMore ? <>
-        <ActivityIndicator size="small" accessibilityLabel="正在加载聊天记录" />
-        <Text style={styles.subtitle}>正在加载聊天记录…</Text>
+        <ActivityIndicator size="small" accessibilityLabel={t("正在加载聊天记录")} />
+        <Text style={styles.subtitle}>{t("正在加载聊天记录…")}</Text>
       </> : <Pressable accessibilityRole="button" onPress={more}>
-        <Text style={styles.subtitle}>加载更早的消息</Text>
+        <Text style={styles.subtitle}>{t("加载更早的消息")}</Text>
       </Pressable>)}
     </View>}
     ListEmptyComponent={showInitialLoading ? null : <View style={styles.empty}>
       <Ionicons name="terminal-outline" size={28} color={palette.green} />
-      <Text style={styles.title}>想一起完成什么？</Text>
-      <Text style={[styles.subtitle, styles.centerText]}>直接提问，或选择一个项目开始任务。</Text>
+      <Text style={styles.title}>{t("想一起完成什么？")}</Text>
+      <Text style={[styles.subtitle, styles.centerText]}>{t("直接提问，或选择一个项目开始任务。")}</Text>
     </View>}
     ListFooterComponent={<View style={[styles.messageFooter, { paddingBottom: historyBottomSpace }]}
       onLayout={onFooterLayout} />} />
     {showScrollToBottom && !showInitialLoading && entries.length > 0 && <Pressable
-      accessibilityRole="button" accessibilityLabel="回到底部" onPress={scrollToBottom}
+      accessibilityRole="button" accessibilityLabel={t("回到底部")} onPress={scrollToBottom}
       style={({ pressed }) => [styles.scrollToBottom, pressed && styles.scrollToBottomPressed]}>
       <Ionicons name="arrow-down" size={18} color={palette.ink} />
-      <Text style={styles.scrollToBottomText}>回到底部</Text>
+      <Text style={styles.scrollToBottomText}>{t("回到底部")}</Text>
     </Pressable>}
     {showInitialLoading && <View style={styles.messageLoadingOverlay}>
-      <ActivityIndicator size="small" accessibilityLabel="正在加载聊天记录" />
-      <Text style={[styles.subtitle, styles.messageLoadingText]}>正在加载聊天记录…</Text>
+      <ActivityIndicator size="small" accessibilityLabel={t("正在加载聊天记录")} />
+      <Text style={[styles.subtitle, styles.messageLoadingText]}>{t("正在加载聊天记录…")}</Text>
     </View>}
     </View>
     {selectedEntry && <ChatWorkDrawer entry={selectedEntry} onClose={close}

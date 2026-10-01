@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useContext } from 'react';
 import { Linking, Text, View, type TextStyle } from 'react-native';
 import { parseFileReference } from '../../../../shared/chat/fileReference';
@@ -25,6 +26,7 @@ function openLink(url: string) {
 function Inline({ nodes, muted = false }: {
   nodes: MarkdownNode[]; muted?: boolean;
 }) {
+  useLanguage();
   const openFile = useContext(ChatFileContext);
   return <>{nodes.map(({ token, children }, index) => {
     if (token.type === 'softbreak' || token.type === 'hardbreak') return '\n';
@@ -54,13 +56,14 @@ function paragraphParts(nodes: MarkdownNode[]): MarkdownNode[][] {
 export function MarkdownParagraph({ nodes, heading, context = {} }: {
   nodes: MarkdownNode[]; heading?: string; context?: MarkdownContext;
 }) {
+  useLanguage();
   const parts = paragraphParts(nodes).filter((part) => part.length);
   return <View>{parts.map((part, index) => {
     if (!part.length) return null;
     const first = part[0];
     const copy = index === parts.length - 1 ? context.copy : undefined;
     if (first.token.type === 'image') return <View key={index}><ChatImage
-      source={String(first.token.attrGet('src') ?? '')} description={first.token.content || '图片'} />
+      source={String(first.token.attrGet('src') ?? '')} description={first.token.content || t("图片")} />
       {copy && <SelectableChatText copy={copy} />}</View>;
     if (hasMarkdownImage(first)) return <MarkdownParagraph key={index}
       nodes={first.children} heading={heading} context={{ ...context, copy }} />;

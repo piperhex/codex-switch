@@ -171,17 +171,27 @@ pub(crate) fn set_theme_color<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn set_app_language<R: Runtime>(
+pub(crate) async fn set_app_language<R: Runtime>(
     app: AppHandle<R>,
     language: String,
 ) -> Result<(), String> {
     if !matches!(language.as_str(), "en" | "zh" | "ru") {
         return Err("language must be en, zh or ru".to_string());
     }
-    let mut settings = read_app_settings(&app)?;
-    settings.language = Some(language);
-    write_app_settings(&app, &settings)?;
-    crate::system_tray::refresh_menu(&app);
+    tauri::async_runtime::spawn_blocking(move || save_app_language(&app, language))
+        .await
+        .map_err(|error| {
+            eprintln!("language settings task failed: {error}");
+            "Could not save language settings".to_string()
+        })?
+}
+
+fn save_app_language<R: Runtime>(app: &AppHandle<R>, language: String) -> Result<(), String> {
+    crate::storage::save_app_language(app, &language).map_err(|error| {
+        eprintln!("language preference could not be saved: {error}");
+        "Could not save language settings".to_string()
+    })?;
+    crate::system_tray::refresh_menu(app);
     Ok(())
 }
 

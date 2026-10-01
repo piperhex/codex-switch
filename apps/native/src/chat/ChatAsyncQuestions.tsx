@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ interface QuestionProps {
 }
 
 function QuestionField({ question, value, disabled, update, submit }: QuestionProps) {
+  useLanguage();
   return <View style={questionStyles.question}>
     <Text style={styles.messageText}>{question.title}</Text>
     {question.options?.map((option, index) => <Pressable key={index} accessibilityRole="radio"
@@ -26,7 +28,7 @@ function QuestionField({ question, value, disabled, update, submit }: QuestionPr
         color={value === option ? palette.green : palette.muted} />
       <Text style={[styles.messageText, styles.fill]}>{option}</Text>
     </Pressable>)}
-    <TextInput accessibilityLabel={question.title} placeholder="输入你的回答" placeholderTextColor={palette.muted}
+    <TextInput accessibilityLabel={question.title} placeholder={t("输入你的回答")} placeholderTextColor={palette.muted}
       style={[styles.questionInput, questionStyles.input, disabled && styles.disabled]}
       multiline editable={!disabled} value={value} onChangeText={update} returnKeyType="send"
       submitBehavior="submit" onSubmitEditing={submit} />
@@ -36,6 +38,7 @@ function QuestionField({ question, value, disabled, update, submit }: QuestionPr
 function QuestionCard({ item, disabled, error, answer, onCancel }: Omit<Props, 'thread'> & {
   item: Item; onCancel: () => void;
 }) {
+  useLanguage();
   const questions = item.questions ?? [];
   const [open, setOpen] = useState(false);
   const [answers, setAnswers] = useState(() => questions.map((question) => question.options?.[0] ?? ''));
@@ -52,23 +55,23 @@ function QuestionCard({ item, disabled, error, answer, onCancel }: Omit<Props, '
     submitting.current = true; setBusy(true); setFailure('');
     try {
       if (await answer(item, answers)) setOpen(false);
-      else setFailure('回答尚未确认，请查看发送进度或稍后重试。');
-    } catch { setFailure('回答发送失败，请重试。'); }
+      else setFailure(t("回答尚未确认，请查看发送进度或稍后重试。"));
+    } catch { setFailure(t("回答发送失败，请重试。")); }
     finally { submitting.current = false; setBusy(false); }
   };
   return <>
-    <Pressable accessibilityRole="button" accessibilityLabel={`回答补充问题：${questions[0]?.title ?? ''}`}
+    <Pressable accessibilityRole="button" accessibilityLabel={t("回答补充问题：{value1}", { value1: questions[0]?.title ?? '' })}
       style={questionStyles.entry} onPress={() => setOpen(true)}>
       <Ionicons name="chatbubble-ellipses-outline" size={18} color={palette.green} />
-      <View style={styles.fill}><Text style={styles.title}>需要你的补充</Text>
+      <View style={styles.fill}><Text style={styles.title}>{t("需要你的补充")}</Text>
         <Text numberOfLines={1} style={styles.subtitle}>{questions[0]?.title}</Text></View>
-      <Text style={styles.buttonText}>回答</Text>
+      <Text style={styles.buttonText}>{t("回答")}</Text>
       <Ionicons name="chevron-forward" size={15} color={palette.muted} />
     </Pressable>
-    <BottomSheet fullWidthContent visible={open} tall title="需要你的补充" onClose={() => setOpen(false)}
+    <BottomSheet fullWidthContent visible={open} tall title={t("需要你的补充")} onClose={() => setOpen(false)}
       dismissible={!busy} dragFromHeaderOnly actions={[
-        { label: '取消回答', disabled: busy, onPress: cancel },
-        { label: '提交回答', tone: 'primary', loading: busy,
+        { label: t("取消回答"), disabled: busy, onPress: cancel },
+        { label: t("提交回答"), tone: 'primary', loading: busy,
           disabled: disabled || answers.some((value) => !value.trim()), onPress: submit },
       ]}>
       <SheetScrollView style={questionStyles.scroll} contentContainerStyle={questionStyles.content}
@@ -84,6 +87,7 @@ function QuestionCard({ item, disabled, error, answer, onCancel }: Omit<Props, '
 }
 
 export function ChatAsyncQuestions({ thread, ...props }: Props) {
+  useLanguage();
   const [cancelled, setCancelled] = useState<Set<string>>(() => new Set());
   const questionKey = (item: Item) => JSON.stringify([thread?.id, item.id]);
   const questions = pendingQuestions(thread).filter((item) => !cancelled.has(questionKey(item)));

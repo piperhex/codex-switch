@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import * as Crypto from 'expo-crypto';
 import type { AccountSummary } from '../types';
 import { ApiError, requestCodexDirect } from './client';
@@ -91,10 +92,10 @@ export async function consumeAccountQuota(account: AccountSummary): Promise<void
       signal: controller.signal,
     });
     if (!quotaConsumptionCompleted(await response.text())) {
-      throw new ApiError('Codex 未确认额度消耗完成，请稍后重试');
+      throw new ApiError(t("Codex 未确认额度消耗完成，请稍后重试"));
     }
   } catch (error) {
-    if (controller.signal.aborted) throw new ApiError('Codex 请求超时，请稍后重试');
+    if (controller.signal.aborted) throw new ApiError(t("Codex 请求超时，请稍后重试"));
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -102,7 +103,7 @@ export async function consumeAccountQuota(account: AccountSummary): Promise<void
 }
 
 function failureMessage(error: unknown) {
-  return error instanceof Error && error.message ? error.message : '额度消耗失败';
+  return error instanceof Error && error.message ? error.message : t("额度消耗失败");
 }
 
 export async function consumeAccountsQuota(

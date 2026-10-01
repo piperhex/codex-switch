@@ -1,3 +1,5 @@
+import { interpolate } from '../../../shared/i18n/translate';
+
 export const LANGUAGE_STORAGE_KEY = "codex-switch:language";
 
 export const LANGUAGE_OPTIONS = [
@@ -5156,10 +5158,7 @@ export function defaultLanguage(locale: string): Language {
 }
 
 export function translate(language: Language, key: TranslationKey, values: TranslationValues = {}) {
-  let text: string = translations[language][key] ?? translations[DEFAULT_LANGUAGE][key] ?? key;
-  for (const [name, value] of Object.entries(values)) {
-    text = text.split(`{${name}}`).join(String(value));
-  }
-  return text;
+  const text: string = translations[language][key] ?? translations[DEFAULT_LANGUAGE][key] ?? key;
+  return interpolate(text, values);
 }
 import { russian } from "./i18n/ru";

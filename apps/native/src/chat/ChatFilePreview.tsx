@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Keyboard, Text } from 'react-native';
 import type { FileReference } from '../../../../shared/chat/fileReference';
@@ -34,6 +35,7 @@ type PreviewProps = Omit<Props, 'children'> & {
 };
 
 function FilePreview({ file, threadId, ready, load, files, close }: PreviewProps) {
+  useLanguage();
   const [result, setResult] = useState<TextPreview>();
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -46,28 +48,28 @@ function FilePreview({ file, threadId, ready, load, files, close }: PreviewProps
     let cancelled = false;
     setError(''); setResult(undefined);
     void load(threadId, file.path).then((value) => { if (!cancelled) setResult(value); }, () => {
-      if (!cancelled) setError('暂时无法预览，可以下载后打开。');
+      if (!cancelled) setError(t("暂时无法预览，可以下载后打开。"));
     });
     return () => { cancelled = true; };
   }, [threadId, ready, load, file.path, attempt, binary]);
-  return <BottomSheet fullWidthContent visible tall title="文件" subtitle={file.path} onClose={close} dragFromHeaderOnly
+  return <BottomSheet fullWidthContent visible tall title={t("文件")} subtitle={file.path} onClose={close} dragFromHeaderOnly
     actions={[{ label: download.label, onPress: download.busy ? download.cancel : download.start,
       tone: 'primary', disabled: !download.busy && !download.completed && (!ready || !threadId) },
-    ...(error ? [{ label: '重新预览', onPress: () => setAttempt(attempt + 1), disabled: !ready }] : [])]}>
+    ...(error ? [{ label: t("重新预览"), onPress: () => setAttempt(attempt + 1), disabled: !ready }] : [])]}>
     <SheetScrollView style={{ flexShrink: 1 }}
       contentContainerStyle={{ paddingBottom: result && (html || markdown) ? 0 : 20 }}>
-      {!ready && !result && <Text style={styles.subtitle}>请连接电脑后查看文件。</Text>}
-      {binary && <Text style={styles.subtitle}>下载后即可用相应的应用打开。</Text>}
-      {ready && !binary && !result && !error && <ActivityIndicator accessibilityLabel="正在读取文件" />}
+      {!ready && !result && <Text style={styles.subtitle}>{t("请连接电脑后查看文件。")}</Text>}
+      {binary && <Text style={styles.subtitle}>{t("下载后即可用相应的应用打开。")}</Text>}
+      {ready && !binary && !result && !error && <ActivityIndicator accessibilityLabel={t("正在读取文件")} />}
       {download.busy && !!download.detail && <Text style={[styles.subtitle, { maxWidth: 400 }]}>
         {download.detail}</Text>}
       {!!download.message && <Text accessibilityLiveRegion="polite" style={[styles.subtitle,
         { maxWidth: 400 }]}>{download.message}</Text>}
       {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
       {result && !html && !markdown && <>
-        <Text style={styles.subtitle}>当前文件内容{file.line ? ` · 引用第 ${file.line} 行` : ''}</Text>
-        <ChatCodeBlock text={result.text} label="完整文本" language={fileLanguage(file.path)}
-          lineNumbers copyLabel="复制文件内容" />
+        <Text style={styles.subtitle}>{t("当前文件内容")}{file.line ? t(" · 引用第 {value1} 行", { value1: file.line }) : ''}</Text>
+        <ChatCodeBlock text={result.text} label={t("完整文本")} language={fileLanguage(file.path)}
+          lineNumbers copyLabel={t("复制文件内容")} />
       </>}
     </SheetScrollView>
     {result && html && <ChatHtmlPreview text={result.text} />}
@@ -76,6 +78,7 @@ function FilePreview({ file, threadId, ready, load, files, close }: PreviewProps
 }
 
 function FilePreviewContent(props: PreviewProps) {
+  useLanguage();
   const { file, threadId, ready, videos, files, close } = props;
   if (localImageSource(file.path)) return <ChatImageFilePreview path={file.path} close={close} />;
   if (isVideoPath(file.path)) return <VideoViewer path={file.path} threadId={threadId}
@@ -84,6 +87,7 @@ function FilePreviewContent(props: PreviewProps) {
 }
 
 export function ChatFileProvider({ children, ...options }: Props) {
+  useLanguage();
   const [file, setFile] = useState<FileReference | null>(null);
   const open = useCallback((value: FileReference) => { Keyboard.dismiss(); setFile(value); }, []);
   return <ChatFileContext.Provider value={open}>

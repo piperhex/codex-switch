@@ -1,4 +1,3 @@
-import { guiText } from "../../i18n/guiText";
 import { useEffect, useId, useMemo } from "react";
 import { PanelRight, PanelRightClose } from "lucide-react";
 import { Button, Tooltip } from "antd";
@@ -13,7 +12,8 @@ export function ConversationChangesButton({ value }: { value?: Pick<Conversation
   const turn = value?.turns.slice().reverse().find((entry) => entry.diff
     || entry.items.some((item) => item.type === "fileChange" && item.changes?.length));
   const files = useTurnChangedFiles(turn);
-  const entry = useMemo(() => ({ id, title: guiText("文件更改"), files }), [id, files]);
+  const title = t("文件更改");
+  const entry = useMemo(() => ({ id, title, files }), [id, files, title]);
   const panel = useDetailsEntry(entry);
   const register = panel?.setConversationChanges;
   useEffect(() => { register?.(entry); }, [register, entry]);

@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../../i18n';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { GitCommit, GitCommitFile } from '../../../../../shared/remote-chat/gitTypes';
@@ -12,23 +13,24 @@ interface Props {
 }
 
 export function GitCommitFiles({ commit, state, connected, onSelect }: Props) {
+  useLanguage();
   return <>
     <View style={styles.commitHeading}>
       <Text style={styles.subject}>{commit.subject}</Text>
       <Text style={styles.meta}>{commit.hash.slice(0, 8)} · {commit.author} · {
         new Date(commit.date).toLocaleString()}</Text>
-      {commit.parents.length > 1 && <Text style={styles.meta}>显示相对第一个父提交的变更</Text>}
+      {commit.parents.length > 1 && <Text style={styles.meta}>{t("显示相对第一个父提交的变更")}</Text>}
     </View>
     {state.error && <View>
       <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>
       <Pressable accessibilityRole="button" disabled={!connected} style={styles.button} onPress={state.retry}>
-        <Text style={styles.buttonText}>重试</Text></Pressable>
+        <Text style={styles.buttonText}>{t("重试")}</Text></Pressable>
     </View>}
     {!state.files && !state.error && connected && <ActivityIndicator style={styles.loading} color={palette.green} />}
     {state.files && <>
-      <Text style={styles.detailTitle}>变更文件 {state.files.length}</Text>
+      <Text style={styles.detailTitle}>{t("变更文件")}{' '}{state.files.length}</Text>
       <ScrollView style={styles.fill}>
-        {!state.files.length && <Text style={styles.notice}>这次提交没有文件变更。</Text>}
+        {!state.files.length && <Text style={styles.notice}>{t("这次提交没有文件变更。")}</Text>}
         {state.files.map(file => <CommitFile key={file.path} file={file} disabled={!connected}
           onPress={() => onSelect(file)} />)}
       </ScrollView>
@@ -37,8 +39,9 @@ export function GitCommitFiles({ commit, state, connected, onSelect }: Props) {
 }
 
 function CommitFile({ file, disabled, onPress }: { file: GitCommitFile; disabled: boolean; onPress: () => void }) {
+  useLanguage();
   const status = commitFileStatus(file.status);
-  return <Pressable accessibilityRole="button" accessibilityLabel={`查看 ${file.path}`}
+  return <Pressable accessibilityRole="button" accessibilityLabel={t("查看 {value1}", { value1: file.path })}
     disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.commitFile, pressed && styles.activeMode]}>
     <GitTreeIcon folder={false} />
     <View style={styles.fill}>

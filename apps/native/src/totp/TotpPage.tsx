@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -40,35 +41,37 @@ function EntryList({ manager, entries, codes, now, onEdit }: {
   now: number;
   onEdit: (entry: TotpEntry) => void;
 }) {
+  useLanguage();
   const confirmDelete = (entry: TotpEntry) => {
-    Alert.alert('删除 2FA 密钥', `确定删除“${entry.issuer}”的密钥吗？`, [
-      { text: '取消', style: 'cancel' },
-      { text: '删除', style: 'destructive', onPress: () => manager.deleteEntry(entry.id) },
+    Alert.alert(t("删除 2FA 密钥"), t("确定删除“{value1}”的密钥吗？", { value1: entry.issuer }), [
+      { text: t("取消"), style: 'cancel' },
+      { text: t("删除"), style: 'destructive', onPress: () => manager.deleteEntry(entry.id) },
     ]);
   };
 
   if (!manager.initialized) return <ActivityIndicator color="#18af8c" />;
   if (!manager.entries.length) return <View style={totpStyles.empty}>
     <Text style={totpStyles.emptyIcon}>2FA</Text>
-    <Text style={totpStyles.emptyTitle}>还没有 2FA 密钥</Text>
-    <Text style={totpStyles.emptyText}>扫描二维码或手动输入密钥，即可生成动态验证码。</Text>
+    <Text style={totpStyles.emptyTitle}>{t("还没有 2FA 密钥")}</Text>
+    <Text style={totpStyles.emptyText}>{t("扫描二维码或手动输入密钥，即可生成动态验证码。")}</Text>
   </View>;
   if (!entries.length) return <View style={totpStyles.empty}>
-    <Text style={totpStyles.emptyTitle}>没有找到匹配的账号</Text>
-    <Text style={totpStyles.emptyText}>试试其他服务名称或账号，或清空搜索查看全部。</Text>
+    <Text style={totpStyles.emptyTitle}>{t("没有找到匹配的账号")}</Text>
+    <Text style={totpStyles.emptyText}>{t("试试其他服务名称或账号，或清空搜索查看全部。")}</Text>
   </View>;
   return <>{entries.map((entry) => <TotpCodeCard
     key={entry.id}
     entry={entry}
     code={codes[entry.id] ?? ''}
     now={now}
-    onCopied={() => Toast.success('验证码已复制')}
+    onCopied={() => Toast.success(t("验证码已复制"))}
     onDelete={() => confirmDelete(entry)}
     onEdit={() => onEdit(entry)}
   />)}</>;
 }
 
 export function TotpPage({ manager }: { manager: TotpManagerState }) {
+  useLanguage();
   const [editing, setEditing] = useState<TotpEntry | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [scanOnOpen, setScanOnOpen] = useState(false);
@@ -88,11 +91,11 @@ export function TotpPage({ manager }: { manager: TotpManagerState }) {
     if (!manager.initialized || manager.syncing) return;
     try {
       const result = await manager.refreshCloud();
-      if (result === 'updated') Toast.success('已获取云端 2FA 密钥');
-      if (result === 'current') Toast.success('本机 2FA 已是最新');
-      if (result === 'empty') Toast.fail('云端暂无 2FA 密钥');
+      if (result === 'updated') Toast.success(t("已获取云端 2FA 密钥"));
+      if (result === 'current') Toast.success(t("本机 2FA 已是最新"));
+      if (result === 'empty') Toast.fail(t("云端暂无 2FA 密钥"));
     } catch {
-      Toast.fail('获取云端 2FA 密钥失败');
+      Toast.fail(t("获取云端 2FA 密钥失败"));
     }
   };
 
@@ -106,10 +109,10 @@ export function TotpPage({ manager }: { manager: TotpManagerState }) {
         sorted={sort !== 'default'} />
       <EntryList manager={manager} entries={entries} codes={codes} now={now} onEdit={openForm} />
     </ScrollView>
-    <TotpOptionsMenu title="验证码排序" visible={sortOpen} onClose={() => setSortOpen(false)} options={[
-      { label: '默认顺序', icon: 'list-outline', selected: sort === 'default', onPress: () => setSort('default') },
-      { label: '按服务名称', icon: 'text-outline', selected: sort === 'name', onPress: () => setSort('name') },
-      { label: '最近添加优先', icon: 'time-outline', selected: sort === 'newest', onPress: () => setSort('newest') },
+    <TotpOptionsMenu title={t("验证码排序")} visible={sortOpen} onClose={() => setSortOpen(false)} options={[
+      { label: t("默认顺序"), icon: 'list-outline', selected: sort === 'default', onPress: () => setSort('default') },
+      { label: t("按服务名称"), icon: 'text-outline', selected: sort === 'name', onPress: () => setSort('name') },
+      { label: t("最近添加优先"), icon: 'time-outline', selected: sort === 'newest', onPress: () => setSort('newest') },
     ]} />
     <TotpFormSheet
       visible={formOpen}

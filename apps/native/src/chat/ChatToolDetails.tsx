@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { StyleSheet, Text } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
 import { SheetScrollView, SHEET_READABLE_WIDTH } from '../components/SheetScrollView';
@@ -10,13 +11,14 @@ import { QuoteSourceContext } from './ChatQuotes';
 export function ChatToolDetails({ item, onClose, onBack }: {
   item: Item; onClose: () => void; onBack?: () => void;
 }) {
+  useLanguage();
   const messageRole = item.type === 'userMessage' ? 'user' : 'assistant';
   const role = ['userMessage', 'agentMessage'].includes(item.type) ? messageRole : 'tool';
   return <BottomSheet fullWidthContent
-    visible tall title={messageLabel(item)} onClose={onClose} onBack={onBack} dragFromHeaderOnly>
+    visible tall title={t(messageLabel(item))} onClose={onClose} onBack={onBack} dragFromHeaderOnly>
     <SheetScrollView style={sheetStyles.scroll} contentContainerStyle={sheetStyles.content}
       showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
-      {item.status === 'inProgress' && <Text style={styles.subtitle}>进行中…</Text>}
+      {item.status === 'inProgress' && <Text style={styles.subtitle}>{t("进行中…")}</Text>}
       <QuoteSourceContext.Provider value={{ messageId: item.id, onQuote: onClose, role }}>
         <ChatToolContent item={item} />
       </QuoteSourceContext.Provider>

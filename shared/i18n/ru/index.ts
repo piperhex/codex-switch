@@ -6,8 +6,10 @@ import { messages5 } from "./messages5";
 import { messages6 } from "./messages6";
 import { messages7 } from "./messages7";
 import { messages8 } from "./messages8";
+import { mobile } from './mobile';
 
 export const russian = {
+  ...mobile,
   ...messages1,
   ...messages2,
   ...messages3,

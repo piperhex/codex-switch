@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useRef } from 'react';
 import Feather from '@expo/vector-icons/Feather';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,6 +12,7 @@ export function ComposerReferences({ items, disabled, remove, upload, reconnecti
   items: AttachmentReference[]; disabled: boolean; remove: (item: AttachmentReference) => void;
   upload?: UploadProgress; reconnecting?: boolean;
 }) {
+  useLanguage();
   const list = useRef<ScrollView>(null);
   if (!items.length) return null;
   return <ScrollView ref={list} horizontal keyboardShouldPersistTaps="always"
@@ -22,7 +24,7 @@ export function ComposerReferences({ items, disabled, remove, upload, reconnecti
       {!!item.data && <ComposerUploadProgress inline progress={itemUploadProgress(upload, 'attachment', index)}
         reconnecting={reconnecting} />}
       <Pressable accessibilityRole="button"
-        accessibilityLabel={`移除${item.kind === 'conversation' ? '对话引用' : '附件'} ${item.name}`}
+        accessibilityLabel={t("移除{value1} {value2}", { value1: item.kind === 'conversation' ? '对话引用' : '附件', value2: item.name })}
         disabled={disabled} onPress={() => remove(item)} hitSlop={8} style={referenceStyles.remove}>
         <Feather name="x" size={16} color="#666" />
       </Pressable>

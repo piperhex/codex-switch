@@ -1,4 +1,5 @@
 import { guiText } from "../../i18n/guiText";
+import { useGuiLanguage } from '../../i18n/useGuiLanguage';
 import { useId, useMemo } from "react";
 import { ChevronRight, FileText } from "lucide-react";
 import { useDetailsEntry } from "./detailsContext";
@@ -7,9 +8,11 @@ import type { Conversation, Turn } from "./types";
 import styles from "./RunningChangesSummary.module.less";
 
 function TurnChangesBadge({ turn }: { turn: Turn }) {
+  useGuiLanguage();
   const id = useId();
   const files = useTurnChangedFiles(turn);
-  const entry = useMemo(() => ({ id, title: guiText("本轮修改"), files }), [id, files]);
+  const title = guiText("本轮修改");
+  const entry = useMemo(() => ({ id, title, files }), [id, files, title]);
   const panel = useDetailsEntry(entry);
   if (!files.length) return null;
   const count = new Set(files.map((file) => file.path)).size;

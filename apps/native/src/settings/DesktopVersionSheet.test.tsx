@@ -5,7 +5,9 @@ import type { useDesktopUpdate } from '../../../../shared/desktop-update/useDesk
 
 const state = vi.hoisted(() => ({ confirmation: null as { deviceId: string; version: string } | null }));
 vi.mock('react', async (original) => ({ ...await original<typeof React>(),
-  useState: () => [state.confirmation, (value: typeof state.confirmation) => { state.confirmation = value; }] }));
+  useState: () => [state.confirmation, (value: typeof state.confirmation) => { state.confirmation = value; }] ,
+  useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
+}));
 vi.mock('react-native', () => ({ Pressable: 'Pressable', ScrollView: 'ScrollView', Text: 'Text', View: 'View',
   StyleSheet: { create: <T,>(value: T) => value } }));
 vi.mock('../components/BottomSheet', () => ({ BottomSheet: 'BottomSheet' }));

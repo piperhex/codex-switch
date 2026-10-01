@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { AccountSummary } from '../types';
@@ -23,21 +24,21 @@ function maskEmail(email: string) {
 
 function remainingLabel(account: AccountSummary) {
   const remaining = account.usage.primary?.remainingPercent;
-  return typeof remaining === 'number' ? `主额度剩余 ${Math.round(remaining)}%` : '主额度暂不可用';
+  return typeof remaining === 'number' ? t("主额度剩余 {value1}%", { value1: Math.round(remaining) }) : t("主额度暂不可用");
 }
 
 function resetLabel(account: AccountSummary, now: number) {
   const timestamp = account.usage.primary?.resetsAt;
-  if (!timestamp) return '主额度重置时间暂不可用';
+  if (!timestamp) return t("主额度重置时间暂不可用");
   const resetAt = new Date(timestamp * 1000);
-  if (Number.isNaN(resetAt.getTime())) return '主额度重置时间暂不可用';
+  if (Number.isNaN(resetAt.getTime())) return t("主额度重置时间暂不可用");
   const milliseconds = resetAt.getTime() - now;
-  if (milliseconds <= 0) return '主额度即将重置';
+  if (milliseconds <= 0) return t("主额度即将重置");
   const totalMinutes = Math.floor(milliseconds / 60_000);
   const days = Math.floor(totalMinutes / (60 * 24));
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;
-  return `主额度约 ${days ? `${days} 天 ` : ''}${hours} 小时 ${minutes} 分后重置`;
+  return t("主额度约 {value1}{value2} 小时 {value3} 分后重置", { value1: days ? `${days} 天 ` : '', value2: hours, value3: minutes });
 }
 
 export function QuotaConsumptionSheet({
@@ -48,6 +49,7 @@ export function QuotaConsumptionSheet({
   onClose,
   onConfirm,
 }: QuotaConsumptionSheetProps) {
+  useLanguage();
   const accountIds = useMemo(() => accounts.map((account) => account.id), [accounts]);
   const accountIdsKey = accountIds.join('\n');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -91,14 +93,14 @@ export function QuotaConsumptionSheet({
   return <BottomSheet fullWidthContent
     visible={visible}
     tall
-    title="选择消耗额度的账号"
-    subtitle={`已选择 ${selectedCount} / ${accounts.length} 个账号`}
+    title={t("选择消耗额度的账号")}
+    subtitle={t("已选择 {value1} / {value2} 个账号", { value1: selectedCount, value2: accounts.length })}
     onClose={onClose}
     dismissible={!busy}
     actions={[
-      { label: '取消', onPress: onClose, disabled: busy },
+      { label: t("取消"), onPress: onClose, disabled: busy },
       {
-        label: selectedCount ? `消耗所选 ${selectedCount} 个账号` : '请先选择账号',
+        label: selectedCount ? t("消耗所选 {value1} 个账号", { value1: selectedCount }) : t("请先选择账号"),
         tone: 'danger',
         onPress: confirm,
         loading: busy,
@@ -108,8 +110,8 @@ export function QuotaConsumptionSheet({
   >
     <SheetInset>
       <View style={styles.warning}>
-        <Text style={styles.warningTitle}>此操作会产生真实用量</Text>
-        <Text style={styles.warningText}>手机将直接向所选账号发送“今天天气如何？”，完成后自动刷新用量。</Text>
+        <Text style={styles.warningTitle}>{t("此操作会产生真实用量")}</Text>
+        <Text style={styles.warningText}>{t("手机将直接向所选账号发送“今天天气如何？”，完成后自动刷新用量。")}</Text>
       </View>
       <Pressable
         accessibilityRole="checkbox"
@@ -118,7 +120,7 @@ export function QuotaConsumptionSheet({
         onPress={() => setSelectedIds(allSelected ? [] : accountIds)}
         style={({ pressed }) => [styles.selectAllRow, pressed && styles.pressed]}
       >
-        <Text style={styles.selectAllText}>{allSelected ? '取消全选' : '全选可用账号'}</Text>
+        <Text style={styles.selectAllText}>{allSelected ? t("取消全选") : t("全选可用账号")}</Text>
         <View style={[styles.checkbox, allSelected && styles.checkboxChecked]}>
           <Text style={styles.checkboxText}>{allSelected ? '✓' : ''}</Text>
         </View>

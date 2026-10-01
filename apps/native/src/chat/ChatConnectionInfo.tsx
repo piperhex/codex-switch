@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RemoteDevice } from '../types';
@@ -9,33 +10,34 @@ import { HOST_IDENTITY_CHANGED } from '../../../../shared/remote-chat/trustedHos
 import { HostIdentityVerification } from './HostIdentityVerification';
 import { styles } from './styles';
 
-const modeLabels = { connecting: '正在连接…', direct: 'P2P', relay: 'Relay', offline: '等待重新连接' };
+const modeLabels = { get connecting() { return t("正在连接…"); }, direct: 'P2P', relay: 'Relay', get offline() { return t("等待重新连接"); } };
 
 export function ChatConnectionInfo({ state, controller, device, active }: {
   state: ChatState; controller: ChatController; device?: RemoteDevice; active: boolean;
 }) {
+  useLanguage();
   const [picking, setPicking] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const canChoose = active && state.ready && !state.selected && !state.sending;
   const canReconnect = active && device && !state.ready && !state.connecting && state.mode !== 'connecting';
   let status = modeLabels[state.mode];
-  if (!state.ready && (state.mode === 'direct' || state.mode === 'relay')) status = '正在同步聊天…';
-  if (!state.ready && state.error && !state.connecting) status = '连接未完成';
+  if (!state.ready && (state.mode === 'direct' || state.mode === 'relay')) status = t("正在同步聊天…");
+  if (!state.ready && state.error && !state.connecting) status = t("连接未完成");
   useEffect(() => { if (!canChoose) setPicking(false); }, [canChoose]);
   return <>
     <View style={connectionStyles.row}>
       <Text numberOfLines={1} style={[styles.headerMeta, connectionStyles.status,
         canReconnect && connectionStyles.reconnectingStatus]}>
-        {device ? `${device.name} · ${canReconnect ? '' : status}` : '选择电脑，开始聊天'}</Text>
+        {device ? `${device.name} · ${canReconnect ? '' : status}` : t("选择电脑，开始聊天")}</Text>
       {canReconnect && <ChatReconnectButton retryAt={state.retryAt} onPress={controller.connectNow} />}
       {state.error === HOST_IDENTITY_CHANGED && <Pressable onPress={() => setVerifying(true)} accessibilityRole="button">
-        <Text>核对电脑身份</Text></Pressable>}
+        <Text>{t("核对电脑身份")}</Text></Pressable>}
       {!state.selected && !canReconnect && <>
         <Text style={styles.headerMeta}> · </Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="选择项目" disabled={!canChoose}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("选择项目")} disabled={!canChoose}
           style={connectionStyles.project} onPress={() => setPicking(true)}>
           <Text numberOfLines={1} ellipsizeMode="tail" style={styles.headerMeta}>
-            {state.draftProject?.label || '未选择项目'}</Text>
+            {state.draftProject?.label || t("未选择项目")}</Text>
         </Pressable>
       </>}
     </View>

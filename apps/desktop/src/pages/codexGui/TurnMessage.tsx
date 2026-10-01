@@ -1,4 +1,5 @@
 import { guiText } from "../../i18n/guiText";
+import { useGuiLanguage } from '../../i18n/useGuiLanguage';
 import { Fragment, memo, useMemo } from "react";
 import type { Item, Turn } from "./types";
 import type { SubmitMessageEdit } from "./messageEditContent";
@@ -26,6 +27,7 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
   visibleItems?: Item[];
   onFork?: () => void; forkDisabled?: boolean;
 } & CapacityRetryControl) {
+  useGuiLanguage();
   const groups = useMemo(() => turnMessageGroups(turn, { visibleItems, followsInterruption }),
     [turn, followsInterruption, visibleItems]);
   const files = useTurnChangedFiles(turn);

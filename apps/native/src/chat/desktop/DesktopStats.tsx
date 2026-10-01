@@ -1,13 +1,15 @@
+import { t, useLanguage } from '../../i18n';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { DesktopStats as Stats } from '../../../../../shared/remote-desktop/protocol';
 import { desktopStatsLines } from '../../../../../shared/remote-desktop/stats';
 
 export function DesktopStats({ stats, close }: { stats: Stats; close: () => void }) {
+  useLanguage();
   return <View style={s.panel} pointerEvents="box-none">
-    <View style={s.content} pointerEvents="none" collapsable={false}><Text style={s.text} accessibilityLabel="连接状态">
+    <View style={s.content} pointerEvents="none" collapsable={false}><Text style={s.text} accessibilityLabel={t("连接状态")}>
       {desktopStatsLines(stats).join('\n')}</Text></View>
-    <Pressable accessibilityRole="button" accessibilityLabel="关闭连接状态" onPress={close} style={s.close}>
+    <Pressable accessibilityRole="button" accessibilityLabel={t("关闭连接状态")} onPress={close} style={s.close}>
       <Ionicons name="close" size={18} color="#cbd5e1" />
     </Pressable>
   </View>;

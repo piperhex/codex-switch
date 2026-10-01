@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { setInterfaceLanguage } from '../../../../shared/i18n/interfaceLanguage';
 
 export type Language = 'zh' | 'en' | 'ru';
 export const LANGUAGE_KEY = 'codex-switch.web.language.v1';
@@ -13,12 +14,14 @@ function readLanguage(): Language {
 }
 
 let language = readLanguage();
+setInterfaceLanguage(language);
 export const getLanguage = () => language;
 export const getLocale = () => ({ en: 'en-US', zh: 'zh-CN', ru: 'ru-RU' })[language];
 
 function publishLanguage(next: Language) {
   if (next === language) return;
   language = next;
+  setInterfaceLanguage(next);
   listeners.forEach(listener => listener());
 }
 

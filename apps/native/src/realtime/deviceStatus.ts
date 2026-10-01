@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { AuthSession, RemoteDevice } from '../types';
 
 export type DeviceStatusSocketMessage =
@@ -10,7 +11,7 @@ export function deviceStatusWebSocketUrl(baseUrl: string) {
   const url = new URL(baseUrl);
   if (url.protocol === 'http:') url.protocol = 'ws:';
   else if (url.protocol === 'https:') url.protocol = 'wss:';
-  else throw new Error('设备状态服务地址必须使用 HTTP 或 HTTPS');
+  else throw new Error(t("设备状态服务地址必须使用 HTTP 或 HTTPS"));
   url.pathname = `${url.pathname.replace(/\/+$/, '')}/device-switch`;
   url.search = '';
   url.hash = '';

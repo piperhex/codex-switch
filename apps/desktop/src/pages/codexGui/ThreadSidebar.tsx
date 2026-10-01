@@ -1,4 +1,5 @@
 import { guiText } from "../../i18n/guiText";
+import { useGuiLanguage } from '../../i18n/useGuiLanguage';
 import { useMemo, useState, type ReactNode } from "react";
 import { App, Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
 import { Archive, Pencil, Pin, RefreshCw, Search, Trash2 } from "lucide-react";
@@ -26,6 +27,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
   state: GuiState; controller: GuiController; accountPicker: ReactNode;
   view?: GuiView; onNavigate?: (view: GuiView) => void; scheduledTasksAvailable?: boolean;
 } & GuiFocusMode) {
+  const language = useGuiLanguage();
   const [searchOpen, setSearchOpen] = useState(false);
   const pagination = useThreadPagination({ state, controller, enabled: !searchOpen });
   const [renaming, setRenaming] = useState<Thread | null>(null);
@@ -38,7 +40,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
     if (state.search) controller.filter("", state.archived);
   };
   const groups = useMemo(() => threadGroups(state),
-    [state.threads, state.pins, state.projects, state.pinnedProjects, state.conversations, state.pendingRequest]);
+    [state.threads, state.pins, state.projects, state.pinnedProjects, state.conversations, state.pendingRequest, language]);
   const renderThread = (thread: Thread) => {
     const running = isThreadRunning(state, thread);
     const busy = state.sending || Boolean(state.deleting);

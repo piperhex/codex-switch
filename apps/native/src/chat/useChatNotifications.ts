@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useEffect, useRef } from 'react';
 import { Toast } from '../components/AppToast';
 import type { AuthSession } from '../types';
@@ -15,9 +16,9 @@ export function useChatCompletionNotifications(controller: ChatController, sessi
     const state = controller.snapshot();
     const thread = state.selected?.id === target.threadId
       ? state.selected : state.threads.find((entry) => entry.id === target.threadId);
-    const title = state.sidebar.threads[target.threadId]?.title || thread?.name || '点击查看对话';
+    const title = state.sidebar.threads[target.threadId]?.title || thread?.name || t("点击查看对话");
     const kind = attention ? 'attention' : event.params.turn?.status === 'failed' ? 'failed' : 'completed';
-    void notifyChatActivity(target, title, kind).catch(() => Toast.fail('通知未能显示，请在聊天中查看。'));
+    void notifyChatActivity(target, title, kind).catch(() => Toast.fail(t("通知未能显示，请在聊天中查看。")));
   }), [controller, account, deviceId]);
 }
 

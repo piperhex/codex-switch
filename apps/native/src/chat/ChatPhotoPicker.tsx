@@ -1,3 +1,4 @@
+import { t, useLanguage } from '../i18n';
 import { useEffect, useState } from 'react';
 import Feather from '@expo/vector-icons/Feather';
 import { Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function ChatPhotoPicker({ photos, disabled, active, upload, reconnecting }: Props) {
+  useLanguage();
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const preview = photos.photos.find((photo) => photo.id === previewId);
@@ -26,31 +28,31 @@ export function ChatPhotoPicker({ photos, disabled, active, upload, reconnecting
     {!!photos.photos.length && <ScrollView horizontal keyboardShouldPersistTaps="always"
       showsHorizontalScrollIndicator={false} contentContainerStyle={photoStyles.previews}>
       {photos.photos.map((photo, index) => <View key={photo.id} style={photoStyles.card}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`放大查看：照片 ${index + 1}`}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("放大查看：照片 {value1}", { value1: index + 1 })}
           style={photoStyles.previewButton} onPress={() => setPreviewId(photo.id)}>
           <Image source={{ uri: photo.uri }} style={photoStyles.preview} resizeMode="cover"
-            accessibilityLabel={`照片 ${index + 1}`} />
+            accessibilityLabel={t("照片 {value1}", { value1: index + 1 })} />
           <ComposerUploadProgress progress={itemUploadProgress(upload, 'image', index)} reconnecting={reconnecting} />
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`编辑照片 ${index + 1}`} disabled={busy}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("编辑照片 {value1}", { value1: index + 1 })} disabled={busy}
           style={[photoStyles.edit, busy && styles.disabled]}
           onPress={() => { Keyboard.dismiss(); setEditingId(photo.id); }}>
-          <Feather name="edit-2" size={12} color="#fff" /><Text style={photoStyles.editText}>编辑</Text>
+          <Feather name="edit-2" size={12} color="#fff" /><Text style={photoStyles.editText}>{t("编辑")}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`移除照片 ${index + 1}`} disabled={busy}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("移除照片 {value1}", { value1: index + 1 })} disabled={busy}
           accessibilityState={{ disabled: busy }} hitSlop={6} onPress={() => photos.remove(photo.id)}
           style={[photoStyles.remove, busy && styles.disabled]}>
           <Feather name="x" size={18} color={palette.ink} />
         </Pressable>
       </View>)}
     </ScrollView>}
-    {photos.busy && <Text style={styles.status}>正在读取照片…</Text>}
+    {photos.busy && <Text style={styles.status}>{t("正在读取照片…")}</Text>}
     {!!photos.error && <Text accessibilityRole="alert" style={styles.error}>{photos.error}</Text>}
     {photos.settingsRequired && <Pressable accessibilityRole="button" onPress={photos.openSettings}>
-      <Text style={styles.buttonText}>打开设置</Text>
+      <Text style={styles.buttonText}>{t("打开设置")}</Text>
     </Pressable>}
     {active && preview && <ImageViewer key={preview.id} thumbnail={preview.uri}
-      description={`照片 ${photos.photos.indexOf(preview) + 1}`} load={async () => preview.dataUrl}
+      description={t("照片 {value1}", { value1: photos.photos.indexOf(preview) + 1 })} load={async () => preview.dataUrl}
       close={() => setPreviewId(null)} />}
     {active && !busy && editing && <ChatPhotoEditor key={editing.id} photo={editing}
       save={(dataUrl) => photos.replace(editing, dataUrl)} close={() => setEditingId(null)} />}

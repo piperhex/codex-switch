@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Toast } from '../components/AppToast';
 import { checkForAppUpdate, installDownloadedAndroidUpdate,
@@ -22,7 +23,7 @@ export function useAppUpdate() {
       const result = await checkForAppUpdate();
       setUpdateCheck(result);
     } catch {
-      setError('暂时无法检查更新，请重试。');
+      setError(t("暂时无法检查更新，请重试。"));
     } finally {
       checkingRef.current = false;
       setChecking(false);
@@ -31,7 +32,7 @@ export function useAppUpdate() {
   useEffect(() => { void checkForUpdate(); }, [checkForUpdate]);
   const installDownloaded = () => {
     if (downloadState.status !== 'downloaded') return;
-    void installDownloadedAndroidUpdate(downloadState.path).catch(() => Toast.fail('无法开始安装，请稍后重试'));
+    void installDownloadedAndroidUpdate(downloadState.path).catch(() => Toast.fail(t("无法开始安装，请稍后重试")));
   };
   return { checking, updateCheck, downloadState, error, checkForUpdate,
     beginDownload: beginAppUpdateDownload, installDownloaded };
