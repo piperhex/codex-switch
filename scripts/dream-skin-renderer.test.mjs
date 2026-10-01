@@ -98,7 +98,65 @@ async function inspectComposer(page) {
   });
 }
 
+function threadFooterMarkup({ legacy }) {
+  const layerClass = legacy ? "bg-gradient-to-t" : "bg-surface";
+  const layerMarker = legacy ? "" : 'aria-hidden="true"';
+  return shellMarkup({ placement: "thread", legacy }).replace('<section role="main">', `
+    <section role="main"><style>
+      .thread-scroll-container { position: relative; min-height: 500px; }
+      [data-thread-scroll-footer] { position: absolute; bottom: 0; width: 100%; padding-bottom: 16px; }
+      .footer-backdrop { position: absolute; inset: 0; pointer-events: none; }
+      .bg-gradient-to-t { background: linear-gradient(to top, white 80%, transparent); }
+      [data-codex-composer-root] { position: relative; margin-inline: 100px; }
+    </style><div class="thread-scroll-container" data-app-action-timeline-scroll>
+      <div data-thread-scroll-footer="true">
+        <div ${layerMarker} class="footer-backdrop pointer-events-none ${layerClass}"></div>
+        <div data-pip-obstacle="thread-footer">`).replace('</section>', `
+        </div><aside class="bg-surface footer-notice">Footer notice</aside>
+      </div></div></section>`);
+}
+
+async function inspectFooter(page) {
+  return page.evaluate(() => {
+    const backdrop = document.querySelector('.footer-backdrop');
+    const style = getComputedStyle(backdrop);
+    return { background: style.backgroundColor, image: style.backgroundImage,
+      height: backdrop.getBoundingClientRect().height,
+      footerHeight: document.querySelector('[data-thread-scroll-footer]').getBoundingClientRect().height,
+      notice: getComputedStyle(document.querySelector('.footer-notice')).backgroundColor };
+  });
+}
+
 for (const platform of ["windows", "macos"]) {
+  for (const legacy of [false, true]) {
+    test(`${platform}: ${legacy ? "legacy" : "26.928"} thread footer stays clear when switching skins`, async () => {
+      const page = await browser.newPage();
+      try {
+        await page.setContent(threadFooterMarkup({ legacy }));
+        const nativeFooter = await inspectFooter(page);
+        assert.ok(nativeFooter.height > 0);
+        assert.ok(nativeFooter.image !== "none" || nativeFooter.background !== "rgba(0, 0, 0, 0)");
+        for (const appearance of ["light", "dark", "light"]) {
+          await page.evaluate(await rendererPayload(page, { platform, appearance }));
+          const footer = await inspectFooter(page);
+          assert.equal(footer.background, "rgba(0, 0, 0, 0)", "the full-width footer must not hide the artwork");
+          assert.equal(footer.image, "none");
+          assert.ok(footer.height > 0, "the decorative layer remains in the layout");
+          assert.equal(footer.height, footer.footerHeight, "the layer still covers the footer");
+          assert.notEqual(footer.notice, "rgba(0, 0, 0, 0)", "functional surfaces keep their backgrounds");
+          const composer = await inspectComposer(page);
+          assert.notEqual(composer.background, "rgba(0, 0, 0, 0)");
+          assert.equal(composer.nestedBackground, "rgba(0, 0, 0, 0)");
+          assert.equal(composer.draft, "Draft");
+        }
+        await page.evaluate(() => window.__CODEX_DREAM_SKIN_STATE__.cleanup());
+        assert.deepEqual(await inspectFooter(page), nativeFooter);
+      } finally {
+        await page.close();
+      }
+    });
+  }
+
   for (const appearance of ["light", "dark"]) {
     for (const placement of ["home", "thread"]) {
       test(`${platform} ${appearance}: current ${placement} composer keeps one themed surface`, async () => {

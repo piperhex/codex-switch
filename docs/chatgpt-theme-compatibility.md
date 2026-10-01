@@ -1,5 +1,19 @@
 # ChatGPT 桌面主题兼容性
 
+## Windows 包版本 26.928.3736.0（2026-10-02 验证）
+
+会话底部的装饰层从 `.bg-gradient-to-t` 改为 `.bg-surface`，仍位于
+`[data-thread-scroll-footer]` 的直接子节点。旧规则只清除了渐变层，新版不透明底色
+因此在输入框周围形成整条白色区域，切换皮肤后仍会遮挡背景。
+
+Windows、macOS 样式现同时覆盖旧渐变层和新版带 `aria-hidden="true"`、
+`.pointer-events-none` 的底部装饰层，仅清除背景，保留布局、输入框和功能卡片底色。
+回归用例覆盖两端新旧结构、浅色→深色→浅色切换、草稿保留及关闭皮肤后恢复原样。
+
+Windows 实机已确认当前“海底潜航”皮肤的底部白条消失，输入框尺寸和位置不变。
+macOS 通过浏览器回归验证。本机安装目录已同步两个平台的 CSS，原文件保存在
+`.codex-tmp/theme-footer-20261002/installed-assets-backup`；正式分发需包含本次 CSS 修复。
+
 ## Windows 26.924.20706（2026-09-26）
 
 实机通过 Microsoft Store 从 `26.915.4065.0` 更新至包版本 `26.924.1866.0`。
