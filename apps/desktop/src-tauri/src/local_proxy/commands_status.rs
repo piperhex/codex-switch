@@ -208,16 +208,10 @@ pub(crate) async fn set_official_model_context_window<R: Runtime + 'static>(
         validate_gpt_5_6_sol_context_window(value)?;
     }
     tauri::async_runtime::spawn_blocking(move || {
-        let mut settings = read_app_settings(&app)?;
-        match context_window {
-            Some(value) => {
-                settings.official_model_context_windows.insert(model, value);
-            }
-            None => {
-                settings.official_model_context_windows.remove(&model);
-            }
-        }
-        write_app_settings(&app, &settings)?;
+        let settings = crate::storage::update_model_context_window(
+            &app,
+            crate::storage::ModelContextWindowUpdate::Model { model, context_window },
+        )?;
         if let Ok(paths) = resolve_paths(&app) {
             if let Err(error) = update_cached_official_model_context_windows(
                 &paths,
@@ -269,9 +263,10 @@ fn set_gpt_5_6_sol_context_window_blocking<R: Runtime>(
     app: &tauri::AppHandle<R>,
     context_window: u64,
 ) -> Result<AppSettings, String> {
-    let mut settings = read_app_settings(app)?;
-    settings.gpt_5_6_sol_context_window = context_window;
-    write_app_settings(app, &settings)?;
+    let settings = crate::storage::update_model_context_window(
+        app,
+        crate::storage::ModelContextWindowUpdate::Global(context_window),
+    )?;
     let paths = resolve_paths(app)?;
     if let Err(error) = update_cached_official_model_context_windows(
         &paths,

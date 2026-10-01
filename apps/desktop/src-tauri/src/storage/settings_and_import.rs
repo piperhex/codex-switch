@@ -122,10 +122,12 @@ pub(crate) fn read_app_settings<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<AppSettings, String> {
     let path = app_settings_path(app)?;
-    Ok(fs::read(path)
+    let mut settings = fs::read(&path)
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_default())
+        .unwrap_or_default();
+    model_context_settings::apply_saved_context_settings(&path, &mut settings)?;
+    Ok(settings)
 }
 
 pub(crate) fn write_app_settings<R: Runtime>(
@@ -181,6 +183,7 @@ fn apply_app_settings_version_migration(settings: &mut AppSettings, current_vers
 pub(crate) fn migrate_app_settings_for_version<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<(), String> {
+    model_context_settings::migrate_legacy_context_settings(app)?;
     let mut settings = read_app_settings(app)?;
     let current_version = app.package_info().version.to_string();
     let mut changed = apply_app_settings_version_migration(&mut settings, &current_version);
