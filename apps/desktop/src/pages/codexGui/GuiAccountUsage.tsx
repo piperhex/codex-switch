@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useState } from "react";
 import type { UsageWindow } from "../../types";
 import { remainingTone, resetCountdownTime, resetCountdownWithDays } from "../../utils/format";
@@ -23,17 +24,17 @@ export function GuiAccountUsage({ usage, label }: { usage?: UsageWindow | null; 
     const timer = window.setInterval(() => setNow(Date.now()), COUNTDOWN_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [hasResetTime, resetsAt]);
-  if (!usage || !Number.isFinite(usage.remainingPercent)) return <span className={styles.missing}>暂无用量</span>;
+  if (!usage || !Number.isFinite(usage.remainingPercent)) return <span className={styles.missing}>{guiText("暂无用量")}</span>;
   const remaining = Math.round(Math.min(MAX_REMAINING_PERCENT, Math.max(0, usage.remainingPercent)));
   const countdown = resetCountdown(resetsAt, now);
-  const resetLabel = countdown ? `${countdown} 后重置` : "重置时间未知";
+  const resetLabel = countdown ? guiText("{value1} 后重置", { value1: countdown }) : guiText("重置时间未知");
   const expired = hasResetTime && (resetsAt ?? 0) * COUNTDOWN_INTERVAL_MS <= now;
   return <div className={styles.usage} data-tone={remainingTone(remaining)}>
     <div className={styles.value}>
-      <span className={styles.reset}>{expired ? "已到重置时间，等待刷新" : resetLabel}</span>
+      <span className={styles.reset}>{expired ? guiText("已到重置时间，等待刷新") : resetLabel}</span>
       <strong>{remaining}%</strong>
     </div>
-    <div className={styles.track} role="progressbar" aria-label={`${label}剩余`}
+    <div className={styles.track} role="progressbar" aria-label={guiText("{value1}剩余", { value1: label })}
       aria-valuemin={0} aria-valuemax={MAX_REMAINING_PERCENT} aria-valuenow={remaining}>
       <span style={{ width: `${remaining}%` }} />
     </div>

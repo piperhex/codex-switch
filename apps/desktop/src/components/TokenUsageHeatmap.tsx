@@ -1,3 +1,5 @@
+import { getLocale } from "../i18n";
+import { guiText } from "../i18n/guiText";
 import { useEffect, useMemo, useState } from "react";
 import { Tooltip } from "antd";
 import { Signal } from "lucide-react";
@@ -220,9 +222,9 @@ export function TokenUsageHeatmap({
     () => columns.flat().reduce((sum, date) => sum + (totals.get(dateKey(date))?.totalTokens ?? 0), 0),
     [columns, totals],
   );
-  const numberFormat = useMemo(() => new Intl.NumberFormat(language === "zh" ? "zh-CN" : "en-US"), [language]);
+  const numberFormat = useMemo(() => new Intl.NumberFormat(getLocale(language)), [language]);
   const tokenCostDisplay = useTokenCostDisplaySettings();
-  const dateFormat = useMemo(() => new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
+  const dateFormat = useMemo(() => new Intl.DateTimeFormat(getLocale(language), {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -271,9 +273,9 @@ export function TokenUsageHeatmap({
       </div>
       <div className="token-heatmap-chart">
         <div className="token-heatmap-weekdays" aria-hidden="true">
-          <span>{language === "zh" ? "一" : "M"}</span>
-          <span>{language === "zh" ? "三" : "W"}</span>
-          <span>{language === "zh" ? "五" : "F"}</span>
+          <span>{(language === "ru" ? guiText("一", {}, language) : language === "zh" ? "一" : "M")}</span>
+          <span>{(language === "ru" ? guiText("三", {}, language) : language === "zh" ? "三" : "W")}</span>
+          <span>{(language === "ru" ? guiText("五", {}, language) : language === "zh" ? "五" : "F")}</span>
         </div>
         <div className="token-heatmap-content">
           <div className="token-heatmap-scroll">

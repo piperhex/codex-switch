@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import type { GuiModelCatalog } from "./modelCatalog";
 import { subscribeGuiEvent } from "./webEvents";
 import { subscribeToProviderEvents } from "../../api/backend";
@@ -9,7 +10,7 @@ export function watchModelCatalog(catalog: GuiModelCatalog, report: (error: unkn
   let stopped = false;
   let unsubscribe: (() => void) | undefined;
   let observed: Promise<void> | undefined;
-  const failed = () => { if (!stopped) report("模型列表暂时无法更新，请稍后重试。"); };
+  const failed = () => { if (!stopped) report(guiText("模型列表暂时无法更新，请稍后重试。")); };
   const refresh = (invalidate = false) => {
     const pending = invalidate ? catalog.invalidate() : catalog.refresh();
     if (observed === pending) return;

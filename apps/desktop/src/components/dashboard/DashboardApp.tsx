@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, ConfigProvider, Dropdown, Modal, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
+import ruRU from "antd/locale/ru_RU";
 import {
   CalendarClock,
   Check,
@@ -1225,7 +1226,7 @@ export function DashboardApp() {
     : "nav.collapseSidebar");
 
   return (
-    <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
+    <ConfigProvider locale={{ zh: zhCN, en: enUS, ru: ruRU }[language]} theme={{
       algorithm: themeMode.appliedMode === "dark"
         ? [antdTheme.darkAlgorithm, antdTheme.compactAlgorithm]
         : antdTheme.compactAlgorithm,

@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import type { ReactNode } from "react";
 import { Dropdown, type MenuProps } from "antd";
 import { ChevronRight, Code2, Copy, File, FileDiff, FolderOpen, Save, Terminal } from "lucide-react";
@@ -24,38 +25,38 @@ export function FileMenu({ path, line, column, children, className, onReview, pr
     onClick: () => openApplication(app.id),
   }));
   const items: MenuProps["items"] = [
-    { key: "open", label: "打开文件", icon: <File size={16} />, disabled: !menu.desktop,
+    { key: "open", label: guiText("打开文件"), icon: <File size={16} />, disabled: !menu.desktop,
       onClick: () => openApplication("default") },
-    ...(menu.applications.some((app) => app.id === "vscode") ? [{ key: "vscode", label: "在 VS Code 中打开",
+    ...(menu.applications.some((app) => app.id === "vscode") ? [{ key: "vscode", label: guiText("在 VS Code 中打开"),
       icon: <Code2 size={16} />, onClick: () => openApplication("vscode") }] : []),
-    { key: "openWith", label: "打开方式", icon: <FolderOpen size={16} />, disabled: !menu.desktop,
+    { key: "openWith", label: guiText("打开方式"), icon: <FolderOpen size={16} />, disabled: !menu.desktop,
       popupClassName: styles.popup, children: [
-        { key: "default", label: "默认应用", icon: <File size={16} />, onClick: () => openApplication("default") },
+        { key: "default", label: guiText("默认应用"), icon: <File size={16} />, onClick: () => openApplication("default") },
         ...applications,
-        ...(menu.loading ? [{ key: "loading", label: "正在查找应用…", disabled: true }] : []),
-        ...(menu.failed ? [{ key: "failed", label: "未能读取应用，请重新打开菜单", disabled: true }] : []),
+        ...(menu.loading ? [{ key: "loading", label: guiText("正在查找应用…"), disabled: true }] : []),
+        ...(menu.failed ? [{ key: "failed", label: guiText("未能读取应用，请重新打开菜单"), disabled: true }] : []),
       ] },
     { type: "divider" },
-    ...(onReview ? [{ key: "review", label: "查看差异", icon: <FileDiff size={16} />, onClick: onReview }] : []),
-    { key: "saveAs", label: "另存为…", icon: <Save size={16} />, disabled: !menu.desktop,
+    ...(onReview ? [{ key: "review", label: guiText("查看差异"), icon: <FileDiff size={16} />, onClick: onReview }] : []),
+    { key: "saveAs", label: guiText("另存为…"), icon: <Save size={16} />, disabled: !menu.desktop,
       onClick: () => { void menu.perform({ type: "saveAs" }); } },
-    { key: "copyPath", label: "复制路径", icon: <Copy size={16} />,
+    { key: "copyPath", label: guiText("复制路径"), icon: <Copy size={16} />,
       onClick: () => { void menu.perform({ type: "copyPath" }); } },
-    { key: "copyContents", label: "复制文件内容", icon: <Copy size={16} />, disabled: !menu.desktop,
+    { key: "copyContents", label: guiText("复制文件内容"), icon: <Copy size={16} />, disabled: !menu.desktop,
       onClick: () => { void menu.perform({ type: "copyContents" }); } },
-    { key: "reveal", label: "在文件管理器中显示", icon: <FolderOpen size={16} />, disabled: !menu.desktop,
+    { key: "reveal", label: guiText("在文件管理器中显示"), icon: <FolderOpen size={16} />, disabled: !menu.desktop,
       onClick: () => { void menu.perform({ type: "reveal" }); } },
   ];
   // The browser retains its existing diff shortcut; local file operations belong to the desktop.
   if (!menu.desktop && onReview) return <button type="button" className={className}
-    onClick={onReview} aria-label={`查看 ${path} 的差异`}>{children}</button>;
+    onClick={onReview} aria-label={guiText("查看 {value1} 的差异", { value1: path })}>{children}</button>;
   return <Dropdown trigger={onReview || previewsFile ? ["contextMenu"] : ["click", "contextMenu"]}
     open={menu.open} onOpenChange={menu.setOpen} autoFocus
     overlayClassName={styles.popup} overlayStyle={{ maxWidth: 400 }}
     menu={{ items, builtinPlacements: SUBMENU_PLACEMENTS, expandIcon: <ChevronRight size={14} aria-hidden="true" />,
       onClick: () => menu.setOpen(false) }} disabled={menu.busy}>
     <button type="button" className={className ?? styles.link}
-      aria-label={onReview ? `查看 ${path} 的差异` : `${previewsFile ? "预览文件" : "文件操作"}：${path}`}
+      aria-label={onReview ? guiText("查看 {value1} 的差异", { value1: path }) : guiText("{value1}：{value2}", { value1: previewsFile ? "预览文件" : "文件操作", value2: path })}
       onClick={() => {
         if (onReview) { menu.setOpen(false); onReview(); }
         else if (previewsFile) void menu.preview();

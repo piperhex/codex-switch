@@ -1,3 +1,5 @@
+import { getLocale } from "../../i18n";
+import { guiText } from "../../i18n/guiText";
 import { useMemo } from "react";
 import { Button, InputNumber } from "antd";
 import { BarChart, HeatmapChart, LineChart, PieChart } from "echarts/charts";
@@ -63,8 +65,23 @@ export function TokenUsageDashboard({
   const thresholdTokens = useLongContextThreshold();
   const { entries, dailyUsage, breakdown, quotaHistory, loading, error, analyticsError, quotaError,
     updatedAt, startTs, endTs, load } = useDashboardData({ weeks, refreshSeconds, thresholdTokens });
-  const locale = language === "zh" ? "zh-CN" : "en-US";
-  const labels = language === "zh" ? {
+  const locale = getLocale(language);
+  const labels = (language === "ru" ? {
+    eyebrow: "PROVIDER / TOKEN",
+    title: guiText("Token 消耗汇总", {}, language),
+    period: guiText("最近 {value1} 周", { value1: weeks }, language),
+    refresh: guiText("刷新", {}, language),
+    updated: guiText("更新于", {}, language),
+    heatmap: guiText("每日 Token 热力图", {}, language),
+    heatmapHint: guiText("颜色越深表示当天 Token 消耗越多，100M 及以上为最深色", {}, language),
+    trend: guiText("每日 Token 趋势", {}, language),
+    breakdown: guiText("Token 类型累计", {}, language),
+    providers: guiText("Provider 消耗排行", {}, language),
+    models: guiText("模型消耗排行", {}, language),
+    accounts: guiText("账户消耗排行", {}, language),
+    recent: guiText("排行基于最近 {value1} 条代理请求", { value1: entries.length }, language),
+    noData: guiText("暂无 Token 数据", {}, language),
+  } : language === "zh" ? {
     eyebrow: "PROVIDER / TOKEN",
     title: "Token 消耗汇总",
     period: `最近 ${weeks} 周`,
@@ -94,12 +111,12 @@ export function TokenUsageDashboard({
     accounts: "Account Usage Ranking",
     recent: `Rankings use the latest ${entries.length} proxy requests`,
     noData: "No token data",
-  };
-  const proxyOnlyHint = language === "zh"
+  });
+  const proxyOnlyHint = (language === "ru" ? guiText("仅代理模式会统计 Token 消耗", {}, language) : language === "zh"
     ? "仅代理模式会统计 Token 消耗"
-    : "Token usage is collected only in proxy mode";
-  const rangeLabel = language === "zh" ? "最近" : "Last";
-  const weeksUnit = language === "zh" ? "周" : "weeks";
+    : "Token usage is collected only in proxy mode");
+  const rangeLabel = (language === "ru" ? guiText("最近", {}, language) : language === "zh" ? "最近" : "Last");
+  const weeksUnit = (language === "ru" ? guiText("周", {}, language) : language === "zh" ? "周" : "weeks");
   const palette = useMemo(() => chartPalette(themeColor, dark), [dark, themeColor]);
   const dateKeys = useMemo(() => calendarDateKeys(weeks), [dailyUsage, weeks]);
   const { heatmapOption, trendOption, breakdownOption } = useOverviewOptions({
@@ -110,7 +127,7 @@ export function TokenUsageDashboard({
   const modelData = useMemo(() => aggregateEntries(entries, (entry) => entry.model), [entries]);
   const accountData = useMemo(() => aggregateEntries(entries, (entry) => entry.accountEmail?.trim()
     || entry.accountId?.trim()
-    || (language === "zh" ? "未识别账户" : "Unknown account")), [entries, language]);
+    || ((language === "ru" ? guiText("未识别账户", {}, language) : language === "zh" ? "未识别账户" : "Unknown account"))), [entries, language]);
 
   return (
     <div className={`${styles.tokenDashboard}${embedded ? ` ${styles.embedded}` : ""}`}>
@@ -138,11 +155,11 @@ export function TokenUsageDashboard({
         </div>
       </header>
       {error ? <div className={styles.tokenUsageError} role="alert">
-        {language === "zh" ? "Token 数据刷新失败，请重试。" : "Could not refresh token usage. Please retry."}
+        {(language === "ru" ? guiText("Token 数据刷新失败，请重试。", {}, language) : language === "zh" ? "Token 数据刷新失败，请重试。" : "Could not refresh token usage. Please retry.")}
       </div> : null}
       <AccountQuotaChart history={quotaHistory} startTs={startTs} endTs={endTs}
         language={language} dark={dark} themeColor={themeColor} loading={loading}
-        error={quotaError ? (language === "zh" ? "额度记录刷新失败，请重试。" : "Could not refresh quota history.") : undefined} />
+        error={quotaError ? ((language === "ru" ? guiText("额度记录刷新失败，请重试。", {}, language) : language === "zh" ? "额度记录刷新失败，请重试。" : "Could not refresh quota history.")) : undefined} />
       <ConsumptionCharts daily={breakdown} dateKeys={dateKeys} language={language} palette={palette}
         thresholdTokens={thresholdTokens} loading={loading} error={analyticsError} />
       <div className={`${styles.tokenDashboardGrid} ${styles.tokenDashboardGridTop}`}>

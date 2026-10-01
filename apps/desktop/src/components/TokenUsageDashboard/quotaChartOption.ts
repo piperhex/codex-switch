@@ -1,3 +1,4 @@
+import { getLocale } from "../../i18n";
 import type { EChartsCoreOption } from "echarts/core";
 import type { Language } from "../../i18n";
 import { normalizeThemeColor } from "../../utils/theme";
@@ -45,7 +46,7 @@ function tooltipEntry(value: unknown): TooltipEntry | null {
 }
 
 function formatTimestamp(ts: number, language: Language, interval: QuotaInterval) {
-  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
+  return new Intl.DateTimeFormat(getLocale(language), {
     month: "short", day: "numeric", year: "numeric",
     ...(interval === "day" ? {} : { hour: "2-digit", minute: "2-digit", hour12: false } as const),
   }).format(new Date(ts));

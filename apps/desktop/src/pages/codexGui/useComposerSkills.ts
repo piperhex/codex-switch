@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useState } from "react";
 import { guiApi } from "./api";
 import { skillLabel } from "./skillEditorDom";
@@ -17,10 +18,10 @@ export function useComposerSkills({ cwd, active, connected }: {
         .map((skill) => [skill.path, skill])).values()]
         .sort((left, right) => skillLabel(left).localeCompare(skillLabel(right)));
       const error = response.data.some((entry) => entry.errors.length)
-        ? "部分技能未能加载，请重新打开菜单重试。" : "";
+        ? guiText("部分技能未能加载，请重新打开菜单重试。") : "";
       setResult({ cwd, skills, loading: false, error });
     }).catch(() => {
-      if (!cancelled) setResult({ cwd, skills: [], loading: false, error: "技能加载失败，请重新打开菜单重试。" });
+      if (!cancelled) setResult({ cwd, skills: [], loading: false, error: guiText("技能加载失败，请重新打开菜单重试。") });
     });
     return () => { cancelled = true; };
   }, [cwd, active, connected]);

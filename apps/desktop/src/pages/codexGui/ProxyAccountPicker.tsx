@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Spin } from "antd";
 import { Server, Settings, UserRound } from "lucide-react";
@@ -36,7 +37,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const account = props.accounts.find((entry) => entry.active);
   const thirdParty = Boolean(provider || aggregate);
   const email = account?.email && (props.privacyMode ? maskAccountEmail(account.email) : account.email);
-  const name = aggregate?.name || provider?.name || email || "选择 GUI 账户";
+  const name = aggregate?.name || provider?.name || email || guiText("选择 GUI 账户");
   const disabled = props.busy || props.loading || saving;
   // `official` describes account-pool provenance, not whether the account can use the official API.
   const accounts = props.accounts.map((entry) => ({
@@ -61,8 +62,8 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     setError("");
     try {
       if (await switchAccount(id)) { setOpen(false); trigger.current?.focus(); }
-      else setError("切换未完成，请重试。");
-    } catch { setError("切换未完成，请重试。"); }
+      else setError(guiText("切换未完成，请重试。"));
+    } catch { setError(guiText("切换未完成，请重试。")); }
     finally { switching.current = false; setSaving(false); }
   };
   const panel = (devicePicker: ReactNode) => <GuiAccountList choices={[...accounts, ...providers]}
@@ -71,9 +72,9 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     onSelectProvider={(id) => void select(id, props.onSwitchProvider)} footer={<>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {props.selectionError && <p className={styles.error} role="alert">{props.selectionError}</p>}
-      <button type="button" className={styles.settings} aria-label="Codex GUI 设置" aria-haspopup="dialog"
+      <button type="button" className={styles.settings} aria-label={guiText("Codex GUI 设置")} aria-haspopup="dialog"
         disabled={saving || props.loading} onClick={() => { setOpen(false); setSettingsOpen(true); }}>
-        <Settings size={19} />设置</button>
+        <Settings size={19} />{guiText("设置")}</button>
     </>} />;
   return <><GuiAccountMenu active={props.active} open={open} name={name} trigger={trigger}
     computers={props.computers} busy={saving} accounts={panel}

@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadGuiAutoSwitchSettings, saveGuiAutoSwitchSettings, updateGuiAccountRule } from "./autoSwitchSettings";
 import type { GuiAutoSwitchAccountRule, GuiAutoSwitchSettings } from "./autoSwitchSettings";
@@ -18,7 +19,7 @@ export function useGuiAutoSwitchSettings() {
       const saved = await loadGuiAutoSwitchSettings();
       if (request === revision.current) { setSettings(saved); setDirty(false); }
     } catch {
-      if (request === revision.current) setError("暂时无法读取设置，请重试。");
+      if (request === revision.current) setError(guiText("暂时无法读取设置，请重试。"));
     } finally {
       if (request === revision.current) setLoading(false);
     }
@@ -42,7 +43,7 @@ export function useGuiAutoSwitchSettings() {
       setDirty(false);
       return true;
     } catch {
-      if (request === revision.current) setError("设置未保存，请重试。");
+      if (request === revision.current) setError(guiText("设置未保存，请重试。"));
       return false;
     } finally {
       pendingSave.current = false;

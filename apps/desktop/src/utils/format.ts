@@ -1,3 +1,5 @@
+import { getLocale } from "../i18n";
+import { guiText } from "../i18n/guiText";
 import type { Language } from "../i18n";
 
 export function initials(email: string) {
@@ -44,27 +46,27 @@ export function resetCountdownWithDays(timestamp: number | null | undefined, lan
   const hours = Math.floor((totalSeconds % 86_400) / 3_600);
   const minutes = Math.floor((totalSeconds % 3_600) / 60);
   const seconds = totalSeconds % 60;
-  return `${days}${language === "zh" ? "天" : "d"} ${padTimePart(hours)}:${padTimePart(minutes)}:${padTimePart(seconds)}`;
+  return `${days}${(language === "ru" ? guiText("天", {}, language) : language === "zh" ? "天" : "d")} ${padTimePart(hours)}:${padTimePart(minutes)}:${padTimePart(seconds)}`;
 }
 
 export function resetClockLabel(timestamp: number | null | undefined, language: Language) {
   const clock = resetClockTime(timestamp);
-  if (!clock) return language === "zh" ? "重置时间未知" : "Reset time unknown";
-  return language === "zh" ? `${clock}后重置` : `Resets at ${clock}`;
+  if (!clock) return (language === "ru" ? guiText("重置时间未知", {}, language) : language === "zh" ? "重置时间未知" : "Reset time unknown");
+  return (language === "ru" ? guiText("{value1}后重置", { value1: clock }, language) : language === "zh" ? `${clock}后重置` : `Resets at ${clock}`);
 }
 
 function resetDateTimeLabel(timestamp: number, language: Language) {
   const value = new Date(timestamp * 1000);
-  if (Number.isNaN(value.getTime())) return language === "zh" ? "重置时间未知" : "Reset time unknown";
+  if (Number.isNaN(value.getTime())) return (language === "ru" ? guiText("重置时间未知", {}, language) : language === "zh" ? "重置时间未知" : "Reset time unknown");
   const year = value.getFullYear();
   const month = value.getMonth() + 1;
   const day = value.getDate();
   const hour = padTimePart(value.getHours());
   const minute = padTimePart(value.getMinutes());
   const second = padTimePart(value.getSeconds());
-  return language === "zh"
+  return (language === "ru" ? guiText("{value1}-{value2}-{value3} {value4}:{value5}:{value6}后重置", { value1: year, value2: padTimePart(month), value3: padTimePart(day), value4: hour, value5: minute, value6: second }, language) : language === "zh"
     ? `${year}-${padTimePart(month)}-${padTimePart(day)} ${hour}:${minute}:${second}后重置`
-    : `Resets on ${year}-${padTimePart(month)}-${padTimePart(day)} ${hour}:${minute}:${second}`;
+    : `Resets on ${year}-${padTimePart(month)}-${padTimePart(day)} ${hour}:${minute}:${second}`);
 }
 
 export function resetLabel(
@@ -72,29 +74,29 @@ export function resetLabel(
   language: Language,
   windowType?: UsageResetWindow,
 ) {
-  if (!timestamp) return language === "zh" ? "重置时间未知" : "Reset time unknown";
+  if (!timestamp) return (language === "ru" ? guiText("重置时间未知", {}, language) : language === "zh" ? "重置时间未知" : "Reset time unknown");
   if (windowType === "fiveHours") return resetClockLabel(timestamp, language);
   if (windowType === "oneWeek") return resetDateTimeLabel(timestamp, language);
   const distance = Math.max(0, timestamp * 1000 - Date.now());
   const minutes = Math.ceil(distance / 60_000);
-  if (minutes < 60) return language === "zh" ? `${minutes} 分钟后重置` : `Resets in ${minutes} min`;
+  if (minutes < 60) return (language === "ru" ? guiText("{value1} 分钟后重置", { value1: minutes }, language) : language === "zh" ? `${minutes} 分钟后重置` : `Resets in ${minutes} min`);
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   if (hours < 24) {
-    return language === "zh"
+    return (language === "ru" ? guiText("{value1} 时{value2}后重置", { value1: hours, value2: rest ? ` ${rest} мин` : "" }, language) : language === "zh"
       ? `${hours} 时${rest ? ` ${rest} 分` : ""}后重置`
-      : `Resets in ${hours} hr${rest ? ` ${rest} min` : ""}`;
+      : `Resets in ${hours} hr${rest ? ` ${rest} min` : ""}`);
   }
   const days = Math.floor(hours / 24);
   const dayHours = hours % 24;
-  return language === "zh" ? `${days} 天 ${dayHours} 时后重置` : `Resets in ${days} d ${dayHours} hr`;
+  return (language === "ru" ? guiText("{value1} 天 {value2} 时后重置", { value1: days, value2: dayHours }, language) : language === "zh" ? `${days} 天 ${dayHours} 时后重置` : `Resets in ${days} d ${dayHours} hr`);
 }
 
 export function formatUpdated(timestamp: string | null | undefined, language: Language) {
-  if (!timestamp) return language === "zh" ? "尚未刷新" : "Not refreshed";
+  if (!timestamp) return (language === "ru" ? guiText("尚未刷新", {}, language) : language === "zh" ? "尚未刷新" : "Not refreshed");
   const value = new Date(timestamp);
-  if (Number.isNaN(value.getTime())) return language === "zh" ? "时间未知" : "Unknown time";
-  return value.toLocaleString(language === "zh" ? "zh-CN" : "en-US", {
+  if (Number.isNaN(value.getTime())) return (language === "ru" ? guiText("时间未知", {}, language) : language === "zh" ? "时间未知" : "Unknown time");
+  return value.toLocaleString(getLocale(language), {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -104,10 +106,10 @@ export function formatUpdated(timestamp: string | null | undefined, language: La
 }
 
 export function formatSystemTime(timestamp: string | null | undefined, language: Language) {
-  if (!timestamp) return language === "zh" ? "时间未知" : "Unknown time";
+  if (!timestamp) return (language === "ru" ? guiText("时间未知", {}, language) : language === "zh" ? "时间未知" : "Unknown time");
   const value = new Date(timestamp);
-  if (Number.isNaN(value.getTime())) return language === "zh" ? "时间未知" : "Unknown time";
-  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
+  if (Number.isNaN(value.getTime())) return (language === "ru" ? guiText("时间未知", {}, language) : language === "zh" ? "时间未知" : "Unknown time");
+  return new Intl.DateTimeFormat(getLocale(language), {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

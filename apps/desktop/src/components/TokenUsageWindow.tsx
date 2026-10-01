@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ConfigProvider, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
+import ruRU from "antd/locale/ru_RU";
 import { useLanguage } from "../hooks/useLanguage";
 import { useThemeColor } from "../hooks/useThemeColor";
 import { useThemeMode } from "../hooks/useThemeMode";
@@ -22,7 +23,7 @@ export function TokenUsageWindow() {
   }, []);
 
   return (
-    <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
+    <ConfigProvider locale={{ zh: zhCN, en: enUS, ru: ruRU }[language]} theme={{
       algorithm: themeMode.mode === "dark"
         ? [antdTheme.darkAlgorithm, antdTheme.compactAlgorithm]
         : antdTheme.compactAlgorithm,

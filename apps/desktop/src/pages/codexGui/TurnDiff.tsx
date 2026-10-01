@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useContext, useEffect, useRef, useState } from "react";
 import { Popconfirm } from "antd";
 import { Undo2 } from "lucide-react";
@@ -24,7 +25,7 @@ export function TurnDiff({ files, title, threadId, turnId, disabled }: {
     gitApi.undo({ threadId, turnId, checkOnly: true }).then((result) => {
       if (!cancelled) setUndone(result.undone);
     }).catch(() => {
-      if (!cancelled) setError("暂时无法读取撤销记录，点击撤销时会重新检查。");
+      if (!cancelled) setError(guiText("暂时无法读取撤销记录，点击撤销时会重新检查。"));
     }).finally(() => { if (!cancelled) setChecking(false); });
     return () => { cancelled = true; };
   }, [threadId, turnId]);
@@ -35,15 +36,15 @@ export function TurnDiff({ files, title, threadId, turnId, disabled }: {
     catch (error) { setError(String(error)); }
     finally { flight.current = false; setBusy(false); workspace.setBusy(false); }
   };
-  const action = threadId && <Popconfirm title="撤销本轮修改？"
-    description="将恢复本轮修改前的内容。若有冲突，撤销会停止。"
-    okText="撤销修改" cancelText="取消" disabled={disabled || checking || busy || undone}
+  const action = threadId && <Popconfirm title={guiText("撤销本轮修改？")}
+    description={guiText("将恢复本轮修改前的内容。若有冲突，撤销会停止。")}
+    okText={guiText("撤销修改")} cancelText={guiText("取消")} disabled={disabled || checking || busy || undone}
     onConfirm={undo} styles={{ root: { maxWidth: 400 } }}>
     <button type="button" className={styles.undo} disabled={disabled || checking || busy || undone}
-      aria-label="撤销本轮修改"><span>{busy ? "正在撤销…" : undone ? "已撤销" : "撤销"}</span><Undo2 size={16} /></button>
+      aria-label={guiText("撤销本轮修改")}><span>{busy ? guiText("正在撤销…") : undone ? guiText("已撤销") : guiText("撤销")}</span><Undo2 size={16} /></button>
   </Popconfirm>;
   return <>
-    <DiffView files={files} title={title} status={undone ? "已撤销" : undefined} undo={action} />
+    <DiffView files={files} title={title} status={undone ? guiText("已撤销") : undefined} undo={action} />
     {error && <p role="alert" className={styles.error}>{error}</p>}
   </>;
 }

@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import type { Item } from "./types";
 import { collaborationStates, collaborationStatus, collaborationSummary } from "./collaborationActivity";
 import { ToolText } from "./ToolText";
@@ -9,7 +10,7 @@ export function CollaborationDetails({ item }: { item: Item }) {
     {item.prompt && <ToolText text={item.prompt} markdown />}
     {item.text && item.text !== item.prompt && <ToolText text={item.text} markdown />}
     {states.map((state, index) => <div key={index}>
-      <p>协作任务 {index + 1} · {collaborationStatus(state.status)}</p>
+      <p>{guiText("协作任务")} {index + 1} · {collaborationStatus(state.status)}</p>
       {state.message && <ToolText text={state.message} markdown />}
     </div>)}
   </>;

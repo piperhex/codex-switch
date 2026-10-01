@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Button, Popover } from 'antd';
 import { GitBranch, Monitor, Wrench } from 'lucide-react';
@@ -25,16 +26,16 @@ export function GuiToolbox(props: Props) {
   useEffect(() => { if (!props.active) { setMenu(false); setPanel(null); } }, [props.active]);
   return <>
     <Popover trigger="click" placement="bottomRight" open={menu && props.active} onOpenChange={setMenu}
-      styles={{ root: { maxWidth: 400 } }} content={<div className={styles.menu} aria-label="工具箱">
+      styles={{ root: { maxWidth: 400 } }} content={<div className={styles.menu} aria-label={guiText("工具箱")}>
         {props.desktop && <button type="button" disabled={!props.connected}
           onClick={() => { setMenu(false); setPanel('desktop'); }}>
-          <Monitor size={18} /><span>远程桌面</span>
+          <Monitor size={18} /><span>{guiText("远程桌面")}</span>
         </button>}
         <button type="button" disabled={!props.connected} onClick={() => { setMenu(false); setPanel('git'); }}>
           <GitBranch size={18} /><span>Git</span></button>
       </div>}>
-      <Button type="text" icon={<Wrench size={16} />} title={menu || panel ? undefined : '工具箱'}
-        aria-label="打开工具箱" aria-expanded={menu && props.active} />
+      <Button type="text" icon={<Wrench size={16} />} title={menu || panel ? undefined : guiText("工具箱")}
+        aria-label={guiText("打开工具箱")} aria-expanded={menu && props.active} />
     </Popover>
     <Suspense fallback={null}>
       {panel === 'git' && <ChatGit key={props.cwd} client={props.git} cwd={props.cwd}

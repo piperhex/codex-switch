@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { Button, Input, Popover, Tooltip } from "antd";
 import { Check, ChevronLeft, ChevronRight, RotateCcw, Search } from "lucide-react";
@@ -34,14 +35,14 @@ function ModelList({ models, model, onSelect, onBack }: {
   const options = models.map((entry) => ({ value: entry.model, label: entry.displayName || entry.model }))
     .filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <div className={styles.models}>
-    <button className={styles.listHeading} onClick={onBack} aria-label="返回推理强度设置">
-      <ChevronLeft size={12} /><span>选择模型</span>
+    <button className={styles.listHeading} onClick={onBack} aria-label={guiText("返回推理强度设置")}>
+      <ChevronLeft size={12} /><span>{guiText("选择模型")}</span>
     </button>
     {models.length > MODEL_SEARCH_THRESHOLD && <Input size="small" className={styles.search}
       prefix={<Search size={12} />}
-      placeholder="搜索模型" aria-label="搜索模型" value={query} allowClear
+      placeholder={guiText("搜索模型")} aria-label={guiText("搜索模型")} value={query} allowClear
       onChange={(event) => setQuery(event.target.value)} />}
-    <div className={styles.modelList} role="menu" aria-label="选择模型" onKeyDown={moveModelFocus}>
+    <div className={styles.modelList} role="menu" aria-label={guiText("选择模型")} onKeyDown={moveModelFocus}>
       {options.map((option) => <button key={option.value} type="button" role="menuitemradio"
         className={styles.modelOption} aria-checked={model === option.value}
         autoFocus={models.length <= MODEL_SEARCH_THRESHOLD && model === option.value}
@@ -49,7 +50,7 @@ function ModelList({ models, model, onSelect, onBack }: {
         <span>{option.label}</span>
         {model === option.value && <Check size={14} />}
       </button>)}
-      {!options.length && <p className={styles.hint}>未找到模型</p>}
+      {!options.length && <p className={styles.hint}>{guiText("未找到模型")}</p>}
     </div>
   </div>;
 }
@@ -61,8 +62,8 @@ export function ModelPicker(props: ModelPickerProps) {
   const [open, setOpen] = useState(false);
   const [choosingModel, setChoosingModel] = useState(false);
   const selected = models.find((entry) => entry.model === model);
-  const modelLabel = selected?.displayName || model || "正在加载模型…";
-  const effortLabel = EFFORT_LABELS[effort] || effort;
+  const modelLabel = selected?.displayName || model || guiText("正在加载模型…");
+  const effortLabel = guiText(EFFORT_LABELS[effort] || effort);
   const recommended = resolveModelSelection(models, { model, effort: "" });
   const levels = [...(selected?.supportedReasoningEfforts ?? [])].sort((left, right) =>
     EFFORT_ORDER.indexOf(left.reasoningEffort) - EFFORT_ORDER.indexOf(right.reasoningEffort));
@@ -84,32 +85,32 @@ export function ModelPicker(props: ModelPickerProps) {
       onBack={() => setChoosingModel(false)} /> : <div className={styles.reasoning}>
       <div className={styles.summary}>
         <span className={styles.speed}><GuiSpeedButton active={open && !disabled} /></span>
-        <button className={styles.modelHeading} onClick={() => setChoosingModel(true)} aria-label="选择模型">
+        <button className={styles.modelHeading} onClick={() => setChoosingModel(true)} aria-label={guiText("选择模型")}>
           <span className={styles.effortName}>{effortLabel}<ChevronRight size={12} /></span>
           <span className={styles.modelName}>{modelLabel}</span>
         </button>
-        <Tooltip title="恢复推荐推理强度" styles={{ root: { maxWidth: 400 } }}>
+        <Tooltip title={guiText("恢复推荐推理强度")} styles={{ root: { maxWidth: 400 } }}>
           <Button type="text" size="small" className={styles.reset} icon={<RotateCcw size={14} />}
-            disabled={effort === recommended.effort} aria-label="恢复推荐推理强度"
+            disabled={effort === recommended.effort} aria-label={guiText("恢复推荐推理强度")}
             onClick={() => onChange(recommended)} />
         </Tooltip>
       </div>
       {levels.length > 0 ? <div className={styles.sliderWrap}>
         <input type="range" className={styles.slider} min={0} max={Math.max(1, levels.length - 1)} step={1}
-          value={index} disabled={levels.length < 2} aria-label="推理强度"
-          aria-valuetext={EFFORT_LABELS[levels[index].reasoningEffort] || levels[index].reasoningEffort}
+          value={index} disabled={levels.length < 2} aria-label={guiText("推理强度")}
+          aria-valuetext={guiText(EFFORT_LABELS[levels[index].reasoningEffort] || levels[index].reasoningEffort)}
           onChange={(event) => onChange({ model, effort: levels[Number(event.target.value)].reasoningEffort })} />
         <div className={styles.stops} aria-hidden="true">
           {levels.map((level) => <i key={level.reasoningEffort} />)}
         </div>
-      </div> : <p className={styles.hint}>该模型不支持调整推理强度</p>}
+      </div> : <p className={styles.hint}>{guiText("该模型不支持调整推理强度")}</p>}
     </div>}
   </div>;
   return <Popover trigger="click" placement="topRight" arrow={false} open={open && !disabled}
     onOpenChange={changeOpen} content={panel} styles={{ root: { maxWidth: 400 },
       body: { padding: 0, borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 16px rgb(0 0 0 / 8%)" } }}>
     <button type="button" className={styles.trigger} disabled={disabled} aria-expanded={open && !disabled}
-      aria-label={`模型与推理强度：${modelLabel} ${effortLabel}`}>
+      aria-label={guiText("模型与推理强度：{value1} {value2}", { value1: modelLabel, value2: effortLabel })}>
       <span className={styles.triggerModel}>{modelLabel}</span>
       {effortLabel && <span className={styles.triggerEffort}>{effortLabel}</span>}
     </button>

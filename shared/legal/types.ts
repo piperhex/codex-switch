@@ -1,4 +1,4 @@
-export type AgreementLanguage = 'zh' | 'en';
+export type AgreementLanguage = 'zh' | 'en' | 'ru';
 export type AgreementAction = 'login' | 'register';
 
 export interface AgreementSection {

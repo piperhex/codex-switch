@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import type { GuiAccountChoice } from '../../../../../../shared/remote-chat/guiAccounts';
 import { GuiAccountSummary, GuiPrimaryQuota } from '../GuiAccountSummary';
 
@@ -5,9 +6,9 @@ export function RemoteAccountSummary({ name, current, ready, running }: {
   name: string; current?: GuiAccountChoice; ready: boolean; running?: boolean;
 }) {
   const plan = current?.kind === 'account' ? current.plan : undefined;
-  let detail = <small>选择这台电脑的账户</small>;
-  if (!ready) detail = <small>等待连接电脑</small>;
-  else if (running === false) detail = <small>代理未启动</small>;
+  let detail = <small>{guiText("选择这台电脑的账户")}</small>;
+  if (!ready) detail = <small>{guiText("等待连接电脑")}</small>;
+  else if (running === false) detail = <small>{guiText("代理未启动")}</small>;
   else if (current?.kind === 'account' && current.primaryRemainingPercent !== undefined) {
     detail = <GuiPrimaryQuota remainingPercent={current.primaryRemainingPercent} />;
   } else if (current?.detail) {

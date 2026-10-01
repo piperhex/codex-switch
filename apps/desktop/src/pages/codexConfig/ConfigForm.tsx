@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useMemo, useState } from "react";
 import { Empty } from "antd";
 import { ConfigField } from "./ConfigField";
@@ -31,7 +32,7 @@ export function ConfigForm({ values, disabled, onCommit, view }: ConfigFormProps
   const activeCategory = CONFIG_CATEGORIES.find((item) => item.key === category) ?? CONFIG_CATEGORIES[0];
   return <div className={styles.form}>
     <div className={styles.layout}>
-      <nav className={styles.categories} aria-label="配置分类">
+      <nav className={styles.categories} aria-label={guiText("配置分类")}>
         {CONFIG_CATEGORIES.map((item) => <button key={item.key} type="button"
           className={!query && category === item.key ? styles.activeCategory : ""}
           onClick={() => { setCategory(item.key); onSearchChange(""); }}>
@@ -42,19 +43,19 @@ export function ConfigForm({ values, disabled, onCommit, view }: ConfigFormProps
       </nav>
       <div className={styles.content}>
         <div className={styles.sectionHeading}>
-          <div><h2>{query ? "搜索结果" : activeCategory.label}</h2>
-            <p>{query ? `找到 ${visible.length} 组相关配置。` : activeCategory.description}</p></div>
-          <span className={styles.sectionCount}>共 {visible.length} 项</span>
+          <div><h2>{query ? guiText("搜索结果") : activeCategory.label}</h2>
+            <p>{query ? guiText("找到 {value1} 组相关配置。", { value1: visible.length }) : activeCategory.description}</p></div>
+          <span className={styles.sectionCount}>{guiText("共")}{visible.length} {guiText("项")}</span>
         </div>
         <div className={styles.fields}>
           {visible.map((key) => <ConfigField key={key} fieldKey={key} path={[key]}
             schema={childSchema(configSchema, key, values[key])} value={values[key]}
             disabled={disabled} query={query} onCommit={onCommit} />)}
           {!visible.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={filter === "configured" ? "此分类还没有自定义配置" : "未找到相关配置"} />}
+            description={filter === "configured" ? guiText("此分类还没有自定义配置") : guiText("未找到相关配置")} />}
         </div>
         {category === "advanced" && !query && <div className={styles.customSection}>
-          <h3>自定义配置</h3><p>添加其他版本支持的配置项。</p>
+          <h3>{guiText("自定义配置")}</h3><p>{guiText("添加其他版本支持的配置项。")}</p>
           <ConfigFieldAddProperty schema={{ additionalProperties: true }} existing={keys} disabled={disabled}
             onAdd={(key, value) => onCommit([key], value)} />
         </div>}

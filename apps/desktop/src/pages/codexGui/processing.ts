@@ -1,12 +1,13 @@
+import { guiText } from "../../i18n/guiText";
 import type { Conversation, GuiEvent, Item, Turn } from "./types";
 import { SECOND_MS } from "./turnTiming";
 
 export const PROCESSING_LABELS = {
-  sending: "正在发送请求", request: "等待响应", reasoning: "正在思考", response: "正在生成回复",
-  command: "正在执行命令", files: "正在修改文件", tool: "正在调用工具", search: "正在搜索网页",
-  image: "正在生成图片", collaboration: "正在等待协作任务", compact: "正在整理上下文",
-  approval: "等待你的确认", input: "等待你的补充", retry: "正在重试", wait: "正在等待",
-  processing: "Codex 正在处理",
+  get sending() { return guiText("正在发送请求"); }, get request() { return guiText("等待响应"); }, get reasoning() { return guiText("正在思考"); }, get response() { return guiText("正在生成回复"); },
+  get command() { return guiText("正在执行命令"); }, get files() { return guiText("正在修改文件"); }, get tool() { return guiText("正在调用工具"); }, get search() { return guiText("正在搜索网页"); },
+  get image() { return guiText("正在生成图片"); }, get collaboration() { return guiText("正在等待协作任务"); }, get compact() { return guiText("正在整理上下文"); },
+  get approval() { return guiText("等待你的确认"); }, get input() { return guiText("等待你的补充"); }, get retry() { return guiText("正在重试"); }, get wait() { return guiText("正在等待"); },
+  get processing() { return guiText("Codex 正在处理"); },
 };
 export type ProcessingPhase = keyof typeof PROCESSING_LABELS;
 interface Activity { id: string; phase: ProcessingPhase }

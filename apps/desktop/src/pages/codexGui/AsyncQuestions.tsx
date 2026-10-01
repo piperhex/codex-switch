@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useRef, useState } from "react";
 import { Button, Input, Radio } from "antd";
 import { X } from "lucide-react";
@@ -47,11 +48,11 @@ function QuestionCard({ item, disabled, onAnswer, onClose }: QuestionCardProps) 
     finally { submitting.current = false; setBusy(false); }
   };
   if (submitted) return null;
-  return <section className={styles.card} aria-label="需要你的补充" aria-busy={busy}
+  return <section className={styles.card} aria-label={guiText("需要你的补充")} aria-busy={busy}
     onKeyDown={(event) => submitQuestionOnEnter(event, submit)}>
     <div className={styles.header}>
-      <strong>需要你的补充</strong>
-      <Button type="text" size="small" aria-label="关闭补充信息" icon={<X size={16} />}
+      <strong>{guiText("需要你的补充")}</strong>
+      <Button type="text" size="small" aria-label={guiText("关闭补充信息")} icon={<X size={16} />}
         onClick={onClose} onKeyDown={(event) => event.stopPropagation()} />
     </div>
     {questions.map((question, index) => <fieldset key={index} disabled={disabled || busy}>
@@ -60,15 +61,14 @@ function QuestionCard({ item, disabled, onAnswer, onClose }: QuestionCardProps) 
         onChange={(event) => setAnswer(index, event.target.value)}>
         {question.options?.map((option) => <Radio key={option} value={option}>{option}</Radio>)}
       </Radio.Group>}
-      <Input.TextArea aria-label={question.title} placeholder="输入回答，按回车发送"
+      <Input.TextArea aria-label={question.title} placeholder={guiText("输入回答，按回车发送")}
         autoSize={{ minRows: 1, maxRows: 4 }} disabled={disabled || busy}
         value={answers[index] ?? ""} onChange={(event) => setAnswer(index, event.target.value)} />
     </fieldset>)}
     <div className={styles.footer}>
-      <small className={styles.hint}>Enter 发送 · Shift + Enter 换行</small>
+      <small className={styles.hint}>{guiText("Enter 发送 · Shift + Enter 换行")}</small>
       <Button type="primary" loading={busy} disabled={!canSubmit || busy} onClick={() => void submit()}>
-        确认
-      </Button>
+        {guiText("确认")}</Button>
     </div>
   </section>;
 }

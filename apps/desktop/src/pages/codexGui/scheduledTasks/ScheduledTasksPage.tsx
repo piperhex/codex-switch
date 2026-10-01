@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { useMemo, useState } from "react";
 import { Alert, Button, Dropdown, Input, Modal, Spin } from "antd";
 import { Bell, ChevronDown, FileSearch, NotebookPen, Search } from "lucide-react";
@@ -36,33 +37,33 @@ export function ScheduledTasksPage({ active, cwd, onOpenThread }: {
   const remove = async () => {
     if (deleting && await manager.mutate({ operation: "delete", id: deleting.id })) setDeleting(null);
   };
-  return <section className={styles.page} aria-label="定时任务">
+  return <section className={styles.page} aria-label={guiText("定时任务")}>
     <div className={styles.toolbar}><Dropdown trigger={["click"]} overlayStyle={{ maxWidth: 400 }}
-      menu={{ items: [{ key: "create", label: "新建任务" }, ...TASK_SUGGESTIONS.map((item, index) =>
+      menu={{ items: [{ key: "create", label: guiText("新建任务") }, ...TASK_SUGGESTIONS.map((item, index) =>
         ({ key: String(index), label: item.title }))],
       onClick: ({ key }) => create(key === "create" ? undefined : TASK_SUGGESTIONS[Number(key)]) }}>
-      <Button className={styles.create} type="primary">创建<ChevronDown size={16} aria-hidden="true" /></Button>
+      <Button className={styles.create} type="primary">{guiText("创建")}<ChevronDown size={16} aria-hidden="true" /></Button>
     </Dropdown></div>
     <div className={styles.content}>
-      <h1>定时任务</h1><p className={styles.subtitle}>让 Codex 安排任务、设置提醒或监测更新</p>
+      <h1>{guiText("定时任务")}</h1><p className={styles.subtitle}>{guiText("让 Codex 安排任务、设置提醒或监测更新")}</p>
       <Input className={styles.search} prefix={<Search size={20} aria-hidden="true" />} allowClear
-        aria-label="搜索已安排任务" placeholder="搜索已安排任务" value={search}
+        aria-label={guiText("搜索已安排任务")} placeholder={guiText("搜索已安排任务")} value={search}
         onChange={(event) => setSearch(event.target.value)} />
-      <div className={styles.filters} role="group" aria-label="任务状态">
+      <div className={styles.filters} role="group" aria-label={guiText("任务状态")}>
         {TASK_FILTERS.map((item) => <button key={item.value} type="button" aria-pressed={filter === item.value}
           className={filter === item.value ? styles.selectedFilter : ""}
-          onClick={() => setFilter(item.value)}>{item.label}</button>)}
+          onClick={() => setFilter(item.value)}>{guiText(item.label)}</button>)}
       </div>
       {manager.error && !editor && <Alert type="error" className={styles.error} message={manager.error}
-        action={<Button size="small" onClick={() => void manager.refresh()}>重试</Button>} />}
+        action={<Button size="small" onClick={() => void manager.refresh()}>{guiText("重试")}</Button>} />}
       <div className={styles.taskList} aria-busy={manager.loading}>
-        {manager.loading ? <div className={styles.empty}><Spin size="small" /> 正在加载任务…</div>
+        {manager.loading ? <div className={styles.empty}><Spin size="small" />  {guiText("正在加载任务…")}</div>
           : tasks.map((task) => <TaskRow key={task.id} task={task} busy={manager.busy} onAction={action} />)}
         {!manager.loading && tasks.length === 0 && <p className={styles.empty}>
-          {search.trim() ? "没有找到匹配的任务" : manager.tasks.length ? "暂无此状态的任务" : "还没有安排任务，试试下面的建议"}
+          {search.trim() ? guiText("没有找到匹配的任务") : manager.tasks.length ? guiText("暂无此状态的任务") : guiText("还没有安排任务，试试下面的建议")}
         </p>}
       </div>
-      <section className={styles.suggestions} aria-label="任务建议"><h2>建议</h2>
+      <section className={styles.suggestions} aria-label={guiText("任务建议")}><h2>{guiText("建议")}</h2>
         {TASK_SUGGESTIONS.map((item) => {
           const Icon = SUGGESTION_ICONS[item.icon];
           return <button key={item.title} type="button" className={styles.suggestion} onClick={() => create(item)}>
@@ -77,10 +78,10 @@ export function ScheduledTasksPage({ active, cwd, onOpenThread }: {
     {editor && <TaskEditor initial={editor.input} editing={Boolean(editor.id)} busy={manager.busy}
       error={manager.error} onClose={() => setEditor(null)}
       onSave={(input) => manager.mutate({ operation: "save", id: editor.id, input: taskInput(input) })} />}
-    <Modal open={Boolean(deleting)} centered width={400} title="删除这个任务？" okText="删除" cancelText="取消"
+    <Modal open={Boolean(deleting)} centered width={400} title={guiText("删除这个任务？")} okText={guiText("删除")} cancelText={guiText("取消")}
       okButtonProps={{ danger: true }} confirmLoading={manager.busy} onOk={() => void remove()}
       onCancel={() => { if (!manager.busy) setDeleting(null); }}>
-      <p>删除后将不再执行，已有的任务对话会保留。</p>
+      <p>{guiText("删除后将不再执行，已有的任务对话会保留。")}</p>
     </Modal>
   </section>;
 }

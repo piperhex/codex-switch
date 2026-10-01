@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import type { Language } from "../../i18n";
 import type { CodexThreadEntry } from "../../types";
 
@@ -28,18 +29,18 @@ export function relativeTime(timestamp: number | null, language: Language) {
   const seconds = Math.max(0, Math.floor(Date.now() / 1000 - timestamp));
   if (seconds < 3600) {
     const minutes = Math.max(1, Math.floor(seconds / 60));
-    return language === "zh" ? `${minutes} 分钟` : `${minutes} min`;
+    return (language === "ru" ? guiText("{value1} 分钟", { value1: minutes }, language) : language === "zh" ? `${minutes} 分钟` : `${minutes} min`);
   }
   if (seconds < 86400) {
     const hours = Math.floor(seconds / 3600);
-    return language === "zh" ? `${hours} 小时` : `${hours} hr`;
+    return (language === "ru" ? guiText("{value1} 小时", { value1: hours }, language) : language === "zh" ? `${hours} 小时` : `${hours} hr`);
   }
   if (seconds < 604800) {
     const days = Math.floor(seconds / 86400);
-    return language === "zh" ? `${days} 天` : `${days} days`;
+    return (language === "ru" ? guiText("{value1} 天", { value1: days }, language) : language === "zh" ? `${days} 天` : `${days} days`);
   }
   const weeks = Math.floor(seconds / 604800);
-  return language === "zh" ? `${weeks} 周` : `${weeks} wk`;
+  return (language === "ru" ? guiText("{value1} 周", { value1: weeks }, language) : language === "zh" ? `${weeks} 周` : `${weeks} wk`);
 }
 
 export function groupLabel(cwd: string) {

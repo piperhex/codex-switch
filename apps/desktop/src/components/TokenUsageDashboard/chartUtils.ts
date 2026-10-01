@@ -1,3 +1,4 @@
+import { getLocale } from "../../i18n";
 import type { EChartsCoreOption as EChartsOption } from "echarts/core";
 import type { Language } from "../../i18n";
 import type { TokenUsageEntry } from "../../types";
@@ -36,7 +37,7 @@ export function calendarDateKeys(weeks: number) {
 }
 
 export function formatTokens(value: number, language: Language) {
-  const locale = language === "zh" ? "zh-CN" : "en-US";
+  const locale = getLocale(language);
   if (value >= 1_000_000) {
     return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value / 1_000_000)}M`;
   }

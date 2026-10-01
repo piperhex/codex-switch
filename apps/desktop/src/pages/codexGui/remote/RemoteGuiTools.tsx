@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { useState } from 'react';
 import { Alert, Button, Popover, Tooltip } from 'antd';
 import { PanelBottom, RefreshCw } from 'lucide-react';
@@ -18,20 +19,20 @@ export function RemoteGuiTools({ controller, state, active, terminal, deviceName
   const [reconnecting, setReconnecting] = useState(false);
   const [error, setError] = useState('');
   const running = state.sending || Boolean(state.selected?.turns?.some(turn => turn.status === 'inProgress'));
-  const terminalLabel = terminal.open ? '收起远程终端' : '打开远程终端';
+  const terminalLabel = terminal.open ? guiText("收起远程终端") : guiText("打开远程终端");
   const reconnect = async () => {
     if (reconnecting) return;
     if (!connected) { controller.connectNow(); return; }
     setReconnecting(true); setError('');
     try { await controller.guiTools.reconnect(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : '未能重新连接远程 Codex，请稍后重试。'); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : guiText("未能重新连接远程 Codex，请稍后重试。")); }
     finally { setReconnecting(false); }
   };
   return <div className="gui-remote-tools">
     <GuiToolbox active={active} connected={connected} cwd={state.selected?.cwd ?? state.draftProject?.cwd ?? ''}
       deviceName={deviceName} git={controller.guiTools.git} desktop={controller.guiTools.desktop} />
-    <Tooltip title="重新连接远程 Codex" styles={{ root: { maxWidth: 400 } }}>
-      <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接远程 Codex"
+    <Tooltip title={guiText("重新连接远程 Codex")} styles={{ root: { maxWidth: 400 } }}>
+      <Button type="text" icon={<RefreshCw size={16} />} aria-label={guiText("重新连接远程 Codex")}
         loading={reconnecting || state.connecting} disabled={running || installer.installing}
         onClick={() => { void reconnect(); }} />
     </Tooltip>
@@ -40,7 +41,7 @@ export function RemoteGuiTools({ controller, state, active, terminal, deviceName
       {installer.error && <Alert type="error" message={installer.error} />}
     </>}>
       <Button type="text" icon={<CliUpdateIcon version={installer.version} release={installer.release} />}
-        aria-label="远程 Codex CLI 更新">
+        aria-label={guiText("远程 Codex CLI 更新")}>
         {installer.version ? `v${installer.version}` : 'Codex'}</Button>
     </Popover>
     <Tooltip title={terminalLabel} styles={{ root: { maxWidth: 400 } }}>

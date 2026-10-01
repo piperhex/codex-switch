@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { guiApi } from "./api";
 import { conversation } from "./events";
 import { withSentMessage } from "./sentMessages";
@@ -26,7 +27,7 @@ export class MessageQueue {
   enqueue = (threadId: string, input: MessageInput,
     settings: Pick<Settings, "model" | "effort" | "access"> = this.host.getSnapshot().settings): boolean => {
     if (this.list(threadId).length >= MAX_QUEUED_MESSAGES) {
-      this.host.report("待发送消息已满，请等待发送后再添加。");
+      this.host.report(guiText("待发送消息已满，请等待发送后再添加。"));
       return false;
     }
     this.update(threadId, [...this.list(threadId), { ...input, id: crypto.randomUUID(),
@@ -39,7 +40,7 @@ export class MessageQueue {
   };
   hold = (threadId: string) => {
     this.update(threadId, this.list(threadId).map(item => item.busy ? item : { ...item,
-      needsReview: true, error: '保存结果尚未确认，请先检查待发送消息。' }));
+      needsReview: true, error: guiText("保存结果尚未确认，请先检查待发送消息。") }));
   };
   move = (threadId: string, id: string, direction: "up" | "down") => {
     const messages = this.list(threadId);
@@ -72,7 +73,7 @@ export class MessageQueue {
     this.host.report(error);
     this.update(threadId, this.list(threadId).map((item) => ids.has(item.id)
       ? { ...item, needsReview: dispatched,
-        error: dispatched ? "发送结果尚未确认，请查看聊天后重试。" : "发送失败，请重试。" } : item));
+        error: dispatched ? guiText("发送结果尚未确认，请查看聊天后重试。") : guiText("发送失败，请重试。") } : item));
   };
   private completeSend = (threadId: string, turnId: string, messages: QueuedMessage[], userMessageIndex: number) => {
     const state = this.host.getSnapshot();

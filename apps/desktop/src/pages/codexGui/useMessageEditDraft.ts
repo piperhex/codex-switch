@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import type { Content, SkillReference } from "./types";
 import { IMAGE_TYPES, MAX_IMAGES, MAX_IMAGE_BYTES, readImage, type DraftImage } from "./draftImages";
@@ -34,10 +35,10 @@ export function useMessageEditDraft({ text, images, skills }: {
     setError("");
     const valid = files.filter((file) => IMAGE_TYPES.includes(file.type) && file.size > 0
       && file.size <= MAX_IMAGE_BYTES);
-    if (valid.length !== files.length) setError("请粘贴 PNG、JPG、WebP 或 GIF 图片，每张不超过 20 MB。");
+    if (valid.length !== files.length) setError(guiText("请粘贴 PNG、JPG、WebP 或 GIF 图片，每张不超过 20 MB。"));
     const available = Math.max(0, MAX_IMAGES - images.length + removed.length
       - added.filter((image) => image.url).length - pending.current.size);
-    if (valid.length > available) setError("每条消息最多添加 8 张图片。");
+    if (valid.length > available) setError(guiText("每条消息最多添加 8 张图片。"));
     const additions = valid.slice(0, available).map((file) => ({ file, id: crypto.randomUUID() }));
     additions.forEach(({ id }) => pending.current.add(id));
     setAdded((values) => [...values, ...additions.map(({ id, file }) => ({ id, name: file.name }))]);
@@ -49,7 +50,7 @@ export function useMessageEditDraft({ text, images, skills }: {
       }).catch(() => {
         if (!mounted.current || !pending.current.delete(id)) return;
         setAdded((values) => values.filter((image) => image.id !== id));
-        setError("图片读取失败，请重新粘贴。");
+        setError(guiText("图片读取失败，请重新粘贴。"));
       });
     }
   };

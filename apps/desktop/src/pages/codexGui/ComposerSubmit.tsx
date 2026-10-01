@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { Button, Tooltip } from "antd";
 import { ArrowUp, Play, Square } from "lucide-react";
 import type { GuiController } from "./controller";
@@ -24,10 +25,10 @@ export function ComposerSubmit({ state, controller, hasDraft, reading, onSend, g
   };
 
   if (current?.activeTurn && !hasDraft) return <Button type="primary" shape="circle" className={styles.button}
-    icon={<Square size={14} fill="currentColor" />} aria-label="停止生成"
+    icon={<Square size={14} fill="currentColor" />} aria-label={guiText("停止生成")}
     onClick={() => void controller.interrupt()} />;
 
-  const label = current?.activeTurn ? "加入待发送" : (continuing ? "继续生成" : "发送消息");
+  const label = current?.activeTurn ? guiText("加入待发送") : (continuing ? guiText("继续生成") : guiText("发送消息"));
   return <Tooltip title={label} styles={{ root: { maxWidth: 400 } }}>
     <Button type="primary" shape="circle" className={styles.button}
       icon={continuing ? <Play className={styles.play} size={17} fill="currentColor" /> : <ArrowUp size={19} />}

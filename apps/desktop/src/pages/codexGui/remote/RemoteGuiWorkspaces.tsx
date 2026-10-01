@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { lazy, Suspense, useState, type ComponentProps } from 'react';
 import type { GuiComputer } from './types';
 
@@ -16,7 +17,7 @@ export function RemoteGuiWorkspaces(props: Omit<WorkspaceProps, 'device'> & { cu
   return devices.map(device => {
     const selected = device.deviceId === current?.deviceId;
     return <div key={device.deviceId} hidden={!selected} style={{ height: '100%' }}>
-      <Suspense fallback={<p role="status">正在连接电脑…</p>}>
+      <Suspense fallback={<p role="status">{guiText("正在连接电脑…")}</p>}>
         <RemoteGuiWorkspace {...workspace} device={selected && current ? current : device} active={active && selected} />
       </Suspense>
     </div>;

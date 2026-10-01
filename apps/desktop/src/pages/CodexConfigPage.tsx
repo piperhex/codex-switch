@@ -1,3 +1,4 @@
+import { guiText } from "../i18n/guiText";
 import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "../components/CodexHomeScope";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -27,39 +28,39 @@ function CodexConfigContent({ active }: { active: boolean }) {
   useEffect(() => {
     setTopbarHost(active ? window.document.getElementById(CODEX_CONFIG_TOPBAR_ID) : null);
   }, [active]);
-  if (!hasLocalBackend) return <Empty description="请在 Remote AI 桌面端打开配置。" />;
+  if (!hasLocalBackend) return <Empty description={guiText("请在 Remote AI 桌面端打开配置。")} />;
 
   return (
     <div className={styles.page}>
       {active && topbarHost && createPortal(<div className={styles.controls}>
         <div className={styles.directory}>
-          <span>配置目录</span>
+          <span>{guiText("配置目录")}</span>
           <CodexHomeSelect disabled={busy || editorOpen} showLabel={false} />
         </div>
         <div className={styles.actions}>
           <span role="status" aria-live="polite">
-            {busy ? <Tag icon={<Spin size="small" />}>处理中</Tag> : null}
+            {busy ? <Tag icon={<Spin size="small" />}>{guiText("处理中")}</Tag> : null}
             {!busy && config.saved && !config.error && <Tag color="success"
-              icon={<CheckCircle2 size={13} />}>已自动保存</Tag>}
+              icon={<CheckCircle2 size={13} />}>{guiText("已自动保存")}</Tag>}
           </span>
           <Button icon={<RefreshCw size={18} />} disabled={busy || editorOpen}
-            onClick={() => void config.reload()}>重新读取</Button>
+            onClick={() => void config.reload()}>{guiText("重新读取")}</Button>
           <Button type="primary" icon={<CodeXml size={18} />} disabled={!document || busy}
-            onClick={() => setEditorOpen(true)}>编辑 config.toml</Button>
+            onClick={() => setEditorOpen(true)}>{guiText("编辑 config.toml")}</Button>
         </div>
       </div>, topbarHost)}
       <div className={styles.filters}>
-        <Input allowClear prefix={<Search size={20} />} aria-label="搜索配置" placeholder="搜索配置名称或关键字"
+        <Input allowClear prefix={<Search size={20} />} aria-label={guiText("搜索配置")} placeholder={guiText("搜索配置名称或关键字")}
           value={search} onChange={(event) => setSearch(event.target.value)} />
         <Segmented value={filter} onChange={(next) => setFilter(String(next))} options={[
-          { value: "all", label: "全部配置" }, { value: "configured", label: "已配置" },
+          { value: "all", label: guiText("全部配置") }, { value: "configured", label: guiText("已配置") },
         ]} />
       </div>
-      {config.error && <Alert type="error" showIcon message={document ? "配置尚未保存" : "无法读取配置"}
+      {config.error && <Alert type="error" showIcon message={document ? guiText("配置尚未保存") : guiText("无法读取配置")}
         description={config.error} className={styles.notice} />}
-      {document?.error && <Alert type="warning" showIcon message="请先在编辑器中检查配置"
+      {document?.error && <Alert type="warning" showIcon message={guiText("请先在编辑器中检查配置")}
         description={document.error.message} className={styles.notice} />}
-      {!config.loaded && <div className={styles.loading}><Spin tip="正在读取配置"><div /></Spin></div>}
+      {!config.loaded && <div className={styles.loading}><Spin tip={guiText("正在读取配置")}><div /></Spin></div>}
       {document?.values && <ConfigForm key={config.reloadKey} values={document.values}
         disabled={editorOpen} onCommit={config.commit} view={{ search, filter, onSearchChange: setSearch }} />}
       {document && <TomlEditorModal open={editorOpen} content={document.content} revision={document.revision}

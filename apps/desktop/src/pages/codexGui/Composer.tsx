@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { Target, X } from "lucide-react";
@@ -99,7 +100,7 @@ export const Composer = forwardRef<ComposerHandle, {
       <ComposerQuotes quotes={draft.quotes ?? []} draftKey={key} active={active} disabled={disabled}
         onRemove={removeQuote} onClear={() => { clearQuotes(); skillInput.current?.focus(); }} />
       <input ref={fileInput} type="file" accept={IMAGE_TYPES.join(",")} multiple hidden disabled={disabled}
-        aria-label="选择图片" onChange={(event) => {
+        aria-label={guiText("选择图片")} onChange={(event) => {
           addImages(Array.from(event.target.files ?? [])); event.target.value = "";
         }} />
       <SkillInput ref={skillInput} value={draft} draftKey={key} cwd={project} active={active}
@@ -107,8 +108,8 @@ export const Composer = forwardRef<ComposerHandle, {
         connected={state.connection === "ready"} disabled={disabled}
         compact={compactCommand(state, () => void controller.compact())}
         goal={{ enabled: !disabled && !running, run: goalMode.enter }}
-        placeholder={state.archived ? "恢复对话后即可继续" : goalMode.enabled
-          ? "描述想完成的目标…" : "描述任务，@ 引用对话，/ 选择命令和技能…"}
+        placeholder={state.archived ? guiText("恢复对话后即可继续") : goalMode.enabled
+          ? guiText("描述想完成的目标…") : guiText("描述任务，@ 引用对话，/ 选择命令和技能…")}
         onChange={editContent} onPaste={paste} onPasteKeyDown={pasteKeyDown} onSend={() => void send()} />
       <div className={styles.composerControls}>
         <ComposerAddMenu cwd={project} active={active} disabled={disabled} anchor={composer}
@@ -122,9 +123,9 @@ export const Composer = forwardRef<ComposerHandle, {
           <div className={styles.composerSecondary}>
             {(goalMode.enabled || goal) && <div className={extras.goalChip}>
               <button type="button" onClick={() => goal && setDialog("goal")}
-                title={goal ? `${goal.objective}（${GOAL_STATUS[goal.status]}）` : "目标模式"}>
-                <Target size={14} /><span>目标</span></button>
-              <button type="button" aria-label="移除目标" disabled={disabled || Boolean(state.goalBusy)}
+                title={goal ? `${goal.objective} (${guiText(GOAL_STATUS[goal.status])})` : guiText("目标模式")}>
+                <Target size={14} /><span>{guiText("目标")}</span></button>
+              <button type="button" aria-label={guiText("移除目标")} disabled={disabled || Boolean(state.goalBusy)}
                 onClick={async () => {
                   if (goal && state.selected && !await controller.goals.clear(state.selected)) return;
                   goalMode.exit(); skillInput.current?.focus();
@@ -142,7 +143,7 @@ export const Composer = forwardRef<ComposerHandle, {
         </div>
       </div>
     </div>
-    <div className={styles.composerHint}><span>Enter 发送 · Shift + Enter 换行</span>
+    <div className={styles.composerHint}><span>{guiText("Enter 发送 · Shift + Enter 换行")}</span>
       {current && current.tokens > 0 && <span>{formatConversationTokens(current.tokens)} tokens</span>}</div>
     {dialog === "files" && <ComposerFilesDialog onAdd={addAttachments} onImages={() => fileInput.current?.click()}
       onClose={() => setDialog(null)} onError={controller.report} />}

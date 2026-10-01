@@ -175,8 +175,8 @@ pub(crate) fn set_app_language<R: Runtime>(
     app: AppHandle<R>,
     language: String,
 ) -> Result<(), String> {
-    if !matches!(language.as_str(), "en" | "zh") {
-        return Err("language must be en or zh".to_string());
+    if !matches!(language.as_str(), "en" | "zh" | "ru") {
+        return Err("language must be en, zh or ru".to_string());
     }
     let mut settings = read_app_settings(&app)?;
     settings.language = Some(language);

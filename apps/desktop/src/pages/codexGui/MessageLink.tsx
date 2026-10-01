@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useContext, type ReactNode } from "react";
 import { message } from "antd";
 import { isTauri } from "@tauri-apps/api/core";
@@ -19,7 +20,7 @@ function isWebsiteUrl(href: string | undefined): href is string {
 export function MessageLink({ href, children }: { href?: string; children?: ReactNode }) {
   const panel = useContext(DetailsContext);
   if (href && localImageSource(href)) return <MessageImage src={href}
-    alt={typeof children === "string" ? children : "图片"} />;
+    alt={typeof children === "string" ? children : guiText("图片")} />;
   const file = href ? parseFileReference(href) : undefined;
   if (file) return <FileMenu {...file} preview>{children}</FileMenu>;
   if (!isWebsiteUrl(href)) return <span>{children}</span>;
@@ -31,7 +32,7 @@ export function MessageLink({ href, children }: { href?: string; children?: Reac
     if (!isTauri()) return;
     event.preventDefault();
     void openUrl(href).catch(() => { void message.error({
-      content: "链接暂时无法打开，请稍后重试。", style: { maxWidth: 400, marginInline: "auto" },
+      content: guiText("链接暂时无法打开，请稍后重试。"), style: { maxWidth: 400, marginInline: "auto" },
     }); });
   }}><WebsiteIcon key={href} href={href} />{children}</a>;
 }

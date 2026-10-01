@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { guiApi } from "./api";
 import { conversation } from "./events";
 import { followsStoppedTurn, visibleContinuationItems } from "./continuation";
@@ -67,7 +68,7 @@ export class GuiMessageEditor {
           [thread.id]: conversation({ ...thread, turns: [...turns.values()] }, received) } });
       if (turn) this.host.acceptTurn(thread.id, turn);
       void this.host.refresh();
-      if (error) { this.host.report("未能确认发送结果。修改内容已放回输入框，请检查对话后重试。"); return false; }
+      if (error) { this.host.report(guiText("未能确认发送结果。修改内容已放回输入框，请检查对话后重试。")); return false; }
       return true;
     } catch (error) { this.host.report(error); return false; }
     finally { this.host.patch({ sending: false }); this.host.flushQueue(); }

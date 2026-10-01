@@ -1,7 +1,30 @@
+import { guiText } from "../../i18n/guiText";
 import type { Language } from "../../i18n";
 
 export function quotaChartLabels(language: Language) {
-  return language === "zh" ? {
+  return (language === "ru" ? {
+    title: guiText("官方账户额度趋势", {}, language),
+    account: guiText("选择或搜索账户", {}, language),
+    interval: guiText("统计时段", {}, language),
+    hour: guiText("每小时", {}, language),
+    sixHours: guiText("每 6 小时", {}, language),
+    day: guiText("每天", {}, language),
+    view: guiText("图表内容", {}, language),
+    drop: guiText("时段下降", {}, language),
+    remaining: guiText("剩余额度", {}, language),
+    primary: guiText("主用量", {}, language),
+    secondary: guiText("次用量", {}, language),
+    points: guiText("百分点", {}, language),
+    unknown: guiText("暂无记录", {}, language),
+    loading: guiText("正在加载额度记录…", {}, language),
+    error: guiText("额度记录暂时无法加载，请稍后刷新。", {}, language),
+    empty: guiText("暂无可展示的额度变化", {}, language),
+    noAccounts: guiText("暂无官方账户", {}, language),
+    dropHint: guiText("按刷新时点累计额度下降；不计入重置回升，缺少记录的时段留空。", {}, language),
+    remainingHint: guiText("展示每次刷新的剩余额度；重置或缺少记录时断开曲线。", {}, language),
+    historyHint: guiText("额度记录随账户用量刷新开始积累，无法补回此前的历史。", {}, language),
+    zoomHint: guiText("拖动下方滑块可查看其他时段或放大细节。", {}, language),
+  } : language === "zh" ? {
     title: "官方账户额度趋势",
     account: "选择或搜索账户",
     interval: "统计时段",
@@ -45,5 +68,5 @@ export function quotaChartLabels(language: Language) {
     remainingHint: "Remaining quota at each refresh. Lines break at resets or gaps in the records.",
     historyHint: "History builds as account usage refreshes. Earlier history cannot be recovered.",
     zoomHint: "Drag the slider below to explore other periods or zoom in.",
-  };
+  });
 }

@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import Markdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -21,7 +22,7 @@ export function PreviewMarkdown({ text, path, url }: { text: string; path: strin
       if (reference) return <FileMenu {...reference} preview>{children}</FileMenu>;
       return <MessageLink href={href}>{children}</MessageLink>;
     },
-    img: ({ src, alt }) => <img src={previewImageUrl(src, url, path)} alt={alt ?? "图片"}
+    img: ({ src, alt }) => <img src={previewImageUrl(src, url, path)} alt={alt ?? guiText("图片")}
       loading="lazy" referrerPolicy="no-referrer" />,
     pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
     table: ({ children }) => <MarkdownTable>{children}</MarkdownTable>,

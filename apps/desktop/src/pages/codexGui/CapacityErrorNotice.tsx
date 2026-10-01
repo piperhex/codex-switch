@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { CircleAlert, X } from "lucide-react";
 import type { CapacityRetryState } from "./capacityRetry";
 import { MODEL_CAPACITY_MESSAGE } from "./requestError";
@@ -15,8 +16,8 @@ export function CapacityErrorNotice({ retry, onCancelRetry }: CapacityRetryContr
       <span className={styles.capacityMessage}>{MODEL_CAPACITY_MESSAGE}</span>
     </div>
     {retry && <div className={styles.countdown}>
-      <span role="status">{retry.seconds > 0 ? `${retry.seconds} 秒后自动重试` : "等待重试…"}</span>
-      <button type="button" aria-label="停止自动重试" onClick={onCancelRetry}>
+      <span role="status">{retry.seconds > 0 ? guiText("{value1} 秒后自动重试", { value1: retry.seconds }) : guiText("等待重试…")}</span>
+      <button type="button" aria-label={guiText("停止自动重试")} onClick={onCancelRetry}>
         <X size={14} aria-hidden="true" />
       </button>
     </div>}

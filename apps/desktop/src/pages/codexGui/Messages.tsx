@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import type { ReactNode } from "react";
 import { Spin } from "antd";
 import { ArrowDown, Terminal } from "lucide-react";
@@ -41,7 +42,7 @@ export function Messages({ value, selected, active = true, footer, pendingReques
       quote.dismiss();
       jumpToLatest();
     }} />}
-    <div ref={viewport} className={styles.messageViewport} aria-label="对话消息"
+    <div ref={viewport} className={styles.messageViewport} aria-label={guiText("对话消息")}
       onWheel={history.onWheel} onScroll={() => {
         onScroll();
         history.onScroll();
@@ -50,13 +51,13 @@ export function Messages({ value, selected, active = true, footer, pendingReques
         <div className={styles.messageContent}>
           {!selected && <div className={styles.welcome}>
             <div className={styles.welcomeIcon}><Terminal size={28} /></div>
-            <h1>想一起完成什么？</h1><p>直接提问，或选择一个项目开始任务。</p>
-            <div className={styles.suggestions}><span>理解代码</span><span>实现功能</span><span>排查问题</span></div>
+            <h1>{guiText("想一起完成什么？")}</h1><p>{guiText("直接提问，或选择一个项目开始任务。")}</p>
+            <div className={styles.suggestions}><span>{guiText("理解代码")}</span><span>{guiText("实现功能")}</span><span>{guiText("排查问题")}</span></div>
           </div>}
-          {selected && !value && <div className={styles.listEmpty}><Spin /><p>正在读取对话…</p></div>}
+          {selected && !value && <div className={styles.listEmpty}><Spin /><p>{guiText("正在读取对话…")}</p></div>}
           {history.hasMore && <div className={styles.historyLoader}>
-            {history.loading ? <span role="status"><Spin size="small" />正在加载更早的消息…</span>
-              : <button type="button" onClick={history.loadOlder}>加载更早的消息</button>}
+            {history.loading ? <span role="status"><Spin size="small" />{guiText("正在加载更早的消息…")}</span>
+              : <button type="button" onClick={history.loadOlder}>{guiText("加载更早的消息")}</button>}
           </div>}
           {history.entries.map(({ turn, items, followsInterruption }) => <TurnMessage
             key={`${selected}:${turn.id}`} turn={turn} visibleItems={items}
@@ -78,7 +79,7 @@ export function Messages({ value, selected, active = true, footer, pendingReques
         </div>
         <div className={styles.messageFooter}>
           {away && <button type="button" className={styles.jumpToLatest} onClick={jumpToLatest}>
-            <ArrowDown size={15} />回到最新消息</button>}
+            <ArrowDown size={15} />{guiText("回到最新消息")}</button>}
           {footer}
         </div>
       </div>

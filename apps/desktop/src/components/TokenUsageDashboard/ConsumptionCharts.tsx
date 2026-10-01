@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useMemo } from "react";
 import type { EChartsCoreOption } from "echarts/core";
 import type { Language } from "../../i18n";
@@ -25,9 +26,9 @@ function consumptionOption(options: {
   const byDate = new Map(daily.map((entry) => [entry.date, entry]));
   return {
     animationDurationUpdate: 280,
-    aria: { enabled: true, label: { description: language === "zh"
+    aria: { enabled: true, label: { description: (language === "ru" ? guiText("每日 Token 消耗堆叠柱状图，可通过图例切换分类。分类累计值和占比显示在图表上方。", {}, language) : language === "zh"
       ? "每日 Token 消耗堆叠柱状图，可通过图例切换分类。分类累计值和占比显示在图表上方。"
-      : "Daily stacked token usage. Use the legend to toggle categories; totals and shares appear above." } },
+      : "Daily stacked token usage. Use the legend to toggle categories; totals and shares appear above.") } },
     color: [palette.series[0], "#cb8b41", palette.muted],
     tooltip: { trigger: "axis", confine: true, extraCssText: COMPACT_TOOLTIP_STYLE,
       axisPointer: { type: "shadow" },
@@ -65,12 +66,12 @@ function ConsumptionPanel({ props, title, hint, definitions }: {
       </div>)}
     </div> : null}
     {error ? <p className={styles.tokenUsageError} role="alert">
-      {language === "zh" ? "消耗统计刷新失败，请重试。" : "Could not refresh consumption statistics. Please retry."}
+      {(language === "ru" ? guiText("消耗统计刷新失败，请重试。", {}, language) : language === "zh" ? "消耗统计刷新失败，请重试。" : "Could not refresh consumption statistics. Please retry.")}
     </p> : null}
     {error ? null : totalTokens > 0 ? <EChart option={option} label={title} />
       : <div className={styles.tokenDashboardEmpty}>
-      {loading ? (language === "zh" ? "正在加载…" : "Loading…")
-        : (language === "zh" ? "所选时段暂无 Token 消耗记录" : "No token usage in this period")}
+      {loading ? ((language === "ru" ? guiText("正在加载…", {}, language) : language === "zh" ? "正在加载…" : "Loading…"))
+        : ((language === "ru" ? guiText("所选时段暂无 Token 消耗记录", {}, language) : language === "zh" ? "所选时段暂无 Token 消耗记录" : "No token usage in this period"))}
     </div>}
   </section>;
 }

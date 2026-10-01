@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { useRef } from "react";
 import { Plus, SquareTerminal, X } from "lucide-react";
 import { Tooltip } from "antd";
@@ -8,9 +9,8 @@ import type { TerminalApi } from "../../../../../../shared/terminal/types";
 import styles from "./terminal.module.less";
 import { TerminalKeys } from './TerminalKeys';
 
-const originalText = (source: string) => source;
 
-export default function TerminalPanel({ panel, active, api, fill = false, translate = originalText, notice }: {
+export default function TerminalPanel({ panel, active, api, fill = false, translate = guiText, notice }: {
   panel: TerminalPanelState; active: boolean; api: TerminalApi; fill?: boolean;
   translate?: (source: string) => string;
   notice?: string;

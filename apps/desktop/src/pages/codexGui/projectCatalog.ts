@@ -1,9 +1,10 @@
+import { guiText } from "../../i18n/guiText";
 export interface SavedProject { path: string; name: string }
 
 const STORAGE_KEY = "codex-switch:gui-projects";
 
 export function folderName(path: string) {
-  return path.split(/[\\/]/).filter(Boolean).pop() || "最近";
+  return path.split(/[\\/]/).filter(Boolean).pop() || guiText("最近");
 }
 
 export function readProjects(): SavedProject[] {

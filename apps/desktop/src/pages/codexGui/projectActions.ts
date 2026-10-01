@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { guiApi } from "./api";
 import { savePreferences } from "./preferences";
 import { removeSavedProject } from "./projectCatalog";
@@ -59,7 +60,7 @@ export class GuiProjects {
       const lists = await Promise.all([listAllThreads(false), listAllThreads(true)]);
       const state = this.host.getSnapshot();
       if (state.sending) {
-        this.host.report("请等待消息发送完成后，再移除项目。");
+        this.host.report(guiText("请等待消息发送完成后，再移除项目。"));
         return false;
       }
       removeSavedProject(path);
@@ -67,7 +68,7 @@ export class GuiProjects {
       savePreferences(this.host.getSnapshot());
       return true;
     } catch {
-      this.host.report("项目未能移除，请重试。对话已保留。");
+      this.host.report(guiText("项目未能移除，请重试。对话已保留。"));
       return false;
     } finally { this.host.patch({ removingProject: undefined }); }
   };
