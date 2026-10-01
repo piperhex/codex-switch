@@ -164,9 +164,6 @@ export class ChatHost {
     if (this.links.has(sessionId)) return;
     this.operations.desktop.register(sessionId, (message.desktopIceServers ?? message.iceServers) as IceServer[],
       typeof message.expiresAt === 'number' ? message.expiresAt : undefined);
-    if (message.transportVersion === 2 && typeof message.resumeToken === 'string') {
-      this.lease(sessionId, message.expiresAt);
-    }
     const keys = keyPair((size) => crypto.getRandomValues(new Uint8Array(size)));
     const link = new ChatLink({
       sessionId, desktop: true, secret: keys.secret, publicKey: String(message.publicKey),
@@ -193,6 +190,9 @@ export class ChatHost {
     });
     keys.secret.fill(0);
     this.links.set(sessionId, link);
+    if (message.transportVersion === 2 && typeof message.resumeToken === 'string') {
+      this.lease(sessionId, message.expiresAt);
+    }
     this.operations.desktop.diagnose(sessionId, link.reportDiagnostic);
     connectionDetails.open(sessionId, message.clientInfo);
     if (this.quota.blocked) link.setRelayQuotaBlocked(true);

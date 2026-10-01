@@ -69,6 +69,14 @@ export class ChatConnection {
     void this.connect();
   }
 
+  /** Foreground recovery skips socket backoff without replacing the encrypted session or pending requests. */
+  retryNow() {
+    if (!this.active || !this.timer) return;
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    void this.connect();
+  }
+
   private async connect() {
     this.options.retryAt?.(null);
     const generation = ++this.generation;
@@ -192,12 +200,12 @@ export class ChatConnection {
       this.socketAuthenticated = true;
       if (message.transportVersion === 2 && typeof message.resumeToken === 'string') {
         this.resume = { sessionId: message.sessionId, resumeToken: message.resumeToken };
-        this.lease(message.expiresAt);
       }
       this.paired({ id: message.sessionId, iceServers: message.iceServers as IceServer[], keys,
         tcp: message.tcpPunch as import('../tcp/types').TcpPunchConfig | undefined,
         nativeTraversal: message.nativeTraversal as import('../nativePath').NativeTraversalConfig | undefined,
         transportVersion: Number(message.transportVersion) });
+      if (this.resume) this.lease(message.expiresAt);
       return;
     }
     if (this.resume && message.sessionId !== this.resume.sessionId) return;
@@ -280,6 +288,7 @@ export class ChatConnection {
   private disconnected() {
     this.generation += 1;
     clearTimeout(this.timer);
+    this.timer = undefined;
     clearTimeout(this.connectTimer);
     clearTimeout(this.socketErrorTimer);
     this.socketErrorTimer = undefined;
@@ -310,7 +319,7 @@ export class ChatConnection {
     if (!this.active) return;
     const delay = Math.min(30_000, 1500 * 2 ** Math.min(this.attempt++, 5));
     this.options.retryAt?.(Date.now() + delay);
-    this.timer = setTimeout(() => { void this.connect(); }, delay);
+    this.timer = setTimeout(() => { this.timer = undefined; void this.connect(); }, delay);
   }
 
   stop() {

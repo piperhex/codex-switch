@@ -18,6 +18,7 @@ const MILLISECONDS_PER_SECOND = 1000;
 const MAX_PENDING_PROBES = 128;
 const DIRECT_STABLE_MS = 3000;
 const OUTAGE_TIMEOUT_MS = 60_000;
+const TIMER_STALL_MS = 5000;
 
 /** Both paths stay open. Authenticated acknowledgements cover every fragment, including events. */
 export class HotLink {
@@ -41,6 +42,9 @@ export class HotLink {
   private selected?: Path;
   private directSince = 0;
   private outageSince = Date.now();
+  private lastTick = Date.now();
+  private expiresAt = 0;
+  private established = false;
   private lastProbe = 0;
   private probeId = 0;
   private relaySince = Date.now();
@@ -57,6 +61,7 @@ export class HotLink {
       send: (frame, retry) => this.sendData(frame, retry),
       message: options.message, mode: () => this.mode,
     });
+    this.delivery.setAvailable(false);
     if (options.publicKey) this.setKey(options.publicKey);
     this.peer = new HotPeer({ ...options,
       diagnostic: this.diagnostic,
@@ -70,7 +75,7 @@ export class HotLink {
   reportDiagnostic: import('./diagnostics').ConnectionDiagnostic = (event, fields) => this.diagnostic(event, fields);
   get connectionMode() { return this.mode; }
   offer() { return this.peer.offer(); }
-  renew(expiresAt: number) { this.peer.renew(expiresAt); }
+  renew(expiresAt: number) { this.expiresAt = expiresAt; this.peer.renew(expiresAt); }
 
   private setKey(key: string) {
     if (this.cipher) throw new Error('Session key cannot change');
@@ -189,6 +194,7 @@ export class HotLink {
 
   private choose() {
     if (this.closed) return;
+    this.resumeDelivery();
     const direct = this.healthy('direct');
     const relay = this.healthy('relay');
     const stable = Date.now() - this.directSince >= DIRECT_STABLE_MS;
@@ -198,7 +204,8 @@ export class HotLink {
     const changed = path !== this.selected;
     if (changed) this.directPackets.clear();
     this.selected = path;
-    if (path) this.outageSince = Date.now();
+    this.delivery.setAvailable(Boolean(path) || !this.expiresAt);
+    if (path) { this.outageSince = Date.now(); this.established = true; }
     const mode = path ?? 'connecting';
     if (mode !== this.mode) {
       this.diagnostic('mode', { mode, directHealthy: direct, relayHealthy: relay });
@@ -212,6 +219,7 @@ export class HotLink {
     if (this.closed) return;
     try {
       const now = Date.now();
+      if (this.expiresAt && now >= this.expiresAt) { this.close(); return; }
       if (now - this.lastProbe >= PROBE_MS) {
         this.lastProbe = now;
         for (const [id, probe] of this.probes) {
@@ -231,8 +239,19 @@ export class HotLink {
         this.setRelayAvailable(false);
         this.options.reconnectRelay?.();
       }
-      if (!this.selected && now - this.outageSince > OUTAGE_TIMEOUT_MS) this.fail('连接已中断，请重新连接电脑。');
+      // Keep established sessions through mobile background outages, bounded by the authenticated lease.
+      if (!this.selected && !(this.established && this.expiresAt > now)
+        && now - this.outageSince > OUTAGE_TIMEOUT_MS) this.fail('连接已中断，请重新连接电脑。');
     } catch { this.fail('连接暂时中断，请重新连接电脑。'); }
+  }
+
+  private resumeDelivery() {
+    const now = Date.now();
+    // Socket callbacks can resume before timers after a suspended JS runtime.
+    if (this.expiresAt && now - this.lastTick > TIMER_STALL_MS) {
+      this.delivery.setAvailable(false, this.lastTick);
+    }
+    this.lastTick = now;
   }
 
   fallback() { this.lastPong.direct = 0; this.directSince = 0; this.choose(); }
@@ -256,7 +275,8 @@ export class HotLink {
     this.choose();
   }
 
-  send(message: RpcMessage, progress?: TransferProgress): Promise<void> {
+  async send(message: RpcMessage, progress?: TransferProgress): Promise<void> {
+    this.choose();
     return this.delivery.send(message, progress);
   }
 

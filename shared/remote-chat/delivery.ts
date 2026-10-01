@@ -11,6 +11,7 @@ export interface DeliveryData { kind: 'data'; sequence: number; text: string }
 export class ReliableDelivery {
   private sequence = 0;
   private received = 0;
+  private pausedAt?: number;
   private readonly pending = new Map<number, Pending>();
   private readonly incoming = new Map<number, { text: string; mode?: ConnectionMode }>();
 
@@ -21,6 +22,14 @@ export class ReliableDelivery {
   }) {}
 
   get full() { return this.pending.size >= WINDOW_SIZE; }
+
+  /** Only time with an available path counts toward a fragment's delivery deadline. */
+  setAvailable(available: boolean, now = Date.now()) {
+    if (!available) { this.pausedAt ??= now; return; }
+    if (this.pausedAt === undefined) return;
+    for (const entry of this.pending.values()) entry.created += now - Math.max(this.pausedAt, entry.created);
+    this.pausedAt = undefined;
+  }
 
   enqueue(text: string, delivered?: () => void) {
     if (this.full || text.length > MAX_FRAME_CHARS) throw new Error('连接繁忙，请稍后重试。');
@@ -58,6 +67,7 @@ export class ReliableDelivery {
   }
 
   flush(force = false) {
+    if (this.pausedAt !== undefined) return;
     const now = Date.now();
     for (const [sequence, entry] of this.pending) {
       if (now - entry.created > DELIVERY_TIMEOUT_MS) throw new Error('连接暂时中断，请重新连接。');

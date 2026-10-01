@@ -6,7 +6,7 @@ import { ChatHost } from './host';
 
 const state = vi.hoisted(() => ({ options: undefined as LinkOptions | undefined,
   receive: undefined as ((event: HostTransportEvent) => void) | undefined,
-  relay: vi.fn(), close: vi.fn(), reconnect: vi.fn(), stop: vi.fn(), registerDesktop: vi.fn(),
+  relay: vi.fn(), close: vi.fn(), reconnect: vi.fn(), stop: vi.fn(), registerDesktop: vi.fn(), renew: vi.fn(),
   execute: vi.fn(async () => ({})) }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { subscribe: vi.fn(async () => vi.fn()) } }));
 vi.mock('../pages/codexGui/webEvents', () => ({ subscribeGuiEvent: vi.fn(async () => vi.fn()) }));
@@ -21,7 +21,7 @@ vi.mock('./nativeTransport', () => ({ NativeChatTransport: class {
 vi.mock('../../../../shared/remote-chat/link', () => ({ ChatLink: class {
   constructor(options: LinkOptions) { state.options = options; }
   setRelayAvailable = state.relay;
-  renew = vi.fn();
+  renew = state.renew;
   send = vi.fn(async () => {});
   close = state.close;
 } }));
@@ -57,6 +57,10 @@ beforeEach(async () => {
   await vi.advanceTimersByTimeAsync(0);
 });
 afterEach(() => { host.close(); vi.useRealTimers(); });
+
+it('applies the initial authenticated lease after constructing the desktop link', () => {
+  expect(state.renew).toHaveBeenCalledWith(Date.now() + 120_000);
+});
 
 it('preserves direct sessions while Rust reconnects and restores the relay on a resume notification', () => {
   state.receive!({ type: 'disconnected', generation: 2 });

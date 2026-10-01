@@ -76,6 +76,10 @@ export class LinkDelivery {
     for (const stream of Object.values(this.streams)) stream.delivery.flush(force);
   }
 
+  setAvailable(available: boolean, now = Date.now()) {
+    for (const stream of Object.values(this.streams)) stream.delivery.setAvailable(available, now);
+  }
+
   private async capacity(lane: Lane) {
     const stream = this.streams[lane];
     while (!this.closed && stream.delivery.full) {

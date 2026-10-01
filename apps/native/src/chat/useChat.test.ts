@@ -50,6 +50,7 @@ function mount(healthy = false) {
   let active = false;
   let attempts = 0;
   const stop = vi.fn(() => { active = false; events.mode('offline'); });
+  const retryNow = vi.fn();
   const request = vi.fn(async (method: string) => method === 'connect' ? [] : { data: [], nextCursor: null });
   runtime.controller = new ChatController(callbacks => {
     events = callbacks;
@@ -62,12 +63,13 @@ function mount(healthy = false) {
         if (healthy) events.ready();
       },
       stop,
+      retryNow,
       request: <T>(method: string) => request(method) as Promise<T>,
     };
   });
   useChat({ baseUrl: 'https://example.test', email: 'test@example.test',
     accessToken: 'access', refreshToken: 'refresh' }, 'device', true);
-  return { controller: runtime.controller, events, attempts: () => attempts, stop, request };
+  return { controller: runtime.controller, events, attempts: () => attempts, stop, request, retryNow };
 }
 
 it('retries immediately on foreground return while the transport is waiting for automatic retry', () => {
@@ -98,4 +100,16 @@ it('leaves an in-progress reconnection running when the app becomes active', () 
   changeAppState('active');
   expect(client.attempts()).toBe(1);
   expect(client.stop).not.toHaveBeenCalled();
+});
+
+it('resumes a background socket retry even when the retained chat is already ready', async () => {
+  const client = mount(true);
+  await vi.advanceTimersByTimeAsync(0);
+  changeAppState('background');
+  client.events.mode('connecting');
+  changeAppState('active');
+  expect(client.retryNow).toHaveBeenCalledOnce();
+  expect(client.controller.snapshot().ready).toBe(true);
+  expect(client.stop).not.toHaveBeenCalled();
+  expect(client.request.mock.calls.filter(([method]) => method === 'connect')).toHaveLength(1);
 });

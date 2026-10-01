@@ -6,14 +6,15 @@ import type { TransferProgress } from '../../../../shared/remote-chat/uploadProg
 import { getChatPolicy, DEFAULT_CHAT_POLICY } from '../../../../shared/remote-chat/policy';
 
 const state = vi.hoisted(() => ({ options: undefined as LinkOptions | undefined,
-  send: vi.fn(async (_message: RpcMessage, _progress?: TransferProgress) => undefined), relay: vi.fn(), close: vi.fn() }));
+  send: vi.fn(async (_message: RpcMessage, _progress?: TransferProgress) => undefined),
+  relay: vi.fn(), close: vi.fn(), renew: vi.fn() }));
 vi.mock('../../../../shared/remote-chat/link', () => ({ ChatLink: class {
   resumable = true;
   constructor(options: LinkOptions) { state.options = options; }
   offer = async () => undefined;
   send = state.send;
   setRelayAvailable = state.relay;
-  renew = vi.fn();
+  renew = state.renew;
   close = state.close;
 } }));
 
@@ -56,6 +57,28 @@ beforeEach(async () => {
   state.options!.mode('direct');
 });
 afterEach(() => { connection.stop(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+it('applies the initial authenticated lease to the created transport', () => {
+  expect(state.renew).toHaveBeenCalledWith(Date.now() + 120_000);
+});
+
+it('skips socket backoff on foreground return without reinitializing chat or overlapping handshakes', async () => {
+  Socket.instances[0].onclose?.({ code: 1006 });
+  connection.retryNow();
+  connection.retryNow();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(Socket.instances).toHaveLength(2);
+  const resumed = Socket.instances[1];
+  resumed.onopen?.();
+  expect(JSON.parse(resumed.send.mock.calls[0][0])).toMatchObject({ resume: { sessionId: 'session' } });
+  resumed.receive({ type: 'resumed', sessionId: 'session', expiresAt: Date.now() + 120_000 });
+  await vi.advanceTimersByTimeAsync(1500);
+  connection.retryNow();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(Socket.instances).toHaveLength(2);
+  expect(state.close).not.toHaveBeenCalled();
+  expect(ready).toHaveBeenCalledOnce();
+});
 
 it('negotiates diagnostics per socket and disables them again when reconnecting to an older server', async () => {
   expect(state.options!.diagnosticsEnabled?.()).toBe(false);
