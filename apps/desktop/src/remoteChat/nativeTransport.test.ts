@@ -73,3 +73,30 @@ it('forgets a closed peer while offline so Rust cannot resume a destroyed encryp
     request: { clientId: expect.any(String), generation: 4, message: { type: 'peer-close', sessionId: 'phone' } },
   });
 });
+
+it('keeps the host connected and drains queued chat frames after a diagnostic IPC rejection', async () => {
+  const transport = host(); await settle();
+  state.channels[0].onmessage({ sequence: 1, events: [{ type: 'ready', generation: 1 }] });
+  state.invoke.mockRejectedValueOnce(new Error('unsupported diagnostic frame'));
+  transport.send({ type: 'diagnostic', sessionId: 'phone', payload: { event: 'peer-created' } });
+  const relay = { type: 'relay', sessionId: 'phone', payload: 'aabb' };
+  transport.send(relay); await settle();
+  expect(state.invoke).not.toHaveBeenCalledWith('remote_chat_reconnect', expect.anything());
+  expect(transport.ready).toBe(true);
+  expect(transport.bufferedAmount).toBe(0);
+  expect(state.invoke).toHaveBeenLastCalledWith('remote_chat_send', {
+    request: { clientId: expect.any(String), generation: 1, message: relay },
+  });
+});
+
+it('still reconnects when a chat frame fails to cross IPC', async () => {
+  const transport = host(); await settle();
+  state.channels[0].onmessage({ sequence: 1, events: [{ type: 'ready', generation: 1 }] });
+  state.invoke.mockRejectedValueOnce(new Error('transport unavailable'));
+  transport.send({ type: 'relay', sessionId: 'phone', payload: 'aabb' }); await settle();
+  expect(state.invoke).toHaveBeenCalledWith('remote_chat_reconnect', {
+    request: { clientId: expect.any(String), generation: 1, reset: false },
+  });
+  expect(transport.ready).toBe(false);
+  expect(transport.bufferedAmount).toBe(0);
+});

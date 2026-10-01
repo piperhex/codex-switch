@@ -72,6 +72,8 @@ export class NativeChatTransport {
       await invoke('remote_chat_send', { request: { clientId: this.clientId, generation, message } });
     });
     this.outgoing = sent.catch(() => {
+      // Diagnostics are best-effort; an IPC rejection must not restart every paired chat.
+      if ('type' in message && message.type === 'diagnostic') return;
       if (!this.closed && generation === this.generation) this.reconnect();
     }).finally(() => { this.buffered -= bytes; });
   }

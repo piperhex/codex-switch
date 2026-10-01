@@ -86,3 +86,28 @@ it('drains peer-close before replacing a socket so abandoned sessions do not fil
     message: { type: 'peer-close', sessionId: 'old-session' } } });
   expect(next.readyState).toBe(1);
 });
+
+it('keeps a PC client connected after diagnostic IPC rejection and sends the next chat frame', async () => {
+  const socket = await connect();
+  socket.onclose = vi.fn();
+  vi.mocked(invoke).mockRejectedValueOnce(new Error('unsupported diagnostic frame'));
+  socket.send(JSON.stringify({ type: 'diagnostic', sessionId: 'session', payload: { event: 'peer-created' } }));
+  const relay = { type: 'relay', sessionId: 'session', payload: 'aabb' };
+  socket.send(JSON.stringify(relay)); await flush();
+  expect(socket.onclose).not.toHaveBeenCalled();
+  expect(socket.readyState).toBe(1);
+  expect(socket.bufferedAmount).toBe(0);
+  expect(invoke).toHaveBeenLastCalledWith('gui_remote_send', {
+    request: { clientId: socket.clientId, message: relay },
+  });
+});
+
+it('still closes a PC client when a chat frame fails to cross IPC', async () => {
+  const socket = await connect();
+  socket.onclose = vi.fn();
+  vi.mocked(invoke).mockRejectedValueOnce(new Error('transport unavailable'));
+  socket.send(JSON.stringify({ type: 'relay', sessionId: 'session', payload: 'aabb' })); await flush();
+  expect(socket.onclose).toHaveBeenCalledWith({ code: 1006 });
+  expect(socket.readyState).toBe(3);
+  expect(socket.bufferedAmount).toBe(0);
+});

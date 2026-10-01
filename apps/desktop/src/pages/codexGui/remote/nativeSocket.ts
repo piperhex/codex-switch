@@ -7,7 +7,7 @@ interface Batch { sequence: number; events: SocketEvent[] }
 const MAX_BUFFER_BYTES = 4 * 1024 * 1024;
 let lifecycle = Promise.resolve();
 
-/** Only public keys and encrypted peer frames cross IPC; Rust adds cloud authentication. */
+/** Peer frames and connection diagnostics cross IPC; Rust adds cloud authentication. */
 export class NativeGuiSocket implements ChatSocket {
   readonly clientId = crypto.randomUUID();
   readyState = 0;
@@ -63,7 +63,10 @@ export class NativeGuiSocket implements ChatSocket {
     this.bufferedAmount += bytes;
     this.outgoing = this.outgoing.then(async () => {
       await invoke('gui_remote_send', { request: { clientId: this.clientId, message: frame } });
-    }).catch(() => this.finish(1006)).finally(() => { this.bufferedAmount -= bytes; });
+    }).catch(() => {
+      // Diagnostic delivery must not end an otherwise healthy chat session.
+      if (frame.type !== 'diagnostic') this.finish(1006);
+    }).finally(() => { this.bufferedAmount -= bytes; });
   }
 
   private finish(code: number) {

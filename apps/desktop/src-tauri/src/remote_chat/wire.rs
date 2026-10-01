@@ -96,4 +96,58 @@ mod tests {
             assert!(decode(bytes).is_err());
         }
     }
+
+    #[test]
+    fn diagnostic_ipc_frames_reach_the_coordinator_as_json_in_both_relay_modes() {
+        let value = json!({"type": "diagnostic", "sessionId": "phone",
+            "payload": {"event": "peer-created", "scope": "chat", "generation": 0}});
+        let frame: Outgoing = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(frame.session_id(), "phone");
+        for binary in [false, true] {
+            let Message::Text(text) = encode(&frame, binary).unwrap() else {
+                panic!("diagnostics must remain JSON")
+            };
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&text).unwrap(),
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn diagnostic_ipc_validation_rejects_invalid_sessions_and_payloads() {
+        for (session, payload) in [
+            ("".to_string(), json!({"event": "peer-created"})),
+            ("x".repeat(161), json!({"event": "peer-created"})),
+            ("phone".into(), json!(null)),
+            ("phone".into(), json!([])),
+            ("phone".into(), json!({})),
+            ("phone".into(), json!({"event": 1})),
+            ("phone".into(), json!({"event": ""})),
+            ("phone".into(), json!({"event": "x".repeat(65)})),
+        ] {
+            let frame: Outgoing = serde_json::from_value(json!({
+                "type": "diagnostic", "sessionId": session, "payload": payload
+            }))
+            .unwrap();
+            assert!(encode(&frame, true).is_err());
+        }
+    }
+
+    #[test]
+    fn diagnostic_limit_counts_the_complete_utf8_frame_in_both_relay_modes() {
+        let mut value = json!({"type": "diagnostic", "sessionId": "phone",
+            "payload": {"event": "peer-created", "extension": "诊断"}});
+        let remaining = super::super::protocol::DIAGNOSTIC_FRAME_LIMIT
+            - serde_json::to_vec(&value).unwrap().len();
+        value["payload"]["extension"] = json!(format!("诊断{}", "x".repeat(remaining)));
+        let frame: Outgoing = serde_json::from_value(value.clone()).unwrap();
+        let extension = value["payload"]["extension"].as_str().unwrap().to_owned() + "x";
+        value["payload"]["extension"] = json!(extension);
+        let oversized: Outgoing = serde_json::from_value(value).unwrap();
+        for binary in [false, true] {
+            assert!(encode(&frame, binary).is_ok());
+            assert!(encode(&oversized, binary).is_err());
+        }
+    }
 }
