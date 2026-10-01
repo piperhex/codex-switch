@@ -34,6 +34,7 @@ function applyTcpPunchPatch() {
   for (const name of ['PunchSocket.java', 'PunchServer.java', 'PunchDescriptor.java']) {
     fs.copyFileSync(path.join(native, 'patches/tcp', name), path.join(directory, name));
   }
+  require('./patch-tcp-lifecycle.cjs').applyTcpLifecyclePatch(directory);
   require('./patch-ios-tcp-punch.cjs').applyIosTcpPunchPatch(path.dirname(manifest));
 }
 
