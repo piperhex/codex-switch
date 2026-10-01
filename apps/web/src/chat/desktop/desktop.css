@@ -40,11 +40,11 @@
   flex-shrink: 0; min-height: 56px; border-radius: 10px; padding: 10px 2px; font-size: 12px; }
 .rd-toolbar button[aria-pressed=true], .rd-toolbar .rd-mode,
 .rd-options button[aria-pressed=true] { background: #355987; }
-.rd-stats { position: absolute; left: 10px; top: 10px; display: flex; align-items: flex-start;
-  max-width: 240px; border-radius: 6px; color: #cbd5e1; background: #080b1273; pointer-events: none; }
+.rd-stats { position: absolute; left: 0; top: 10px; display: flex; align-items: flex-start;
+  max-width: 240px; color: #cbd5e1; pointer-events: none; }
 .rd-stats span { padding: 8px; white-space: pre-line; font: 12px/19px ui-monospace, monospace;
-  font-variant-numeric: tabular-nums; }
-.rd-stats button { width: 32px; height: 32px; display: grid; place-items: center;
+  font-variant-numeric: tabular-nums; border-radius: 6px; background: #080b1273; }
+.rd-stats button { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center;
   padding: 0; background: transparent; pointer-events: auto; border-radius: 6px; }
 .rd-status { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); padding: 14px; border-radius: 12px;
   background: #222b3aee; width: max-content; max-width: min(400px, 90%); display: grid; gap: 10px; font-size: 14px; }
