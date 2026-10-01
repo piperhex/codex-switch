@@ -159,6 +159,7 @@ export interface ThreadReadState { turnId: string; unread: boolean }
 export interface GuiState {
   capacityRetry?: import("./capacityRetry").CapacityRetryState;
   modelSettingsLoading?: boolean;
+  modelCatalogLoading?: boolean;
   computerUseSetup?: ComputerUseSetup;
   workspaceBusy?: boolean;
   pendingRequest?: PendingRequest;

@@ -1,5 +1,5 @@
 import { resolveModelSelection, type ModelSelection } from "./modelSelection";
-import type { GuiState } from "./types";
+import type { GuiState, Model } from "./types";
 import { appendModelChange, type PendingModelChange } from "./liveModelNotice";
 
 export interface ModelSettingsSnapshot {
@@ -79,12 +79,41 @@ export class ThreadModelSettings {
 
   catalogChanged() { this.show(undefined, true); }
 
+  /** Persist catalog fallbacks and update running/queued conversations even when no page is viewing them. */
+  async reconcileCatalog(previousModels: Model[]) {
+    const state = this.host.getSnapshot();
+    const models = state.models;
+    if (!models.length) return;
+    const running = Object.keys(state.conversations).filter(id => state.conversations[id].activeTurn);
+    const scopes = new Set([null, state.selected, ...this.entries.keys(), ...Object.keys(state.queued), ...running]);
+    for (const threadId of scopes) {
+      await this.ready(threadId);
+      if (this.host.getSnapshot().models !== models) return;
+      const saved = this.entries.get(threadId)?.selection ?? EMPTY_SELECTION;
+      const previous = resolveModelSelection(previousModels.length ? previousModels : models, saved);
+      const selection = resolveModelSelection(models, saved);
+      if ((saved.model && (saved.model !== selection.model || saved.effort !== selection.effort))
+        || previous.model !== selection.model || previous.effort !== selection.effort) {
+        this.saveSelection({ threadId, previous, selection });
+        await this.ready(threadId);
+      }
+      this.show(threadId, true);
+    }
+  }
+
   change(patch: Partial<ModelSelection>, threadId = this.host.getSnapshot().selected) {
     const previous = this.selection(threadId);
     const selection = { ...previous, ...patch };
     if (patch.model && patch.model !== previous.model && patch.effort === undefined) selection.effort = "";
     const models = this.host.getSnapshot().models;
     const normalized = models.length ? resolveModelSelection(models, selection) : selection;
+    this.saveSelection({ threadId, previous, selection: normalized });
+  }
+
+  private saveSelection({ threadId, previous, selection: normalized }: {
+    threadId: string | null; previous: ModelSelection; selection: ModelSelection;
+  }) {
+    const models = this.host.getSnapshot().models;
     if (threadId && this.host.getSnapshot().conversations[threadId]?.activeTurn
       && (normalized.model !== previous.model || normalized.effort !== previous.effort)) {
       const pending = this.notifying.get(threadId);

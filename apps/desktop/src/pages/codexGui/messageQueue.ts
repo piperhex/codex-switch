@@ -11,6 +11,8 @@ interface QueueHost {
   patch: (patch: Partial<GuiState>) => void;
   report: (error: unknown) => void;
   acceptTurn: (threadId: string, turn: Turn) => void;
+  catalogGuard?: () => () => boolean;
+  selection?: (threadId: string) => Pick<Settings, "model" | "effort">;
   generateTitle?: (thread: Thread, prompt: string) => Promise<void>;
 }
 
@@ -96,7 +98,8 @@ export class MessageQueue {
   flush = async (threadId: string, retry = false): Promise<void> => {
     const state = this.host.getSnapshot();
     const messages = this.list(threadId);
-    if (!this.host.active() || state.workspaceBusy || state.connection !== "ready" || state.sending
+    if (!this.host.active() || state.modelCatalogLoading || state.workspaceBusy
+      || state.connection !== "ready" || state.sending
       || state.compacting === threadId
       || this.pending.has(threadId)
       || state.conversations[threadId]?.activeTurn || !messages.length
@@ -104,11 +107,12 @@ export class MessageQueue {
     this.pending.add(threadId);
     const ids = new Set(messages.map((item) => item.id));
     this.markBusy(threadId, ids, true);
+    const currentCatalog = this.host.catalogGuard?.() ?? (() => true);
     let sent = false;
     let dispatched = false;
     try {
       await this.host.saved();
-      if (!await this.resume(threadId, messages[0])) return;
+      if (!await this.resume(threadId, messages[0]) || !currentCatalog()) return;
       const thread = this.host.getSnapshot().conversations[threadId]?.thread;
       dispatched = true;
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "sendBatch", threadId,
@@ -121,7 +125,14 @@ export class MessageQueue {
       if (thread) void this.host.generateTitle?.(thread, messages.map((message) => message.text).join('\n'));
       sent = true;
     } catch (error) { this.fail(threadId, ids, error, dispatched); }
-    finally { this.pending.delete(threadId); this.markBusy(threadId, ids, false); }
+    finally {
+      this.pending.delete(threadId); this.markBusy(threadId, ids, false);
+      if (!currentCatalog()) {
+        const selection = this.host.selection?.(threadId);
+        if (selection) this.updateSettings(threadId, selection);
+        void this.flush(threadId);
+      }
+    }
     if (sent) void this.flush(threadId);
   };
   steer = async (threadId: string, id: string) => {

@@ -10,6 +10,9 @@ import { guiApi } from '../pages/codexGui/api';
 import { pickChatImages } from '../../../web/src/chat/pickChatImages';
 import { ReliableDelivery } from '../../../../shared/remote-chat/delivery';
 
+vi.mock('../pages/codexGui/composerBridge', () => ({ guiComposer: {
+  validateSend: async () => ({ model: 'model', effort: 'high', access: 'workspace-write' }),
+} }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { request: vi.fn(), connect: vi.fn() } }));
 afterEach(() => { setChatConnectionMode('offline'); setChatPolicy(DEFAULT_CHAT_POLICY); vi.resetAllMocks(); });
 

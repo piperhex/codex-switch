@@ -16,7 +16,7 @@ export const shared = {
   '自动判断风险，批准安全操作。': 'Assess risk and approve safe actions automatically.',
   '可访问电脑上的所有文件和网络，无需逐次确认。': 'Access all files and the network without asking each time.',
   '与电脑端同步，对后续消息生效。': 'Syncs with your computer and applies to future messages.',
-  '正在保存设置…': 'Saving settings…', '已保留选择，连接后自动保存。': 'Your selection will be saved when connected.',
+  '正在同步设置…': 'Syncing settings…', '已保留选择，连接后自动保存。': 'Your selection will be saved when connected.',
   '连接后即可压缩': 'Connect to compact context', '开始对话后即可压缩': 'Start a conversation to compact context',
   '恢复对话后即可压缩': 'Restore the conversation to compact context', '请等待当前任务结束': 'Wait for the current task to finish',
   '消息内容': 'Message', '回复内容': 'Reply', '文件修改': 'File changes', '思考过程': 'Reasoning',

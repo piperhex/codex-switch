@@ -173,6 +173,15 @@ export class ChatOperations {
     if (request.method !== 'request' || !OPERATIONS.has(String(body.operation))) {
       throw new Error('当前手机端暂不支持此操作。');
     }
+    if (body.operation === 'start' || body.operation === 'send') {
+      const settings = await guiComposer.validateSend({
+        threadId: typeof body.threadId === 'string' ? body.threadId : undefined,
+        model: typeof body.model === 'string' ? body.model : undefined,
+        effort: typeof body.effort === 'string' ? body.effort : undefined,
+      });
+      body.model = settings.model;
+      if (body.operation === 'send') body.effort = settings.effort;
+    }
     // The existing typed Rust boundary validates directories, thread ids, inputs and approval replies.
     const sidebarVersion = guiSidebar.version();
     if (body.operation === 'send' || body.operation === 'steer') {

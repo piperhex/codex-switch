@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hasLocalBackend, invoke } from "../../api/backend";
 import type { Account, Provider } from "../../types";
 import { subscribeGuiEvent } from "./webEvents";
+import { switchGuiAccount } from "./session";
 
 export type GuiAccountSelection = { kind: "none" } | { kind: "account" | "provider"; id: string };
 
@@ -50,7 +51,7 @@ export function useGuiAccountSelection(options: { active: boolean; accounts: Acc
     switching.current = true;
     const request = ++generation.current;
     try {
-      const saved = await invoke<GuiAccountSelection>("codex_gui_switch_account", { selection: next });
+      const saved = await switchGuiAccount(next);
       if (request === generation.current) { setSelection(saved); setError(""); }
       return true;
     } finally { switching.current = false; }

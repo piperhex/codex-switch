@@ -126,6 +126,25 @@ it('synchronizes speed both ways and clears its pending save before another mess
   controller.stop();
 });
 
+it('blocks sends and defers edits until the PC finishes switching the model source', async () => {
+  const controller = await existingChat();
+  pc = { ...pc, revision: pc.revision + 1, syncing: true };
+  mocks.events!.event({ method: COMPOSER_EVENT, params: pc });
+  expect(controller.snapshot().settingsBusy).toBe(true);
+  expect(await controller.send({ text: 'must wait', ...controller.snapshot().settings })).toBe(false);
+  await controller.setSettings({ effort: 'xhigh' });
+  expect(mocks.request).not.toHaveBeenCalled();
+  pc = { ...pc, revision: pc.revision + 1, syncing: false,
+    models: [pc.models[1]], settings: { ...pc.settings, model: 'second' } };
+  mocks.events!.event({ method: COMPOSER_EVENT, params: pc });
+  await vi.waitFor(() => expect(controller.snapshot().settingsBusy).toBe(false));
+  expect(controller.snapshot().settings).toMatchObject({ model: 'second', effort: 'xhigh' });
+  expect(mocks.request).toHaveBeenCalledExactlyOnceWith('request', {
+    operation: 'composerSet', settings: { effort: 'xhigh' },
+  });
+  controller.stop();
+});
+
 it('preserves a newer speed choice while the previous save is acknowledged', async () => {
   pc.settings.speed = 'normal';
   const controller = await existingChat();

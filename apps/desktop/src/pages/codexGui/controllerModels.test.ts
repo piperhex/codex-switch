@@ -25,33 +25,33 @@ it("resolves concrete model and effort selections when switching Providers and b
   await controller.connect();
   expect(controller.getSnapshot().settings).toMatchObject({ model: official.model, effort: "high" });
   controller.settings({ model: official.model, effort: "high" });
-  controller.setProviderModels([thirdParty]);
+  await controller.setModels([thirdParty]);
   expect(controller.getSnapshot().models).toEqual([thirdParty]);
   expect(controller.getSnapshot().settings).toMatchObject({ model: thirdParty.model, effort: "high" });
   controller.settings({ model: thirdParty.model, effort: "max" });
-  controller.setProviderModels([thirdParty]);
+  await controller.setModels([thirdParty]);
   expect(controller.getSnapshot().settings).toMatchObject({ model: thirdParty.model, effort: "high" });
-  controller.setProviderModels(null);
+  await controller.setModels([official]);
   expect(controller.getSnapshot().models).toEqual([official]);
   expect(controller.getSnapshot().settings).toMatchObject({ model: official.model, effort: "high" });
   controller.dispose();
 });
 
-it("keeps the latest Provider visible while the account model request is still running", async () => {
+it("discards the old account response after changing Providers while loading", async () => {
   let finish!: (value: unknown) => void;
   vi.mocked(guiApi.request).mockImplementation((request) => request.operation === "models"
     ? new Promise((resolve) => { finish = resolve; }) : Promise.resolve({ data: [], nextCursor: null }));
   const controller = new GuiController();
   const connecting = controller.connect();
   await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
-  controller.setProviderModels([thirdParty]);
+  await controller.setModels([thirdParty]);
   controller.settings({ model: thirdParty.model, effort: "high" });
-  controller.setProviderModels([model("deepseek-v3")]);
+  vi.mocked(guiApi.request).mockResolvedValue({ data: [model("deepseek-v3")], nextCursor: null });
+  const switching = controller.modelCatalog.invalidate();
   finish({ data: [official], nextCursor: null });
   await connecting;
+  await switching;
   expect(controller.getSnapshot().models.map((entry) => entry.model)).toEqual(["deepseek-v3"]);
-  controller.setProviderModels(null);
-  expect(controller.getSnapshot().models).toEqual([official]);
   controller.dispose();
 });
 
@@ -65,7 +65,7 @@ it("updates the catalog during an active turn without reconnecting or changing t
   const before = controller.getSnapshot().conversations.live;
   vi.mocked(guiApi.connect).mockClear();
   vi.mocked(guiApi.request).mockClear();
-  controller.setProviderModels([thirdParty]);
+  await controller.setModels([thirdParty]);
   expect(controller.getSnapshot().models).toEqual([thirdParty]);
   expect(controller.getSnapshot().conversations.live).toBe(before);
   expect(controller.getSnapshot().conversations.live.activeTurn).toBe("turn");

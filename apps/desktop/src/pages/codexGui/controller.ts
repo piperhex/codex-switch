@@ -40,10 +40,12 @@ export class GuiController {
   private unlisten?: () => void;
   private disposed = false;
   private connecting?: Promise<void>;
-  private accountModels: Model[] | null = null;
-  private providerModels: Model[] | null = null;
   readonly modelCatalog = new GuiModelCatalog({ ready: () => this.state.connection === "ready",
-    accept: (models) => { this.accountModels = models; this.applyModels(); } });
+    accept: (models) => this.setModels(models),
+    syncing: (modelCatalogLoading) => {
+      this.patch({ modelCatalogLoading });
+      if (!modelCatalogLoading) Object.keys(this.state.queued).forEach(id => void this.queue.flush(id));
+    } });
   private streamEvents: GuiEvent[] = [];
   private streamTimer?: ReturnType<typeof setTimeout>;
   private remoteReads = new Map<string, Promise<void>>();
@@ -80,6 +82,7 @@ export class GuiController {
   readonly projectActions = new GuiProjects({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report });
   readonly readState = new GuiReadState({ getSnapshot: this.getSnapshot, patch: this.patch });
   readonly queue = new MessageQueue({ getSnapshot: this.getSnapshot, patch: this.patch,
+    catalogGuard: () => this.modelCatalog.guard(), selection: (id) => this.modelSettings.selection(id),
     saved: () => this.queueJournal.saved(),
     active: () => !this.disposed, report: this.report,
     generateTitle: (thread, prompt) => this.titles.generate(thread, prompt),
@@ -174,18 +177,13 @@ export class GuiController {
     } catch (error) { this.patch({ connection: "offline" }); this.report(error); }
   }
 
-  setProviderModels = (models: Model[] | null) => {
-    this.providerModels = models;
-    this.applyModels();
-  };
-
-  private applyModels() {
+  setModels = async (models: Model[]) => {
     if (this.disposed) return;
-    const models = this.providerModels ?? this.accountModels;
-    if (!models) { this.patch({ models: [] }); return; }
+    const previous = this.state.models;
     this.patch({ models });
     this.modelSettings.catalogChanged();
-  }
+    await this.modelSettings.reconcileCatalog(previous);
+  };
 
   refresh = async (more = false) => {
     if (more && (!this.state.cursor || this.state.loading)) return;
@@ -340,7 +338,8 @@ export class GuiController {
   send = async (text: string, images: string[], skills: SkillReference[] = [], attachments: AttachmentReference[] = []) => {
     const { selected, settings, conversations } = this.state;
     const projectOverride = selected ? this.state.projectOverrides[selected] : undefined;
-    if (this.state.modelSettingsLoading || this.state.workspaceBusy || this.state.sending
+    if (this.state.modelCatalogLoading || this.state.modelSettingsLoading
+      || this.state.workspaceBusy || this.state.sending
       || this.state.deleting || this.state.compacting === selected
       || this.state.connection !== "ready" || this.state.archived
       || (!text.trim() && !images.length && !skills.length && !attachments.length)) return false;
@@ -355,6 +354,7 @@ export class GuiController {
     }
     const startedAtMs = Date.now();
     const canSend = this.capacityRetry.sendGuard();
+    const currentCatalog = this.modelCatalog.guard();
     this.patch({ sending: true, pendingRequest: { threadId: selected, startedAtMs }, error: "" });
     try {
       const response = selected
@@ -363,7 +363,7 @@ export class GuiController {
         : await guiApi.request<{ thread: Thread }>({ operation: "start", cwd: settings.cwd || undefined,
           model: settings.model || undefined, access: settings.access });
       const { thread } = response;
-      if (!canSend()) return false;
+      if (!canSend() || !currentCatalog()) return false;
       this.acceptSentThread(thread, { selected, startedAtMs, projectOverride, settings });
       // Loaded threads can ignore resume overrides; apply project and access settings to each new turn.
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "send", threadId: thread.id,

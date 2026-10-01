@@ -6,6 +6,7 @@ export interface ComposerSettings { model: string; effort: string; access: Acces
 export const COMPOSER_FIELDS = ['model', 'effort', 'access', 'speed'] as const;
 export interface ComposerSnapshot {
   models: Model[]; settings: ComposerSettings; revision: number;
+  syncing?: boolean;
   /** Omitted by older hosts; null is the new-conversation draft. */
   threadId?: string | null;
 }

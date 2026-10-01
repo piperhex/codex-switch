@@ -20,7 +20,7 @@ let controller: GuiController;
 function Fixture({ catalog }: { catalog: Model[] }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const { usage } = useUsageStatus(true);
-  useEffect(() => { controller.setProviderModels(catalog); }, [catalog]);
+  useEffect(() => { controller.setModels(catalog); }, [catalog]);
   return <><span>{usage?.totalTokens ?? "刷新中"}</span><ModelPicker models={state.models}
     model={state.settings.model} effort={state.settings.effort} onChange={controller.settings} disabled={false} /></>;
 }

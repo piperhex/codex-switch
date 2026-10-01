@@ -3,6 +3,7 @@ import type { Account, Provider } from '../types';
 import { object } from '../../../../shared/remote-chat/protocol';
 import type { GuiAccountSelection, GuiAccountsSnapshot } from '../../../../shared/remote-chat/guiAccounts';
 import { guiAccountBalances } from './guiAccountBalances';
+import { switchGuiAccount } from '../pages/codexGui/session';
 
 function remainingPercent(value: number | undefined) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
@@ -50,7 +51,5 @@ export async function selectGuiAccount(value: unknown): Promise<GuiAccountSelect
     || typeof selection.id !== 'string' || !selection.id.trim() || selection.id.length > 160) {
     return Promise.reject(new Error('请选择可用账户。'));
   }
-  return invoke<GuiAccountSelection>('codex_gui_switch_account', {
-    selection: { kind: selection.kind, id: selection.id },
-  });
+  return switchGuiAccount({ kind: selection.kind as 'account' | 'provider', id: selection.id });
 }

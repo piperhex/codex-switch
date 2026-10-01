@@ -8,6 +8,9 @@ import { guiApi } from '../pages/codexGui/api';
 import { ChatOperations } from './operations';
 import { remoteQueue } from './queue';
 
+vi.mock('../pages/codexGui/composerBridge', () => ({ guiComposer: {
+  validateSend: async () => ({ model: 'model', effort: 'high', access: 'workspace-write' }),
+} }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), respond: vi.fn() } }));
 const skill: Skill = { name: 'review', path: 'C:/skills/review/SKILL.md', description: '检查代码', enabled: true };
 const thread: Thread = { id: 'chat', preview: '', cwd: 'C:/project', updatedAt: 1, turns: [] };

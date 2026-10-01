@@ -6,13 +6,12 @@ import { composerPatch, DEFAULT_COMPOSER, type ComposerSettings,
   type ComposerSnapshot, type RequestSpeed } from '../../../../../shared/remote-chat/composer';
 import { guiRequestSpeed, type RequestSpeedSource } from './requestSpeedBridge';
 
-type Binding = Pick<GuiController, 'getSnapshot' | 'subscribe' | 'settings' | 'setProviderModels' | 'modelSettings'>;
+type Binding = Pick<GuiController, 'getSnapshot' | 'subscribe' | 'settings' | 'modelCatalog' | 'modelSettings'>;
 const MAX_OBSERVED_CONVERSATIONS = 128;
 
 /** Owns the small shared composer state while the main GUI is mounted or the phone is its only client. */
 export class ComposerBridge {
   private binding?: Binding;
-  private providerModels: Model[] | null = null;
   private value: ComposerSnapshot = { models: [], settings: { ...DEFAULT_COMPOSER }, revision: 0 };
   private readonly listeners = new Set<(snapshot: ComposerSnapshot) => void>();
   private loading?: Promise<void>;
@@ -34,15 +33,14 @@ export class ComposerBridge {
 
   attach(binding: Binding) {
     this.binding = binding;
-    if (this.providerModels) binding.setProviderModels(this.providerModels);
     if (this.pendingSettings) {
       const { model, effort, access } = this.value.settings;
       binding.settings({ model, effort, access });
     }
     this.pendingSettings = false;
     const update = () => {
-      const { models, settings } = binding.getSnapshot();
-      if (models.length) this.publish(models, settings);
+      const { models, settings, modelCatalogLoading } = binding.getSnapshot();
+      this.publish(models, settings, Boolean(modelCatalogLoading));
     };
     update();
     const unsubscribe = binding.subscribe(update);
@@ -50,19 +48,13 @@ export class ComposerBridge {
     return () => { unsubscribe(); unwatch(); if (this.binding === binding) this.binding = undefined; };
   }
 
-  setProviderModels(models: Model[] | null) {
-    if (this.providerModels === models) return;
-    this.providerModels = models;
-    if (this.binding) this.binding.setProviderModels(models);
-    else if (models) this.publish(models, this.value.settings);
-  }
-
-  private publish(models: Model[], selection: ComposerSettings) {
+  private publish(models: Model[], selection: ComposerSettings, syncing = false) {
     const settings = { ...resolveModelSelection(models, selection), access: selection.access,
       ...(this.value.settings.speed ? { speed: this.value.settings.speed } : {}) };
     if (models === this.value.models && settings.model === this.value.settings.model
-      && settings.effort === this.value.settings.effort && settings.access === this.value.settings.access) return;
-    this.value = { models, settings, revision: ++this.revision };
+      && settings.effort === this.value.settings.effort && settings.access === this.value.settings.access
+      && syncing === Boolean(this.value.syncing)) return;
+    this.value = { models, settings, syncing, revision: ++this.revision };
     for (const listener of this.listeners) listener(this.value);
     this.publishScopes();
   }
@@ -75,12 +67,15 @@ export class ComposerBridge {
   }
 
   private publishScope(threadId: string | null): ComposerSnapshot {
-    const settings = { ...this.value.settings, ...this.binding!.modelSettings.selection(threadId) };
+    const selection = this.value.models.length ? this.binding!.modelSettings.selection(threadId)
+      : { model: '', effort: '' };
+    const settings = { ...this.value.settings, ...selection };
+    const syncing = Boolean(this.value.syncing || this.binding!.modelSettings.loading(threadId));
     const previous = this.scoped.get(threadId);
-    if (previous && previous.models === this.value.models
+    if (previous && previous.models === this.value.models && previous.syncing === syncing
       && Object.keys(settings).every((key) => settings[key as keyof ComposerSettings]
         === previous.settings[key as keyof ComposerSettings])) return previous;
-    const snapshot = { models: this.value.models, settings, threadId, revision: ++this.revision };
+    const snapshot = { models: this.value.models, settings, syncing, threadId, revision: ++this.revision };
     this.scoped.set(threadId, snapshot);
     if (this.scoped.size > MAX_OBSERVED_CONVERSATIONS) this.scoped.delete(this.scoped.keys().next().value!);
     for (const listener of this.listeners) listener(snapshot);
@@ -90,7 +85,7 @@ export class ComposerBridge {
   private publishScopes() {
     if (!this.binding) return;
     for (const threadId of this.scoped.keys()) {
-      if (!this.binding.modelSettings.loading(threadId)) this.publishScope(threadId);
+      this.publishScope(threadId);
     }
   }
 
@@ -102,13 +97,12 @@ export class ComposerBridge {
       models.push(...result.data);
       cursor = result.nextCursor || undefined;
     } while (cursor);
-    if (!this.binding?.getSnapshot().models.length && !this.providerModels) this.publish(models, this.value.settings);
+    if (!this.binding) this.publish(models, this.value.settings);
   }
 
   private async readSelection() {
     const current = this.binding?.getSnapshot();
-    if (current?.models.length) this.publish(current.models, current.settings);
-    else if (this.providerModels) this.publish(this.providerModels, this.value.settings);
+    if (current) this.publish(current.models, current.settings, Boolean(current.modelCatalogLoading));
     else {
       this.loading ??= this.loadModels().finally(() => { this.loading = undefined; });
       await this.loading;
@@ -117,16 +111,19 @@ export class ComposerBridge {
 
   async read(threadId?: string | null): Promise<ComposerSnapshot> {
     if (threadId !== undefined && !this.binding) throw new Error('电脑尚未就绪，请稍后重试。');
+    await this.binding?.modelCatalog.ready();
     await Promise.all([this.readSelection(), this.speed?.read().then((speed) => this.publishSpeed(speed))
       .catch(() => { /* Model selection stays usable if the host cannot report its speed yet. */ }),
       threadId !== undefined ? this.binding!.modelSettings.ready(threadId) : undefined]);
     if (threadId !== undefined && !this.binding) throw new Error('电脑尚未就绪，请稍后重试。');
+    await this.binding?.modelCatalog.ready();
     return threadId === undefined ? this.value : this.publishScope(threadId);
   }
 
   async update(input: unknown, threadId?: string | null): Promise<ComposerSnapshot> {
     const patch = composerPatch(input);
     const current = await this.read(threadId);
+    const currentCatalog = this.binding?.modelCatalog.guard();
     const selected = current.models.find((model) => model.model === (patch.model ?? current.settings.model));
     if (!selected) throw new Error('这个模型已不可用，请重新选择。');
     const efforts = selected.supportedReasoningEfforts.map((entry) => entry.reasoningEffort);
@@ -142,6 +139,7 @@ export class ComposerBridge {
       if (patch.speed !== current.settings.speed) this.publishSpeed(await this.speed.set(patch.speed));
     }
     if (patch.model !== undefined || patch.effort !== undefined || patch.access !== undefined) {
+      if (currentCatalog && !currentCatalog()) throw new Error('模型已更新，请确认后重新选择。');
       if (threadId !== undefined) {
         if (!this.binding) throw new Error('电脑尚未就绪，请稍后重试。');
         if (patch.access !== undefined) this.binding.settings({ access: patch.access });
@@ -154,6 +152,15 @@ export class ComposerBridge {
       if (threadId === undefined) this.publish(current.models, normalized);
     }
     return threadId === undefined ? this.value : this.publishScope(threadId);
+  }
+
+  async validateSend(body: { threadId?: string; model?: string; effort?: string }) {
+    const snapshot = await this.read(body.threadId ?? null);
+    if (snapshot.syncing || !snapshot.models.length || (body.model && body.model !== snapshot.settings.model)
+      || (body.effort && body.effort !== snapshot.settings.effort)) {
+      throw new Error('模型已更新，请确认后重新发送。');
+    }
+    return snapshot.settings;
   }
 }
 

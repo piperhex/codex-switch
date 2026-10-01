@@ -39,5 +39,5 @@ export function settingValue(field: SettingField, models: Model[], selection: Co
 export function settingsNotice({ saving, ready, error }: { saving: boolean; ready: boolean; error: string }) {
   if (error) return error;
   if (!saving) return '';
-  return ready ? '正在保存设置…' : '已保留选择，连接后自动保存。';
+  return ready ? '正在同步设置…' : '已保留选择，连接后自动保存。';
 }

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { openChatList, connect, navigate, send, settled, screenshot, state, fixtureUrl, openChatSettings } from './chat-helpers';
+import { openChatList, connect, navigate, send, settled, screenshot, state, fixtureUrl,
+  openChatSettings, operationCount } from './chat-helpers';
 import { chatJourney } from './chat-journey';
 import { historyJourney } from './chat-history';
 import { attachmentJourney } from './chat-attachments';
@@ -53,6 +54,32 @@ test('connects independently over WebRTC without advertising native TCP', async 
 test('uses the PC model picker and keeps the mobile settings unchanged', async ({ page, request }, info) => {
   test.skip(info.project.name !== 'desktop', 'Desktop model picker interaction');
   await modelPickerJourney(page, request, info);
+});
+
+test('waits for the new relay model before enabling send', async ({ page, request }, info) => {
+  await connect(page);
+  const input = page.getByRole('textbox', { name: '聊天消息' });
+  const submit = page.getByRole('button', { name: '发送消息', exact: true });
+  await input.fill('切换完成后再发送');
+  await expect(submit).toBeEnabled();
+  await request.post(`${fixtureUrl}/test/composer`, { data: { syncing: true } });
+  await expect(submit).toBeDisabled();
+  await input.press('Enter');
+  expect(await operationCount(request, 'send')).toBe(0);
+  const second = (await state(request)).composer.models[1];
+  await request.post(`${fixtureUrl}/test/composer`, {
+    data: { syncing: false, models: [second], model: second.model },
+  });
+  await expect(submit).toBeEnabled();
+  await expect(input).toHaveValue(isDesktop(page) ? '切换完成后再发送' : '切换完成后再发送\n');
+  if (isDesktop(page)) {
+    await expect(page.getByRole('button', { name: /^模型与推理强度：/ })).toHaveAccessibleName(/第二模型/);
+  } else {
+    await openChatSettings(page);
+    await expect(page.getByRole('button', { name: '设置模型', exact: true })).toContainText('第二模型');
+    await closeChatSettings(page);
+  }
+  await screenshot(page, info, 'model-source-synchronized');
 });
 test('uses desktop composer controls and Enter shortcuts while streaming', async ({ page, request }, info) => {
   test.skip(info.project.name !== 'desktop', 'Desktop composer interaction');

@@ -3,8 +3,13 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { ChatOperations } from './operations';
 import { guiApi } from '../pages/codexGui/api';
 import { remoteQueue } from './queue';
+import { guiComposer } from '../pages/codexGui/composerBridge';
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), respond: vi.fn() } }));
-beforeEach(() => vi.resetAllMocks());
+vi.mock('../pages/codexGui/composerBridge', () => ({ guiComposer: { validateSend: vi.fn() } }));
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(guiComposer.validateSend).mockResolvedValue({ model: 'model', effort: 'high', access: 'workspace-write' });
+});
 
 it('passes scoped text previews to the desktop and retains safe failure messages', async () => {
   const body = { operation: 'textPreview', threadId: 'chat', path: 'src/example.ts' };
@@ -26,7 +31,7 @@ it('executes a retried mutation once even while the original is still running', 
     body: { operation: 'send', text: 'continue', threadId: 'thread' } };
   const first = operations.execute(request);
   const retry = operations.execute(request);
-  expect(guiApi.request).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(guiApi.request).toHaveBeenCalledTimes(1));
   finish({ turn: { id: 'turn' } });
   expect(await first).toEqual(await retry);
   expect(await operations.execute(request)).toEqual(await first);

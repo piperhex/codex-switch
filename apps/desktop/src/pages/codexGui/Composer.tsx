@@ -69,7 +69,7 @@ export const Composer = forwardRef<ComposerHandle, {
     return true;
   } }));
   const goal = state.selected ? state.goals?.[state.selected] : null;
-  const canSend = !disabled && !reading && !state.modelSettingsLoading
+  const canSend = !disabled && !reading && !state.modelSettingsLoading && !state.modelCatalogLoading
     && hasDraft;
   const send = async () => {
     if (!canSend) return;
@@ -134,10 +134,11 @@ export const Composer = forwardRef<ComposerHandle, {
           </div>
           <ModelPicker models={state.models} model={state.settings.model} effort={state.settings.effort}
             onOpen={() => void controller.modelCatalog.refresh().catch(controller.report)}
-            disabled={false} onChange={controller.settings} />
+            disabled={Boolean(state.modelCatalogLoading)} onChange={controller.settings} />
           <ComposerSubmit state={state} controller={controller}
             goalMode={goalMode.enabled}
-            hasDraft={hasDraft} reading={reading || workspaceBusy || Boolean(state.modelSettingsLoading)} onSend={send} />
+            hasDraft={hasDraft} reading={reading || workspaceBusy
+              || Boolean(state.modelSettingsLoading || state.modelCatalogLoading)} onSend={send} />
         </div>
       </div>
     </div>

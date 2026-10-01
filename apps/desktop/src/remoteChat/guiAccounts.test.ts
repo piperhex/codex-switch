@@ -4,7 +4,7 @@ import { invoke } from '../api/backend';
 import { readGuiAccounts, selectGuiAccount } from './guiAccounts';
 import { ChatOperations } from './operations';
 
-vi.mock('../api/backend', () => ({ invoke: vi.fn() }));
+vi.mock('../api/backend', () => ({ invoke: vi.fn(), hasLocalBackend: false }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), respond: vi.fn() } }));
 beforeEach(() => vi.resetAllMocks());
 

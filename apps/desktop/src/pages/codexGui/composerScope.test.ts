@@ -34,7 +34,7 @@ beforeEach(async () => {
   };
   vi.mocked(guiApi.request).mockImplementation(async request => request.operation === 'read'
     ? { thread: { id: request.threadId, cwd: '', preview: '', updatedAt: 1 } } : { data: models, nextCursor: null });
-  pc = new GuiController(); pc.setProviderModels(models);
+  pc = new GuiController(); await pc.setModels(models);
   cleanup.push(pc.modelSettings.start(api));
   bridge = new ComposerBridge(); cleanup.push(bridge.attach(pc));
   await pc.modelSettings.ready(null);
@@ -146,7 +146,7 @@ it('restores the last phone permission for new conversations after the PC reopen
   await bridge.update({ access: 'danger-full-access' }, 'phone');
   const reopened = new GuiController();
   const restoredBridge = new ComposerBridge();
-  reopened.setProviderModels(models);
+  await reopened.setModels(models);
   cleanup.push(restoredBridge.attach(reopened)); cleanup.push(() => reopened.dispose());
   expect((await restoredBridge.read(null)).settings.access).toBe('danger-full-access');
 });

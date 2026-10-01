@@ -9,6 +9,9 @@ import { ChatOperations } from './operations';
 import { guiApi } from '../pages/codexGui/api';
 import { downloadChatImage } from '../../../web/src/chat/downloadImage';
 
+vi.mock('../pages/codexGui/composerBridge', () => ({ guiComposer: {
+  validateSend: async () => ({ model: 'model', effort: 'high', access: 'workspace-write' }),
+} }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { request: vi.fn(), connect: vi.fn() } }));
 afterEach(() => { setChatPolicy(DEFAULT_CHAT_POLICY); vi.resetAllMocks(); });
 

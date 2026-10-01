@@ -48,7 +48,7 @@ export class RemoteComposerSettings {
     const entry = this.entry(this.scope());
     this.host.update({ ...(entry.remote ? { models: entry.remote.models } : {}),
       settings: { ...(entry.remote?.settings ?? DEFAULT_COMPOSER), ...entry.pending },
-      settingsBusy: Boolean(entry.reading || entry.saving || entry.failed
+      settingsBusy: Boolean(entry.remote?.syncing || entry.reading || entry.saving || entry.failed
         || Object.keys(entry.pending).length || (this.scoped && !entry.remote)),
       settingsError: entry.failed });
   }
@@ -61,8 +61,10 @@ export class RemoteComposerSettings {
     const id = this.scoped ? snapshot.threadId! : null;
     const entry = this.entry(id);
     if (snapshot.revision < (entry.remote?.revision ?? -1)) return;
+    const wasSyncing = entry.remote?.syncing;
     entry.remote = snapshot;
     if (id === this.scope()) this.show();
+    if (wasSyncing && !snapshot.syncing) queueMicrotask(() => this.flush());
   }
 
   async load(): Promise<void> {
@@ -132,7 +134,7 @@ export class RemoteComposerSettings {
   private async save(id: string | null): Promise<void> {
     const entry = this.entry(id);
     if (entry.saving) return entry.saving;
-    if (!this.host.ready() || entry.reading || !Object.keys(entry.pending).length) return;
+    if (!this.host.ready() || entry.reading || entry.remote?.syncing || !Object.keys(entry.pending).length) return;
     const generation = this.generation;
     const patch = { ...entry.pending };
     const saving = this.write({ id, patch, generation }).catch((error: unknown) => {

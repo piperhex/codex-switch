@@ -1,5 +1,6 @@
 import type { GuiModelCatalog } from "./modelCatalog";
 import { subscribeGuiEvent } from "./webEvents";
+import { subscribeToProviderEvents } from "../../api/backend";
 
 // Codex refreshes its remote catalog in the background; copy updates into the shared UI state.
 export const MODEL_CATALOG_REFRESH_MS = 60_000;
@@ -16,11 +17,12 @@ export function watchModelCatalog(catalog: GuiModelCatalog, report: (error: unkn
     void pending.catch(failed).finally(() => { if (observed === pending) observed = undefined; });
   };
   const timer = setInterval(refresh, MODEL_CATALOG_REFRESH_MS);
+  const stopProviders = subscribeToProviderEvents(() => refresh(true));
   void subscribeGuiEvent("codex-gui-account-changed", () => {
     if (!stopped) refresh(true);
   }).then((stop) => {
     if (stopped) stop();
     else unsubscribe = stop;
   }).catch(failed);
-  return () => { stopped = true; clearInterval(timer); unsubscribe?.(); };
+  return () => { stopped = true; clearInterval(timer); stopProviders(); unsubscribe?.(); };
 }

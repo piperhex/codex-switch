@@ -126,8 +126,13 @@ export class RemoteQueue {
     const input = messageInput(body, mode);
     const patch = composerPatch(Object.fromEntries(['model', 'effort', 'access']
       .filter((key) => body[key] !== undefined).map((key) => [key, body[key]])));
-    const settings = { ...controller.getSnapshot().settings, ...patch };
     await controller.loadRemoteThread(threadId);
+    await controller.modelCatalog.ready();
+    const selected = await controller.modelSettings.ready(threadId);
+    if ((patch.model && patch.model !== selected.model) || (patch.effort && patch.effort !== selected.effort)) {
+      throw new Error('模型已更新，请确认后重新发送。');
+    }
+    const settings = { ...controller.getSnapshot().settings, ...patch, ...selected };
     if (!controller.queue.enqueue(threadId, input, settings)) throw new Error('待发送消息已满，请稍后再添加。');
     try { await controller.queueJournal.saved(); }
     catch {

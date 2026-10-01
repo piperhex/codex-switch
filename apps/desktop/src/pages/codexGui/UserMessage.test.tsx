@@ -45,7 +45,8 @@ it.each(["C:\\images\\copied.jpg", "D:/截图.png"])(
   "shows a sent local image thumbnail and opens its original: %s", async (path) => {
     vi.mocked(guiApi.request).mockResolvedValueOnce({ url: thumbnail }).mockResolvedValue({ url: original });
     await render({ type: "localImage", path });
-    expect(guiApi.request).toHaveBeenCalledWith({ operation: "imagePreview", threadId: "task", source: path });
+    expect(guiApi.request).toHaveBeenCalledWith({ operation: "imagePreview", threadId: "task",
+      source: path, variant: "thumbnail" });
     expect(container.querySelector("img")?.getAttribute("src")).toBe(thumbnail);
     expect(container.textContent).toContain("看看这张图片");
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="放大查看：图片附件 1"]')?.click());

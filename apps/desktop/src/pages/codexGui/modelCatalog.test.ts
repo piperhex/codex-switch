@@ -10,6 +10,7 @@ import type { Model } from "./types";
 
 vi.mock("./api", () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), subscribe: vi.fn() } }));
 vi.mock("./webEvents", () => ({ subscribeGuiEvent: vi.fn() }));
+vi.mock("../../api/backend", () => ({ subscribeToProviderEvents: () => () => {} }));
 const model = (name: string): Model => ({ id: name, model: name, displayName: name, isDefault: true,
   defaultReasoningEffort: "medium",
   supportedReasoningEfforts: ["low", "medium", "high"].map((reasoningEffort) => ({ reasoningEffort, description: "" })),
@@ -106,4 +107,29 @@ it("stops polling and unsubscribes even when the subscription finishes after cle
   await vi.advanceTimersByTimeAsync(MODEL_CATALOG_REFRESH_MS * 3);
   expect(unsubscribe).toHaveBeenCalledOnce();
   expect(guiApi.request).toHaveBeenCalledOnce();
+});
+
+it("keeps ordinary polling quiet when the catalog has not changed", async () => {
+  const accept = vi.fn(); const syncing = vi.fn();
+  const catalog = new GuiModelCatalog({ ready: () => true, accept, syncing });
+  vi.mocked(guiApi.request).mockResolvedValue({ data: [existing], nextCursor: null });
+  await catalog.refresh();
+  const current = catalog.guard();
+  accept.mockClear(); syncing.mockClear();
+  await catalog.refresh();
+  expect(accept).not.toHaveBeenCalled();
+  expect(syncing).not.toHaveBeenCalled();
+  expect(current()).toBe(true);
+  vi.mocked(guiApi.request).mockResolvedValue({ data: [released], nextCursor: null });
+  await catalog.refresh();
+  expect(current()).toBe(false);
+});
+
+it("keeps a failed settings reconciliation blocked without repeatedly retrying it", async () => {
+  const accept = vi.fn().mockRejectedValue(new Error("save failed"));
+  const catalog = new GuiModelCatalog({ ready: () => true, accept });
+  vi.mocked(guiApi.request).mockResolvedValue({ data: [existing], nextCursor: null });
+  await expect(catalog.invalidate()).rejects.toThrow("save failed");
+  expect(accept).toHaveBeenCalledOnce();
+  await expect(catalog.ready()).rejects.toThrow("模型正在同步");
 });

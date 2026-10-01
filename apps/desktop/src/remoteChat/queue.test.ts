@@ -27,7 +27,10 @@ beforeEach(async () => {
   vi.mocked(guiApi.connect).mockResolvedValue([]);
   vi.mocked(guiApi.subscribe).mockImplementation(async (callback) => { receive = callback; return () => {}; });
   vi.mocked(guiApi.request).mockImplementation(async (request) => {
-    if (request.operation === 'list' || request.operation === 'models') return { data: [], nextCursor: null };
+    if (request.operation === 'list') return { data: [], nextCursor: null };
+    if (request.operation === 'models') return { data: [{ id: 'phone-model', model: 'phone-model',
+      displayName: 'Phone model', isDefault: true, defaultReasoningEffort: 'high',
+      supportedReasoningEfforts: [{ reasoningEffort: 'high', description: '' }] }], nextCursor: null };
     if (request.operation === 'sendBatch') return { turn: { id: 'next', status: 'inProgress', items: [] } };
     return { thread };
   });

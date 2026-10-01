@@ -10,6 +10,9 @@ import { applyChatEvent } from '../../../../shared/remote-chat/client/events';
 import { initialChatState } from '../../../../shared/remote-chat/client/types';
 import type { ConnectionMode } from '../../../../shared/remote-chat/protocol';
 
+vi.mock('../pages/codexGui/composerBridge', () => ({ guiComposer: {
+  validateSend: async () => ({ model: 'model', effort: 'high', access: 'workspace-write' }),
+} }));
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), respond: vi.fn() } }));
 vi.mock('../pages/codexGui/session', () => ({ getGuiController: vi.fn() }));
 vi.mock('../api/cloudTitleSettings', () => ({ fetchCloudTitleSettings: vi.fn() }));

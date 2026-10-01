@@ -270,6 +270,14 @@ The shared desktop/phone/Web composer copies the CLI catalog every minute, after
 and when the desktop model menu opens. Refreshes are single-flight, preserve the previous list on failure,
 and do not restart running conversations. Leaving the shared GUI session stops refresh subscriptions and timers.
 
+Provider catalogs are resolved by the shared GUI session from its persisted account selection, including
+when the PC is showing another page or a remote computer. Switching sources blocks new sends until the
+catalog and conversation choices are synchronized; a failed switch refresh keeps sends blocked until a
+successful refresh. Phone and Web receive the same synchronization state. Removed models fall back to the
+new catalog's default, with the resolved choice saved for every observed, running, and queued conversation.
+Running tasks receive the existing live-settings update, and queued sends recheck a source change that
+occurred while resuming. Requests already dispatched are left to finish.
+
 Run `node scripts/codex-gui-model-catalog-smoke.mjs <installed-package>/bin/codex.exe` to verify proxy
 discovery, hidden-model filtering and cache expiry against a local fixture without using model credits.
 

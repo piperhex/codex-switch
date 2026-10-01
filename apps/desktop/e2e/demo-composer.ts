@@ -2,6 +2,7 @@ import { composerPatch, COMPOSER_EVENT, DEFAULT_COMPOSER,
   type ComposerSnapshot } from '../../../shared/remote-chat/composer';
 import type { ChatLink } from '../../../shared/remote-chat/link';
 import { resolveModelSelection } from '../src/pages/codexGui/modelSelection';
+import { object } from '../../../shared/remote-chat/protocol';
 
 let snapshot: ComposerSnapshot = { revision: 1,
   settings: { ...DEFAULT_COMPOSER, model: 'test-model', effort: 'medium', speed: 'normal' },
@@ -14,8 +15,11 @@ export const composerErrors: string[] = [];
 export const demoComposer = () => snapshot;
 
 export function changeDemoComposer(input: unknown, link: Pick<ChatLink, 'send'>) {
-  const patch = composerPatch(input);
+  const { syncing, models, ...settings } = object(input);
+  const patch = composerPatch(settings);
   const selection = { ...snapshot.settings, ...patch };
+  if (Array.isArray(models)) snapshot = { ...snapshot, models: models as ComposerSnapshot['models'] };
+  if (typeof syncing === 'boolean') snapshot = { ...snapshot, syncing };
   snapshot = { ...snapshot, revision: snapshot.revision + 1,
     settings: { ...resolveModelSelection(snapshot.models, selection),
       access: selection.access, speed: selection.speed } };

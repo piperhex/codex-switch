@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Button, Popover, Tooltip } from "antd";
 import { PanelBottom, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { canManageCodexConnection, hasLocalBackend, isDesktopApp } from "../api/backend";
@@ -21,9 +21,7 @@ import { useTitleSettings } from "./codexGui/useTitleSettings";
 import styles from "./codexGui/styles.module.less";
 import { WorkspaceOperationContext } from "./codexGui/workspaceOperationContext";
 import type { AggregateApi, Provider } from "../types";
-import { providerModels } from "./codexGui/providerModels";
 import { useDreamSkin } from "./codexGui/useDreamSkin";
-import { guiComposer } from "./codexGui/composerBridge";
 import { FocusModeButton, type GuiFocusMode } from "./codexGui/FocusModeButton";
 import { useTerminalPanel } from "./codexGui/terminal/useTerminalPanel";
 import { terminalApi } from "./codexGui/terminal/api";
@@ -51,9 +49,6 @@ type CodexGuiPageProps = {
 
 export function CodexGuiPage(props: CodexGuiPageProps) {
   const { active } = props;
-  const models = useMemo(() => providerModels(props.providers, props.aggregateApis),
-    [props.providers, props.aggregateApis]);
-  useEffect(() => { guiComposer.setProviderModels(models); }, [models]);
   const focusMode = useGuiLayout(active, !props.focusMode);
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
@@ -62,7 +57,7 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
   return <Workspace {...props} {...(props.focusMode ?? focusMode)} />;
 }
 
-function Workspace({ active, accountPicker, providers, aggregateApis, windowControls, plugins, hostPicker, notificationTarget,
+function Workspace({ active, accountPicker, windowControls, plugins, hostPicker, notificationTarget,
   focused, onToggleFocus }: CodexGuiPageProps & GuiFocusMode) {
   const skinStyle = useDreamSkin(active);
   const [controller] = useState(getGuiController);
@@ -86,8 +81,6 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
   const installer = useCliInstaller(active, controller, true);
   useEffect(retainGuiSession, [controller]);
   useTitleSettings(active, controller.titles.settings);
-  const models = useMemo(() => providerModels(providers, aggregateApis), [providers, aggregateApis]);
-  useEffect(() => { controller.setProviderModels(models); }, [controller, models]);
   useEffect(() => {
     if (isDesktopApp || !installer.version) return;
     if (active) void controller.connect();

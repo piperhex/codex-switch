@@ -130,7 +130,7 @@ it("renders deltas between arrivals, preserves code blocks, and flushes when sto
 function expectHistory() {
   expect(container.textContent).toContain("检查这个项目");
   expect(guiApi.request).toHaveBeenCalledWith({ operation: "imagePreview", threadId: "one",
-    source: "D:/screenshot.png" });
+    source: "D:/screenshot.png", variant: "thumbnail" });
   expect(container.querySelector('img[alt="图片附件 1"]')?.getAttribute("src"))
     .toBe("data:image/png;base64,cGljdHVyZQ==");
   expect(container.textContent).toContain("先检查项目的测试结果");
@@ -277,7 +277,7 @@ it("keeps normal continuation requests, attachments, and later steering visible"
   expect(container.textContent).toContain("继续检查测试结果");
   expect(container.textContent).toContain(CONTINUE_MESSAGE);
   expect(guiApi.request).toHaveBeenCalledWith({ operation: "imagePreview", threadId: "one",
-    source: "D:/reference.png" });
+    source: "D:/reference.png", variant: "thumbnail" });
   expect(container.querySelector('img[alt="图片附件 1"]')?.getAttribute("src"))
     .toBe("data:image/png;base64,cGljdHVyZQ==");
   expect(container.querySelectorAll("article")).toHaveLength(3);
