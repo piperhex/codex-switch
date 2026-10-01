@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useState } from "react";
 import type { Turn } from "./types";
 import { formatTurnDuration, SECOND_MS, turnElapsedMs } from "./turnTiming";
@@ -16,10 +17,10 @@ export function TurnDuration({ turn, running, active, fallback, inline = false }
   const elapsed = turnElapsedMs(turn, now);
   const Element = inline ? "span" : "div";
   if (turn.status === "interrupted") return <Element className={styles.turnDuration}>
-    已停止生成{elapsed != null && ` · 用时 ${formatTurnDuration(elapsed)}`}
+    {guiText("已停止生成")}{elapsed != null && guiText(" · 用时 {value1}", { value1: formatTurnDuration(elapsed) })}
   </Element>;
   if (elapsed == null || (turn.status === "inProgress" && !running)) return fallback ? <span>{fallback}</span> : null;
   return <Element className={styles.turnDuration}>
-    {running ? "已处理" : "用时"} {formatTurnDuration(elapsed)}
+    {running ? guiText("已处理") : guiText("用时")} {formatTurnDuration(elapsed)}
   </Element>;
 }

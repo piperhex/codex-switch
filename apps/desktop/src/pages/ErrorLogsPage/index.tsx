@@ -1,3 +1,4 @@
+import { getLocale } from "../../i18n";
 import { Alert, Button, Popconfirm, Segmented, Table, Tag, type TableColumnsType } from "antd";
 import { RefreshCw, Trash2 } from "lucide-react";
 import type { ErrorLogEntry } from "../../api/errorLogs";
@@ -17,7 +18,7 @@ function logColumns({ language, t }: ErrorLogsPageProps): TableColumnsType<Error
       title: t("errorLogs.time"), dataIndex: "createdAt", width: 174,
       render: (value: string) => {
         const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString(language === "zh" ? "zh-CN" : "en-US");
+        return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString(getLocale(language));
       },
     },
     {

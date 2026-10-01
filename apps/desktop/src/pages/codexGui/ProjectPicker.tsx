@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Input, Popover, type InputRef } from "antd";
 import { Folder, Plus, Search, X } from "lucide-react";
@@ -41,7 +42,7 @@ export function ProjectPicker({ value, projects, disabled, onChange, onError,
       onChange(project.path);
       setCreating(false);
       trigger.current?.focus();
-    } catch { onError(new Error("项目未能保存，请重试。")); }
+    } catch { onError(new Error(guiText("项目未能保存，请重试。"))); }
   };
   const panel = <div className={styles.panel} onKeyDown={(event) => {
     if (event.key === "Escape") { event.stopPropagation(); close(); }
@@ -54,25 +55,25 @@ export function ProjectPicker({ value, projects, disabled, onChange, onError,
     else options[next]?.focus();
   }}>
     <Input ref={search} variant="borderless" className={styles.search} prefix={<Search size={16} />}
-      aria-label="搜索项目" placeholder="搜索项目" value={query} onChange={(event) => setQuery(event.target.value)} />
-    <div ref={list} className={styles.list} role="menu" aria-label="项目">
+      aria-label={guiText("搜索项目")} placeholder={guiText("搜索项目")} value={query} onChange={(event) => setQuery(event.target.value)} />
+    <div ref={list} className={styles.list} role="menu" aria-label={guiText("项目")}>
       {matches.map((path) => <button key={path} type="button" role="menuitemradio"
         aria-checked={value === path} className={styles.option} disabled={disabled}
         onClick={() => { if (!disabled) { onChange(path); close(); } }}>
         <Folder size={18} aria-hidden="true" /><span>{label(path)}</span>
       </button>)}
-      {!matches.length && <p className={styles.empty}>{query.trim() ? "没有找到匹配的项目" : "还没有项目"}</p>}
+      {!matches.length && <p className={styles.empty}>{query.trim() ? guiText("没有找到匹配的项目") : guiText("还没有项目")}</p>}
     </div>
     <div className={styles.divider} />
     <button type="button" className={`${styles.option} ${styles.newProject}`} disabled={disabled}
       onClick={() => { setExpanded(false); setCreating(true); }}>
-      <Plus size={20} aria-hidden="true" /><span>新建项目</span>
+      <Plus size={20} aria-hidden="true" /><span>{guiText("新建项目")}</span>
     </button>
   </div>;
   return <div className={layout.projectBar}>
     <span className={styles.selection}>
       {value && <button type="button" className={styles.remove} disabled={disabled}
-        aria-label="移除项目选择" onClick={() => onChange("")}>
+        aria-label={guiText("移除项目选择")} onClick={() => onChange("")}>
         <Folder className={styles.folder} size={16} aria-hidden="true" />
         <X className={styles.cross} size={16} aria-hidden="true" />
       </button>}
@@ -82,14 +83,14 @@ export function ProjectPicker({ value, projects, disabled, onChange, onError,
         styles={{ root: { maxWidth: 400 }, body: { padding: 0, borderRadius: 20, overflow: "hidden" } }}>
         <button ref={trigger} type="button" className={styles.name} disabled={disabled}
           aria-haspopup="menu" aria-expanded={expanded && !disabled}
-          aria-label={value ? `选择项目文件夹：${label(value)}` : "选择项目文件夹"}>
-          {!value && <Folder size={16} aria-hidden="true" />}<span>{value ? label(value) : "选择项目"}</span>
+          aria-label={value ? guiText("选择项目文件夹：{value1}", { value1: label(value) }) : guiText("选择项目文件夹")}>
+          {!value && <Folder size={16} aria-hidden="true" />}<span>{value ? label(value) : guiText("选择项目")}</span>
         </button>
       </Popover>
     </span>
     {gitEnabled && onBusyChange ? <WorkspacePicker key={value} cwd={value} disabled={disabled}
-      onChange={onChange} onBusyChange={onBusyChange} localLabel={hostPicker ? "工作树" : undefined} />
-      : !hostPicker && <span className={layout.localLabel}>{isDesktopApp ? "本地" : "Remote AI 主机"}</span>}
+      onChange={onChange} onBusyChange={onBusyChange} localLabel={hostPicker ? guiText("工作树") : undefined} />
+      : !hostPicker && <span className={layout.localLabel}>{isDesktopApp ? guiText("本地") : guiText("Remote AI 主机")}</span>}
     {hostPicker}
     {creating && <CreateProjectDialog disabled={disabled} onCreate={create} onError={onError}
       onClose={() => { setCreating(false); trigger.current?.focus(); }} />}

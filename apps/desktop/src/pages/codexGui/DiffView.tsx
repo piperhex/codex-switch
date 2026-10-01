@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { memo, useId, useMemo, type ReactNode } from "react";
 import { DiffDocument, type DiffDocumentProps } from "./DiffDocument";
 import { EditedFilesSummary } from "./EditedFilesSummary";
@@ -6,7 +7,7 @@ import { useDetailsEntry } from "./detailsContext";
 
 export { DiffDocument } from "./DiffDocument";
 
-export const DiffView = memo(function DiffView({ files, title = "文件修改", status, undo }:
+export const DiffView = memo(function DiffView({ files, title = guiText("文件修改"), status, undo }:
   DiffDocumentProps & { undo?: ReactNode }) {
   const id = useId();
   const entry = useMemo(() => ({ id, files, title, status }), [id, files, title, status]);

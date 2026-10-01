@@ -1,24 +1,34 @@
 import { useCallback, useEffect, useState } from "react";
 import { publishLanguageChange, subscribeToLanguageChanges } from "../api/backend";
-import { DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, isLanguage, translate, type Language } from "../i18n";
+import { defaultLanguage, getLocale, LANGUAGE_STORAGE_KEY, isLanguage, translate, type Language } from "../i18n";
+import { setGuiLanguage } from "../i18n/guiText";
 
 function storedLanguage(): Language {
-  const value = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-  return isLanguage(value) ? value : DEFAULT_LANGUAGE;
+  try {
+    const value = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isLanguage(value) ? value : defaultLanguage(navigator.language);
+  } catch {
+    return defaultLanguage(navigator.language);
+  }
 }
 
 export function useLanguage() {
   const [language, setLanguageState] = useState<Language>(storedLanguage);
+  setGuiLanguage(language);
 
   useEffect(() => {
-    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-    document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+    try { window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language); }
+    catch { /* Keep the selected language for this visit. */ }
+    document.documentElement.lang = getLocale(language);
     void publishLanguageChange(language).catch(() => undefined);
   }, [language]);
 
   useEffect(() => subscribeToLanguageChanges(setLanguageState), []);
 
   const setLanguage = useCallback((nextLanguage: Language) => {
+    setGuiLanguage(nextLanguage);
+    try { window.localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage); }
+    catch { /* Keep the selected language for this visit. */ }
     setLanguageState(nextLanguage);
   }, []);
 

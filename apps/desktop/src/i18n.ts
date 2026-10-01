@@ -3,6 +3,7 @@ export const LANGUAGE_STORAGE_KEY = "codex-switch:language";
 export const LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
   { value: "zh", label: "中文" },
+  { value: "ru", label: "Русский" },
 ] as const;
 
 export type Language = (typeof LANGUAGE_OPTIONS)[number]["value"];
@@ -10,6 +11,7 @@ export type Language = (typeof LANGUAGE_OPTIONS)[number]["value"];
 export const DEFAULT_LANGUAGE: Language = "zh";
 
 const translations = {
+  ru: russian,
   en: {
     "logDiagnostics.title": "Log diagnostics",
     "errorLogs.title": "Error logs",
@@ -5137,11 +5139,20 @@ const translations = {
 } as const;
 
 export type TranslationKey = keyof typeof translations.en;
+russian satisfies Record<TranslationKey, string>;
 export type TranslationValues = Record<string, string | number>;
 export type Translate = (key: TranslationKey, values?: TranslationValues) => string;
 
 export function isLanguage(value: unknown): value is Language {
-  return value === "en" || value === "zh";
+  return value === "en" || value === "zh" || value === "ru";
+}
+
+export function getLocale(language: Language) {
+  return { en: "en-US", zh: "zh-CN", ru: "ru-RU" }[language];
+}
+
+export function defaultLanguage(locale: string): Language {
+  return /^ru(?:-|$)/i.test(locale) ? "ru" : DEFAULT_LANGUAGE;
 }
 
 export function translate(language: Language, key: TranslationKey, values: TranslationValues = {}) {
@@ -5151,3 +5162,4 @@ export function translate(language: Language, key: TranslationKey, values: Trans
   }
   return text;
 }
+import { russian } from "./i18n/ru";

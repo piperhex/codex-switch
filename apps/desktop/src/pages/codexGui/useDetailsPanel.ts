@@ -1,9 +1,10 @@
+import { guiText } from "../../i18n/guiText";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiffPanelEntry } from "./detailsContext";
 import { filePreviewApi, type FilePreviewData } from "./filePreview/api";
 
 type Preview = { kind: "file"; data: FilePreviewData } | { kind: "website"; url: string };
-const EMPTY_CHANGES: DiffPanelEntry = { id: "conversation-changes", title: "文件更改", files: [] };
+const EMPTY_CHANGES: DiffPanelEntry = { id: "conversation-changes", get title() { return guiText("文件更改"); }, files: [] };
 
 function release(data: FilePreviewData) {
   void filePreviewApi.close(data.sessionId).catch(error => console.error("Failed to release file preview", error));

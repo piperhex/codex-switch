@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useContext, useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import { isTauri } from "@tauri-apps/api/core";
@@ -38,14 +39,14 @@ export function useFileMenu(target: FileReference) {
         : { path: target.path, text: undefined, saved: false };
       if (action.type === "copyPath" || action.type === "copyContents") {
         await navigator.clipboard.writeText(action.type === "copyPath" ? result.path : result.text ?? "");
-        void message.success({ content: "已复制", style: FEEDBACK_STYLE });
+        void message.success({ content: guiText("已复制"), style: FEEDBACK_STYLE });
       }
       if (action.type === "saveAs" && result.saved) {
-        void message.success({ content: "文件已保存", style: FEEDBACK_STYLE });
+        void message.success({ content: guiText("文件已保存"), style: FEEDBACK_STYLE });
       }
     } catch (error) {
       // Native errors are intentionally limited to friendly messages at the IPC boundary.
-      void message.error({ content: typeof error === "string" ? error : "操作未完成，请稍后重试。",
+      void message.error({ content: typeof error === "string" ? error : guiText("操作未完成，请稍后重试。"),
         style: FEEDBACK_STYLE });
     } finally { flight.current = false; setBusy(false); }
   };
@@ -56,7 +57,7 @@ export function useFileMenu(target: FileReference) {
       if (!panel || !await panel.openFile({ ...target, threadId })) setOpen(true);
     } catch (error) {
       setOpen(true);
-      void message.error({ content: typeof error === "string" ? error : "预览未能打开，请选择其他打开方式。",
+      void message.error({ content: typeof error === "string" ? error : guiText("预览未能打开，请选择其他打开方式。"),
         style: FEEDBACK_STYLE });
     } finally { flight.current = false; setBusy(false); }
   };

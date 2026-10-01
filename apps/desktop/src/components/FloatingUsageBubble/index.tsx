@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import {
   useCallback,
   useEffect,
@@ -70,7 +71,11 @@ function clampPercent(value: number) {
 
 type FloatingUsageMode = "account" | "concurrent" | "provider";
 
-function bubbleActionLabel(language: "en" | "zh", refreshing: boolean, mode: FloatingUsageMode) {
+function bubbleActionLabel(language: "en" | "zh" | "ru", refreshing: boolean, mode: FloatingUsageMode) {
+  if (language === "ru") {
+    return refreshing ? "Обновление статистики…" : mode === "concurrent"
+      ? "Обновить аккаунты и статистику" : "Обновить текущие лимиты";
+  }
   if (language === "zh") {
     if (refreshing) return mode === "concurrent" ? "正在刷新并发账号与统计" : "正在刷新当前用量";
     return mode === "concurrent" ? "点击刷新并发账号与统计" : "点击刷新当前用量";
@@ -210,10 +215,10 @@ export function FloatingUsageBubble() {
   const status = remaining === null
     ? "--"
     : remainingTone(remaining) === "danger"
-      ? (language === "zh" ? "额度较低" : "Low quota")
+      ? ((language === "ru" ? guiText("额度较低", {}, language) : language === "zh" ? "额度较低" : "Low quota"))
       : remainingTone(remaining) === "warning"
-        ? (language === "zh" ? "额度注意" : "Quota warning")
-        : (language === "zh" ? "额度充足" : "Quota healthy");
+        ? ((language === "ru" ? guiText("额度注意", {}, language) : language === "zh" ? "额度注意" : "Quota warning"))
+        : ((language === "ru" ? guiText("额度充足", {}, language) : language === "zh" ? "额度充足" : "Quota healthy"));
   const bubbleLabel = bubbleActionLabel(language, refreshing, floatingMode);
   const ringStyle = {
     "--bubble-progress": `${remaining ?? 0}%`,
@@ -371,32 +376,32 @@ export function FloatingUsageBubble() {
           {bubbleStyle === "classic" && <ClassicBubbleVisual
             remaining={remaining}
             weeklyRemaining={weeklyRemaining}
-            weekLabel={language === "zh" ? "周" : "W"}
+            weekLabel={(language === "ru" ? guiText("周", {}, language) : language === "zh" ? "周" : "W")}
             resetLabel={<BubbleResetLabel timestamp={primary?.resetsAt} language={language} display={resetDisplay} />}
           />}
           {bubbleStyle === "glass" && <><span className="floating-glass-ring" aria-hidden="true">
             <span>{remaining === null ? "--" : `${remaining}%`}</span>
-            <small>{language === "zh" ? "主用量剩余" : "Primary left"}</small>
+            <small>{(language === "ru" ? guiText("主用量剩余", {}, language) : language === "zh" ? "主用量剩余" : "Primary left")}</small>
           </span>
           <span className="floating-glass-brand">Codex</span>
           <span className="floating-glass-details">
             <span>
-              <b>{language === "zh" ? "距离重置" : "Until reset"}</b>
+              <b>{(language === "ru" ? guiText("距离重置", {}, language) : language === "zh" ? "距离重置" : "Until reset")}</b>
               <BubbleResetLabel timestamp={primary?.resetsAt} language={language} display={resetDisplay}
                 className="floating-glass-reset" compact />
             </span>
             <span>
-              <b>{language === "zh" ? "剩余重置" : "Resets left"}</b>
+              <b>{(language === "ru" ? guiText("剩余重置", {}, language) : language === "zh" ? "剩余重置" : "Resets left")}</b>
               <strong>
-                {resetCreditsRemaining === null ? "--" : `${resetCreditsRemaining}${language === "zh" ? " 次" : ""}`}
+                {resetCreditsRemaining === null ? "--" : `${resetCreditsRemaining}${(language === "ru" ? guiText(" 次", {}, language) : language === "zh" ? " 次" : "")}`}
               </strong>
             </span>
             <span>
-              <b>{language === "zh" ? "次用量已使用" : "Secondary used"}</b>
+              <b>{(language === "ru" ? guiText("次用量已使用", {}, language) : language === "zh" ? "次用量已使用" : "Secondary used")}</b>
               <strong>{secondaryUsed === null ? "--" : `${secondaryUsed}%`}</strong>
             </span>
             <span>
-              <b>{language === "zh" ? "额度状态" : "Quota status"}</b>
+              <b>{(language === "ru" ? guiText("额度状态", {}, language) : language === "zh" ? "额度状态" : "Quota status")}</b>
               <strong className={`floating-glass-status ${remaining === null ? "" : remainingTone(remaining)}`}>
                 {status}
               </strong>

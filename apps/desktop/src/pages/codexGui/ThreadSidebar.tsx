@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useMemo, useState, type ReactNode } from "react";
 import { App, Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
 import { Archive, Pencil, Pin, RefreshCw, Search, Trash2 } from "lucide-react";
@@ -17,7 +18,7 @@ import { FocusModeButton, type GuiFocusMode } from "./FocusModeButton";
 import { GuiNavigation, type GuiView } from "./GuiNavigation";
 import styles from "./styles.module.less";
 
-export function threadTitle(thread: Thread) { return thread.name || thread.preview || "新对话"; }
+export function threadTitle(thread: Thread) { return thread.name || thread.preview || guiText("新对话"); }
 export { projectName } from "./projectCatalog";
 
 export function ThreadSidebar({ state, controller, accountPicker, focused, onToggleFocus,
@@ -43,10 +44,10 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
     const busy = state.sending || Boolean(state.deleting);
     const needsInput = state.approvals.some((event) => event.params.threadId === thread.id);
     const items = [
-      { key: "pin", label: state.pins.includes(thread.id) ? "取消置顶" : "置顶", icon: <Pin size={14} /> },
-      { key: "rename", label: "重命名", icon: <Pencil size={14} />, disabled: running },
-      { key: "archive", label: state.archived ? "恢复对话" : "归档", icon: <Archive size={14} />, disabled: running },
-      { key: "delete", label: "删除", icon: <Trash2 size={14} />, danger: true,
+      { key: "pin", label: state.pins.includes(thread.id) ? guiText("取消置顶") : guiText("置顶"), icon: <Pin size={14} /> },
+      { key: "rename", label: guiText("重命名"), icon: <Pencil size={14} />, disabled: running },
+      { key: "archive", label: state.archived ? guiText("恢复对话") : guiText("归档"), icon: <Archive size={14} />, disabled: running },
+      { key: "delete", label: guiText("删除"), icon: <Trash2 size={14} />, danger: true,
         disabled: running || busy || needsInput || Boolean(state.queued[thread.id]?.length)
           || state.connection !== "ready" },
     ];
@@ -73,9 +74,9 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
       <h2 className={styles.sidebarTitle} data-tauri-drag-region={isDesktopApp || undefined}>Codex GUI</h2>
       <div className={styles.sidebarActions} data-tauri-drag-region={isDesktopApp || undefined}>
         <FocusModeButton focused={focused} onToggleFocus={onToggleFocus} />
-        <Button type="text" size="small" icon={<RefreshCw size={15} />} aria-label="刷新对话"
+        <Button type="text" size="small" icon={<RefreshCw size={15} />} aria-label={guiText("刷新对话")}
           loading={state.loading} disabled={state.connection !== "ready"} onClick={() => void controller.refresh()} />
-        <Button type="text" size="small" icon={<Search size={15} />} aria-label="搜索对话"
+        <Button type="text" size="small" icon={<Search size={15} />} aria-label={guiText("搜索对话")}
           disabled={state.connection !== "ready"} onClick={() => { onNavigate("conversation"); setSearchOpen(true); }} />
       </div>
     </div>
@@ -83,7 +84,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
       scheduledTasksAvailable={scheduledTasksAvailable}
       onNewConversation={() => { onNavigate("conversation"); controller.newConversation(); }} />
     <Segmented className={styles.threadFilter} block size="small" value={state.archived ? "archived" : "recent"}
-      options={[{ label: "最近", value: "recent" }, { label: "已归档", value: "archived" }]}
+      options={[{ label: guiText("最近"), value: "recent" }, { label: guiText("已归档"), value: "archived" }]}
       onChange={(value) => controller.filter("", value === "archived")} disabled={state.connection !== "ready"} />
     <div className={styles.threadList} {...pagination}>
       {groups.map((group) => {
@@ -102,12 +103,12 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
           } : undefined}
           renderThread={renderThread} />;
       })}
-      {!state.threads.length && <p className={styles.listEmpty}>{state.loading ? <Spin size="small" /> : "还没有对话"}</p>}
+      {!state.threads.length && <p className={styles.listEmpty}>{state.loading ? <Spin size="small" /> : guiText("还没有对话")}</p>}
       {state.cursor && <ThreadPagination loading={state.loading} />}
     </div>
     {accountPicker}
     {searchOpen && <ThreadSearch state={state} controller={controller} onClose={closeSearch} />}
-    <Modal title="删除这条对话？" open={Boolean(deleting)} width={400} okText="移入回收站" cancelText="取消"
+    <Modal title={guiText("删除这条对话？")} open={Boolean(deleting)} width={400} okText={guiText("移入回收站")} cancelText={guiText("取消")}
       confirmLoading={Boolean(state.deleting)} okButtonProps={{ danger: true }}
       closable={!state.deleting} maskClosable={!state.deleting} keyboard={!state.deleting}
       cancelButtonProps={{ disabled: Boolean(state.deleting) }}
@@ -116,16 +117,15 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
         if (deleting && await controller.deleteThread(deleting.id)) {
           setDeleting(null);
           void message.success(<span className="compact-confirm-copy">
-            已移入会话管理的回收站，可在那里恢复。
-          </span>);
+            {guiText("已移入会话管理的回收站，可在那里恢复。")}</span>);
         }
       }}>
-      <p className="compact-confirm-copy">这条对话及其所有子对话将一起移入回收站，可在“会话管理”中恢复。</p>
+      <p className="compact-confirm-copy">{guiText("这条对话及其所有子对话将一起移入回收站，可在“会话管理”中恢复。")}</p>
     </Modal>
-    <Modal title="重命名对话" open={Boolean(renaming)} width={400} okText="保存" cancelText="取消"
+    <Modal title={guiText("重命名对话")} open={Boolean(renaming)} width={400} okText={guiText("保存")} cancelText={guiText("取消")}
       okButtonProps={{ disabled: !name.trim() }} onCancel={() => setRenaming(null)}
       onOk={() => { if (renaming) void controller.manage("rename", renaming.id, name); setRenaming(null); }}>
-      <Input value={name} maxLength={120} autoFocus aria-label="对话名称"
+      <Input value={name} maxLength={120} autoFocus aria-label={guiText("对话名称")}
         onChange={(event) => setName(event.target.value)} />
     </Modal>
   </aside>;

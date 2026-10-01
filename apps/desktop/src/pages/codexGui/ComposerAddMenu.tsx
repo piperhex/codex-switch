@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Popover } from "antd";
 import { Paperclip, Plus, Target } from "lucide-react";
@@ -23,7 +24,7 @@ export function ComposerAddMenu({ cwd, disabled, active, anchor, onFiles, onGoal
   const skills = useComposerSkills({ cwd, active: open && active && !disabled, connected: !disabled });
   useEffect(() => { setOpen(false); }, [cwd, disabled, active]);
   const close = () => { setOpen(false); trigger.current?.focus(); };
-  const content = <div ref={panel} className={styles.panel} role="menu" aria-label="添加"
+  const content = <div ref={panel} className={styles.panel} role="menu" aria-label={guiText("添加")}
     onKeyDown={(event) => {
       if (event.key === "Escape") { event.stopPropagation(); close(); }
       if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
@@ -34,16 +35,16 @@ export function ComposerAddMenu({ cwd, disabled, active, anchor, onFiles, onGoal
       if (event.key === "End") next = items.length - 1;
       event.preventDefault(); items[next]?.focus();
     }}>
-    <div className={styles.heading}>添加</div>
+    <div className={styles.heading}>{guiText("添加")}</div>
     <button type="button" role="menuitem" className={styles.option} onClick={() => { close(); onFiles(); }}>
-      <Paperclip size={19} /><span>文件和文件夹</span>
+      <Paperclip size={19} /><span>{guiText("文件和文件夹")}</span>
     </button>
     <button type="button" role="menuitem" className={styles.option} onClick={() => { close(); onGoal(); }}>
-      <Target size={19} /><span>目标 <small>设置要持续追求的目标</small></span>
+      <Target size={19} /><span>{guiText("目标")} <small>{guiText("设置要持续追求的目标")}</small></span>
     </button>
     <ComposerSkillSection catalog={skills}
       onChoose={(skill) => { close(); onSkill(skill); }} />
-    <div className={styles.heading}>插件</div>
+    <div className={styles.heading}>{guiText("插件")}</div>
     {catalog.plugins.map((plugin) => <button type="button" role="menuitem" key={plugin.id}
       className={styles.option} onClick={() => {
         onPlugin({ kind: "plugin", name: plugin.interface?.displayName || plugin.name, path: `plugin://${plugin.id}` });
@@ -53,10 +54,10 @@ export function ComposerAddMenu({ cwd, disabled, active, anchor, onFiles, onGoal
       <span>{plugin.interface?.displayName || plugin.name}
         <small>{plugin.interface?.shortDescription}</small></span>
     </button>)}
-    {catalog.loading && <p role="status" className={styles.empty}>正在加载插件…</p>}
+    {catalog.loading && <p role="status" className={styles.empty}>{guiText("正在加载插件…")}</p>}
     {catalog.error && <p role="status" className={styles.empty}>{catalog.error}</p>}
     {!catalog.loading && !catalog.error && !catalog.plugins.length
-      && <p className={styles.empty}>暂无可用插件，可在插件市场安装并启用。</p>}
+      && <p className={styles.empty}>{guiText("暂无可用插件，可在插件市场安装并启用。")}</p>}
   </div>;
   return <Popover trigger="click" placement="topLeft" arrow={false} content={content}
     align={{ offset: [0, -offset] }} open={open && !disabled && active} onOpenChange={(visible) => {
@@ -68,7 +69,7 @@ export function ComposerAddMenu({ cwd, disabled, active, anchor, onFiles, onGoal
     afterOpenChange={(visible) => { if (visible) panel.current?.querySelector<HTMLButtonElement>("button")?.focus(); }}
     styles={{ root: { maxWidth: 400 }, body: { padding: 0, borderRadius: 20, overflow: "hidden" } }}>
     <button ref={trigger} type="button" className={styles.trigger} disabled={disabled}
-      aria-label="添加" aria-haspopup="menu" aria-expanded={open && !disabled && active}>
+      aria-label={guiText("添加")} aria-haspopup="menu" aria-expanded={open && !disabled && active}>
       <Plus size={21} strokeWidth={1.6} aria-hidden="true" />
     </button>
   </Popover>;

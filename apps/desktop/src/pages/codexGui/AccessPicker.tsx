@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Popover } from "antd";
 import { Check, Hand, ShieldAlert, ShieldCheck } from "lucide-react";
@@ -5,12 +6,12 @@ import type { AccessMode } from "./types";
 import styles from "./AccessPicker.module.less";
 
 const ACCESS_OPTIONS = [
-  { value: "read-only", label: "请求批准", icon: Hand,
-    description: "编辑外部文件和使用互联网时始终询问" },
-  { value: "workspace-write", label: "帮我批准", icon: ShieldCheck,
-    description: "自动判断风险，帮你批准安全操作" },
-  { value: "danger-full-access", label: "完全访问权限", icon: ShieldAlert,
-    description: "可不受限制地访问互联网和你电脑上的任何文件" },
+  { value: "read-only", get label() { return guiText("请求批准"); }, icon: Hand,
+    get description() { return guiText("编辑外部文件和使用互联网时始终询问"); } },
+  { value: "workspace-write", get label() { return guiText("帮我批准"); }, icon: ShieldCheck,
+    get description() { return guiText("自动判断风险，帮你批准安全操作"); } },
+  { value: "danger-full-access", get label() { return guiText("完全访问权限"); }, icon: ShieldAlert,
+    get description() { return guiText("可不受限制地访问互联网和你电脑上的任何文件"); } },
 ] satisfies { value: AccessMode; label: string; icon: typeof Hand; description: string }[];
 
 function moveOptionFocus(event: KeyboardEvent<HTMLDivElement>) {
@@ -37,8 +38,8 @@ export function AccessPicker({ value, disabled, onChange }: {
   const panel = <div className={styles.panel} onKeyDown={(event) => {
     if (event.key === "Escape") { event.stopPropagation(); close(); }
   }}>
-    <div className={styles.heading}>应如何批准 ChatGPT 操作？</div>
-    <div role="menu" aria-label="访问权限" onKeyDown={moveOptionFocus}>
+    <div className={styles.heading}>{guiText("应如何批准 ChatGPT 操作？")}</div>
+    <div role="menu" aria-label={guiText("访问权限")} onKeyDown={moveOptionFocus}>
       {ACCESS_OPTIONS.map((option) => <button key={option.value} type="button" role="menuitemradio"
         className={`${styles.option} ${option.value === "danger-full-access" ? styles.fullAccess : ""}`}
         aria-checked={value === option.value} disabled={disabled}
@@ -55,8 +56,8 @@ export function AccessPicker({ value, disabled, onChange }: {
     <button ref={trigger} type="button" disabled={disabled}
       onKeyDown={(event) => { if (event.key === "Escape") close(); }}
       className={`${styles.trigger} ${fullAccess ? styles.fullAccess : ""}`}
-      aria-haspopup="menu" aria-expanded={open && !disabled} aria-label={`访问权限：${selected.label}`}>
-      <Icon size={16} aria-hidden="true" /><span>{fullAccess ? "完全访问" : selected.label}</span>
+      aria-haspopup="menu" aria-expanded={open && !disabled} aria-label={guiText("访问权限：{value1}", { value1: selected.label })}>
+      <Icon size={16} aria-hidden="true" /><span>{fullAccess ? guiText("完全访问") : selected.label}</span>
     </button>
   </Popover>;
 }

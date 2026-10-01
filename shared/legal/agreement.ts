@@ -1,11 +1,23 @@
 import { userAgreementEn } from './en';
 import { userAgreementZh } from './zh';
+import { userAgreementRu } from './ru';
 import type { AgreementLanguage } from './types';
 
 export const AGREEMENT_VERSION = '2026-09-25';
-export const getUserAgreement = (language: AgreementLanguage) => language === 'en' ? userAgreementEn : userAgreementZh;
+export const getUserAgreement = (language: AgreementLanguage) => ({
+  en: userAgreementEn, zh: userAgreementZh, ru: userAgreementRu,
+})[language];
 
 export const agreementCopy = {
+  ru: {
+    prefix: 'Я прочитал и принимаю', link: 'Пользовательское соглашение',
+    checkbox: 'Я прочитал и принимаю Пользовательское соглашение',
+    title: 'Ознакомьтесь с соглашением',
+    login: 'Продолжая вход, вы подтверждаете, что прочитали и принимаете Пользовательское соглашение.',
+    register: 'Продолжая регистрацию, вы подтверждаете, что прочитали и принимаете Пользовательское соглашение.',
+    confirmLogin: 'Согласиться и войти', confirmRegister: 'Согласиться и зарегистрироваться',
+    cancel: 'Не сейчас', close: 'Закрыть соглашение',
+  },
   zh: {
     prefix: '我已阅读并同意', link: '《用户协议》', checkbox: '我已阅读并同意用户协议',
     title: '请阅读并同意用户协议', login: '继续登录即表示你已阅读并同意《用户协议》。',

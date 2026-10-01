@@ -1,3 +1,5 @@
+import { guiText } from "../i18n/guiText";
+import { DiffTextContext } from "../../../../shared/chat/diffText";
 import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Button, Popover, Tooltip } from "antd";
 import { PanelBottom, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
@@ -53,7 +55,7 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
   if (!visited) return null;
-  if (!hasLocalBackend) return <div className={styles.install}><h2>Codex GUI</h2><p>请打开 Remote AI 提供的网页地址，开始对话。</p></div>;
+  if (!hasLocalBackend) return <div className={styles.install}><h2>Codex GUI</h2><p>{guiText("请打开 Remote AI 提供的网页地址，开始对话。")}</p></div>;
   return <Workspace {...props} {...(props.focusMode ?? focusMode)} />;
 }
 
@@ -97,7 +99,7 @@ function Workspace({ active, accountPicker, windowControls, plugins, hostPicker,
   const running = state.sending || Object.values(state.conversations).some((value) => value.activeTurn);
   const canQuote = state.connection === "ready" && !state.sending && !state.archived
     && state.compacting !== state.selected;
-  return <WorkspaceOperationContext.Provider value={{ busy: Boolean(state.workspaceBusy),
+  return <DiffTextContext.Provider value={guiText}><WorkspaceOperationContext.Provider value={{ busy: Boolean(state.workspaceBusy),
     setBusy: controller.setWorkspaceBusy }}><DetailsWorkspace selected={state.selected} active={conversationActive}>
     <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}
       data-dream-skin={skinStyle ? "true" : undefined} style={skinStyle}>
@@ -107,7 +109,7 @@ function Workspace({ active, accountPicker, windowControls, plugins, hostPicker,
     <div className={styles.workspace}>
       <header className={styles.header} data-tauri-drag-region={isDesktopApp || undefined}>
         <Button type="text" icon={collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-          aria-label={collapsed ? "展开对话列表" : "收起对话列表"} onClick={() => setCollapsed(!collapsed)} />
+          aria-label={collapsed ? guiText("展开对话列表") : guiText("收起对话列表")} onClick={() => setCollapsed(!collapsed)} />
         {collapsed && <FocusModeButton focused={focused} onToggleFocus={onToggleFocus} />}
         <div className={styles.heading} data-tauri-drag-region={isDesktopApp || undefined}>
           <strong data-tauri-drag-region={isDesktopApp || undefined}>
@@ -116,21 +118,21 @@ function Workspace({ active, accountPicker, windowControls, plugins, hostPicker,
         </div>
         <div className={styles.headerActions} data-tauri-drag-region={isDesktopApp || undefined}>
           {isDesktopApp && view === "conversation" && <GuiToolbox active={conversationActive} connected
-            cwd={project} deviceName="本机" git={localGitClient} />}
+            cwd={project} deviceName={guiText("本机")} git={localGitClient} />}
           {isDesktopApp && <MobileConnectionStatus />}
-          {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接 Codex"
+          {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label={guiText("重新连接 Codex")}
             disabled={Boolean(running)} loading={state.connection === "connecting"}
             onClick={() => void controller.connect()} />}
           <Popover trigger="click" placement="bottomRight"
             content={<Installer installer={installer} compact running={Boolean(running)} />}
             styles={{ root: { maxWidth: 400 } }}>
             <Button type="text" icon={<CliUpdateIcon version={installer.version} release={installer.release} />}
-              aria-label="Codex CLI 更新">
+              aria-label={guiText("Codex CLI 更新")}>
               {installer.version ? `v${installer.version}` : "Codex"}</Button>
           </Popover>
-          {isDesktopApp && view === "conversation" && <Tooltip title={terminal.open ? "收起终端" : "打开终端"}
+          {isDesktopApp && view === "conversation" && <Tooltip title={terminal.open ? guiText("收起终端") : guiText("打开终端")}
             styles={{ root: { maxWidth: 400 } }}>
-            <Button type="text" icon={<PanelBottom size={16} />} aria-label={terminal.open ? "收起终端" : "打开终端"}
+            <Button type="text" icon={<PanelBottom size={16} />} aria-label={terminal.open ? guiText("收起终端") : guiText("打开终端")}
               aria-expanded={terminal.open} onClick={terminal.toggle} />
           </Tooltip>}
           {view === "conversation" && <ConversationChangesButton value={current} />}
@@ -140,16 +142,15 @@ function Workspace({ active, accountPicker, windowControls, plugins, hostPicker,
       {state.error && <Alert className={styles.error} message={state.error}
         type="error" closable onClose={controller.clearError} />}
       {state.computerUseSetup === "installing" && <Alert className={styles.error} type="info" showIcon
-        message={<span style={{ display: "block", maxWidth: 400 }}>正在安装电脑助手，首次准备可能需要几分钟…</span>} />}
+        message={<span style={{ display: "block", maxWidth: 400 }}>{guiText("正在安装电脑助手，首次准备可能需要几分钟…")}</span>} />}
       {state.computerUseSetup === "failed" && <Alert className={styles.error} type="warning" showIcon closable
         message={<span style={{ display: "block", maxWidth: 400 }}>
-          电脑助手安装未完成。你可以继续对话，稍后到社区插件页安装或修复电脑助手。
-        </span>} />}
+          {guiText("电脑助手安装未完成。你可以继续对话，稍后到社区插件页安装或修复电脑助手。")}</span>} />}
       {navigationApproval && <button className={styles.pendingBanner} onClick={() => {
         openTaskConversation(navigationApproval.params.threadId!);
-      }}>有对话需要你的确认，点击查看</button>}
+      }}>{guiText("有对话需要你的确认，点击查看")}</button>}
       {view !== "conversation" && <div className={paneStyles.feature}>
-        <Suspense fallback={<div className={paneStyles.loading} role="status">正在加载…</div>}>
+        <Suspense fallback={<div className={paneStyles.loading} role="status">{guiText("正在加载…")}</div>}>
           {view === "scheduled-tasks" && <ScheduledTasksPage active={active} cwd={project}
             onOpenThread={openTaskConversation} />}
           {view === "plugins" && <GuiPluginsPage {...plugins} active={active} />}
@@ -178,5 +179,5 @@ function Workspace({ active, accountPicker, windowControls, plugins, hostPicker,
       </div>
     </div>
     </div>
-  </DetailsWorkspace></WorkspaceOperationContext.Provider>;
+  </DetailsWorkspace></WorkspaceOperationContext.Provider></DiffTextContext.Provider>;
 }

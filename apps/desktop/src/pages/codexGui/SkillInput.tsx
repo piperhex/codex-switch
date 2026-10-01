@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { forwardRef, useId, useImperativeHandle, useLayoutEffect, useRef, useState,
   type ClipboardEvent, type KeyboardEvent } from "react";
 import type { ComposerText, GuiState, Skill } from "./types";
@@ -52,7 +53,7 @@ export const SkillInput = forwardRef<SkillInputHandle, {
     known: conversations?.threads ?? [], conversations: conversations?.conversations ?? {},
     currentId: conversations?.selected ?? null, query }).map((thread) => ({ kind: "conversation", key: thread.id,
       label: conversationReference(thread).name, enabled: true,
-      description: `${thread.status?.type === "active" ? "运行中" : "空闲"} · ${thread.cwd || "未选择项目"}`,
+      description: guiText("{value1} · {value2}", { value1: thread.status?.type === "active" ? "运行中" : "空闲", value2: thread.cwd || "未选择项目" }),
       command: { enabled: true, run: () => onConversation?.(conversationReference(thread)) },
     })) : composerOptions(catalog.skills, query, compact, goal);
   const selectedIndex = Math.min(selected, Math.max(0, options.length - 1));
@@ -135,7 +136,7 @@ export const SkillInput = forwardRef<SkillInputHandle, {
       error={isConversation ? candidates.error : catalog.error} conversations={isConversation}
       onChoose={choose} below={Boolean(editing)}
       skillsOnly={!compact && !goal} />}
-    <div ref={editor} role="textbox" aria-label={editing ? "编辑消息内容" : "消息"}
+    <div ref={editor} role="textbox" aria-label={editing ? guiText("编辑消息内容") : guiText("消息")}
       aria-multiline="true" aria-disabled={disabled}
       aria-autocomplete="list" aria-controls={open ? listId : undefined}
       aria-activedescendant={open && options.length ? `${listId}-${selectedIndex}` : undefined}

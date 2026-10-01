@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { Progress } from "antd";
 import { useEffect, useState } from "react";
 import type { Language, Translate } from "../../i18n";
@@ -17,11 +18,11 @@ function tableResetLabel(timestamp: number | null | undefined, language: Languag
   if (resetWindow === "oneWeek") {
     const countdown = resetCountdownWithDays(timestamp, language, now);
     if (!countdown) return label;
-    return language === "zh" ? `${label} · 剩 ${countdown}` : `${label} · ${countdown} left`;
+    return (language === "ru" ? guiText("{value1} · 剩 {value2}", { value1: label, value2: countdown }, language) : language === "zh" ? `${label} · 剩 ${countdown}` : `${label} · ${countdown} left`);
   }
   const countdown = resetCountdownTime(timestamp, now);
   if (!countdown) return label;
-  return language === "zh" ? `${label} · 剩 ${countdown}` : `${label} · ${countdown} left`;
+  return (language === "ru" ? guiText("{value1} · 剩 {value2}", { value1: label, value2: countdown }, language) : language === "zh" ? `${label} · 剩 ${countdown}` : `${label} · ${countdown} left`);
 }
 
 function secondsSinceRefresh(timestamp: string | null | undefined, now: number) {

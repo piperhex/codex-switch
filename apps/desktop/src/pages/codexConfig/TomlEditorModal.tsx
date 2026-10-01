@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useMemo, useRef } from "react";
 import type { KeyboardEvent, ReactNode, UIEvent } from "react";
 import { Modal } from "antd";
@@ -59,8 +60,8 @@ export function TomlEditorModal(props: TomlEditorProps) {
   const lines = useMemo(() => editor.draft.split("\n").length, [editor.draft]);
   const busy = editor.status === "checking" || editor.status === "saving";
   const statusLabels = zh
-    ? { clean: "已同步", changed: "离开编辑区后自动保存", checking: "正在校验…",
-      saving: "正在保存…", saved: "已保存", error: "尚未保存" }
+    ? { clean: guiText("已同步"), changed: guiText("离开编辑区后自动保存"), checking: guiText("正在校验…"),
+      saving: guiText("正在保存…"), saved: guiText("已保存"), error: guiText("尚未保存") }
     : { clean: "Up to date", changed: "Saves when you leave the editor", checking: "Checking…",
       saving: "Saving…", saved: "Saved", error: "Not saved" };
 
@@ -83,7 +84,7 @@ export function TomlEditorModal(props: TomlEditorProps) {
     className={styles.modal} footer={null} maskClosable={false} onCancel={() => void close()}
     title={<span className={styles.title}><FileCode2 size={19} />config.toml</span>}>
     <p className={styles.hint}>{zh
-      ? "离开编辑区或关闭窗口时自动保存。格式有误时会保留修改，修正后再保存。"
+      ? guiText("离开编辑区或关闭窗口时自动保存。格式有误时会保留修改，修正后再保存。")
       : "Changes save when you leave the editor or close this window. Fix any errors before saving."}</p>
     <div className={`${styles.frame}${editor.issue ? ` ${styles.invalid}` : ""}`}>
       <div className={styles.gutter} aria-hidden="true"><div ref={scroll.gutter}>
@@ -93,7 +94,7 @@ export function TomlEditorModal(props: TomlEditorProps) {
       <div className={styles.codeArea}>
         <pre className={styles.highlight} aria-hidden="true" ref={scroll.highlight}>{tokens}</pre>
         <textarea ref={textarea} className={styles.input} autoFocus
-          aria-label={zh ? "配置文件内容" : "Configuration content"}
+          aria-label={zh ? guiText("配置文件内容") : "Configuration content"}
           aria-invalid={Boolean(editor.issue)} aria-describedby={editor.issue ? "codex-toml-error" : undefined}
           value={editor.draft} spellCheck={false} autoCapitalize="off" autoComplete="off" autoCorrect="off" wrap="off"
           onChange={(event) => editor.edit(event.target.value)} onKeyDown={handleKeyDown}
@@ -107,19 +108,19 @@ export function TomlEditorModal(props: TomlEditorProps) {
         {statusLabels[editor.status]}
       </span>
       <span className={styles.shortcut}>
-        TOML · {zh ? "Tab 缩进 · Shift+Tab 离开" : "Tab to indent · Shift+Tab to leave"}
+        TOML · {zh ? guiText("Tab 缩进 · Shift+Tab 离开") : "Tab to indent · Shift+Tab to leave"}
       </span>
       <button type="button" className={styles.discard} disabled={editor.saving}
         onMouseDown={(event) => event.preventDefault()} onClick={editor.discard}>
-        {zh ? "放弃修改并关闭" : "Discard changes and close"}
+        {zh ? guiText("放弃修改并关闭") : "Discard changes and close"}
       </button>
     </div>
     {editor.issue && <div id="codex-toml-error" className={styles.error} role="alert">
       <AlertCircle size={16} />
       <div><strong>{editor.issue.line ? (zh
-        ? `第 ${editor.issue.line} 行${editor.issue.column ? `，第 ${editor.issue.column} 列` : ""}`
+        ? guiText("第 {value1} 行{value2}", { value1: editor.issue.line, value2: editor.issue.column ? `，第 ${editor.issue.column} 列` : "" })
         : `Line ${editor.issue.line}${editor.issue.column ? `, column ${editor.issue.column}` : ""}`)
-        : (zh ? "请检查配置" : "Check the configuration")}</strong>
+        : (zh ? guiText("请检查配置") : "Check the configuration")}</strong>
       <p>{editor.issue.message}</p></div>
     </div>}
   </Modal>;

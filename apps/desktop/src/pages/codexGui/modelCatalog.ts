@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { guiApi } from "./api";
 import type { ListResponse, Model } from "./types";
 
@@ -24,12 +25,12 @@ export class GuiModelCatalog {
 
   async ready() {
     if (this.pending) await this.pending;
-    if (this.invalid || this.switching) throw new Error("模型正在同步，请稍后重试。");
+    if (this.invalid || this.switching) throw new Error(guiText("模型正在同步，请稍后重试。"));
   }
 
   /** Block sends before changing routing, including before its change event reaches the UI. */
   async switchSource<T>(switchAccount: () => Promise<T>): Promise<T> {
-    if (this.switching) throw new Error("正在切换账户，请稍后重试。");
+    if (this.switching) throw new Error(guiText("正在切换账户，请稍后重试。"));
     this.switching++; this.generation++; this.markInvalid();
     try { return await switchAccount(); }
     finally {
@@ -84,7 +85,7 @@ export class GuiModelCatalog {
       if (!this.active || generation !== this.generation) return models;
       models.push(...response.data);
       cursor = response.nextCursor || undefined;
-      if (cursor && cursors.has(cursor)) throw new Error("模型列表暂时无法更新，请稍后重试。");
+      if (cursor && cursors.has(cursor)) throw new Error(guiText("模型列表暂时无法更新，请稍后重试。"));
       if (cursor) cursors.add(cursor);
     } while (cursor);
     return models;

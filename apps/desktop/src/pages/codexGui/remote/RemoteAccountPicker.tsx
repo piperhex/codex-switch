@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Spin } from 'antd';
 import { RefreshCw, Server, UserRound } from 'lucide-react';
@@ -21,7 +22,7 @@ export function RemoteAccountPicker({ active, ready, client, computers, privacyM
   const selection = accounts.snapshot?.selection;
   const current = accounts.snapshot?.choices.find((choice) => choice.kind === selection?.kind && choice.id === selection.id);
   const name = current ? privacyMode && current.kind === 'account' ? maskAccountEmail(current.name) : current.name
-    : '选择 GUI 账户';
+    : guiText("选择 GUI 账户");
   const disabled = !ready || accounts.loading || Boolean(accounts.saving) || !accounts.snapshot?.running;
   useEffect(() => { if (!active) setOpen(false); }, [active]);
   const select = async (kind: SelectableGuiAccount['kind'], id: string) => {
@@ -38,13 +39,13 @@ export function RemoteAccountPicker({ active, ready, client, computers, privacyM
     disabled={disabled} loading={accounts.loading || Boolean(accounts.saving)}
     onSelectAccount={(id) => { void select('account', id); }}
     onSelectProvider={(id) => { void select('provider', id); }} footer={<>
-      {!ready && <p className={styles.hint}>连接电脑后即可切换账户。</p>}
+      {!ready && <p className={styles.hint}>{guiText("连接电脑后即可切换账户。")}</p>}
       {ready && accounts.snapshot && !accounts.snapshot.running
-        && <p className={styles.hint}>请先在这台电脑上开启本地代理。</p>}
+        && <p className={styles.hint}>{guiText("请先在这台电脑上开启本地代理。")}</p>}
       {accounts.error && <p className={styles.error} role="alert">{accounts.error}</p>}
-      <button type="button" className={styles.settings} aria-label="刷新账户列表"
+      <button type="button" className={styles.settings} aria-label={guiText("刷新账户列表")}
         disabled={!ready || accounts.loading || Boolean(accounts.saving)} onClick={accounts.refresh}>
-        <RefreshCw size={17} />刷新账户</button>
+        <RefreshCw size={17} />{guiText("刷新账户")}</button>
     </>} />;
   return <GuiAccountMenu active={active} open={open} trigger={trigger} name={name} computers={computers}
     busy={Boolean(accounts.saving)} accounts={panel}

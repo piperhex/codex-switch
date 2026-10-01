@@ -292,6 +292,45 @@ pub(crate) fn build_menu<R: Runtime>(
         true,
         None::<&str>,
     )?)?;
+    if settings
+        .as_ref()
+        .and_then(|settings| settings.language.as_deref())
+        == Some("ru")
+    {
+        for (id, label) in [
+            ("tray:accounts-header", "Аккаунты"),
+            ("tray:providers-header", "Провайдеры"),
+            ("tray:providers-empty", "Нет провайдеров"),
+            ("tray:providers-error", "Не удалось загрузить провайдеров"),
+            (SETTINGS_ID, "Настройки"),
+            (DASHBOARD_ID, "Обзор"),
+            (RESTART_CHATGPT_ID, "Перезапустить ChatGPT"),
+            (RESTART_APP_ID, "Перезапустить Remote AI"),
+            (QUIT_ID, "Выйти"),
+            (
+                FLOATING_BUBBLE_TOGGLE_ID,
+                if floating_bubble_enabled {
+                    "Скрыть индикатор расхода"
+                } else {
+                    "Показать индикатор расхода"
+                },
+            ),
+        ] {
+            if let Some(item) = menu.get(id).and_then(|item| item.as_menuitem().cloned()) {
+                item.set_text(label)?;
+            }
+        }
+        if let Some(item) = menu
+            .get("tray:accounts-notice")
+            .and_then(|item| item.as_menuitem().cloned())
+        {
+            item.set_text(if item.text()? == "No accounts" {
+                "Нет аккаунтов"
+            } else {
+                "Не удалось загрузить аккаунты"
+            })?;
+        }
+    }
     Ok(menu)
 }
 

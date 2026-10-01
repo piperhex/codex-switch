@@ -4,6 +4,10 @@ import { formatCompactTokenCount } from "../../utils/tokenContext";
 import type { ConcurrentUsageSummary } from "./concurrentUsageSummary";
 
 const COPY = {
+  ru: {
+    accountCount: "Аккаунтов в параллельном режиме", estimatedCost: "Стоимость за сегодня",
+    title: "Общая статистика", totalTokens: "Токены за сегодня",
+  },
   en: {
     accountCount: "Concurrent accounts",
     estimatedCost: "Today's estimated cost",

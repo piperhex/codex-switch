@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { Item, Turn } from "./types";
@@ -25,9 +26,9 @@ export function TurnProcess({ turn, items, running, active, timed }: {
     if (event.currentTarget.open === state.open) return;
     setState({ automaticOpen, open: event.currentTarget.open, inspected: true });
   }}>
-    <summary data-history-anchor aria-label={`处理过程，${items.length} 项活动`}>
-      {timed ? <TurnDuration turn={turn} running={running} active={active} fallback="处理过程" inline />
-        : <span>处理过程</span>}
+    <summary data-history-anchor aria-label={guiText("处理过程，{value1} 项活动", { value1: items.length })}>
+      {timed ? <TurnDuration turn={turn} running={running} active={active} fallback={guiText("处理过程")} inline />
+        : <span>{guiText("处理过程")}</span>}
       <ChevronRight size={14} aria-hidden="true" />
     </summary>
     {state.open && <WorkItems items={items} startedAt={turn.startedAt} running={running} />}

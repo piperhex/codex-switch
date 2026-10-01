@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useState } from "react";
 import { Button, Select, Tag, Tooltip } from "antd";
 import { RotateCcw } from "lucide-react";
@@ -33,7 +34,7 @@ function VariantSelector(props: ConfigFieldProps & { variants: ConfigSchema[]; s
     else if (type === "object" && keys.length === 1) label = fieldLabel(keys[0]);
     return { value: index, label };
   });
-  return <Select className={styles.variantSelect} aria-label="配置方式" value={selected}
+  return <Select className={styles.variantSelect} aria-label={guiText("配置方式")} value={selected}
     options={options} disabled={disabled || pending} onChange={(index: number) => {
       setPending(true);
       void onCommit(path, initialValue(variants[index])).finally(() => setPending(false));
@@ -44,17 +45,17 @@ function FieldHeading(props: ConfigFieldProps & { reset: () => void }) {
   const { fieldKey, label, value, disabled, reset, path } = props;
   const title = label ?? fieldLabel(fieldKey);
   const arrayItem = path.length > 1 && /^\d+$/.test(path[path.length - 1]) && label !== undefined;
-  const resetLabel = arrayItem ? `删除${title}` : `重置${title}`;
+  const resetLabel = arrayItem ? guiText("删除{value1}", { value1: title }) : guiText("重置{value1}", { value1: title });
   const help = fieldHelp(fieldKey);
   return <div className={styles.fieldHeading}>
     <div className={styles.fieldCopy}>
       <div className={styles.fieldTitle}><span>{title}</span>
-        {value !== undefined && <Tag bordered={false} className={styles.configuredTag}>已配置</Tag>}
+        {value !== undefined && <Tag bordered={false} className={styles.configuredTag}>{guiText("已配置")}</Tag>}
       </div>
       <code>{fieldKey}</code>
       {help && <p>{help}</p>}
     </div>
-    {value !== undefined && <Tooltip title={arrayItem ? "删除此项" : "清除此项，使用默认值"}
+    {value !== undefined && <Tooltip title={arrayItem ? guiText("删除此项") : guiText("清除此项，使用默认值")}
       styles={{ root: { maxWidth: 400 } }}>
       <Button type="text" className={styles.resetButton} aria-label={resetLabel} disabled={disabled}
         icon={<RotateCcw size={18} />} onClick={reset} />

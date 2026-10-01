@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import type { Turn } from "./types";
 
 export const SECOND_MS = 1000;
@@ -33,8 +34,8 @@ export function turnElapsedMs(turn: Turn, now: number): number | null {
 export function formatTurnDuration(milliseconds: number): string {
   const seconds = Math.floor(milliseconds / SECOND_MS);
   const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
-  if (!minutes) return `${seconds}秒`;
+  if (!minutes) return guiText("{value1}秒", { value1: seconds });
   const remainder = seconds % SECONDS_PER_MINUTE;
-  if (minutes < MINUTES_PER_HOUR) return `${minutes}分${remainder}秒`;
-  return `${Math.floor(minutes / MINUTES_PER_HOUR)}小时${minutes % MINUTES_PER_HOUR}分${remainder}秒`;
+  if (minutes < MINUTES_PER_HOUR) return guiText("{value1}分{value2}秒", { value1: minutes, value2: remainder });
+  return guiText("{value1}小时{value2}分{value3}秒", { value1: Math.floor(minutes / MINUTES_PER_HOUR), value2: minutes % MINUTES_PER_HOUR, value3: remainder });
 }

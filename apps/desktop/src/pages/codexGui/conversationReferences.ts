@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import type { AttachmentReference } from "./attachmentTypes";
 import type { Conversation, Thread } from "./types";
 
@@ -6,7 +7,7 @@ export const MAX_CONVERSATION_REFERENCES = 8;
 const MAX_TITLE_LENGTH = 160;
 
 export function conversationReference(thread: Thread): AttachmentReference {
-  const name = (thread.name?.trim() || thread.preview?.trim() || "未命名对话")
+  const name = (thread.name?.trim() || thread.preview?.trim() || guiText("未命名对话"))
     .replace(/[\x00-\x1f\x7f]/gu, " ").slice(0, MAX_TITLE_LENGTH);
   return { kind: "conversation", name, path: `${CONVERSATION_PREFIX}${thread.id}` };
 }

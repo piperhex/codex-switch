@@ -1,17 +1,20 @@
 import { useSyncExternalStore } from 'react';
 
-export type Language = 'zh' | 'en';
+export type Language = 'zh' | 'en' | 'ru';
 export const LANGUAGE_KEY = 'codex-switch.web.language.v1';
 const listeners = new Set<() => void>();
 
 function readLanguage(): Language {
-  try { return localStorage.getItem(LANGUAGE_KEY) === 'en' ? 'en' : 'zh'; }
-  catch { return 'zh'; } // Language switching still works when browser storage is unavailable.
+  try {
+    const stored = localStorage.getItem(LANGUAGE_KEY);
+    if (stored === 'en' || stored === 'zh' || stored === 'ru') return stored;
+  } catch { /* Language switching still works without browser storage. */ }
+  return typeof navigator !== 'undefined' && /^ru(?:-|$)/i.test(navigator.language) ? 'ru' : 'zh';
 }
 
 let language = readLanguage();
 export const getLanguage = () => language;
-export const getLocale = () => language === 'en' ? 'en-US' : 'zh-CN';
+export const getLocale = () => ({ en: 'en-US', zh: 'zh-CN', ru: 'ru-RU' })[language];
 
 function publishLanguage(next: Language) {
   if (next === language) return;
@@ -20,7 +23,7 @@ function publishLanguage(next: Language) {
 }
 
 export function setLanguage(next: Language) {
-  if (next !== 'zh' && next !== 'en') return;
+  if (next !== 'zh' && next !== 'en' && next !== 'ru') return;
   try { localStorage.setItem(LANGUAGE_KEY, next); }
   catch { /* Keep the selected language for this visit if storage is unavailable. */ }
   publishLanguage(next);

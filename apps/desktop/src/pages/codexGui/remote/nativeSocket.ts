@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { Channel, invoke } from '@tauri-apps/api/core';
 import type { ChatSocket } from '../../../../../../shared/remote-chat/client/socket';
 import type { GuiCloudIdentity } from './types';
@@ -45,10 +46,10 @@ export class NativeGuiSocket implements ChatSocket {
   }
 
   send(data: string) {
-    if (this.readyState !== 1) throw new Error('连接已断开，请重新连接。');
+    if (this.readyState !== 1) throw new Error(guiText("连接已断开，请重新连接。"));
     const frame = JSON.parse(data) as Record<string, unknown>;
     if (!this.started) {
-      if (frame.type !== 'authenticate') throw new Error('请先连接电脑。');
+      if (frame.type !== 'authenticate') throw new Error(guiText("请先连接电脑。"));
       this.started = lifecycle.then(async () => {
         if (this.readyState === 1) await invoke('gui_remote_open', { request: { clientId: this.clientId,
           deviceId: frame.deviceId, publicKey: frame.publicKey, resume: frame.resume, identity: this.identity },
@@ -59,7 +60,7 @@ export class NativeGuiSocket implements ChatSocket {
       return;
     }
     const bytes = new TextEncoder().encode(data).length;
-    if (this.bufferedAmount + bytes > MAX_BUFFER_BYTES) throw new Error('连接繁忙，请稍后重试。');
+    if (this.bufferedAmount + bytes > MAX_BUFFER_BYTES) throw new Error(guiText("连接繁忙，请稍后重试。"));
     this.bufferedAmount += bytes;
     this.outgoing = this.outgoing.then(async () => {
       await invoke('gui_remote_send', { request: { clientId: this.clientId, message: frame } });

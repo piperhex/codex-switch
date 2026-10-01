@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RootContent } from "hast";
 import { renderToken } from "../CodeHighlight";
@@ -30,10 +31,10 @@ export function PreviewCode({ text, path, line }: { text: string; path: string; 
   }, [selectedLine, text]);
   return <section className={styles.code}>
     <div className={styles.codeInfo}>
-      <span>{language || "文本"} · {lineCount} 行{line && ` · 第 ${line} 行`}</span>
-      {tail && <span>文件较长，后半部分以纯文本显示</span>}
+      <span>{language || guiText("文本")} · {lineCount}  {guiText("行")}{line && guiText(" · 第 {value1} 行", { value1: line })}</span>
+      {tail && <span>{guiText("文件较长，后半部分以纯文本显示")}</span>}
     </div>
-    <div className={styles.codeScroll} ref={scroll} tabIndex={0} aria-label="文件内容">
+    <div className={styles.codeScroll} ref={scroll} tabIndex={0} aria-label={guiText("文件内容")}>
       <div className={styles.codeLines} style={{ lineHeight: `${LINE_HEIGHT}px` }}>
         {selectedLine && <div className={styles.selectedLine} aria-hidden="true"
           style={{ top: (selectedLine - 1) * LINE_HEIGHT, height: LINE_HEIGHT }} />}

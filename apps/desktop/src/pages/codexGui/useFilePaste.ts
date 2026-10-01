@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { invoke, isDesktopApp } from "../../api/backend";
 import type { AttachmentReference } from "./attachmentTypes";
@@ -27,7 +28,7 @@ export function useFilePaste({ key, addAttachments, addImages, report }: PasteOp
       else return request.fallback?.();
     }).catch(() => {
       if (request.fallback) return request.fallback();
-      else report("文件粘贴失败，请重新复制后再试。");
+      else report(guiText("文件粘贴失败，请重新复制后再试。"));
     }).finally(() => {
       pending.current.delete(key);
       setReading((values) => ({ ...values, [key]: false }));
@@ -59,7 +60,7 @@ export function useFilePaste({ key, addAttachments, addImages, report }: PasteOp
       }
       if (images.length) addImages(images);
       if (missing) report(MISSING_CLIPBOARD_IMAGES);
-      if (files.some((file) => !file.type.startsWith("image/"))) report("请通过“添加文件”选择这些文件。");
+      if (files.some((file) => !file.type.startsWith("image/"))) report(guiText("请通过“添加文件”选择这些文件。"));
     };
     if (isDesktopApp) {
       // SkillInput inserts the accompanying text synchronously at the current caret.

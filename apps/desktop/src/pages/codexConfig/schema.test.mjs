@@ -14,7 +14,9 @@ function loadSource(filename, dependencies = {}) {
   runInNewContext(compiled, { exports, require: (key) => dependencies[key] });
   return exports;
 }
-const labels = loadSource("./labels.ts");
+const labels = loadSource("./labels.ts", {
+  "../../i18n/guiText": { guiText: (source) => source },
+});
 const schema = loadSource("./schema.ts", {
   "./schema.generated.json": { default: sourceSchema }, "./labels": labels,
 });

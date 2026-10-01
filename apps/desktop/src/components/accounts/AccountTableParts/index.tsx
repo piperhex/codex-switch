@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { useEffect, useRef, useState } from "react";
 import { Button, InputNumber, Popover, Tooltip } from "antd";
 import { CalendarClock, Check, Copy, Eye, EyeOff, Pencil, Settings, X } from "lucide-react";
@@ -47,7 +48,7 @@ export function resetCreditsCount(state?: ResetCreditsLoadState) {
 
 export function AccountResetCreditCount({ count, language }: { count: number | null; language: Language }) {
   if (!count) return null;
-  const label = language === "zh" ? `${count}重置卡` : `${count} reset card${count === 1 ? "" : "s"}`;
+  const label = (language === "ru" ? guiText("{value1}重置卡", { value1: count }, language) : language === "zh" ? `${count}重置卡` : `${count} reset card${count === 1 ? "" : "s"}`);
   return <span className="account-reset-credit-count"><span aria-hidden="true">·</span>{label}</span>;
 }
 
@@ -94,12 +95,12 @@ export function CompactDailyTokenChart({ totals, language }: {
 }) {
   const values = [totals.input, totals.output, totals.reasoning, totals.cached];
   const maximum = Math.max(...values, 1);
-  const title = language === "zh" ? "今日 Token 用量" : "Today's Token usage";
+  const title = (language === "ru" ? guiText("今日 Token 用量", {}, language) : language === "zh" ? "今日 Token 用量" : "Today's Token usage");
   return (
     <Tooltip title={<DailyTokenUsageTooltip totals={totals} language={language} />} placement="top">
       <div className={`compact-model-token-chart ${styles.compactModelTokenChart}`} role="img"
         aria-label={`${title}: ${formatCompactTokenCount(totals.total, language)}`}>
-        <span>{language === "zh" ? "今日" : "TODAY"}</span>
+        <span>{(language === "ru" ? guiText("今日", {}, language) : language === "zh" ? "今日" : "TODAY")}</span>
         <svg viewBox="0 0 48 26" aria-hidden="true">
           {values.map((value, index) => {
             const height = value > 0 ? Math.max(3, Math.round((value / maximum) * 22)) : 2;

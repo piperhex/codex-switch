@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 export interface RequestError {
   message: string;
   additionalDetails?: string | null;
@@ -12,10 +13,10 @@ export function isModelCapacityError(error?: RequestError | null): boolean {
 
 function redactCredentials(text: string): string {
   // Proxy diagnostics can echo request credentials; retain the failure reason, not authentication values.
-  return text.replace(/(Bearer\s+)[^\s"',;]+/gi, "$1[已隐藏]")
+  return text.replace(/(Bearer\s+)[^\s"',;]+/gi, guiText("$1[已隐藏]"))
     .replace(/(["']?(?:api[-_]?key|access_token|refresh_token|token|password)["']?\s*[:=]\s*["']?)[^\s"',;&}]+/gi,
-      "$1[已隐藏]")
-    .replace(/(https?:\/\/)[^/\s:@]+:[^/@\s]+@/gi, "$1[已隐藏]@");
+      guiText("$1[已隐藏]"))
+    .replace(/(https?:\/\/)[^/\s:@]+:[^/@\s]+@/gi, guiText("$1[已隐藏]@"));
 }
 
 /** Keep the diagnostic text readable without rendering upstream content as HTML. */

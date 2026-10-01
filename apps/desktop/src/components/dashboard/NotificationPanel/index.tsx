@@ -1,3 +1,4 @@
+import { getLocale } from "../../../i18n";
 import type { Translate } from "../../../i18n";
 import type { Language } from "../../../i18n";
 import type { CloudNotification } from "../../../types";
@@ -41,7 +42,7 @@ export function NotificationPanel({ language, notifications, onOpenLink, t }: No
                 <strong>{title}</strong>
                 <time dateTime={notification.publishedAt}>
                   {new Date(notification.publishedAt).toLocaleString(
-                    language === "zh" ? "zh-CN" : "en-US",
+                    getLocale(language),
                     { dateStyle: "medium", timeStyle: "short" },
                   )}
                 </time>

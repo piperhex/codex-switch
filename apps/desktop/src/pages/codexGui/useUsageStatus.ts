@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "../../api/backend";
 import { USAGE_REFRESH_INTERVAL_MS, type UsageSummary } from "../../../../../shared/remote-chat/usage";
@@ -20,7 +21,7 @@ export function useUsageStatus(active: boolean) {
         setUsage(nextUsage);
         setError("");
       } catch {
-        if (!cancelled) { setUsage(null); setError("暂时无法刷新用量，请稍后重试。"); }
+        if (!cancelled) { setUsage(null); setError(guiText("暂时无法刷新用量，请稍后重试。")); }
       } finally { loading.current = false; }
     };
     queueMicrotask(() => void refresh());

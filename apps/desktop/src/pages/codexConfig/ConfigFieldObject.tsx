@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useState } from "react";
 import { Button, Collapse, Empty, Input, Select } from "antd";
 import { Plus } from "lucide-react";
@@ -24,27 +25,27 @@ export function ConfigFieldAddProperty({ schema, existing, disabled, onAdd }: Ad
   const add = async () => {
     const key = name.trim();
     if (!key || pending || disabled) return;
-    if (existing.includes(key)) { setError("此名称已存在，请换一个名称。"); return; }
+    if (existing.includes(key)) { setError(guiText("此名称已存在，请换一个名称。")); return; }
     setPending(true);
     const itemSchema = typed ? schema.additionalProperties as ConfigSchema : { type };
     const success = await onAdd(key, initialValue(itemSchema));
     setPending(false);
-    if (!success) { setError("未能添加，请检查提示后重试。"); return; }
+    if (!success) { setError(guiText("未能添加，请检查提示后重试。")); return; }
     setName("");
     setAdding(false);
     setError(undefined);
   };
   if (!adding) return <Button type="dashed" size="small" disabled={disabled} icon={<Plus size={14} />}
-    onClick={() => setAdding(true)}>添加配置项</Button>;
+    onClick={() => setAdding(true)}>{guiText("添加配置项")}</Button>;
   return <div className={styles.addProperty}>
-    {!typed && <Select aria-label="新配置项类型" value={type} disabled={disabled || pending}
+    {!typed && <Select aria-label={guiText("新配置项类型")} value={type} disabled={disabled || pending}
       options={Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label }))} onChange={setType} />}
-    <Input aria-label="新配置项名称" placeholder="输入名称，离开输入框后添加" value={name}
+    <Input aria-label={guiText("新配置项名称")} placeholder={guiText("输入名称，离开输入框后添加")} value={name}
       disabled={disabled || pending} status={error ? "error" : undefined}
       onChange={(event) => { setName(event.target.value); setError(undefined); }}
       onPressEnter={(event) => event.currentTarget.blur()} onBlur={() => { void add(); }} />
     <Button type="text" size="small" disabled={pending} onMouseDown={(event) => event.preventDefault()}
-      onClick={() => { setAdding(false); setName(""); setError(undefined); }}>取消</Button>
+      onClick={() => { setAdding(false); setName(""); setError(undefined); }}>{guiText("取消")}</Button>
     {error && <span role="alert" className={styles.error}>{error}</span>}
   </div>;
 }
@@ -63,7 +64,7 @@ function ObjectFields(props: ConfigFieldProps) {
     {visible.map((key) => <ConfigField key={key} fieldKey={key} path={[...path, key]}
       schema={childSchema(schema, key, values[key])} value={values[key]} query={nestedQuery}
       disabled={disabled} onCommit={onCommit} />)}
-    {!keys.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂未添加配置" />}
+    {!keys.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={guiText("暂未添加配置")} />}
     {schema.additionalProperties !== false && <div className={styles.addRow}>
       <ConfigFieldAddProperty schema={schema} existing={keys} disabled={disabled}
         onAdd={(key, next) => onCommit([...path, key], next)} />
@@ -78,7 +79,7 @@ export function ConfigFieldObject(props: ConfigFieldProps) {
   const searching = Boolean(props.query);
   return <Collapse className={styles.objectCollapse} activeKey={open || searching ? ["fields"] : []}
     onChange={(keys) => setOpen(keys.includes("fields"))} items={[{
-      key: "fields", label: count ? `${count} 项已配置 · 展开编辑` : "展开配置选项",
+      key: "fields", label: count ? guiText("{value1} 项已配置 · 展开编辑", { value1: count }) : guiText("展开配置选项"),
       children: <ObjectFields {...props} />,
     }]} />;
 }

@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke, isDesktopApp } from '../../../api/backend';
 import type { GuiCloudIdentity, GuiComputer, GuiDeviceDirectory } from './types';
@@ -24,8 +25,8 @@ export function useGuiComputers(options: { active: boolean; identity: GuiCloudId
       try {
         const result = await invoke<GuiDeviceDirectory>('codex_gui_devices');
         if (!cancelled && scopeOf(result.identity) === scope) { setDirectory(result); setError(''); }
-        else if (!cancelled) { setDirectory(null); setError('请重新登录后查看其他电脑。'); }
-      } catch { if (!cancelled) setError('暂时无法读取电脑列表，请重试。'); }
+        else if (!cancelled) { setDirectory(null); setError(guiText("请重新登录后查看其他电脑。")); }
+      } catch { if (!cancelled) setError(guiText("暂时无法读取电脑列表，请重试。")); }
       finally { pending = false; if (!cancelled) setLoading(false); }
     };
     refresh.current = () => { void read(); };

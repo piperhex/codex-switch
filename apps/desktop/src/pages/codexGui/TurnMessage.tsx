@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { Fragment, memo, useMemo } from "react";
 import type { Item, Turn } from "./types";
 import type { SubmitMessageEdit } from "./messageEditContent";
@@ -51,7 +52,7 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
       && <TurnDuration turn={turn} running={running} active={active} />}
     <GeneratedImages items={visibleItems} />
     <TurnPlan turn={turn} />
-    {showChanges && <TurnDiff files={files} title={turn.diff ? "本轮修改" : "文件修改记录"}
+    {showChanges && <TurnDiff files={files} title={turn.diff ? guiText("本轮修改") : guiText("文件修改记录")}
       threadId={threadId} turnId={turn.id}
       disabled={running || turn.status === "inProgress" || Boolean(editDisabled)} />}
   </div>;

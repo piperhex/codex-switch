@@ -31,12 +31,12 @@ export const WEEKDAYS = ["星期一", "星期二", "星期三", "星期四", "�
 
 export function scheduleLabel(schedule: Schedule): string {
   switch (schedule.kind) {
-    case "once": return new Date(schedule.at).toLocaleString("zh-CN", { month: "long", day: "numeric",
+    case "once": return new Date(schedule.at).toLocaleString(guiLocale(), { month: "long", day: "numeric",
       hour: "2-digit", minute: "2-digit", hour12: false });
-    case "interval": return `每 ${schedule.minutes} 分钟`;
-    case "daily": return `每天 ${schedule.time}`;
-    case "weekdays": return `工作日 ${schedule.time}`;
-    case "weekly": return `${WEEKDAYS[schedule.weekday]} ${schedule.time}`;
+    case "interval": return guiText("每 {minutes} 分钟", { minutes: schedule.minutes });
+    case "daily": return guiText("每天 {time}", { time: schedule.time });
+    case "weekdays": return guiText("工作日 {time}", { time: schedule.time });
+    case "weekly": return `${guiText(WEEKDAYS[schedule.weekday])} ${schedule.time}`;
   }
 }
 
@@ -50,3 +50,4 @@ export function filterTasks(tasks: ScheduledTask[], filter: TaskFilter, search: 
 export function taskInput({ title, prompt, cwd, schedule }: TaskInput): TaskInput {
   return { title, prompt, cwd, schedule };
 }
+import { guiLocale, guiText } from "../../../i18n/guiText";

@@ -11,5 +11,6 @@ interface Props {
 
 export function ImagePreview(props: Props) {
   const menu = useImageMenu();
-  return <span className={styles.preview}><ImageViewer {...props} {...menu} /></span>;
+  return <span className={styles.preview}><ImageViewer {...props} {...menu} translate={guiText} /></span>;
 }
+import { guiText } from "../../i18n/guiText";

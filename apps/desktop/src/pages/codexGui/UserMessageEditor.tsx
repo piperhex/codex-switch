@@ -1,3 +1,4 @@
+import { guiText } from "../../i18n/guiText";
 import { useContext, useEffect, useRef, useState } from "react";
 import { Button } from "antd";
 import type { Content, SkillReference } from "./types";
@@ -32,15 +33,15 @@ export function UserMessageEditor({ text, images, skills, disabled, onSubmit, on
       onRemove={draft.remove} />
     <SkillInput ref={editor} value={draft.draft} draftKey="message-edit" cwd={cwd} active={active}
       connected={!disabled} disabled={saving || disabled} editing={{ onCancel, className: styles.editorInput }}
-      placeholder="输入消息，或输入 / 选择技能…" onChange={draft.setDraft} onPaste={draft.paste}
+      placeholder={guiText("输入消息，或输入 / 选择技能…")} onChange={draft.setDraft} onPaste={draft.paste}
       onSend={() => void submit()} />
     {draft.error && <p className={styles.editorError} role="status">{draft.error}</p>}
     <div className={styles.editorActions}>
-      <Button className={styles.cancelButton} autoInsertSpace={false} aria-label="取消编辑"
-        disabled={saving} onClick={onCancel}>取消</Button>
+      <Button className={styles.cancelButton} autoInsertSpace={false} aria-label={guiText("取消编辑")}
+        disabled={saving} onClick={onCancel}>{guiText("取消")}</Button>
       <Button className={styles.sendButton} autoInsertSpace={false} type="primary"
         loading={saving} disabled={disabled || draft.reading || !draft.draft.text.trim()}
-        onClick={() => void submit()}>发送</Button>
+        onClick={() => void submit()}>{guiText("发送")}</Button>
     </div>
   </div>;
 }

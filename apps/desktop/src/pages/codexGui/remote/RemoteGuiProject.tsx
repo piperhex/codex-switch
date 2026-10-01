@@ -1,3 +1,4 @@
+import { guiText } from "../../../i18n/guiText";
 import { useEffect, useState } from 'react';
 import { Button } from 'antd';
 import { Folder } from 'lucide-react';
@@ -18,8 +19,8 @@ export function RemoteGuiProject({ state, controller, computers, active }: {
   return <div className="gui-remote-project">
     <div className={styles.projectBar}>
       <Button type="text" icon={<Folder size={15} />} disabled={!canChoose}
-        aria-label="选择远程项目" title={cwd || undefined} onClick={() => setPicking(true)}>
-        {cwd ? projectName(cwd) : '选择项目'}
+        aria-label={guiText("选择远程项目")} title={cwd || undefined} onClick={() => setPicking(true)}>
+        {cwd ? projectName(cwd) : guiText("选择项目")}
       </Button>
       <GuiHostPicker navigation={computers} active={active} />
     </div>
