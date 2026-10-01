@@ -17,6 +17,7 @@ if (!configuration.baseUrl.startsWith('https://')) throw new Error('A secure coo
 const operations = new ServiceOperations();
 const sessions = new Map<string, Session>();
 let chat: WebSocket | undefined;
+let diagnosticsEnabled = false;
 
 function send(message: object) {
   if (chat?.readyState !== WebSocket.OPEN) throw new Error('电脑连接中断，请稍后重试。');
@@ -42,6 +43,7 @@ async function open(id: string, message: Record<string, unknown>) {
   operations.desktop.register(id, (message.desktopIceServers ?? message.iceServers) as IceServer[], Number(message.expiresAt));
   const link = new ChatLink({ sessionId: id, desktop: true, secret: keys.secret, publicKey: String(message.publicKey),
     transportVersion: Number(message.transportVersion), iceServers: [], relayBuffered: () => chat?.bufferedAmount ?? 0,
+    diagnosticsEnabled: () => diagnosticsEnabled,
     nativeTraversal: message.nativeTraversal as import('../../../shared/remote-chat/nativePath').NativeTraversalConfig,
     createNativePath: createServiceNativePath,
     createPeer: () => ({ offer: async () => {}, accept: async () => {}, close: () => {} }),
@@ -52,13 +54,17 @@ async function open(id: string, message: Record<string, unknown>) {
     },
   });
   sessions.set(id, { link, resumeToken: String(message.resumeToken), lease: setTimeout(() => release(id), 60_000) });
+  operations.desktop.diagnose(id, link.reportDiagnostic);
   lease(id, message.expiresAt);
   send({ type: 'signal', sessionId: id, payload: { kind: 'key', key: keys.publicKey, identity } });
 }
 
 async function receive(data: string) {
   const message = parseMessage(data);
-  if (message.type === 'chat-policy') { setChatPolicy(message.policy); return; }
+  if (message.type === 'chat-policy') {
+    diagnosticsEnabled = message.connectionDiagnostics === 1;
+    setChatPolicy(message.policy); return;
+  }
   if (message.type === 'desktop-ice' && Array.isArray(message.desktopIceServers)) {
     for (const id of sessions.keys()) operations.desktop.register(id, message.desktopIceServers as IceServer[]);
     return;
@@ -82,7 +88,7 @@ function connect(path: 'device-chat' | 'device-switch', attempt = 0) {
   const url = new URL(configuration.baseUrl);
   url.protocol = 'wss:'; url.pathname = `${url.pathname.replace(/\/+$/, '')}/${path}`;
   const socket = new WebSocket(url);
-  if (path === 'device-chat') chat = socket;
+  if (path === 'device-chat') { chat = socket; diagnosticsEnabled = false; }
   let incoming = Promise.resolve();
   let refresh:ReturnType<typeof setTimeout> | undefined;
   socket.onopen = () => {

@@ -6,6 +6,8 @@ mod audio;
 #[cfg(windows)]
 mod audio_packet;
 #[cfg(windows)]
+mod candidates;
+#[cfg(windows)]
 mod capture_recovery;
 #[cfg(windows)]
 mod encoder;

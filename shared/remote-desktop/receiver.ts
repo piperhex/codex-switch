@@ -4,6 +4,9 @@ import { MAX_BUFFERED_INPUT, sendDesktopInput } from './input';
 import { DesktopClipboard } from './clipboardTransfer';
 import { MAX_CONTROL_MESSAGE_BYTES, type ClipboardReply } from './clipboard';
 import { monitorDesktopStats } from './statsMonitor';
+import { addIceCandidate, diagnosticError } from '../remote-chat/iceCandidate';
+import { RtcObserver } from '../remote-chat/rtcObserver';
+import { connectionDiagnostic, type ConnectionDiagnostic, type DiagnosticFields } from '../remote-chat/diagnostics';
 
 interface ReceiverOptions {
   client: DesktopClient;
@@ -41,6 +44,8 @@ export class DesktopReceiver {
   private measured: Partial<DesktopStats> = {};
   private media?: MediaStream;
   private muted = false;
+  private readonly diagnostic: ConnectionDiagnostic;
+  private observer?: RtcObserver;
   private capabilities: DesktopCapabilities = {};
   private audioTracks = new Set<MediaStreamTrack>();
   readonly clipboard = new DesktopClipboard(message => {
@@ -50,11 +55,15 @@ export class DesktopReceiver {
     }
     channel.send(JSON.stringify(message)); return true;
   });
-  constructor(private readonly options: ReceiverOptions) {}
+  constructor(private readonly options: ReceiverOptions) {
+    const report = options.client.diagnostic ?? connectionDiagnostic(this.id, false);
+    this.diagnostic = (event, fields) => report(event, { ...fields, scope: 'desktop' });
+  }
 
   async start(settings: DesktopSettings) {
     this.options.status('正在连接桌面…');
-    this.timeout = setTimeout(() => this.fail('桌面连接超时，请检查两端网络后重试。'), CONNECT_TIMEOUT);
+    this.diagnostic('desktop-start');
+    this.timeout = setTimeout(() => this.fail('桌面连接超时，请检查两端网络后重试。', 'timeout'), CONNECT_TIMEOUT);
     try {
       const offer = await this.options.client.open(this.id, { ...settings, clipboardChannel: true });
       if (this.stopped) { await this.closeRemote(); return; }
@@ -62,15 +71,18 @@ export class DesktopReceiver {
       this.options.displays?.(offer);
       const pc = this.options.createPeer({ iceServers: offer.iceServers });
       this.pc = pc;
+      this.observer = new RtcObserver(pc, this.diagnostic);
       this.bindPeer(pc);
       await pc.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
+      this.diagnostic('sdp-state', { stage: 'offer', direction: 'remote' });
       if (this.stopped) return;
       const answer = await pc.createAnswer();
       if (this.stopped) return;
       await pc.setLocalDescription(answer);
+      this.diagnostic('sdp-state', { stage: 'answer', direction: 'local' });
       if (!this.stopped) await this.signal(answer.sdp);
     } catch (error) {
-      this.fail(error instanceof Error ? error.message : '暂时无法打开远程桌面，请重试。');
+      this.fail(error instanceof Error ? error.message : '暂时无法打开远程桌面，请重试。', diagnosticError(error));
     }
   }
 
@@ -147,13 +159,17 @@ export class DesktopReceiver {
     try {
       const reply = await this.options.client.signal(this.id, { answer, candidates: this.candidates.splice(0) });
       if (this.stopped) return;
-      for (const candidate of reply.candidates) await this.pc?.addIceCandidate(candidate);
+      for (const candidate of reply.candidates) {
+        if (this.stopped || !this.pc) return;
+        this.observer?.candidate(candidate, 'remote');
+        await addIceCandidate(this.pc, candidate, this.diagnostic);
+      }
       // Single flight. Keep gathering late ICE candidates until connected, then stop polling.
       if (this.pc?.connectionState !== 'connected' || this.candidates.length
         || this.pc.iceGatheringState !== 'complete') {
         this.poll = setTimeout(() => { void this.signal(); }, SIGNAL_INTERVAL);
       }
-    } catch { this.fail('桌面连接未能建立，请检查网络后重试。'); }
+    } catch (error) { this.fail('桌面连接未能建立，请检查网络后重试。', diagnosticError(error)); }
   }
 
   input(input: DesktopInput) {
@@ -170,8 +186,9 @@ export class DesktopReceiver {
   async settings(settings: DesktopSettings) {
     if (!this.stopped) await this.options.client.settings(this.id, settings);
   }
-  private fail(message: string) {
+  private fail(message: string, reason: DiagnosticFields['reason'] = 'peer-failed') {
     if (this.stopped) return;
+    this.diagnostic('desktop-failed', { reason });
     this.options.stream(undefined); this.options.status(message); this.stop();
     // Permission and platform refusals require a host-side change, not repeated connection attempts.
     if (!/未允许|不支持远程桌面/.test(message)) this.options.failed?.(message);
@@ -188,6 +205,7 @@ export class DesktopReceiver {
   stop() {
     if (this.stopped) return this.closing ?? Promise.resolve();
     this.stopped = true;
+    this.diagnostic('desktop-closed'); this.observer?.close();
     this.clipboard.stop();
     clearTimeout(this.poll); clearTimeout(this.timeout); clearInterval(this.heartbeat);
     clearTimeout(this.recoveryTimeout);

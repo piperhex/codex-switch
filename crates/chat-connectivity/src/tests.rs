@@ -45,7 +45,7 @@ async fn connection_frames_survive_health_ticks_and_close_on_revocation() {
                     assert_eq!(text, "reply");
                     break;
                 }
-                Some(Event::Status { .. }) => {}
+                Some(Event::Status { .. } | Event::Diagnostic { .. }) => {}
                 event => panic!("Unexpected event: {event:?}"),
             }
         }

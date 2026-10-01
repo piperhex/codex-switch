@@ -39,6 +39,7 @@ export class ChatHost {
   private readonly unsubscribeMessages: () => void;
   private readonly unsubscribeBalances: () => void;
   private closed = false;
+  private diagnosticsEnabled = false;
 
   constructor(private readonly onConnectionChange: (connected: boolean) => void) {
     this.transport = new NativeChatTransport((event) => this.transportEvent(event));
@@ -76,6 +77,7 @@ export class ChatHost {
     this.generation = event.generation;
     if (event.type === 'reset') { this.resetSessions(); return; }
     if (event.type === 'disconnected') {
+      this.diagnosticsEnabled = false;
       for (const link of this.links.values()) link.setRelayAvailable(false);
     }
     if (event.type === 'message') {
@@ -122,7 +124,10 @@ export class ChatHost {
 
   private async receive(data: string) {
     const message = parseMessage(data);
-    if (message.type === CHAT_POLICY_MESSAGE) { setChatPolicy(message.policy); return; }
+    if (message.type === CHAT_POLICY_MESSAGE) {
+      this.diagnosticsEnabled = message.connectionDiagnostics === 1;
+      setChatPolicy(message.policy); return;
+    }
     if (message.type === 'desktop-ice' && Array.isArray(message.desktopIceServers)) {
       for (const id of this.links.keys()) {
         this.operations.desktop.register(id, message.desktopIceServers as IceServer[]);
@@ -166,6 +171,7 @@ export class ChatHost {
     const link = new ChatLink({
       sessionId, desktop: true, secret: keys.secret, publicKey: String(message.publicKey),
       transportVersion: Number(message.transportVersion), reconnectRelay: () => this.transport.reconnect(),
+      diagnosticsEnabled: () => this.diagnosticsEnabled,
       iceServers: message.iceServers as IceServer[],
       tcp: message.tcpPunch as import('../../../../shared/remote-chat/tcp/types').TcpPunchConfig | undefined,
       createPeer: createDesktopPeer,
@@ -187,6 +193,7 @@ export class ChatHost {
     });
     keys.secret.fill(0);
     this.links.set(sessionId, link);
+    this.operations.desktop.diagnose(sessionId, link.reportDiagnostic);
     connectionDetails.open(sessionId, message.clientInfo);
     if (this.quota.blocked) link.setRelayQuotaBlocked(true);
     this.send({ type: 'signal', sessionId, payload: { kind: 'key', key: keys.publicKey } });

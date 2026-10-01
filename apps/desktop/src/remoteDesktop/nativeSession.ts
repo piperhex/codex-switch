@@ -2,6 +2,8 @@ import { invoke } from '@tauri-apps/api/core';
 import type { IceServer } from '../../../../shared/remote-chat/protocol';
 import type { DesktopDisplays, DesktopSettings, DesktopSignal } from '../../../../shared/remote-desktop/protocol';
 import { openDesktopCapture } from './displays';
+import { diagnosticError } from '../../../../shared/remote-chat/iceCandidate';
+import type { ConnectionDiagnostic, DiagnosticFields } from '../../../../shared/remote-chat/diagnostics';
 
 const STATUS_INTERVAL = 2000;
 
@@ -19,9 +21,12 @@ export class NativeDesktopSession {
   private closing?: Promise<void>;
   private displays: DesktopDisplays = {};
   private timer?: ReturnType<typeof setTimeout>;
-  constructor(private settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number) {}
+  private lastDiagnostic = '';
+  constructor(private settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number,
+    private readonly diagnostic?: ConnectionDiagnostic) {}
 
   async open() {
+    this.diagnostic?.('desktop-start', { transport: 'rtc' });
     if (!await invoke<boolean>('remote_desktop_stream_available')) throw new Error('当前电脑暂不可用。');
     if (this.stopped) throw new Error('桌面连接已结束。');
     const { id, ...displays } = await openDesktopCapture(this.settings.displayId, this.expiresAt);
@@ -41,6 +46,7 @@ export class NativeDesktopSession {
           urls: Array.isArray(server.urls) ? server.urls : [server.urls] })),
       } });
     } catch (error) {
+      this.diagnostic?.('desktop-failed', { reason: diagnosticError(error) });
       await this.closeNative();
       throw error;
     }
@@ -69,9 +75,16 @@ export class NativeDesktopSession {
     if (this.stopped) return;
     try {
       if (this.expiresAt !== undefined) await this.renew(this.expiresAt);
-      const status = await invoke<{ closed: boolean }>('remote_desktop_stream_status', { id: this.id });
+      const status = await invoke<{ closed: boolean; ice?: DiagnosticFields }>(
+        'remote_desktop_stream_status', { id: this.id });
+      if (this.stopped) return;
+      const key = JSON.stringify(status.ice);
+      if (status.ice && key !== this.lastDiagnostic) {
+        this.lastDiagnostic = key;
+        this.diagnostic?.('ice-summary', { ...status.ice, transport: 'rtc' });
+      }
       if (status.closed) this.close();
-    } catch { this.close(); }
+    } catch (error) { this.diagnostic?.('desktop-failed', { reason: diagnosticError(error) }); this.close(); }
     if (!this.stopped) this.schedule();
   }
 

@@ -167,6 +167,9 @@ export class ChatLink {
     this.implementation = options.transportVersion === 2 ? new HotLink(options) : new LegacyChatLink(options);
   }
   get resumable() { return this.implementation instanceof HotLink && this.implementation.resumable; }
+  reportDiagnostic: import('./diagnostics').ConnectionDiagnostic = (event, fields) => {
+    if (this.implementation instanceof HotLink) this.implementation.reportDiagnostic(event, fields);
+  };
   renew(expiresAt: number) {
     if (this.implementation instanceof HotLink) this.implementation.renew(expiresAt);
   }

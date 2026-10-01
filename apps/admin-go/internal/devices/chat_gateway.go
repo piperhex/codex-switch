@@ -118,6 +118,13 @@ func (g *ChatGateway) serve(c *gin.Context) {
 }
 
 func (g *ChatGateway) receive(client *peer, state *chatConnection, message platform.JSON, size int) error {
+	// Diagnostic frames have their own bounded budget; telemetry must not consume the relay allowance.
+	if message["type"] == "diagnostic" && state.identity != nil && state.identity.expires.After(time.Now()) {
+		if size > maxClientDiagnosticBytes {
+			return nil
+		}
+		return g.sessions.route(client, message)
+	}
 	if err := g.checkRate(state, size); err != nil {
 		return err
 	}
@@ -156,7 +163,7 @@ func (g *ChatGateway) receive(client *peer, state *chatConnection, message platf
 	})
 	g.mu.Unlock()
 	client.send(platform.JSON{"type": "chat-policy", "policy": policy,
-		"binaryRelay": client.binaryRelay.Load()}, nil)
+		"binaryRelay": client.binaryRelay.Load(), "connectionDiagnostics": 1}, nil)
 	g.sessions.setLimit(policy["chatSessionLimit"].(float64))
 	return g.sessions.join(client, identity, message, g.ice)
 }
@@ -281,7 +288,7 @@ func (g *ChatGateway) refreshPolicy() {
 	g.policy = policy
 	for client, state := range g.connections {
 		if state.identity != nil && state.identity.expires.After(time.Now()) {
-			client.send(platform.JSON{"type": "chat-policy", "policy": policy}, nil)
+			client.send(platform.JSON{"type": "chat-policy", "policy": policy, "connectionDiagnostics": 1}, nil)
 		}
 	}
 }

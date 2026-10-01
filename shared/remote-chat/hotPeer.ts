@@ -124,9 +124,16 @@ export class HotPeer {
       || !this.retryReady(now, policy)) return;
     this.generation += 1;
     this.options.diagnostic?.('peer-retry', { generation: this.generation,
-      state: this.connectionState, elapsedMs: now - this.lastAttempt });
+      state: this.connectionState, elapsedMs: now - this.lastAttempt,
+      reason: this.retryReason() });
     this.create();
     void this.offer();
+  }
+
+  private retryReason(): import('./diagnostics').DiagnosticFields['reason'] {
+    if (!this.peer) return 'unavailable';
+    if (this.connectionState === 'failed' || this.connectionState === 'closed') return 'peer-failed';
+    return this.established ? 'unhealthy' : 'timeout';
   }
 
   private retryReady(now: number, policy: ChatPolicy) {

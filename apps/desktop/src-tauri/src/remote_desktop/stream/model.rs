@@ -88,6 +88,18 @@ pub(crate) struct StreamStats {
     pub closed: bool,
     pub connection: Option<Connection>,
     pub audio: Option<AudioState>,
+    #[serde(default)]
+    pub ice: IceDiagnostics,
+}
+
+/// Only bounded counters and fixed state names cross IPC; candidate addresses and SDP stay in WebRTC.
+#[derive(Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct IceDiagnostics {
+    pub state: String,
+    pub local_candidates: usize,
+    pub remote_candidates: usize,
+    pub rejected_candidates: usize,
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize)]

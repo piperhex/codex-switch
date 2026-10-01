@@ -48,7 +48,11 @@ export class HotLink {
   private readonly probes = new Map<number, { path: Path; at: number }>();
 
   constructor(private readonly options: LinkOptions) {
-    this.diagnostic = connectionDiagnostic(options.sessionId, options.desktop);
+    this.diagnostic = connectionDiagnostic(options.sessionId, options.desktop, (event, fields) => {
+      if (!this.closed && this.relay && options.diagnosticsEnabled?.() && options.relayBuffered() < MAX_BUFFER_BYTES) {
+        options.signal({ type: 'diagnostic', sessionId: options.sessionId, payload: { event, ...fields } });
+      }
+    });
     this.delivery = new LinkDelivery({
       send: (frame, retry) => this.sendData(frame, retry),
       message: options.message, mode: () => this.mode,
@@ -63,6 +67,7 @@ export class HotLink {
   }
 
   get resumable() { return !this.closed && Boolean(this.cipher); }
+  reportDiagnostic: import('./diagnostics').ConnectionDiagnostic = (event, fields) => this.diagnostic(event, fields);
   get connectionMode() { return this.mode; }
   offer() { return this.peer.offer(); }
   renew(expiresAt: number) { this.peer.renew(expiresAt); }

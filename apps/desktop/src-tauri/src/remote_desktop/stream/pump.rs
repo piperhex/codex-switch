@@ -197,18 +197,24 @@ async fn report(stream: &Stream, encoder: &Encoder, frames: u32, started: Instan
                 Connection::Direct
             }
         });
-    let stats = StreamStats {
-        fps: (f64::from(frames) / started.elapsed().as_secs_f64()).round(),
-        width: encoder.width,
-        height: encoder.height,
-        bitrate: encoder.bitrate,
-        closed: false,
-        connection,
-        audio: Some(*stream.audio.lock().await),
+    let audio = Some(*stream.audio.lock().await);
+    let stats = {
+        let mut current = stream.stats.lock().await;
+        let stats = StreamStats {
+            fps: (f64::from(frames) / started.elapsed().as_secs_f64()).round(),
+            width: encoder.width,
+            height: encoder.height,
+            bitrate: encoder.bitrate,
+            closed: false,
+            connection,
+            audio,
+            ice: current.ice.clone(),
+        };
+        *current = stats.clone();
+        stats
     };
     let mut message = serde_json::to_value(&stats).map_err(|_| DesktopError::Platform)?;
     message["kind"] = "stats".into();
-    *stream.stats.lock().await = stats;
     stream
         .peer
         .controls

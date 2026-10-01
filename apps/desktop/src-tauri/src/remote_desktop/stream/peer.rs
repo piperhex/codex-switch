@@ -136,6 +136,7 @@ pub(super) fn bind(
                     stream.cancel.send_replace(true);
                     return;
                 };
+                stream.stats.lock().await.ice.local_candidates += 1;
                 let mut pending = stream.candidates.lock().await;
                 if pending.len() < super::MAX_CANDIDATES {
                     pending.push(candidate);
@@ -147,15 +148,18 @@ pub(super) fn bind(
         .peer
         .connection
         .on_peer_connection_state_change(Box::new(move |state| {
-            if let Some(stream) = weak.upgrade() {
-                if matches!(
-                    state,
-                    RTCPeerConnectionState::Failed | RTCPeerConnectionState::Closed
-                ) {
-                    stream.cancel.send_replace(true);
+            let weak = weak.clone();
+            Box::pin(async move {
+                if let Some(stream) = weak.upgrade() {
+                    stream.stats.lock().await.ice.state = state.to_string();
+                    if matches!(
+                        state,
+                        RTCPeerConnectionState::Failed | RTCPeerConnectionState::Closed
+                    ) {
+                        stream.cancel.send_replace(true);
+                    }
                 }
-            }
-            Box::pin(async {})
+            })
         }));
     let weak = Arc::downgrade(stream);
     stream.peer.controls.on_open(Box::new(move || {

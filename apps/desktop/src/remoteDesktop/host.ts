@@ -2,6 +2,7 @@ import { object, type IceServer } from '../../../../shared/remote-chat/protocol'
 import { validateSettings, type DesktopOffer, type DesktopSettings, type DesktopSignal }
   from '../../../../shared/remote-desktop/protocol';
 import { HostSession } from './hostSession';
+import type { ConnectionDiagnostic } from '../../../../shared/remote-chat/diagnostics';
 
 export interface DesktopHostSession {
   readonly closed: boolean;
@@ -14,17 +15,22 @@ export interface DesktopHostSession {
 
 /** Owner and ICE configuration come only from the authenticated coordinator. */
 export class RemoteDesktopHost {
-  constructor(private readonly createSession: (settings: DesktopSettings, ice: IceServer[], expiresAt?: number) => DesktopHostSession
-    = (settings, ice, expiresAt) => new HostSession(settings, ice, expiresAt)) {}
-  private peers = new Map<string, { ice: IceServer[]; expiresAt?: number }>();
+  constructor(private readonly createSession: (settings: DesktopSettings, ice: IceServer[], expiresAt?: number,
+    diagnostic?: ConnectionDiagnostic) => DesktopHostSession
+    = (settings, ice, expiresAt, diagnostic) => new HostSession(settings, ice, expiresAt, diagnostic)) {}
+  private peers = new Map<string, { ice: IceServer[]; expiresAt?: number; diagnostic?: ConnectionDiagnostic }>();
   private active?: { owner: string; id: string; session: DesktopHostSession };
   register(owner: string, iceServers: IceServer[], expiresAt?: number) {
     const expiry = typeof expiresAt === 'number' && Number.isFinite(expiresAt) ? expiresAt : this.peers.get(owner)?.expiresAt;
-    this.peers.set(owner, { ice: iceServers, expiresAt: expiry });
+    this.peers.set(owner, { ...this.peers.get(owner), ice: iceServers, expiresAt: expiry });
     if (this.active?.owner === owner && expiry) {
       const active = this.active;
       void active.session.renew?.(expiry).catch(() => active.session.close());
     }
+  }
+  diagnose(owner: string, diagnostic: ConnectionDiagnostic) {
+    const peer = this.peers.get(owner);
+    if (peer) peer.diagnostic = (event, fields) => diagnostic(event, { ...fields, scope: 'desktop' });
   }
   async request(value: unknown, owner: string) {
     const body = object(value);
@@ -54,7 +60,8 @@ export class RemoteDesktopHost {
     if (this.active && !this.active.session.closed) {
       throw new Error('已有远程桌面连接，请先关闭后再试。');
     }
-    const session = this.createSession(settings, input.iceServers, this.peers.get(input.owner)?.expiresAt);
+    const peer = this.peers.get(input.owner);
+    const session = this.createSession(settings, input.iceServers, peer?.expiresAt, peer?.diagnostic);
     this.active = { owner: input.owner, id: input.id, session };
     try { return await session.open(); }
     catch (error) {

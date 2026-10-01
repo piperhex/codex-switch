@@ -10,10 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::{mpsc, watch, Mutex};
-use webrtc::{
-    ice_transport::ice_candidate::RTCIceCandidateInit,
-    peer_connection::sdp::session_description::RTCSessionDescription,
-};
+use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
 pub(super) struct Stream {
     pub id: String,
@@ -112,19 +109,13 @@ impl Stream {
                 .await
                 .map_err(|_| DesktopError::Platform)?;
         }
-        for candidate in request.candidates {
-            let candidate: RTCIceCandidateInit =
-                serde_json::from_value(candidate).map_err(|_| DesktopError::Invalid)?;
-            if candidate.candidate.len() > 4096 {
-                return Err(DesktopError::Invalid);
-            }
-            self.peer
-                .connection
-                .add_ice_candidate(candidate)
-                .await
-                .map_err(|_| DesktopError::Platform)?;
-            *received += 1;
-        }
+        // Count rejected candidates too, so unsupported addresses cannot bypass the session limit.
+        *received += request.candidates.len();
+        let rejected = super::candidates::apply(&self.peer.connection, request.candidates).await?;
+        let mut stats = self.stats.lock().await;
+        stats.ice.remote_candidates = *received;
+        stats.ice.rejected_candidates += rejected;
+        drop(stats);
         Ok(SignalReply {
             candidates: self.candidates.lock().await.drain(..).collect(),
         })

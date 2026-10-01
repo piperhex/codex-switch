@@ -20,9 +20,10 @@ export const GUI_TOOL_OPERATIONS = new Set([
 ]);
 
 /** Requests use the selected computer's authenticated chat connection. */
-export function createGuiToolsClient(request: <T>(body: object) => Promise<T>) {
+export function createGuiToolsClient(request: <T>(body: object) => Promise<T>,
+  diagnostic?: import('./diagnostics').ConnectionDiagnostic) {
   return {
-    desktop: desktopClient(request),
+    desktop: desktopClient(request, diagnostic),
     status: () => request<RemoteCliStatus>({ operation: 'guiCliStatus' }),
     release: () => request<CliRelease>({ operation: 'guiCliRelease' }),
     install: (version: string) => request<RemoteCliStatus>({ operation: 'guiCliInstall', version }),

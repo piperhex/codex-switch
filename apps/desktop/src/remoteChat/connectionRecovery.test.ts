@@ -57,6 +57,19 @@ beforeEach(async () => {
 });
 afterEach(() => { connection.stop(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
+it('negotiates diagnostics per socket and disables them again when reconnecting to an older server', async () => {
+  expect(state.options!.diagnosticsEnabled?.()).toBe(false);
+  Socket.instances[0].receive({ type: 'chat-policy', policy: {}, connectionDiagnostics: 1 });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(state.options!.diagnosticsEnabled?.()).toBe(true);
+  Socket.instances[0].onclose?.({ code: 1006 });
+  await vi.advanceTimersByTimeAsync(1500);
+  expect(state.options!.diagnosticsEnabled?.()).toBe(false);
+  Socket.instances[1].receive({ type: 'chat-policy', policy: {} });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(state.options!.diagnosticsEnabled?.()).toBe(false);
+});
+
 it('publishes individual image changes within one total percent and ignores replayed progress', async () => {
   const request = connection.request('request', { images: ['data:image/png;base64,YWJj'] });
   const [message, report] = state.send.mock.calls.at(-1)!;

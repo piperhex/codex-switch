@@ -34,15 +34,18 @@ export type DesktopInput =
   | { kind: 'keyboard'; code: string; down: boolean }
   | { kind: 'key'; key: 'enter' | 'backspace' | 'escape' | 'tab' | 'desktop' | 'windows' };
 export interface DesktopClient {
+  diagnostic?: import('../remote-chat/diagnostics').ConnectionDiagnostic;
   open(id: string, settings: DesktopSettings): Promise<DesktopOffer>;
   signal(id: string, signal: DesktopSignal): Promise<{ candidates: RTCIceCandidateInit[] }>;
   settings(id: string, settings: DesktopSettings): Promise<void>;
   close(id: string): Promise<void>;
 }
 
-export function desktopClient(request: <T>(body: object) => Promise<T>): DesktopClient {
+export function desktopClient(request: <T>(body: object) => Promise<T>,
+  diagnostic?: import('../remote-chat/diagnostics').ConnectionDiagnostic): DesktopClient {
   const call = <T>(action: string, body: object) => request<T>({ operation: DESKTOP_OPERATION, action, ...body });
   return {
+    diagnostic,
     open: (id, settings) => call('open', { id, settings }),
     signal: (id, signal) => call('signal', { id, ...signal }),
     settings: (id, settings) => call('settings', { id, settings }),

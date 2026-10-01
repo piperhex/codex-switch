@@ -19,4 +19,5 @@ export interface LinkOptions {
   error: (message: string) => void;
   transportVersion?: number;
   reconnectRelay?: () => void;
+  diagnosticsEnabled?: () => boolean;
 }

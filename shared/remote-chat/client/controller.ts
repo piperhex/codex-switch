@@ -48,7 +48,7 @@ export class ChatController {
   private readonly listeners = new Set<() => void>();
   private readonly eventListeners = new Set<(event: GuiEvent) => void>();
   private readonly connection: Pick<ChatConnection, 'request' | 'start' | 'stop'>
-    & Partial<Pick<ChatConnection, 'confirmHostIdentity'>>;
+    & Partial<Pick<ChatConnection, 'confirmHostIdentity' | 'reportDiagnostic'>>;
   private readonly queueConnection = new QueueConnection((body) => this.connection.request('request', body));
   private readonly asyncAnswers = new AsyncAnswers({ snapshot: () => this.state,
     request: (body) => this.connection.request('request', body), update: (patch) => this.update(patch),
@@ -56,7 +56,8 @@ export class ChatController {
   readonly guiAccounts = createGuiAccountsClient({
     request: (body) => this.connection.request('request', body), subscribe: (listener) => this.subscribeEvents(listener),
   });
-  readonly guiTools = createGuiToolsClient(<T>(body: object) => this.connection.request<T>('request', body));
+  readonly guiTools = createGuiToolsClient(<T>(body: object) => this.connection.request<T>('request', body),
+    (event, fields) => this.connection.reportDiagnostic?.(event, fields));
   private listGeneration = 0;
   private readGeneration = 0;
   private refreshThreadId: string | null = null;
@@ -88,7 +89,7 @@ export class ChatController {
   };
 
   constructor(createConnection: (events: ConnectionEvents) => Pick<ChatConnection, 'request' | 'start' | 'stop'>
-    & Partial<Pick<ChatConnection, 'confirmHostIdentity'>>,
+    & Partial<Pick<ChatConnection, 'confirmHostIdentity' | 'reportDiagnostic'>>,
     private readonly offline?: OfflineHistoryStore, versions?: HistoryVersionSource) {
     this.historyReader = new HistoryReader((body) => this.connection.request('request', body), versions);
     if (offline) this.offlineWriter = new OfflineWriter(offline, this.cacheFailure);

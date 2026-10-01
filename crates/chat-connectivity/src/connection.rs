@@ -10,6 +10,7 @@ use tokio::{
 
 use crate::{
     config::CHAT_PORT,
+    diagnostics::{self, Snapshot, Stage},
     route::{self, RouteStatus},
     Config, Error, Result,
 };
@@ -21,6 +22,7 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum Event {
+    Diagnostic { stage: Stage, snapshot: Snapshot },
     Status { route: RouteStatus },
     Open,
     Data { text: String },
@@ -46,7 +48,13 @@ impl Connection {
         let expiry = deadline.subscribe();
         tokio::spawn(async move {
             // All exit paths close the event stream, including engine initialization errors.
-            let _outcome = serve(config, incoming, &events, (canceled, expiry)).await;
+            if serve(config, incoming, &events, (canceled, expiry))
+                .await
+                .is_err()
+            {
+                diagnostics::report(&events, Stage::EngineFailed, Snapshot::default());
+            }
+            diagnostics::report(&events, Stage::Stopped, Snapshot::default());
             // A stopped/suspended frontend must not prevent native resource cleanup.
             let _delivered =
                 tokio::time::timeout(Duration::from_secs(1), events.send(Event::Closed)).await;
@@ -115,6 +123,7 @@ async fn serve(
         _ = canceled.changed() => Ok(()),
         _ = crate::lease::expired(expiry) => Ok(()),
         result = run(&engine, &config, incoming, events.clone()) => result,
+        _ = diagnostics::monitor(&engine, config.remote_name(), events) => Err(Error::Closed),
     };
     engine.stop().await;
     result
@@ -126,10 +135,13 @@ async fn run(
     mut incoming: mpsc::Receiver<String>,
     events: mpsc::Sender<Event>,
 ) -> Result<()> {
+    diagnostics::report(&events, Stage::EngineStart, Snapshot::default());
     instance.start().await.map_err(|_| Error::Unavailable)?;
     loop {
+        diagnostics::report(&events, Stage::StreamConnect, Snapshot::default());
         let connected = connect(instance, config).await;
         let Ok(stream) = connected else {
+            diagnostics::report(&events, Stage::StreamFailed, Snapshot::default());
             tokio::time::sleep(Duration::from_secs(1)).await;
             continue;
         };
@@ -137,6 +149,7 @@ async fn run(
             continue;
         }
         events.send(Event::Open).await.map_err(|_| Error::Closed)?;
+        diagnostics::report(&events, Stage::StreamOpen, Snapshot::default());
         let _disconnected = pump(instance, config, stream, (&mut incoming, &events)).await;
         events
             .send(Event::Status {

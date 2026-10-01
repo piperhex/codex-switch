@@ -6,6 +6,7 @@ mod addresses;
 mod android;
 mod config;
 mod connection;
+mod diagnostics;
 mod error;
 mod ffi;
 mod lease;

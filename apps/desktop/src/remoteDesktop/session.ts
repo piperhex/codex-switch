@@ -4,6 +4,9 @@ import type { DesktopSettings, DesktopSignal } from '../../../../shared/remote-d
 import { DesktopCapture } from './capture';
 import { DesktopControls } from './controls';
 import { MAX_CONTROL_MESSAGE_BYTES } from '../../../../shared/remote-desktop/clipboard';
+import { RtcObserver } from '../../../../shared/remote-chat/rtcObserver';
+import { addIceCandidate } from '../../../../shared/remote-chat/iceCandidate';
+import type { ConnectionDiagnostic } from '../../../../shared/remote-chat/diagnostics';
 
 const HEARTBEAT_TIMEOUT = 12_000;
 const SETUP_TIMEOUT = 30_000;
@@ -31,10 +34,13 @@ export class DesktopHostSession {
   private lastStats = 0;
   private frames = 0;
   private settings: DesktopSettings;
+  private readonly observer?: RtcObserver;
 
-  constructor(settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number) {
+  constructor(settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number,
+    private readonly diagnostic?: ConnectionDiagnostic) {
     this.settings = settings;
     this.pc = new RTCPeerConnection({ iceServers });
+    if (diagnostic) this.observer = new RtcObserver(this.pc, diagnostic);
     this.channel = this.pc.createDataChannel('remote-desktop-controls', { ordered: true });
     this.clipboardChannel = settings.clipboardChannel
       ? this.pc.createDataChannel('remote-desktop-clipboard', { ordered: true }) : this.channel;
@@ -102,7 +108,9 @@ export class DesktopHostSession {
       if (typeof candidate.candidate !== 'string' || candidate.candidate.length > 4096) {
         throw new Error('桌面连接信息无效。');
       }
-      await this.pc.addIceCandidate(candidate); this.receivedCandidates += 1;
+      this.receivedCandidates += 1;
+      this.observer?.candidate(candidate, 'remote');
+      await addIceCandidate(this.pc, candidate, this.diagnostic);
     }
     return { candidates: this.candidates.splice(0) };
   }
@@ -171,6 +179,7 @@ export class DesktopHostSession {
   close() {
     if (this.stopped) return this.capture.close();
     this.stopped = true; clearTimeout(this.timer); clearTimeout(this.expires);
+    this.observer?.close(); this.diagnostic?.('desktop-closed');
     this.clipboardControls.close(); this.clipboardChannel.close();
     this.controls.close(); this.channel.close(); this.pc.close(); return this.capture.close();
   }

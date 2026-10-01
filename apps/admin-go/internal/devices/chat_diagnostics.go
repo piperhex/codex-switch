@@ -3,6 +3,7 @@ package devices
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -16,16 +17,19 @@ const diagnosticEventsPerMinute = 60
 
 // Connection metadata only. Payloads, credentials, SDP, IP addresses and user IDs never enter logs.
 type chatDiagnostics struct {
-	mu         sync.Mutex
-	logger     *slog.Logger
-	started    time.Time
-	window     time.Time
-	events     int
-	suppressed int
-	seen       map[string]bool
-	frames     int
-	bytes      int
-	closed     bool
+	mu               sync.Mutex
+	logger           *slog.Logger
+	started          time.Time
+	window           time.Time
+	events           int
+	suppressed       int
+	seen             map[string]bool
+	frames           int
+	bytes            int
+	closed           bool
+	clientWindow     time.Time
+	clientEvents     int
+	clientSuppressed int
 }
 
 func newChatDiagnostics() *chatDiagnostics {
@@ -153,6 +157,7 @@ func diagnosticSignal(fields []interface{}, id string, payload platform.JSON) ([
 	fields = append(fields, "signal", kind)
 	if generation, ok := payload["generation"]; ok && safeNonnegativeInteger(generation) {
 		fields = append(fields, "generation", generation)
+		id += ":" + fmt.Sprint(generation)
 	}
 	if kind == "sdp" && (payload["type"] == "offer" || payload["type"] == "answer") {
 		fields = append(fields, "description", payload["type"])
@@ -160,7 +165,10 @@ func diagnosticSignal(fields []interface{}, id string, payload platform.JSON) ([
 	if kind == "ice" {
 		candidate, _ := payload["candidate"].(string)
 		candidateType := diagnosticCandidateType(candidate)
-		return append(fields, "candidate_type", candidateType), "ice:" + id + ":" + candidateType
+		parts := strings.Fields(candidate)
+		ipv6 := len(parts) > 4 && strings.Contains(parts[4], ":")
+		return append(fields, "candidate_type", candidateType, "ipv6", ipv6),
+			fmt.Sprintf("ice:%s:%s:%t", id, candidateType, ipv6)
 	}
 	if kind == "tcp" {
 		addresses, _ := payload["addresses"].([]interface{})

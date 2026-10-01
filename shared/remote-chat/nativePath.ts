@@ -8,6 +8,9 @@ export interface NativePathOptions {
 export interface NativeChannel extends Channel { renew(expiresAt: number): void }
 export type NativePathFactory = (options: NativePathOptions) => NativeChannel;
 export type NativePathEvent = { type: 'open' | 'closed' } | { type: 'data'; text: string }
+  | { type: 'diagnostic'; stage: import('./diagnostics').DiagnosticFields['stage'];
+    snapshot: Pick<import('./diagnostics').DiagnosticFields, 'elapsedMs' | 'connectedPeers' | 'routeCount'
+      | 'remoteKnown' | 'direct' | 'udpNatType' | 'tcpNatType'> }
   | { type: 'status'; route: { direct: boolean; protocol?: string; ipv6: boolean; rttMs?: number } };
 export interface NativePathBridge {
   open(options: NativePathOptions, event: (event: NativePathEvent) => void): Promise<string>;
@@ -29,7 +32,10 @@ export class NativePath implements Channel {
 
   constructor(private readonly options: NativePathOptions, private readonly bridge: NativePathBridge) {
     this.id = bridge.open(options, event => this.receive(event));
-    void this.id.catch(() => this.close());
+    void this.id.catch(() => {
+      this.options.diagnostic?.('native-state', { transport: 'mesh', stage: 'engine-failed' });
+      this.close();
+    });
   }
   get readyState() { return this.state; }
   renew(expiresAt: number) {
@@ -43,6 +49,10 @@ export class NativePath implements Channel {
 
   private receive(event: NativePathEvent) {
     if (this.state === 'closed') return;
+    if (event.type === 'diagnostic') {
+      this.options.diagnostic?.('native-state', { ...event.snapshot, transport: 'mesh', stage: event.stage });
+      return;
+    }
     if (event.type === 'closed') { this.close(); return; }
     if (event.type === 'open') {
       this.state = 'open'; this.opened.forEach(callback => callback());

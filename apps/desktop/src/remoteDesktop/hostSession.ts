@@ -2,13 +2,15 @@ import type { IceServer } from '../../../../shared/remote-chat/protocol';
 import type { DesktopSettings, DesktopSignal } from '../../../../shared/remote-desktop/protocol';
 import { DesktopHostSession } from './session';
 import { NativeDesktopSession } from './nativeSession';
+import type { ConnectionDiagnostic } from '../../../../shared/remote-chat/diagnostics';
 
 /** Keep a working capture fallback for Windows installations without a supported native encoder. */
 export class HostSession {
   private session: DesktopHostSession | NativeDesktopSession;
   private stopped = false;
-  constructor(private settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number) {
-    this.session = new NativeDesktopSession(settings, iceServers, expiresAt);
+  constructor(private settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number,
+    private readonly diagnostic?: ConnectionDiagnostic) {
+    this.session = new NativeDesktopSession(settings, iceServers, expiresAt, diagnostic);
   }
   async open() {
     try {
@@ -17,7 +19,7 @@ export class HostSession {
     catch {
       await this.session.close();
       if (this.stopped) throw new Error('桌面连接已结束。');
-      this.session = new DesktopHostSession(this.settings, this.iceServers, this.expiresAt);
+      this.session = new DesktopHostSession(this.settings, this.iceServers, this.expiresAt, this.diagnostic);
       return this.offer(await this.session.open());
     }
   }

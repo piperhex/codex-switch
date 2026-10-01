@@ -265,6 +265,10 @@ func (s *hotSessions) route(client *peer, message platform.JSON) (bool, error) {
 		s.remove(session)
 		return true, nil
 	}
+	if message["type"] == "diagnostic" {
+		client.diagnostics.clientEvent(session.id, message["payload"])
+		return true, nil
+	}
 	target := session.desktop.socket
 	if client == target {
 		target = nil

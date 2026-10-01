@@ -56,6 +56,7 @@ export class ChatConnection {
   private resume?: { sessionId: string; resumeToken: string };
   private sessionReady = false;
   private socketAuthenticated = false;
+  private diagnosticsEnabled = false;
   private leaseTimer?: ReturnType<typeof setTimeout>;
   private readonly renewal = new SessionRenewal(() => this.renewAuthorization());
 
@@ -72,6 +73,7 @@ export class ChatConnection {
     this.options.retryAt?.(null);
     const generation = ++this.generation;
     this.socketAuthenticated = false;
+    this.diagnosticsEnabled = false;
     if (!this.link) this.options.mode('connecting');
     this.connectTimer = setTimeout(() => {
       if (generation !== this.generation) return;
@@ -176,7 +178,10 @@ export class ChatConnection {
 
   private async receive(data: string, keys: ReturnType<typeof keyPair>) {
     const message = parseMessage(data);
-    if (message.type === CHAT_POLICY_MESSAGE) { setChatPolicy(message.policy); return; }
+    if (message.type === CHAT_POLICY_MESSAGE) {
+      this.diagnosticsEnabled = message.connectionDiagnostics === 1;
+      setChatPolicy(message.policy); return;
+    }
     if (this.quota.receive(message)) {
       this.link?.setRelayQuotaBlocked(this.quota.blocked);
       if (this.quota.blocked && message.type === 'relay-quota') this.options.error(
@@ -227,6 +232,7 @@ export class ChatConnection {
     this.link = new ChatLink({
       sessionId: input.id, desktop: false, secret: input.keys.secret, iceServers: input.iceServers, tcp: input.tcp,
       transportVersion: input.transportVersion, reconnectRelay: () => this.fail(CONNECTION_ERRORS.network, true),
+      diagnosticsEnabled: () => this.diagnosticsEnabled,
       createPeer: this.options.createPeer,
       nativeTraversal: input.nativeTraversal, createNativePath: this.options.createNativePath,
       createPacketCipher: this.options.createPacketCipher,
@@ -311,6 +317,10 @@ export class ChatConnection {
     this.active = false;
     this.disconnected();
   }
+
+  reportDiagnostic: import('../diagnostics').ConnectionDiagnostic = (event, fields) => {
+    this.link?.reportDiagnostic(event, fields);
+  };
 
   async confirmHostIdentity(fingerprint: string) {
     if (!this.options.verifyHostKey?.confirm) throw new Error('当前连接无法更新电脑身份。');

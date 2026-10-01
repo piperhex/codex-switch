@@ -1,7 +1,6 @@
 import { RemoteDesktopHost } from '../src/remoteDesktop/host';
 import { NativeDesktopSession } from '../src/remoteDesktop/nativeSession';
-import { object, type IceServer, type RpcRequest, type RpcResponse } from '../../../shared/remote-chat/protocol';
-import type { DesktopSettings } from '../../../shared/remote-desktop/protocol';
+import { object, type RpcRequest, type RpcResponse } from '../../../shared/remote-chat/protocol';
 import { DEFAULT_COMPOSER } from '../../../shared/remote-chat/composer';
 
 class ServiceDesktop extends NativeDesktopSession {
@@ -14,8 +13,8 @@ class ServiceDesktop extends NativeDesktopSession {
 const settings = { ...DEFAULT_COMPOSER };
 const composer = { settings, models: [], revision: 1 };
 export class ServiceOperations {
-  readonly desktop = new RemoteDesktopHost((settings: DesktopSettings, ice: IceServer[], expiresAt?: number) =>
-    new ServiceDesktop(settings, ice, expiresAt));
+  readonly desktop = new RemoteDesktopHost((settings, ice, expiresAt, diagnostic) =>
+    new ServiceDesktop(settings, ice, expiresAt, diagnostic));
   private readonly requests = new Map<string, { request: string; result: Promise<RpcResponse> }>();
   execute(request: RpcRequest, owner: string): Promise<RpcResponse> {
     if (typeof request.id !== 'string' || request.id.length > 160 || JSON.stringify(request).length > 256 * 1024) {

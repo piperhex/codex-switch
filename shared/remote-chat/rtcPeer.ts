@@ -1,5 +1,6 @@
 import type { Channel, Peer, PeerOptions, Signal } from './protocol';
-import { selectedIcePair } from './rtcDiagnostics';
+import { addIceCandidate } from './iceCandidate';
+import { RtcObserver } from './rtcObserver';
 
 const MAX_PENDING_CANDIDATES = 128;
 
@@ -26,9 +27,11 @@ export class RtcPeer implements Peer {
   private readonly candidates: RTCIceCandidateInit[] = [];
   private incoming = Promise.resolve();
   private closed = false;
+  private readonly observer?: RtcObserver;
 
   constructor(private readonly options: PeerOptions, create: () => RTCPeerConnection) {
     this.pc = create();
+    if (options.diagnostic) this.observer = new RtcObserver(this.pc, options.diagnostic);
     this.pc.addEventListener('icecandidate', ({ candidate }) => {
       if (!this.closed && candidate) options.signal({ kind: 'ice', candidate: candidate.candidate,
         sdpMid: candidate.sdpMid, sdpMLineIndex: candidate.sdpMLineIndex });
@@ -38,9 +41,6 @@ export class RtcPeer implements Peer {
       if (this.closed) return;
       const state = this.pc.connectionState;
       options.stateChanged?.(state);
-      if (state === 'connected' && this.pc.getStats) void this.pc.getStats().then(report => {
-        if (!this.closed) selectedIcePair(report, options.diagnostic);
-      }).catch(() => { /* Some native WebRTC versions do not expose transport statistics. */ });
       if (['failed', 'disconnected', 'closed'].includes(state)) options.disconnected();
     });
   }
@@ -51,6 +51,7 @@ export class RtcPeer implements Peer {
     if (this.closed) return;
     await this.pc.setLocalDescription(offer);
     if (this.closed) return;
+    this.options.diagnostic?.('sdp-state', { transport: 'rtc', stage: 'offer', direction: 'local' });
     this.options.signal({ kind: 'sdp', type: 'offer', sdp: offer.sdp ?? '' });
   }
 
@@ -64,33 +65,32 @@ export class RtcPeer implements Peer {
     if (this.closed) return;
     if (signal.kind === 'tcp') return;
     if (signal.kind === 'ice') {
+      this.observer?.candidate(signal, 'remote');
       if (this.pc.remoteDescription) await this.addCandidate(signal);
       else if (this.candidates.length < MAX_PENDING_CANDIDATES) this.candidates.push(signal);
+      else this.options.diagnostic?.('candidate-rejected', { transport: 'rtc', reason: 'candidate-limit' });
       return;
     }
     await this.pc.setRemoteDescription({ type: signal.type, sdp: signal.sdp });
+    this.options.diagnostic?.('sdp-state', { transport: 'rtc', stage: signal.type, direction: 'remote' });
     for (const candidate of this.candidates.splice(0)) await this.addCandidate(candidate);
     if (signal.type !== 'offer' || this.closed) return;
     const answer = await this.pc.createAnswer();
     if (this.closed) return;
     await this.pc.setLocalDescription(answer);
     if (this.closed) return;
+    this.options.diagnostic?.('sdp-state', { transport: 'rtc', stage: 'answer', direction: 'local' });
     this.options.signal({ kind: 'sdp', type: 'answer', sdp: answer.sdp ?? '' });
   }
 
   private async addCandidate(candidate: RTCIceCandidateInit) {
     if (this.closed) return;
-    try {
-      await this.pc.addIceCandidate(candidate);
-    } catch {
-      this.options.diagnostic?.('candidate-rejected', { transport: 'rtc' });
-      // A platform can reject one address (for example an unsupported mDNS candidate).
-      // Keep negotiating with the remaining addresses; ICE state and the link timer decide fallback.
-    }
+    await addIceCandidate(this.pc, candidate, this.options.diagnostic);
   }
 
   close() {
     this.closed = true;
+    this.observer?.close();
     this.candidates.length = 0;
     this.pc.close();
   }
