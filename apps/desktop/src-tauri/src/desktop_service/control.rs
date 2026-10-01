@@ -1,12 +1,14 @@
 //! Local owner controls: status, permission changes, and the fixed desktop RPCs. Credentials are never returned.
-use super::{configuration, installer, platform, supervisor, Result, ServiceError};
+use super::{
+    configuration, control_listener::Listener, installer, supervisor, Result, ServiceError,
+};
 use crate::remote_desktop::{permissions::Permissions, service_worker::Call};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{os::windows::io::AsRawHandle, time::Duration};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    net::windows::named_pipe::ClientOptions,
+    net::windows::named_pipe::{ClientOptions, NamedPipeServer},
 };
 
 const PIPE: &str = r"\\.\pipe\codex-switch-desktop-control";
@@ -44,62 +46,70 @@ pub(super) async fn serve() -> Result<()> {
         "D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;{})",
         config.owner_sid
     );
+    serve_pipe(Listener::new(PIPE, &acl)?).await
+}
+
+async fn serve_pipe(mut listener: Listener) -> Result<()> {
     loop {
-        let pipe = platform::pipe_with_acl(PIPE, &acl)?;
-        pipe.connect()
-            .await
-            .map_err(|_| ServiceError::Unavailable)?;
-        let mut pipe = BufReader::new(pipe);
-        let mut bytes = Vec::new();
-        let read = tokio::time::timeout(
-            Duration::from_secs(5),
-            (&mut pipe)
-                .take(MAX_BYTES + 1)
-                .read_until(b'\n', &mut bytes),
-        )
-        .await;
-        if !matches!(read, Ok(Ok(_)))
-            || bytes.len() as u64 > MAX_BYTES
-            || bytes.last() != Some(&b'\n')
-        {
-            continue;
-        }
-        let result = match serde_json::from_slice::<Request>(&bytes) {
-            Ok(request) => handle(request).await,
-            Err(_) => Err(ServiceError::Invalid),
-        };
-        let response = match result {
-            Ok(data) => Response {
-                data: Some(data),
-                error: None,
-            },
-            Err(error) => Response {
-                data: None,
-                error: Some(error.to_string()),
-            },
-        };
-        let mut bytes = serde_json::to_vec(&response).map_err(|_| ServiceError::Invalid)?;
-        bytes.push(b'\n');
-        if !matches!(
-            tokio::time::timeout(Duration::from_secs(5), pipe.get_mut().write_all(&bytes)).await,
-            Ok(Ok(()))
-        ) {
-            eprintln!("desktop owner response unavailable");
-            continue;
-        }
-        // Keep the server handle alive until the client consumes its reply, without an unbounded FlushFileBuffers.
-        let mut acknowledgement = [0u8; 1];
-        if !matches!(
-            tokio::time::timeout(
-                Duration::from_secs(3),
-                pipe.read_exact(&mut acknowledgement)
-            )
-            .await,
-            Ok(Ok(_))
-        ) {
-            eprintln!("desktop owner acknowledgement unavailable");
-        }
+        let mut pipe = listener.accept().await?;
+        serve_connection(&mut pipe).await?;
     }
+}
+
+async fn serve_connection(pipe: &mut NamedPipeServer) -> Result<()> {
+    let mut pipe = BufReader::new(pipe);
+    let mut bytes = Vec::new();
+    let read = tokio::time::timeout(
+        Duration::from_secs(5),
+        (&mut pipe)
+            .take(MAX_BYTES + 1)
+            .read_until(b'\n', &mut bytes),
+    )
+    .await;
+    if !matches!(read, Ok(Ok(_))) || bytes.len() as u64 > MAX_BYTES || bytes.last() != Some(&b'\n')
+    {
+        return Ok(());
+    }
+    let result = match serde_json::from_slice::<Request>(&bytes) {
+        Ok(request) => handle(request).await,
+        Err(_) => Err(ServiceError::Invalid),
+    };
+    respond(&mut pipe, result).await
+}
+
+async fn respond(pipe: &mut BufReader<&mut NamedPipeServer>, result: Result<Value>) -> Result<()> {
+    let response = match result {
+        Ok(data) => Response {
+            data: Some(data),
+            error: None,
+        },
+        Err(error) => Response {
+            data: None,
+            error: Some(error.to_string()),
+        },
+    };
+    let mut bytes = serde_json::to_vec(&response).map_err(|_| ServiceError::Invalid)?;
+    bytes.push(b'\n');
+    if !matches!(
+        tokio::time::timeout(Duration::from_secs(5), pipe.get_mut().write_all(&bytes)).await,
+        Ok(Ok(()))
+    ) {
+        eprintln!("desktop owner response unavailable");
+        return Ok(());
+    }
+    // Wait for consumption before disconnecting; never block on FlushFileBuffers.
+    let mut acknowledgement = [0u8; 1];
+    if !matches!(
+        tokio::time::timeout(
+            Duration::from_secs(3),
+            pipe.read_exact(&mut acknowledgement)
+        )
+        .await,
+        Ok(Ok(_))
+    ) {
+        eprintln!("desktop owner acknowledgement unavailable");
+    }
+    Ok(())
 }
 async fn handle(request: Request) -> Result<Value> {
     match request {
@@ -237,6 +247,7 @@ fn policy_target(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::desktop_service::platform;
     use windows_service::service::ServiceState;
     #[test]
     fn service_outages_cannot_acknowledge_user_only_policy_updates() {
@@ -250,5 +261,85 @@ mod tests {
         }
         assert!(!policy_target(None, true).unwrap());
         assert!(policy_target(Some(ServiceState::Running), true).unwrap());
+    }
+
+    async fn connect(name: &str) -> tokio::net::windows::named_pipe::NamedPipeClient {
+        let until = tokio::time::Instant::now() + Duration::from_secs(2);
+        loop {
+            match ClientOptions::new().open(name) {
+                Ok(client) => return client,
+                Err(error)
+                    if error.raw_os_error()
+                        == Some(windows_sys::Win32::Foundation::ERROR_PIPE_BUSY as i32)
+                        && tokio::time::Instant::now() < until =>
+                {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+                Err(error) => {
+                    panic!("Owner control pipe disappeared or became unavailable: {error}")
+                }
+            }
+        }
+    }
+
+    fn listener() -> (String, Listener) {
+        let name = format!(
+            r"\\.\pipe\codex-switch-desktop-control-test-{}",
+            uuid::Uuid::new_v4()
+        );
+        let acl = format!("D:P(A;;GA;;;{})", platform::user_sid().unwrap());
+        let pipe = Listener::new(&name, &acl).unwrap();
+        (name, pipe)
+    }
+
+    #[tokio::test]
+    async fn consecutive_requests_keep_listening_while_previous_clients_hold_handles() {
+        let (name, pipe) = listener();
+        let server = tokio::spawn(serve_pipe(pipe));
+        let mut previous_clients = Vec::new();
+        for _ in 0..8 {
+            let mut client = BufReader::new(connect(&name).await);
+            client.get_mut().write_all(b"{}\n").await.unwrap();
+            let mut response = String::new();
+            tokio::time::timeout(Duration::from_secs(2), client.read_line(&mut response))
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(serde_json::from_str::<Response>(&response)
+                .unwrap()
+                .error
+                .is_some());
+            client.get_mut().write_all(b"\x01").await.unwrap();
+            // Deliberately retain the client handle after acknowledgement to reproduce the VM failure.
+            previous_clients.push(client);
+        }
+        assert!(!server.is_finished());
+        server.abort();
+        assert!(server.await.unwrap_err().is_cancelled());
+    }
+
+    #[tokio::test]
+    async fn disconnected_or_incomplete_clients_do_not_stop_owner_controls() {
+        let (name, pipe) = listener();
+        let server = tokio::spawn(serve_pipe(pipe));
+        for _ in 0..3 {
+            let mut client = connect(&name).await;
+            client.write_all(b"{").await.unwrap();
+            drop(client);
+        }
+        let mut client = BufReader::new(connect(&name).await);
+        client.get_mut().write_all(b"{}\n").await.unwrap();
+        let mut response = String::new();
+        tokio::time::timeout(Duration::from_secs(2), client.read_line(&mut response))
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(serde_json::from_str::<Response>(&response)
+            .unwrap()
+            .error
+            .is_some());
+        assert!(!server.is_finished());
+        server.abort();
+        assert!(server.await.unwrap_err().is_cancelled());
     }
 }

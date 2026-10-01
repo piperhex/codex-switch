@@ -136,6 +136,20 @@ pub(super) fn private_pipe(name: &str) -> Result<NamedPipeServer> {
     pipe_with_acl(name, "D:P(A;;GA;;;SY)")
 }
 pub(super) fn pipe_with_acl(name: &str, acl: &str) -> Result<NamedPipeServer> {
+    pipe_with_options(
+        name,
+        acl,
+        ServerOptions::new()
+            .first_pipe_instance(true)
+            .max_instances(1),
+    )
+}
+
+pub(super) fn pipe_with_options(
+    name: &str,
+    acl: &str,
+    options: &ServerOptions,
+) -> Result<NamedPipeServer> {
     let sddl = wide(acl);
     let mut descriptor: PSECURITY_DESCRIPTOR = ptr::null_mut();
     // SAFETY: SDDL is NUL terminated and Windows allocates the descriptor released below.
@@ -157,13 +171,10 @@ pub(super) fn pipe_with_acl(name: &str, acl: &str) -> Result<NamedPipeServer> {
     };
     // SAFETY: the descriptor/attributes remain alive for CreateNamedPipe; the kernel copies the descriptor.
     let pipe = unsafe {
-        ServerOptions::new()
-            .first_pipe_instance(true)
-            .max_instances(1)
-            .create_with_security_attributes_raw(
-                name,
-                &attributes as *const SECURITY_ATTRIBUTES as *mut c_void,
-            )
+        options.create_with_security_attributes_raw(
+            name,
+            &attributes as *const SECURITY_ATTRIBUTES as *mut c_void,
+        )
     };
     // SAFETY: descriptor was allocated by ConvertStringSecurityDescriptorToSecurityDescriptorW.
     unsafe {

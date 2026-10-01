@@ -86,8 +86,12 @@ COM/编码器前绑定当前输入桌面。无人值守使用 GDI 路径，避�
 
 - Windows：原生自动发现、双向传输、跨保活周期的分片读取、错误密钥隔离、协调节点禁止转发、授权关闭，
   以及手机连接所有者替换后的清理测试通过；桌面 Rust / Clippy 和聊天连接测试通过。
-- Android：四种 ABI 的 Rust 库、原生模块 Kotlin 编译及 Gradle 构建接入通过；Android / iOS 的 JavaScript
-  导出、原生端类型检查和桌面 / Web 生产构建通过。
-- Linux：协调节点容器镜像构建和无特权进程启动通过。
-- 尚未验证：真实公网 NAT 成功率对照、已安装 SYSTEM 服务后的锁屏画面，以及 macOS/Xcode 的 iOS 原生链接。
-  iOS 原生构建已加入 CI，不能用 JavaScript 导出代替该检查。
+- Android：四种 ABI 的 Rust 库、JNI/Kotlin 与 Gradle 构建通过。Android 14 ARM64 真机及 Android 15 x86_64
+  模拟器已验证原生直连、63,488 字节中文/emoji 往返、续期、关闭拒发及重连；两端均通过公网协调节点测试，
+  另分别验证 UDP-only 和 TCP-only 协调入口。数据路径确认为一跳直连，测试配置传递使用的 ADB 不承载 P2P 数据。
+  应用登录、历史、消息、中继回退、断线恢复及后台返回回归通过。
+- Linux：协调节点容器构建、无特权启动及公网 TCP/UDP 协调入口验证通过。
+- CI：Windows、Linux、macOS 和 iOS 原生库编译通过，iOS 应用原生链接与未签名应用构建通过；
+  Android / iOS JavaScript 导出、原生端类型检查和桌面 / Web 生产构建通过。
+- 尚未验证：跨运营商、双侧 CGNAT 等复杂公网 NAT 成功率的产品对照，以及 iOS 真机端到端连接。
+  公网协调可达及当前设备直连通过，不能推导出与 UU、EasyTier、Tailscale、RustDesk 相同的成功率。

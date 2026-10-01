@@ -4,6 +4,7 @@ mod commands;
 pub(crate) mod configuration;
 mod connectivity;
 pub(crate) mod control;
+mod control_listener;
 pub(crate) mod delegation;
 mod framing;
 mod installer;

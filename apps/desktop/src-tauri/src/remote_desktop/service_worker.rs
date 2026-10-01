@@ -146,7 +146,11 @@ fn serve(mut output: std::fs::File, root: PathBuf) -> crate::desktop_service::Re
         }
         let call: Call = serde_json::from_str(&line).map_err(|_| ServiceError::Invalid)?;
         let id = call.id;
-        let result = tauri::async_runtime::block_on(execute(call, root.clone()));
+        // Poll WebRTC initialization on the runtime, as the interactive app does. The
+        // standalone Windows entry thread has a smaller stack and can overflow here.
+        let task = tauri::async_runtime::spawn(execute(call, root.clone()));
+        let result = tauri::async_runtime::block_on(task)
+            .unwrap_or_else(|_| Err("桌面服务未就绪，请重试。".into()));
         let reply = match result {
             Ok(data) => Reply {
                 id,
