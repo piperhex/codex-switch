@@ -69,6 +69,12 @@ async function seedDevices() {
 
 function connect(pair, side, path) { return new Socket(pair.urls[side].replace(/^http/, 'ws') + path); }
 function checkedFrames(pair, label, frames, normalize) {
+  if (frames.modern.body.type === 'chat-policy') {
+    const { connectionDiagnostics, ...legacyFields } = frames.modern.body;
+    assert.equal(connectionDiagnostics, 1, 'Go must advertise the supported diagnostic protocol');
+    // Frozen Nest has no diagnostic transport. Compare its unchanged policy after checking the Go capability.
+    frames = { ...frames, modern: { ...frames.modern, body: legacyFields } };
+  }
   if (frames.modern.body.type === 'peer-open' && frames.modern.body.expiresAt !== undefined) {
     const { expiresAt, ...legacyFields } = frames.modern.body;
     assert.ok(Number.isSafeInteger(expiresAt) && expiresAt > Date.now() && expiresAt <= Date.now() + 3600_000,
