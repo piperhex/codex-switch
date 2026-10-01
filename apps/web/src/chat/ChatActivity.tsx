@@ -45,7 +45,8 @@ export function ChatActivity({ item, onOpen, running, inline = false, onInspect,
         if (!inline) return onOpen(item.id);
         if (!expanded) onInspect?.();
         setExpanded(value => !value);
-      }}><Icon size={16} /><span className="chat-activity-text">{label}</span>
+      }}><Icon size={16} color={item.status === 'failed' ? 'var(--danger)' : undefined} />
+      <span className="chat-activity-text">{label}</span>
       {count && <span className="chat-activity-count">{count}</span>}<ChevronRight size={15} /></button>
     {inline && expanded && <div className="chat-inline-tool-content chat-detail-stack">
       {content ?? <ChatToolContent item={item} />}

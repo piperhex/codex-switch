@@ -83,7 +83,8 @@ export function ChatActivityRow({ item, onOpen, running = false, count }: {
   const label = count ? `${preview}，查看全部 ${count} 项活动` : preview;
   return <Pressable accessibilityRole="button" accessibilityLabel={label}
     style={messageStyles.activity} onPress={() => onOpen(item.id)}>
-    <ChatActivityLabel icon={summary.icon} text={preview} active={running && item.status === 'inProgress'} />
+    <ChatActivityLabel icon={summary.icon} text={preview} active={running && item.status === 'inProgress'}
+      failed={item.status === 'failed'} />
     <Ionicons name="chevron-forward" size={15} color={palette.muted} />
   </Pressable>;
 }

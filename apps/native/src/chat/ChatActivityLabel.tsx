@@ -8,16 +8,22 @@ type LabelProps = { icon: React.ComponentProps<typeof Ionicons>['name']; text: s
 const SWEEP_WIDTH = 80;
 const SWEEP_BANDS = [80, 64, 48, 32, 16];
 
-function Label({ icon, text, color = palette.muted }: LabelProps & { color?: string }) {
+function Label({ icon, text, color = palette.muted, iconColor = color }: LabelProps & {
+  color?: string; iconColor?: string;
+}) {
   return <View style={labelStyles.row}>
-    <Ionicons name={icon} size={15} color={color} />
+    <Ionicons name={icon} size={15} color={iconColor} />
     <Text numberOfLines={2} style={[styles.subtitle, styles.fill, { color }]}>{text}</Text>
   </View>;
 }
 
-export function ChatActivityLabel({ icon, text, active }: LabelProps & { active: boolean }) {
+export function ChatActivityLabel({ icon, text, active, failed = false }: LabelProps & {
+  active: boolean; failed?: boolean;
+}) {
   if (active) return <SweepingLabel icon={icon} text={text} />;
-  return <View style={labelStyles.container}><Label icon={icon} text={text} /></View>;
+  return <View style={labelStyles.container}>
+    <Label icon={icon} text={text} iconColor={failed ? palette.danger : undefined} />
+  </View>;
 }
 
 function SweepingLabel({ icon, text }: LabelProps) {
