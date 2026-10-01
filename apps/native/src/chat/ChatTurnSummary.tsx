@@ -98,7 +98,7 @@ const summaryStyles = StyleSheet.create({
   plan: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1,
     borderColor: palette.border, borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14 },
   files: { borderWidth: 1, borderColor: palette.border, borderRadius: 14, overflow: 'hidden' },
-  pill: { alignSelf: 'flex-start', maxWidth: '100%', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
+  pill: { alignSelf: 'center', maxWidth: '100%', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
     gap: 6, borderWidth: 1, borderColor: palette.border, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10 },
   pillLabel: { color: palette.muted, fontSize: 12, lineHeight: 20, flexShrink: 1 },
   fileHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },

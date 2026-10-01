@@ -65,7 +65,7 @@
 .chat-turn-summary { display: flex; flex-direction: column; gap: 8px; }
 .chat-turn-summary:empty { display: none; }
 .chat-changes-pill {
-  display: inline-flex; align-items: center; align-self: flex-start; flex-wrap: wrap; gap: 6px;
+  display: inline-flex; align-items: center; align-self: center; flex-wrap: wrap; gap: 6px;
   max-width: 100%; box-sizing: border-box; padding: 6px 10px; border: 1px solid #dfe5e1;
   border-radius: 999px; background: transparent; color: #6c7a71; font: inherit; font-size: 12px; cursor: pointer;
 }
