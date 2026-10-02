@@ -11,6 +11,8 @@ export function normalizeMathDelimiters(text: string): string {
       + '|(`+)|\\\\[\\\\()[\\]]|^(?: {4}|\\t)[^\\n]*(?:\\n|$)', 'gm');
   let result = '';
   let cursor = 0;
+  const unclosed = new Set<string>();
+  const findCodeEnd = codeEndFinder(text);
   let match: RegExpExecArray | null;
   while ((match = protectedCode.exec(text))) {
     const start = match.index;
@@ -18,11 +20,13 @@ export function normalizeMathDelimiters(text: string): string {
     let end = protectedCode.lastIndex;
     let replacement = match[0];
     if (marker) {
-      end = codeEnd(text, end, marker, Boolean(match[2]));
+      end = findCodeEnd(end, marker, Boolean(match[2]));
       replacement = text.slice(start, end);
     } else if (match[0] === '\\(' || match[0] === '\\[') {
       const close = match[0] === '\\(' ? '\\)' : '\\]';
-      const closeAt = text.indexOf(close, end);
+      // A missing closer cannot appear later in this immutable string. Do not rescan its suffix.
+      const closeAt = unclosed.has(close) ? -1 : text.indexOf(close, end);
+      if (closeAt < 0) unclosed.add(close);
       if (closeAt >= 0) {
         const body = text.slice(end, closeAt);
         const display = close === '\\]';
@@ -37,14 +41,29 @@ export function normalizeMathDelimiters(text: string): string {
   return result + text.slice(cursor);
 }
 
-function codeEnd(text: string, start: number, marker: string, block: boolean): number {
-  const closing = block
-    ? new RegExp(`^[ \\t]*(?:>[ \\t]*)*${marker[0]}{${marker.length},}[ \\t]*\\r?$`, 'gm')
-    : new RegExp('`+', 'g');
-  closing.lastIndex = start;
-  let match: RegExpExecArray | null;
-  while ((match = closing.exec(text))) {
-    if (block || match[0].length === marker.length) return closing.lastIndex;
+function codeEndFinder(text: string) {
+  let inlineEnds: Map<number, number> | undefined;
+  return (start: number, marker: string, block: boolean): number => {
+    if (!block) {
+      inlineEnds ??= inlineCodeEnds(text);
+      return inlineEnds.get(start) ?? start;
+    }
+    const closing = new RegExp(`^[ \\t]*(?:>[ \\t]*)*${marker[0]}{${marker.length},}[ \\t]*\\r?$`, 'gm');
+    closing.lastIndex = start;
+    return closing.exec(text) ? closing.lastIndex : text.length;
+  };
+}
+
+/** Index equal-length backtick runs once, including unmatched runs in streamed messages. */
+function inlineCodeEnds(text: string): Map<number, number> {
+  const ends = new Map<number, number>();
+  const previous = new Map<number, number>();
+  for (const match of text.matchAll(/`+/g)) {
+    const length = match[0].length;
+    const end = match.index + length;
+    const start = previous.get(length);
+    if (start !== undefined) ends.set(start, end);
+    previous.set(length, end);
   }
-  return block ? text.length : start;
+  return ends;
 }

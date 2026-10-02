@@ -1,5 +1,5 @@
 import { getChatPolicy, imagePreviewCharLimit } from '../policy';
-import { contentHash } from '../historySync';
+import { contentStringHash } from '../stringHash';
 
 type ImageRequest = { operation: 'imagePreview' | 'imageChunk'; threadId: string; source: string; offset?: number };
 interface ImageChunk { data: string; total: number; hash: string }
@@ -50,7 +50,7 @@ export class ImageCache {
       hash = chunk.hash;
       url += chunk.data;
     }
-    if (url.length !== total || contentHash(url) !== hash) throw new Error('原图加载中断，请重试。');
+    if (url.length !== total || await contentStringHash(url) !== hash) throw new Error('原图加载中断，请重试。');
     return url;
   }
 }

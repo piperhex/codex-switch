@@ -54,6 +54,27 @@ it('rejects original chunks from a changed source', async () => {
   await expect(cache.load('task', 'image.png', true)).rejects.toThrow('原图加载中断');
 });
 
+it('keeps the UI event loop available while verifying an original and still rejects corrupt bytes', async () => {
+  const original = 'data:image/png;base64,' + 'abcd'.repeat(2 * MIB);
+  const hash = contentHash(original);
+  let corrupt = false;
+  const cache = new ImageCache(async <T>(body: { offset?: number }) => {
+    const offset = body.offset ?? 0;
+    const data = original.slice(offset, offset + 256 * 1024);
+    return { data: corrupt ? 'x' + data.slice(1) : data, total: original.length, hash } as T;
+  });
+  let beats = 0;
+  const timer = setInterval(() => { beats++; }, 0);
+  try {
+    const first = cache.load('task', 'original.png', true);
+    expect(cache.load('task', 'original.png', true)).toBe(first);
+    expect(await first).toBe(original);
+    expect(beats).toBeGreaterThan(0);
+    corrupt = true;
+    await expect(cache.load('task', 'corrupt.png', true)).rejects.toThrow('原图加载中断');
+  } finally { clearInterval(timer); }
+});
+
 it('allows originals above the former cap and retains the active original across chunk requests', async () => {
   setChatPolicy({ ...DEFAULT_CHAT_POLICY, imagePreviewMaxMb: 64 });
   const original = 'data:image/png;base64,' + 'abcd'.repeat(17 * MIB);

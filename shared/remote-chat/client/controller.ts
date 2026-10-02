@@ -5,7 +5,8 @@ import type { ProjectFilesRequest, ProjectFilesResponse } from '../projectFiles'
 import { applyChatEvent } from './events';
 import { syncChatProcessing } from './processing';
 import { mergeHistory } from './history';
-import { contentHash, HISTORY_CHANGED } from '../historySync';
+import { HISTORY_CHANGED } from '../historySync';
+import { contentStringHash } from '../stringHash';
 import type { HistoryPage } from '../historyPage';
 import { HistoryReader } from './historyReader';
 import type { HistoryVersionSource } from './historyPreparation';
@@ -587,10 +588,11 @@ export class ChatController {
     if (generation !== this.synchronization || !this.state.ready) throw new Error('连接已中断，请连接后再发送。');
   }
 
-  imagePreview = (threadId: string, source: string, original = false) => offlineImage({
-    store: this.offline, online: this.state.ready, key: JSON.stringify([threadId, contentHash(source), original]),
-    load: () => this.images.load(threadId, source, original), failed: this.cacheFailure,
-  });
+  imagePreview = async (threadId: string, source: string, original = false) => {
+    const key = JSON.stringify([threadId, await contentStringHash(source), original]);
+    return offlineImage({ store: this.offline, online: this.state.ready, key,
+      load: () => this.images.load(threadId, source, original), failed: this.cacheFailure });
+  };
 
   videos: import('../video').VideoClient = {
     open: (threadId, path) => this.connection.request('request', { operation: 'videoOpen', threadId, path }),

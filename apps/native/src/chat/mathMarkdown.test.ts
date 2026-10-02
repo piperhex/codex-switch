@@ -53,6 +53,25 @@ it('handles dollars, incomplete streaming formulas and multiple inline expressio
   expect(normalizeMathDelimiters(String.raw`\(a\) + \(b\)`)).toBe('$a$ + $b$');
 });
 
+it('preserves unmatched inline backticks without hiding later formulas', () => {
+  expect(normalizeMathDelimiters('`missing \\(x\\)')).toBe('`missing $x$');
+  expect(normalizeMathDelimiters('`` \\(code\\) ` ignored `` \\(math\\)'))
+    .toBe('`` \\(code\\) ` ignored `` $math$');
+  const unmatched = Array.from({ length: 1000 }, (_, index) => 'a' + '`'.repeat(index + 1)).join(' ');
+  expect(normalizeMathDelimiters(unmatched + ' \\(x\\)')).toBe(unmatched + ' $x$');
+});
+
+it('does not freeze on many incomplete formula delimiters', () => {
+  const text = String.raw`\(\[`.repeat(20_000);
+  const start = performance.now();
+  const result = normalizeMathDelimiters(text);
+  // Deliberately loose: the repeated suffix search took several seconds for this 80 KB input.
+  expect(performance.now() - start).toBeLessThan(1000);
+  expect(result).toBe(text);
+  expect(normalizeMathDelimiters(String.raw`\(missing \[x\] \(still missing`))
+    .toBe('\\(missing \n\n$$\nx\n$$\n\n \\(still missing');
+});
+
 it('keeps formatting in math paragraphs and does not restore raw HTML or unsafe links', () => {
   const nodes = parseMarkdown(String.raw`**答案** \(29\) <img src=x onerror=alert(1)> [链接](https://example.com)`);
   const markup = renderMathParagraph(nodes[0].children[0].children);
