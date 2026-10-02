@@ -22,6 +22,7 @@ import { ChatDrawer, type ChatDrawerMethods } from './ChatDrawer';
 import { ChatDevices } from './ChatDevices';
 import { ChatConnectionInfo } from './ChatConnectionInfo';
 import { ChatTaskStatus } from './ChatTaskStatus';
+import { TaskReviewProvider } from '../../../../shared/remote-chat/TaskReviewContext';
 import { ChatTools } from './ChatTools';
 import { useChat } from './useChat';
 import { useDownloadConnection } from '../downloads/useDownloadConnection';
@@ -168,9 +169,11 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
       <ChatImagePreviewProvider key={state.selected?.id ?? 'new'}>
       <ChatFileProvider key={state.selected?.id ?? 'new'} threadId={state.selected?.id ?? null}
         ready={ready} load={controller.textPreview} videos={controller.videos} files={controller.files}>
+      <TaskReviewProvider controller={controller} state={state} active={active && foreground}>
       <ChatMessages key={state.selected?.id ?? 'new'} thread={state.selected} offline={!ready}
         loading={state.historyLoading} loadingMore={state.historyLoadingMore} hasMore={state.historyHasMore}
         loadOlder={() => controller.loadOlder()} />
+      </TaskReviewProvider>
       </ChatFileProvider>
       </ChatImagePreviewProvider>
     </ChatImageContext.Provider>

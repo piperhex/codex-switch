@@ -36,6 +36,15 @@ const httpServer = http.createServer((request, response) => {
     })().catch(() => response.writeHead(400).end('{}'));
     return;
   }
+  if (request.url === '/test/task-review' && request.method === 'POST') {
+    void (async () => {
+      let body = '';
+      for await (const chunk of request) body += chunk.toString();
+      await page.evaluate(input => window.chatTest.setReview(input), JSON.parse(body));
+      response.end('{}');
+    })().catch(() => response.writeHead(400).end('{}'));
+    return;
+  }
   if (request.url === '/test/skills' && request.method === 'POST') {
     void (async () => {
       let body = '';

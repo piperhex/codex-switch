@@ -1,14 +1,14 @@
 import { t, useLanguage } from '../i18n';
 import { useContext, useState } from 'react';
 import { ChevronDown, FileText, Folder } from 'lucide-react';
-import type { DiffFile } from '../../../../shared/chat/diff';
+import type { DiffFile, DiffLine } from '../../../../shared/chat/diff';
 import { groupDiffFiles } from '../../../../shared/chat/diffGroups';
 import { ChatCopyButton } from './ChatCopyButton';
 import { DetailsContext } from '../../../desktop/src/pages/codexGui/detailsContext';
 import { ChatFilesSummary } from './ChatFilesSummary';
 
 const PAGE_LINES = 160;
-function DiffContent({ file }: { file: DiffFile }) {
+function DiffContent({ file, onComment }: { file: DiffFile; onComment?: (file: DiffFile, line: DiffLine) => void }) {
   useLanguage();
   const [limit, setLimit] = useState(PAGE_LINES);
   return <div className="chat-diff-content">
@@ -18,6 +18,9 @@ function DiffContent({ file }: { file: DiffFile }) {
       if (node.scrollHeight - node.scrollTop - node.clientHeight < 100) setLimit(value => value + PAGE_LINES);
     }}>{file.lines.slice(0, limit).map((line, index) =>
       <span className={`chat-diff-line ${line.kind}`} key={index}>
+        {onComment && (line.oldLine || line.newLine) && <button type="button" className="chat-diff-comment"
+          aria-label={t('对第 {value1} 行留言', { value1: line.newLine ?? line.oldLine ?? 0 })}
+          onClick={() => onComment(file, line)}>{t('留言')}</button>}
         <span>{line.oldLine ?? ''}</span><span>{line.newLine ?? ''}</span>
         <code>{line.kind === 'add' ? '+' : line.kind === 'remove' ? '−' : ' '}{line.text}{'\n'}</code>
       </span>)}</pre>
@@ -26,10 +29,12 @@ function DiffContent({ file }: { file: DiffFile }) {
   </div>;
 }
 
-export function ChatDiff({ files, status }: { files: DiffFile[]; status?: string }) {
+export function ChatDiff({ files, status, onComment }: {
+  files: DiffFile[]; status?: string; onComment?: (file: DiffFile, line: DiffLine) => void;
+}) {
   useLanguage();
   const panel = useContext(DetailsContext);
-  if (panel) return <ChatFilesSummary files={files} title="文件修改记录" status={status} />;
+  if (panel && !onComment) return <ChatFilesSummary files={files} title="文件修改记录" status={status} />;
   return <div className="chat-diff">{groupDiffFiles(files).map(group =>
     <section key={group.directory}><h3><Folder size={17} />{group.name}</h3>
       <p className="chat-diff-folder">{group.directory || '.'}</p>
@@ -38,7 +43,7 @@ export function ChatDiff({ files, status }: { files: DiffFile[]; status?: string
           <b className="chat-added">+{file.added}</b><b className="chat-removed">−{file.removed}</b>
           <ChevronDown size={15} /></summary>
         {file.previousPath && <p className="chat-muted">{t("原路径：")}{file.previousPath}</p>}
-        <DiffContent file={file} />
+        <DiffContent file={file} onComment={onComment} />
       </details>)}
     </section>)}</div>;
 }

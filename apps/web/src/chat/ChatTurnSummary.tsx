@@ -6,8 +6,9 @@ import type { Turn } from './types';
 import { completedTurnFiles } from '../../../../shared/chat/turnPresentation';
 import { generatedImageSource } from '../../../../shared/chat/imageSources';
 import { ChatImage } from './ChatImage';
+import { TaskResultCard } from './review/TaskResultCard';
 
-export type TurnPanel = 'plan' | 'changes' | 'error';
+export type TurnPanel = 'plan' | 'changes' | 'error' | 'result';
 export function turnErrorNotice(turn: Turn) {
   if (turn.status === 'failed' || turn.error) return t("本次回复遇到问题，可以继续发送消息重试。");
   if (turn.status === 'completed') return t("本次回复曾出现连接中断，现已恢复。");
@@ -30,6 +31,7 @@ export function ChatTurnSummary({ turn, onOpen, hideStopped = false }: {
       <span>{turn.plan.filter(step => step.status === 'completed').length}/{turn.plan.length}</span>
       <ChevronRight size={15} /></button>}
     {!!files.length && <ChatTurnFiles files={files} running={running} onOpen={() => onOpen('changes')} />}
+    <TaskResultCard turn={turn} open={() => onOpen('result')} />
     {turn.status === 'interrupted' && !hideStopped && <p className="chat-muted">{t("已停止生成")}</p>}
     {(turn.error || turn.retryError || turn.status === 'failed') && <button type="button"
       className="chat-error-notice" aria-label={t("查看报错详情")} onClick={() => onOpen('error')}>

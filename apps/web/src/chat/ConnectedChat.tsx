@@ -15,6 +15,7 @@ import { useDesktopLayout, usePanelVisibility } from '../useDesktopLayout';
 import { ChatDevices } from './ChatDevices';
 import { ChatConnectionInfo } from './ChatConnectionInfo';
 import { ChatTaskStatus } from './ChatTaskStatus';
+import { TaskReviewProvider } from '../../../../shared/remote-chat/TaskReviewContext';
 import { ChatQuotesProvider } from './ChatQuotes';
 import { ChatDetailsWorkspace } from './ChatDetailsWorkspace';
 import { ConversationChangesButton } from '../../../desktop/src/pages/codexGui/ConversationChangesButton';
@@ -107,9 +108,11 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
     <ChatImageContext.Provider value={{ threadId: state.selected?.id ?? null, ready, load: controller.imagePreview }}>
       <ChatFileContext.Provider value={{ threadId: state.selected?.id ?? null, ready, client: controller.files,
         load: controller.textPreview }}>
+      <TaskReviewProvider controller={controller} state={state} active={active && foreground}>
       <ChatMessages key={state.selected?.id ?? 'new'} thread={state.selected} offline={!ready}
         loading={state.historyLoading} loadingMore={state.historyLoadingMore} hasMore={state.historyHasMore}
         loadOlder={() => controller.loadOlder()} />
+      </TaskReviewProvider>
       </ChatFileContext.Provider>
     </ChatImageContext.Provider>
     {runningTurn && <ChatProcessing key={runningTurn.id} turn={runningTurn}

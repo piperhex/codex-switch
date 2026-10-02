@@ -1,5 +1,6 @@
 import type { TerminalRead, TerminalInfo, TerminalSize } from '../terminal/types';
 import { desktopClient } from '../remote-desktop/protocol';
+import { createReviewClient } from './taskReview';
 import type { GitActionRequest, GitChanges, GitCommitFile, GitCommitRequest, GitDiff, GitHistory,
   GitRepository } from './gitTypes';
 
@@ -17,6 +18,7 @@ export const GUI_TOOL_OPERATIONS = new Set([
   'guiTerminalList', 'guiTerminalOpen', 'guiTerminalRead', 'guiTerminalWrite', 'guiTerminalResize', 'guiTerminalClose',
   'guiGitChanges', 'guiGitDiff', 'guiGitHistory', 'guiGitCommit', 'guiGitCommitFiles',
   'guiGitRepository', 'guiGitAction',
+  'guiTaskReview', 'guiTaskRestore',
 ]);
 
 /** Requests use the selected computer's authenticated chat connection. */
@@ -24,6 +26,7 @@ export function createGuiToolsClient(request: <T>(body: object) => Promise<T>,
   diagnostic?: import('./diagnostics').ConnectionDiagnostic,
   nativeMedia?: import('../remote-desktop/nativeMedia').NativeMediaFactory) {
   return {
+    review: createReviewClient(request),
     desktop: desktopClient(request, diagnostic, nativeMedia),
     status: () => request<RemoteCliStatus>({ operation: 'guiCliStatus' }),
     release: () => request<CliRelease>({ operation: 'guiCliRelease' }),

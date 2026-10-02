@@ -15,6 +15,28 @@ pub(crate) mod tool;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum GitError {
+    #[error("无法保存验证记录，请检查电脑可用空间后重试。")]
+    ReviewStorage,
+    #[error("项目已有验证在运行，请等待完成。")]
+    ReviewBusy,
+    #[error("项目未配置这项验证，请先在电脑上配置。")]
+    ReviewCommand,
+    #[error("未跟踪文件过大或包含链接，暂时无法核实代码版本。请先在电脑上整理文件。")]
+    ReviewSize,
+    #[error("项目包含子模块，暂时无法完整核实验证版本，请在电脑上验证。")]
+    ReviewSubmodule,
+    #[error("项目有跳过检查的文件，暂时无法核实代码版本。请先在电脑上恢复这些文件的正常跟踪。")]
+    ReviewHiddenFiles,
+    #[error("代码已变化，请刷新验收结果后再试。")]
+    ReviewChanged,
+    #[error("请先通过 Git 入口提交并推送当前改动，再创建 PR。")]
+    ReviewDirty,
+    #[error("无法读取 GitHub 状态，请在电脑上安装并登录 GitHub CLI，再检查网络和仓库权限。")]
+    ReviewGithub,
+    #[error("请填写 PR 标题，并缩短过长的说明。")]
+    ReviewPrInput,
+    #[error("PR 创建结果尚未确认，请刷新 PR 状态；若未创建，请检查分支是否已推送。")]
+    ReviewPrUnknown,
     #[error("无法读取项目，请确认文件夹仍然存在。")]
     Directory,
     #[error("无法运行 Git，请确认已安装 Git。")]

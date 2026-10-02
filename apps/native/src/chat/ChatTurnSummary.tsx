@@ -9,8 +9,9 @@ import { ChatImage } from './ChatImage';
 import { completedTurnFiles } from './turnPresentation';
 import type { Turn } from './types';
 import { palette, styles } from './styles';
+import { TaskResultCard } from './review/TaskResultCard';
 
-export type TurnPanel = 'plan' | 'changes' | 'error';
+export type TurnPanel = 'plan' | 'changes' | 'error' | 'result';
 interface Props { turn: Turn; onOpen: (turnId: string, panel: TurnPanel) => void }
 const PREVIEW_FILES = 3;
 
@@ -87,6 +88,7 @@ export function ChatTurnSummary({ turn, onOpen }: Props) {
     </Pressable>}
     {!!files.length && <FileSummary files={files} running={turn.status === 'inProgress'}
       onOpen={() => onOpen(turn.id, 'changes')} />}
+    <TaskResultCard turn={turn} open={() => onOpen(turn.id, 'result')} />
     {turn.status === 'interrupted' && <Text style={styles.subtitle}>{t("已停止生成")}</Text>}
     {(turn.error || turn.retryError || turn.status === 'failed') && <Pressable accessibilityRole="button"
       accessibilityLabel={t("查看报错详情")} onPress={() => onOpen(turn.id, 'error')}>

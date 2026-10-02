@@ -7,6 +7,7 @@ pub(crate) mod host;
 mod install;
 mod mcp;
 mod platform;
+pub(crate) mod project_check;
 mod protocol;
 mod state;
 #[cfg(windows)]

@@ -2,7 +2,7 @@
 use super::{directory, repository, GitError, GitState, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 #[cfg(test)]
 mod action_tests;
@@ -14,6 +14,7 @@ mod commit_files;
 #[cfg(test)]
 mod commit_files_tests;
 mod history;
+mod review;
 #[cfg(test)]
 mod tests;
 
@@ -24,6 +25,11 @@ mod tests;
     rename_all_fields = "camelCase"
 )]
 pub(crate) enum Request {
+    Review {
+        cwd: String,
+        #[serde(flatten)]
+        request: review::Action,
+    },
     Repository {
         cwd: String,
     },
@@ -65,6 +71,7 @@ pub(crate) struct SelectedFile {
 #[derive(Serialize)]
 #[serde(untagged)]
 pub(crate) enum Response {
+    Review(review::Response),
     Repository(branches::Repository),
     Done(()),
     Changes(changes::Changes),
@@ -76,7 +83,8 @@ pub(crate) enum Response {
 
 fn execute(request: Request) -> Result<Response> {
     let cwd = match &request {
-        Request::Changes { cwd }
+        Request::Review { cwd, .. }
+        | Request::Changes { cwd }
         | Request::Repository { cwd }
         | Request::Action { cwd, .. }
         | Request::Diff { cwd, .. }
@@ -86,6 +94,7 @@ fn execute(request: Request) -> Result<Response> {
     };
     let root = repository(&directory(cwd)?)?;
     match request {
+        Request::Review { .. } => Err(GitError::Operation),
         Request::Repository { .. } => branches::read(&root).map(Response::Repository),
         Request::Action { request, .. } => actions::execute(&root, &request).map(Response::Done),
         Request::Changes { .. } => changes::read(&root).map(Response::Changes),
@@ -125,13 +134,35 @@ pub(super) fn validate_path(path: &str) -> Result<()> {
 
 #[tauri::command]
 pub(crate) async fn codex_gui_git_tool(
+    app: AppHandle,
     state: State<'_, GitState>,
     request: Request,
 ) -> std::result::Result<Response, String> {
     let guard = state.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let _guard = guard.lock().map_err(|_| GitError::Operation)?;
-        execute(request)
+        // GitHub requests do not mutate local files and must not block unrelated Git tools during network waits.
+        let needs_guard = !matches!(
+            &request,
+            Request::Review {
+                request: review::Action::PullRequest | review::Action::CreatePullRequest { .. },
+                ..
+            }
+        );
+        let _guard = if needs_guard {
+            Some(guard.lock().map_err(|_| GitError::Operation)?)
+        } else {
+            None
+        };
+        match request {
+            Request::Review { cwd, request } => {
+                let data = app
+                    .path()
+                    .app_data_dir()
+                    .map_err(|_| GitError::ReviewStorage)?;
+                review::execute(&cwd, &data, request).map(Response::Review)
+            }
+            request => execute(request),
+        }
     })
     .await
     .map_err(|_| GitError::Operation.to_string())?

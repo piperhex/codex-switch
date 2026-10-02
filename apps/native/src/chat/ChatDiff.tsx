@@ -2,7 +2,7 @@ import { t, useLanguage } from '../i18n';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import type { DiffFile } from '../../../../shared/chat/diff';
+import type { DiffFile, DiffLine } from '../../../../shared/chat/diff';
 import { BottomSheet } from '../components/BottomSheet';
 import { SheetScrollView } from '../components/SheetScrollView';
 import { ChatDiffContent } from './ChatDiffContent';
@@ -20,7 +20,9 @@ export function DiffCounts({ added, removed }: { added: number; removed: number 
   </View>;
 }
 
-export function ChatDiff({ files, copy }: { files: DiffFile[]; copy?: CopyAction }) {
+export function ChatDiff({ files, copy, onComment }: {
+  files: DiffFile[]; copy?: CopyAction; onComment?: (file: DiffFile, line: DiffLine) => void;
+}) {
   useLanguage();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const groups = groupDiffFiles(files);
@@ -56,7 +58,9 @@ export function ChatDiff({ files, copy }: { files: DiffFile[]; copy?: CopyAction
     {selected && <BottomSheet fullWidthContent visible tall title={t("文件差异")} subtitle={selected.path}
       onClose={() => setSelectedKey(null)} onBack={() => setSelectedKey(null)} dragFromHeaderOnly>
       <SheetScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
-        <ChatDiffContent key={selectedKey} file={selected} />
+        <ChatDiffContent key={selectedKey} file={selected} onComment={onComment ? line => {
+          setSelectedKey(null); onComment(selected, line);
+        } : undefined} />
       </SheetScrollView>
     </BottomSheet>}
   </View>;

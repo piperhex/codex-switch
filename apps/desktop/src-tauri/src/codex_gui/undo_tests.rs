@@ -29,6 +29,73 @@ fn change(path: &str, kind: &str, diff: &str) -> Change {
 }
 
 #[test]
+fn restore_preview_rejects_later_edits_and_preserves_them_after_a_fresh_preview() {
+    let workspace = Workspace::new();
+    let file = workspace.0.join("file.txt");
+    fs::write(&file, "after\nlocal\n").unwrap();
+    let edits = || {
+        vec![change(
+            "file.txt",
+            "update",
+            "@@ -1 +1 @@\n-before\n+after\n",
+        )]
+    };
+    let receipt = workspace.0.join("receipt");
+    let result = preview(&workspace.0, &edits(), &receipt).unwrap();
+    assert!(!result.conflict);
+    assert_eq!(result.files, ["file.txt"]);
+    assert_eq!(fs::read_to_string(&file).unwrap(), "after\nlocal\n");
+    assert!(!receipt.join("completed").exists());
+    fs::write(&file, "after\nnew human edit\n").unwrap();
+    let request = UndoRequest {
+        thread_id: "t".into(),
+        turn_id: "r".into(),
+        check_only: false,
+        preview: false,
+        expected_version: Some(result.version),
+    };
+    assert!(matches!(
+        perform(&workspace.0, edits(), &receipt, &request),
+        Err(UndoError::Conflict)
+    ));
+    assert_eq!(
+        fs::read_to_string(&file).unwrap(),
+        "after\nnew human edit\n"
+    );
+    let refreshed = preview(&workspace.0, &edits(), &receipt).unwrap();
+    let request = UndoRequest {
+        expected_version: Some(refreshed.version),
+        ..request
+    };
+    assert!(
+        perform(&workspace.0, edits(), &receipt, &request)
+            .unwrap()
+            .undone
+    );
+    assert_eq!(
+        fs::read_to_string(&file).unwrap(),
+        "before\nnew human edit\n"
+    );
+}
+
+#[test]
+fn preview_reports_conflicts_without_touching_any_files() {
+    let workspace = Workspace::new();
+    fs::write(workspace.0.join("file.txt"), "someone else's edit\n").unwrap();
+    let edits = vec![change(
+        "file.txt",
+        "update",
+        "@@ -1 +1 @@\n-before\n+after\n",
+    )];
+    let result = preview(&workspace.0, &edits, &workspace.0.join("receipt")).unwrap();
+    assert!(result.conflict);
+    assert_eq!(
+        fs::read_to_string(workspace.0.join("file.txt")).unwrap(),
+        "someone else's edit\n"
+    );
+}
+
+#[test]
 fn reverses_repeated_edits_and_preserves_unrelated_content() {
     let workspace = Workspace::new();
     fs::write(workspace.0.join("file.txt"), "third\nuntouched\nlocal\n").unwrap();

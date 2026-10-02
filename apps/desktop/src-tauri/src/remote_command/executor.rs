@@ -54,6 +54,13 @@ pub(super) async fn execute(
     allowed: impl Fn() -> bool,
 ) -> Result<CommandOutput> {
     request.validate()?;
+    execute_prevalidated(request, allowed).await
+}
+
+pub(super) async fn execute_prevalidated(
+    request: CommandRequest,
+    allowed: impl Fn() -> bool,
+) -> Result<CommandOutput> {
     let cwd = working_directory(&request)?;
     if !allowed() {
         return Err(RemoteError::Cancelled);

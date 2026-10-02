@@ -35,6 +35,14 @@ async function install(version: string) {
 
 export async function guiToolRequest(body: Record<string, unknown>) {
   switch (body.operation) {
+    case 'guiTaskReview': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'review' } });
+    case 'guiTaskRestore': {
+      if (body.preview !== true && (typeof body.expectedVersion !== 'string'
+        || !/^[a-f0-9]{64}$/.test(body.expectedVersion))) {
+        throw new Error('请先预览恢复影响，再确认恢复。');
+      }
+      return invoke('codex_gui_undo', { request: body });
+    }
     case 'guiGitRepository': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'repository' } });
     case 'guiGitAction': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'action' } });
     case 'guiGitChanges': return invoke('codex_gui_git_tool', { request: { ...body, operation: 'changes' } });

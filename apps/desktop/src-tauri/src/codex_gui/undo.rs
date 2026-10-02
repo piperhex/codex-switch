@@ -43,11 +43,32 @@ pub(crate) struct UndoRequest {
     turn_id: String,
     #[serde(default)]
     check_only: bool,
+    #[serde(default)]
+    preview: bool,
+    expected_version: Option<String>,
 }
 
 #[derive(Serialize)]
 pub(crate) struct UndoResponse {
     undone: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    preview: Option<RestorePreview>,
+}
+
+#[derive(Serialize)]
+struct RestorePreview {
+    files: Vec<String>,
+    conflict: bool,
+    version: String,
+}
+
+impl UndoResponse {
+    fn done(undone: bool) -> Self {
+        Self {
+            undone,
+            preview: None,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -173,7 +194,7 @@ fn receipt_path(app: &AppHandle, request: &UndoRequest) -> Result<PathBuf> {
 
 fn execute(root: &Path, edits: Vec<Change>, receipt: &Path) -> Result<UndoResponse> {
     if receipt.join("completed").is_file() {
-        return Ok(UndoResponse { undone: true });
+        return Ok(UndoResponse::done(true));
     }
     let edits = normalized_changes(root, edits)?;
     fs::create_dir_all(receipt).map_err(|_| UndoError::Io)?;
@@ -185,7 +206,54 @@ fn execute(root: &Path, edits: Vec<Change>, receipt: &Path) -> Result<UndoRespon
         eprintln!("Could not clean up an edit undo staging directory");
     }
     result?;
-    Ok(UndoResponse { undone: true })
+    Ok(UndoResponse::done(true))
+}
+
+fn preview(root: &Path, edits: &[Change], receipt: &Path) -> Result<RestorePreview> {
+    fs::create_dir_all(receipt).map_err(|_| UndoError::Io)?;
+    let staging = receipt.join(uuid::Uuid::new_v4().to_string());
+    fs::create_dir(&staging).map_err(|_| UndoError::Io)?;
+    let result = files::preview(root, &staging, edits);
+    if fs::remove_dir_all(&staging).is_err() {
+        eprintln!("Could not remove an undo preview directory");
+    }
+    let (version, conflict) = result?;
+    let paths = edits
+        .iter()
+        .flat_map(|edit| std::iter::once(edit.path.clone()).chain(edit.kind.move_path.clone()))
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    Ok(RestorePreview {
+        files: paths,
+        conflict,
+        version,
+    })
+}
+
+fn perform(
+    root: &Path,
+    edits: Vec<Change>,
+    receipt: &Path,
+    request: &UndoRequest,
+) -> Result<UndoResponse> {
+    if receipt.join("completed").is_file() {
+        return Ok(UndoResponse::done(true));
+    }
+    let edits = normalized_changes(root, edits)?;
+    if request.preview || request.expected_version.is_some() {
+        let preview = preview(root, &edits, receipt)?;
+        if request.preview {
+            return Ok(UndoResponse {
+                undone: false,
+                preview: Some(preview),
+            });
+        }
+        if preview.conflict || request.expected_version.as_deref() != Some(&preview.version) {
+            return Err(UndoError::Conflict);
+        }
+    }
+    execute(root, edits, receipt)
 }
 
 async fn read_turn(state: &GuiState, request: &UndoRequest) -> Result<(String, Vec<Change>)> {
@@ -218,8 +286,8 @@ pub(crate) async fn codex_gui_undo(
     let receipt = receipt_path(&app, &request).map_err(|error| error.to_string())?;
     let guard = app.state::<GitState>().0.clone();
     if request.check_only {
-        return tauri::async_runtime::spawn_blocking(move || UndoResponse {
-            undone: receipt.join("completed").is_file(),
+        return tauri::async_runtime::spawn_blocking(move || {
+            UndoResponse::done(receipt.join("completed").is_file())
         })
         .await
         .map_err(|_| UndoError::Io.to_string());
@@ -230,7 +298,7 @@ pub(crate) async fn codex_gui_undo(
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = guard.lock().map_err(|_| UndoError::Io)?;
         let root = protocol::directory(&cwd).map_err(|_| UndoError::Invalid)?;
-        execute(&root, edits, &receipt)
+        perform(&root, edits, &receipt, &request)
     })
     .await
     .map_err(|_| UndoError::Io.to_string())?

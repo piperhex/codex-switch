@@ -11,9 +11,11 @@ import { turnErrorNotice, type TurnPanel } from './ChatTurnSummary';
 import { requestErrorDetails } from '../../../desktop/src/pages/codexGui/requestError';
 import { palette, styles } from './styles';
 import type { Turn } from './types';
+import { TaskReviewPanel } from './review/TaskReviewPanel';
 
 interface Props { turn: Turn; panel: TurnPanel; onClose: () => void }
-const PANEL_TITLES: Record<TurnPanel, string> = { get plan() { return t("任务计划"); }, get changes() { return t("本轮修改"); }, get error() { return t("报错详情"); } };
+const PANEL_TITLES: Record<TurnPanel, string> = { get plan() { return t("任务计划"); },
+  get changes() { return t("本轮修改"); }, get error() { return t("报错详情"); }, get result() { return t('任务验收'); } };
 
 function PlanDetails({ turn }: { turn: Turn }) {
   useLanguage();
@@ -45,6 +47,7 @@ export function ChatTurnDetails({ turn, panel, onClose }: Props) {
   useLanguage();
   return <BottomSheet fullWidthContent visible tall title={PANEL_TITLES[panel]} onClose={onClose} dragFromHeaderOnly>
     <SheetScrollView style={detailStyles.scroll} contentContainerStyle={detailStyles.content}>
+      {panel === 'result' && <TaskReviewPanel key={turn.id} turn={turn} />}
       {panel === 'plan' && <PlanDetails turn={turn} />}
       {panel === 'changes' && <ChatDiff files={completedTurnFiles(turn)} />}
       {panel === 'error' && <ErrorDetails turn={turn} />}

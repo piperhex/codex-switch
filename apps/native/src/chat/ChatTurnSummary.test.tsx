@@ -13,6 +13,7 @@ vi.mock('react-native', () => ({ Pressable: 'Pressable', Text: 'Text', View: 'Vi
 }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Icon' }));
 vi.mock('./ChatImage', () => ({ ChatImage: 'Image' }));
+vi.mock('../../../../shared/remote-chat/TaskReviewContext', () => ({ useTaskReviewContext: () => ({}) }));
 
 interface Props { children?: ReactNode; accessibilityLabel?: string; onPress?: () => void }
 function descendants(node: ReactNode): { type: unknown; props: Props }[] {
@@ -55,4 +56,14 @@ it.each(['completed', 'interrupted', 'failed'])('restores the file list when the
   const tree = ChatTurnSummary({ turn: { ...turn, status }, onOpen: vi.fn() });
   expect(content(tree)).toContain('审核');
   expect(content(tree)).toContain('src/example.ts');
+});
+
+it('keeps the original diff entry and opens task review separately for the same completed turn', () => {
+  const onOpen = vi.fn();
+  const tree = ChatTurnSummary({ turn: { ...turn, status: 'completed' }, onOpen });
+  const elements = descendants(tree);
+  elements.find(node => node.props.accessibilityLabel === '查看本轮修改：1 个文件')?.props.onPress?.();
+  expect(onOpen).toHaveBeenLastCalledWith('turn', 'changes');
+  elements.find(node => node.type === 'Pressable' && content(node.props.children) === '验收结果')?.props.onPress?.();
+  expect(onOpen).toHaveBeenLastCalledWith('turn', 'result');
 });

@@ -3,6 +3,20 @@ use super::{protocol::Shell, RemoteError, Result};
 use std::process::Stdio;
 use tokio::process::{Child, Command};
 
+pub(super) fn project_script(command: &str) -> String {
+    #[cfg(windows)]
+    {
+        format!(
+            "$env:CI='true'; {}; exit $LASTEXITCODE",
+            command.replacen("npm ", "npm.cmd ", 1)
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        format!("CI=true {command}")
+    }
+}
+
 pub(super) struct ProcessTree {
     #[cfg(windows)]
     _job: std::os::windows::io::OwnedHandle,

@@ -14,13 +14,17 @@ const MIN_SCROLL_COLUMN_WIDTH = 320;
 const CELL_BORDER_WIDTH = 1;
 const REDUNDANT_HEADER = /^(diff --git |index |--- |\+\+\+ |new file mode |deleted file mode )/;
 
-function UnifiedRow({ line, language, wrap, copy }: {
-  line: DiffLine; language: string; wrap: boolean; copy?: CopyAction;
+function UnifiedRow({ line, language, wrap, copy, onComment }: {
+  line: DiffLine; language: string; wrap: boolean; copy?: CopyAction; onComment?: (line: DiffLine) => void;
 }) {
   useLanguage();
   const marker = line.kind === 'add' ? '+' : line.kind === 'remove' ? '−' : ' ';
   const heading = line.kind === 'hunk' || line.kind === 'meta';
   return <View style={[diffStyles.line, diffStyles[line.kind]]}>
+    {onComment && !!(line.oldLine || line.newLine) && <Pressable accessibilityRole="button"
+      accessibilityLabel={t('对第 {value1} 行留言', { value1: line.newLine ?? line.oldLine ?? 0 })}
+      style={diffStyles.comment} onPress={() => onComment(line)}>
+      <Text style={diffStyles.actionText}>{t('留言')}</Text></Pressable>}
     <Text style={[styles.code, diffStyles.number]}>{line.oldLine ?? ''}</Text>
     <Text style={[styles.code, diffStyles.number]}>{line.newLine ?? ''}</Text>
     <Text style={[styles.code, diffStyles.sign]}>{marker}</Text>
@@ -87,7 +91,7 @@ function SplitRows({ pairs, language, wrap, copy }: {
   </View>;
 }
 
-export function ChatDiffContent({ file }: { file: DiffFile }) {
+export function ChatDiffContent({ file, onComment }: { file: DiffFile; onComment?: (line: DiffLine) => void }) {
   useLanguage();
   const [limit, setLimit] = useState(PAGE_LINES);
   const [wrap, setWrap] = useState(false);
@@ -101,7 +105,7 @@ export function ChatDiffContent({ file }: { file: DiffFile }) {
   const copy = { text: file.raw, label: t("复制 diff") };
   const rows = split ? <SplitRows pairs={pairs.slice(0, limit)} language={language} wrap={wrap} copy={copy} />
     : <View>{lines.slice(0, limit).map((line, index) =>
-      <UnifiedRow key={index} line={line} language={language} wrap={wrap}
+      <UnifiedRow key={index} line={line} language={language} wrap={wrap} onComment={onComment}
         copy={index === Math.min(lines.length, limit) - 1 ? copy : undefined} />)}</View>;
   return <View style={{ gap: 10 }}>
     {file.previousPath && <SelectableChatText style={styles.subtitle}>
@@ -109,8 +113,8 @@ export function ChatDiffContent({ file }: { file: DiffFile }) {
     <View style={diffStyles.toolbar}>
       <Pressable accessibilityRole="button" style={diffStyles.action} onPress={() => setWrap(!wrap)}>
         <Text style={diffStyles.actionText}>{wrap ? t("横向滚动") : t("自动换行")}</Text></Pressable>
-      <Pressable accessibilityRole="button" style={diffStyles.action} onPress={() => setSplit(!split)}>
-        <Text style={diffStyles.actionText}>{split ? t("统一") : t("并排")}</Text></Pressable>
+      {!onComment && <Pressable accessibilityRole="button" style={diffStyles.action} onPress={() => setSplit(!split)}>
+        <Text style={diffStyles.actionText}>{split ? t("统一") : t("并排")}</Text></Pressable>}
       {openFile && file.kind !== 'delete' && <Pressable accessibilityRole="button" style={diffStyles.action}
         onPress={() => openFile({ path: file.path })}><Text style={diffStyles.actionText}>{t("查看文件")}</Text></Pressable>}
     </View>
@@ -124,6 +128,7 @@ export function ChatDiffContent({ file }: { file: DiffFile }) {
 }
 
 const diffStyles = StyleSheet.create({
+  comment: { width: 44, minHeight: 32, justifyContent: 'center', alignItems: 'center' },
   toolbar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   action: { minHeight: 36, paddingHorizontal: 6, justifyContent: 'center' },
   actionText: { color: palette.muted, fontSize: 12, lineHeight: 20 },

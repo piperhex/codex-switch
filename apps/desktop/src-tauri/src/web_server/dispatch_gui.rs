@@ -56,7 +56,7 @@ fn dispatch_gui_command(app: AppHandle, command: &str, args: Value) -> Result<Va
             codex_gui::account_selection::codex_gui_switch_account(app, argument(&args, "selection")?),
         )),
         "codex_gui_git_tool" => serialize(block_on(codex_gui::git::tool::codex_gui_git_tool(
-            app.state::<codex_gui::git::GitState>(), argument(&args, "request")?,
+            app.clone(), app.state::<codex_gui::git::GitState>(), argument(&args, "request")?,
         ))),
         "codex_gui_git" => serialize(block_on(codex_gui::git::codex_gui_git(
             app.clone(), app.state::<codex_gui::git::GitState>(), argument(&args, "request")?,

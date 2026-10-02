@@ -194,24 +194,41 @@ fn apply(root: &Path, before: &Snapshot, after: &Snapshot) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn prepare_and_apply(root: &Path, staging: &Path, edits: &[Change]) -> Result<()> {
-    let before = capture(root, edits)?;
-    // Backups remain available when an OS error prevents a complete recovery.
-    let backups = staging.join("before.json");
-    fs::write(
-        &backups,
-        serde_json::to_vec(&before).map_err(|_| UndoError::Io)?,
-    )
-    .map_err(|_| UndoError::Io)?;
+fn prepare(staging: &Path, edits: &[Change], before: &Snapshot) -> Result<Snapshot> {
     let workspace = staging.join("workspace");
     fs::create_dir(&workspace).map_err(|_| UndoError::Io)?;
-    for (path, bytes) in &before {
+    for (path, bytes) in before {
         write(&workspace.join(path), bytes.as_deref())?;
     }
     for edit in edits.iter().rev() {
         reverse(&workspace, edit)?;
     }
-    let after = capture(&workspace, edits)?;
+    capture(&workspace, edits)
+}
+
+pub(super) fn preview(root: &Path, staging: &Path, edits: &[Change]) -> Result<(String, bool)> {
+    use sha2::{Digest, Sha256};
+    let before = capture(root, edits)?;
+    let version = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&before).map_err(|_| UndoError::Io)?)
+    );
+    match prepare(staging, edits, &before) {
+        Ok(_) => Ok((version, false)),
+        Err(UndoError::Conflict) => Ok((version, true)),
+        Err(error) => Err(error),
+    }
+}
+
+pub(super) fn prepare_and_apply(root: &Path, staging: &Path, edits: &[Change]) -> Result<()> {
+    let before = capture(root, edits)?;
+    // Backups remain available when an OS error prevents a complete recovery.
+    fs::write(
+        staging.join("before.json"),
+        serde_json::to_vec(&before).map_err(|_| UndoError::Io)?,
+    )
+    .map_err(|_| UndoError::Io)?;
+    let after = prepare(staging, edits, &before)?;
     let marker = staging.join("completed");
     fs::write(&marker, b"undone").map_err(|_| UndoError::Io)?;
     apply(root, &before, &after)?;
