@@ -37,6 +37,9 @@ device arm64 and both simulator architectures during installation of the local C
 - Native expiry enforcement also works while JavaScript is suspended. Authenticated renewal extends the same engine.
 - Native readiness requires a direct, one-hop route and its selected direct connection. The configured rendezvous
   node disables application-data relaying. Existing WebSocket fallback retains its own relay accounting.
+  Both punched and non-punched sockets qualify once the selected, open connection has a measured round trip.
+  EasyTier's `directly_connected_conns` excludes punched sockets and must not be used as a P2P allowlist.
+  Transport admission alone does not open the chat stream; diagnostics use the same verified connection check.
 - Closing the owner cancels discovery, sockets and mapping leases. Native queues and frame sizes are bounded.
 
 ## Dependency notices

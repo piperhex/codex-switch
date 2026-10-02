@@ -21,6 +21,12 @@ tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "net", "
 url = "2"
 network-interface = "2.0.5"
 
+[dependencies.easytier-proto]
+git = "https://github.com/EasyTier/EasyTier"
+rev = "ed73d318bb3bf19601e227ab83dd61d66ce4b9f8"
+default-features = false
+features = ["core"]
+
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
 

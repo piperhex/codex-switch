@@ -847,6 +847,7 @@ version = "0.1.0"
 dependencies = [
  "easytier",
  "easytier-core",
+ "easytier-proto",
  "jni 0.21.1",
  "network-interface",
  "serde",

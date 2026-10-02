@@ -98,11 +98,11 @@ async fn snapshot(instance: &NativeCoreInstance, remote: &str) -> Snapshot {
         elapsed_ms: 0,
         connected_peers: peers
             .iter()
-            .filter(|peer| !peer.directly_connected_conns.is_empty())
+            .filter(|peer| route::selected_connection(peer).is_some())
             .count(),
         route_count: routes.len(),
         remote_known: routes.iter().any(|route| route.hostname == remote),
-        direct: route::status(instance, remote).await.direct,
+        direct: route::from_snapshots(&routes, &peers, remote).direct,
         udp_nat_type: node.stun_info.udp_nat_type,
         tcp_nat_type: node.stun_info.tcp_nat_type,
     }
