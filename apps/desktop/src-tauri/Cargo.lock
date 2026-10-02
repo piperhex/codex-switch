@@ -2183,7 +2183,6 @@ dependencies = [
 [[package]]
 name = "easytier-core"
 version = "2.7.0"
-source = "git+https://github.com/EasyTier/EasyTier?rev=ed73d318bb3bf19601e227ab83dd61d66ce4b9f8#ed73d318bb3bf19601e227ab83dd61d66ce4b9f8"
 dependencies = [
  "aes-gcm 0.11.1",
  "anyhow",

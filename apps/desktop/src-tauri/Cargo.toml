@@ -86,6 +86,9 @@ tauri = { version = "2", features = ["test"] }
 [patch.crates-io]
 hyper-util = { path = "vendor/hyper-util" }
 
+[patch."https://github.com/EasyTier/EasyTier"]
+easytier-core = { path = "../../../crates/chat-connectivity/vendor/easytier-core" }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.10"
 

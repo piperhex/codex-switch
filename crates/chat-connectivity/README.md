@@ -7,6 +7,8 @@ application ports. Browsers continue to use WebRTC and the existing encrypted We
 The native engine is pinned to EasyTier commit `ed73d318bb3bf19601e227ab83dd61d66ce4b9f8`.
 `Cargo.lock` pins transitive dependencies. Desktop has a separate lockfile which must be updated with this crate.
 See [upstream source](https://github.com/EasyTier/EasyTier/tree/ed73d318bb3bf19601e227ab83dd61d66ce4b9f8).
+The `easytier-core` package is vendored with a bounded mixed symmetric NAT fallback; see
+[patch notes](vendor/easytier-core/CODEX_SWITCH_PATCH.md). Both Cargo roots select the same patched package.
 
 ## Build
 
@@ -14,7 +16,9 @@ Install Rust 1.96.1 or newer and Protobuf (`protoc`). On Windows, put 7-Zip on P
 compatibility-library build uses it. Linux requires a C compiler and CMake. Run:
 
 ```sh
-cargo fmt --manifest-path crates/chat-connectivity/Cargo.toml --check
+cargo fmt --manifest-path crates/chat-connectivity/Cargo.toml --all --check
+cargo test --locked --manifest-path crates/chat-connectivity/Cargo.toml -p easytier-core \
+  --no-default-features --features aes-gcm,proxy-smoltcp-stack,tcp-hole-punch connectivity::hole_punch --lib
 cargo test --locked --manifest-path crates/chat-connectivity/Cargo.toml
 cargo clippy --locked --manifest-path crates/chat-connectivity/Cargo.toml --all-targets -- -D warnings
 ```
@@ -38,6 +42,7 @@ device arm64 and both simulator architectures during installation of the local C
 ## Dependency notices
 
 Our adapter is Apache-2.0. EasyTier is LGPL-3.0; its license is included in `LICENSE-EasyTier` and the exact source is
-linked above. Builds retain the upstream dependency rather than copying its implementation into the adapter.
+linked above. The modified core, its LGPL license, and patch notes are in `vendor/easytier-core`;
+the host integration and protocol definitions retain the pinned upstream dependency.
 The repository, lockfiles and build scripts provide the corresponding source/build inputs for relinking.
 Include this notice and the dependency license with distributed native binaries.

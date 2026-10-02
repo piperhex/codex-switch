@@ -7,6 +7,10 @@ license = "Apache-2.0"
 [lib]
 crate-type = ["rlib", "staticlib", "cdylib"]
 
+[workspace]
+members = ["vendor/easytier-core"]
+resolver = "2"
+
 [dependencies]
 easytier = { git = "https://github.com/EasyTier/EasyTier", rev = "ed73d318bb3bf19601e227ab83dd61d66ce4b9f8", default-features = false, features = ["aes-gcm", "smoltcp", "upnp", "tcp-hole-punch", "dns-resolver"] }
 easytier-core = { git = "https://github.com/EasyTier/EasyTier", rev = "ed73d318bb3bf19601e227ab83dd61d66ce4b9f8", default-features = false, features = ["aes-gcm", "proxy-smoltcp-stack", "tcp-hole-punch"] }
@@ -19,3 +23,6 @@ network-interface = "2.0.5"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
+
+[patch."https://github.com/EasyTier/EasyTier"]
+easytier-core = { path = "vendor/easytier-core" }
