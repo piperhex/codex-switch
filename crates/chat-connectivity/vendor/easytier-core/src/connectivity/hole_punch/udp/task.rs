@@ -6,6 +6,7 @@ use crate::{
 use super::{
     super::policy::{should_background_p2p_with_peer, should_try_p2p_with_peer},
     UdpNatType,
+    diagnostics::PunchReason,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,58 +36,127 @@ where
     I: IntoIterator<Item = UdpPunchCandidate>,
     F: Fn(PeerId) -> bool,
 {
-    if my_nat_type.is_open() {
-        return Vec::new();
-    }
-
     candidates
         .into_iter()
         .filter_map(|candidate| {
-            let static_allowed = should_background_p2p_with_peer(
-                candidate.feature_flag.as_ref(),
-                false,
-                policy.lazy_p2p,
-                policy.disable_p2p,
-                policy.need_p2p,
-            );
-            let dynamic_allowed = should_try_p2p_with_peer(
-                candidate.feature_flag.as_ref(),
-                false,
-                policy.disable_p2p,
-                policy.need_p2p,
-            ) && candidate.has_recent_traffic;
-            if !static_allowed && !dynamic_allowed {
-                return None;
-            }
-
-            let peer_id = candidate.peer_id;
-            if is_blacklisted(peer_id) || candidate.has_direct_connection {
-                return None;
-            }
-
-            let peer_nat_type = candidate.udp_nat_type.into();
-            if !my_nat_type.can_punch_hole_as_client(
-                peer_nat_type,
-                my_peer_id,
-                peer_id,
-                policy.disable_sym_hole_punching,
-            ) {
-                return None;
-            }
-
-            Some(UdpPunchTaskInfo {
-                dst_peer_id: peer_id,
-                dst_nat_type: peer_nat_type,
+            let task = UdpPunchTaskInfo {
+                dst_peer_id: candidate.peer_id,
+                dst_nat_type: candidate.udp_nat_type.into(),
                 my_nat_type,
-            })
+            };
+            selection_reason(
+                (my_peer_id, task),
+                policy,
+                &candidate,
+                is_blacklisted(candidate.peer_id),
+            )
+            .is_none()
+            .then_some(task)
         })
         .collect()
+}
+
+pub(super) fn selection_reason(
+    local: (PeerId, UdpPunchTaskInfo),
+    policy: P2pPolicyFlags,
+    candidate: &UdpPunchCandidate,
+    blacklisted: bool,
+) -> Option<PunchReason> {
+    let (my_peer_id, task) = local;
+    if task.my_nat_type.is_open() {
+        return Some(PunchReason::OpenNetwork);
+    }
+    let flag = candidate.feature_flag.as_ref();
+    let background = should_background_p2p_with_peer(
+        flag,
+        false,
+        policy.lazy_p2p,
+        policy.disable_p2p,
+        policy.need_p2p,
+    );
+    let demanded = should_try_p2p_with_peer(flag, false, policy.disable_p2p, policy.need_p2p)
+        && candidate.has_recent_traffic;
+    if !background && !demanded {
+        return Some(PunchReason::Policy);
+    }
+    if blacklisted {
+        return Some(PunchReason::Blacklisted);
+    }
+    if candidate.has_direct_connection {
+        return Some(PunchReason::AlreadyDirect);
+    }
+    if task.my_nat_type.can_punch_hole_as_client(
+        task.dst_nat_type,
+        my_peer_id,
+        task.dst_peer_id,
+        policy.disable_sym_hole_punching,
+    ) {
+        return None;
+    }
+    Some(nat_skip_reason(task, policy))
+}
+
+fn nat_skip_reason(task: UdpPunchTaskInfo, policy: P2pPolicyFlags) -> PunchReason {
+    if task.dst_nat_type.is_open() {
+        return PunchReason::OpenNetwork;
+    }
+    if policy.disable_sym_hole_punching && task.my_nat_type.is_sym() && task.dst_nat_type.is_sym() {
+        return PunchReason::SymmetricDisabled;
+    }
+    if (task.my_nat_type.is_hard_sym() && task.dst_nat_type.is_hard_sym())
+        || (task.my_nat_type.is_sym()
+            && task.dst_nat_type.is_sym()
+            && [task.my_nat_type, task.dst_nat_type]
+                .into_iter()
+                .any(|nat| NatType::from(nat) == NatType::SymUdpFirewall))
+    {
+        return PunchReason::UnsupportedNat;
+    }
+    PunchReason::AwaitPeer
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::proto::common::PeerFeatureFlag;
+
+    #[test]
+    fn diagnostic_skip_reasons_distinguish_peer_initiation_from_unsupported_pairs() {
+        for (local, remote, expected) in [
+            (NatType::Symmetric, NatType::SymmetricEasyInc, None),
+            (
+                NatType::SymmetricEasyInc,
+                NatType::Symmetric,
+                Some(PunchReason::AwaitPeer),
+            ),
+            (
+                NatType::Symmetric,
+                NatType::Symmetric,
+                Some(PunchReason::UnsupportedNat),
+            ),
+            (
+                NatType::SymUdpFirewall,
+                NatType::SymmetricEasyInc,
+                Some(PunchReason::UnsupportedNat),
+            ),
+            (
+                NatType::SymmetricEasyInc,
+                NatType::SymUdpFirewall,
+                Some(PunchReason::UnsupportedNat),
+            ),
+        ] {
+            let peer = candidate(2, remote);
+            let task = UdpPunchTaskInfo {
+                dst_peer_id: 2,
+                dst_nat_type: remote.into(),
+                my_nat_type: local.into(),
+            };
+            assert_eq!(
+                selection_reason((1, task), P2pPolicyFlags::default(), &peer, false),
+                expected
+            );
+        }
+    }
 
     fn candidate(peer_id: PeerId, udp_nat_type: NatType) -> UdpPunchCandidate {
         UdpPunchCandidate {

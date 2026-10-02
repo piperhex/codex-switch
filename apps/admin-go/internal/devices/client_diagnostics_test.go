@@ -19,18 +19,46 @@ func TestClientDiagnosticsSanitizeAndBoundReports(t *testing.T) {
 	}
 	output := buffer.String()
 	if strings.Contains(output, "private-") || strings.Contains(output, "bytesSent") ||
-		strings.Count(output, "connection diagnostic") != clientDiagnosticLimit ||
+		strings.Count(output, "connection diagnostic") != clientDiagnosticLimit-clientDiagnosticReserved ||
 		!strings.Contains(output, `"requestsSent":622`) || !strings.Contains(output, `"responsesReceived":0`) {
 		t.Fatalf("unsafe or incomplete diagnostics: %s", output)
 	}
 	d.clientWindow = time.Now().Add(-time.Minute)
 	d.clientEvent("session", input)
-	if !strings.Contains(buffer.String(), `"suppressed":10`) {
+	if !strings.Contains(buffer.String(), `"suppressed":50`) {
 		t.Fatal("missing throttled-event count")
 	}
 	d.clientEvent("session", platform.JSON{"event": "private-event"})
 	if strings.Contains(buffer.String(), "private-") {
 		t.Fatal("unknown event was logged")
+	}
+}
+
+func TestNativePunchOutcomesSurviveNoiseAndRemainRedacted(t *testing.T) {
+	d, buffer := diagnosticFixture()
+	for range clientDiagnosticLimit {
+		d.clientEvent("session", platform.JSON{"event": "ice-candidate"})
+	}
+	d.clientEvent("session", platform.JSON{"event": "native-punch", "scope": "chat", "transport": "mesh",
+		"strategy": "hard-sym-to-easy-sym", "stage": "failed", "phase": "listener-rpc",
+		"reason": "rpc-rejected", "attempt": float64(3), "peerUdpNatType": float64(8),
+		"probesSent": float64(0), "handshakeAttempts": float64(0), "durationMs": float64(400),
+		"peerId": "private-peer", "address": "private-address", "error": "private-error", "secret": "private-key"})
+	output := buffer.String()
+	for _, required := range []string{`"event":"native-punch"`, `"phase":"listener-rpc"`,
+		`"reason":"rpc-rejected"`, `"attempt":3`, `"probesSent":0`, `"peerUdpNatType":8`} {
+		if !strings.Contains(output, required) {
+			t.Fatalf("missing %s", required)
+		}
+	}
+	if strings.Contains(output, "private-") {
+		t.Fatal("private fields entered diagnostics")
+	}
+	for range clientDiagnosticLimit {
+		d.clientEvent("session", platform.JSON{"event": "native-punch", "stage": "failed"})
+	}
+	if strings.Count(buffer.String(), `"msg":"connection diagnostic"`) != clientDiagnosticLimit {
+		t.Fatal("priority outcomes bypassed the total rate limit")
 	}
 }
 

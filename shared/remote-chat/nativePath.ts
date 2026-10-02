@@ -1,5 +1,6 @@
 import type { Channel } from './protocol';
 import type { ConnectionDiagnostic } from './diagnostics';
+import { sanitizeDiagnostic, type DiagnosticFields } from './diagnosticSchema';
 
 export interface NativeTraversalConfig { secret: string; servers: string[]; stunServers: string[]; expiresAt: number }
 export interface NativePathOptions {
@@ -10,7 +11,11 @@ export type NativePathFactory = (options: NativePathOptions) => NativeChannel;
 export type NativePathEvent = { type: 'open' | 'closed' } | { type: 'data'; text: string }
   | { type: 'diagnostic'; stage: import('./diagnostics').DiagnosticFields['stage'];
     snapshot: Pick<import('./diagnostics').DiagnosticFields, 'elapsedMs' | 'connectedPeers' | 'routeCount'
-      | 'remoteKnown' | 'direct' | 'udpNatType' | 'tcpNatType'> }
+      | 'remoteKnown' | 'direct' | 'udpNatType' | 'tcpNatType' | 'diagnosticVersion' | 'suppressed'> }
+  | { type: 'punch'; report: Pick<DiagnosticFields, 'strategy' | 'stage' | 'phase' | 'reason' | 'udpNatType'
+      | 'peerUdpNatType' | 'attempt' | 'durationMs' | 'sockets' | 'predictedPorts' | 'probesSent' | 'probesReceived'
+      | 'matchedProbes' | 'rejectedProbes' | 'probeSendErrors' | 'probeReceiveErrors'
+      | 'handshakeAttempts' | 'handshakeFailures'> }
   | { type: 'status'; route: { direct: boolean; protocol?: string; ipv6: boolean; rttMs?: number } };
 export interface NativePathBridge {
   open(options: NativePathOptions, event: (event: NativePathEvent) => void): Promise<string>;
@@ -49,6 +54,12 @@ export class NativePath implements Channel {
 
   private receive(event: NativePathEvent) {
     if (this.state === 'closed') return;
+    if (event.type === 'punch') {
+      this.options.diagnostic?.('native-punch', {
+        ...sanitizeDiagnostic(event.report), scope: 'chat', transport: 'mesh', protocol: 'udp',
+      });
+      return;
+    }
     if (event.type === 'diagnostic') {
       this.options.diagnostic?.('native-state', { ...event.snapshot, transport: 'mesh', stage: event.stage });
       return;

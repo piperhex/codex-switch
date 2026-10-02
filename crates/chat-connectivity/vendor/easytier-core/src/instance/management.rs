@@ -63,6 +63,16 @@ where
         self.peer_manager.my_peer_id()
     }
 
+    /// Subscribe before starting the instance. Slow consumers receive an explicit lag count.
+    pub fn udp_punch_diagnostics(
+        &self,
+    ) -> Option<tokio::sync::broadcast::Receiver<crate::connectivity::hole_punch::PunchReport>>
+    {
+        self.udp_hole_punch
+            .as_ref()
+            .map(|service| service.punch_diagnostics())
+    }
+
     pub fn packet_plane(&self) -> Arc<CorePacketPlane> {
         self.packet_plane.clone()
     }

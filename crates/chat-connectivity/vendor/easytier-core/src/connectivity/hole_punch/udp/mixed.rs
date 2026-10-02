@@ -5,6 +5,7 @@
 use std::{
     net::{Ipv4Addr, SocketAddr},
     sync::Arc,
+    sync::atomic::Ordering,
     time::Duration,
 };
 
@@ -12,7 +13,9 @@ use tokio_util::task::AbortOnDropHandle;
 
 use super::{
     SelectPunchListener, SendPunchPacketHardSym, UdpHolePunchRuntime, UdpHolePunchSignaling,
-    UdpPunchSocket, UdpPunchTaskInfo, UdpSocketArray, client::UdpHolePunchClientResult,
+    UdpPunchSocket, UdpPunchTaskInfo, UdpSocketArray,
+    client::UdpHolePunchClientResult,
+    diagnostics::{PunchPhase, PunchProgress, PunchReason},
     mixed_budget::MixedBudget,
 };
 use crate::{
@@ -35,6 +38,7 @@ pub(super) struct MixedPunch<R, S> {
     pub stun: Arc<dyn StunInfoProvider>,
     pub target: UdpPunchTaskInfo,
     pub budget: MixedBudget,
+    pub progress: Arc<PunchProgress>,
 }
 
 struct ProbePlan {
@@ -45,25 +49,33 @@ struct ProbePlan {
 
 impl<R: UdpHolePunchRuntime, S: UdpHolePunchSignaling + 'static> MixedPunch<R, S> {
     pub async fn run(&self) -> UdpHolePunchClientResult<Option<UdpPunchSocket>> {
+        self.progress.probes.enable();
         match crate::foundation::time::timeout(ATTEMPT_TIMEOUT, self.attempt()).await {
             Ok(result) => result,
-            Err(_) => Ok(None),
+            Err(_) => {
+                self.progress.reason(PunchReason::Timeout);
+                Ok(None)
+            }
         }
     }
 
     async fn attempt(&self) -> UdpHolePunchClientResult<Option<UdpPunchSocket>> {
+        self.progress.phase(PunchPhase::PublicMapping);
         let public_ips = usable_public_ips(&self.stun.get_stun_info().public_ip);
         if public_ips.is_empty() {
+            self.progress.reason(PunchReason::NoPublicMapping);
             return Ok(None);
         }
         let Some(plan) = self.plan().await? else {
             return Ok(None);
         };
+        self.progress.phase(PunchPhase::SocketBind);
         let sockets = UdpSocketArray::new_with_context(
             self.budget.sockets(),
             self.runtime.clone(),
             self.runtime.socket_context(),
-        );
+        )
+        .with_probe_counters(self.progress.probes.clone());
         sockets.start().await?;
         sockets.add_interest_tid(plan.transaction_id);
         tracing::info!(
@@ -84,8 +96,10 @@ impl<R: UdpHolePunchRuntime, S: UdpHolePunchSignaling + 'static> MixedPunch<R, S
 
     async fn plan(&self) -> UdpHolePunchClientResult<Option<ProbePlan>> {
         let Some(incremental) = self.target.dst_nat_type.get_inc_of_easy_sym() else {
+            self.progress.reason(PunchReason::UnsupportedNat);
             return Ok(None);
         };
+        self.progress.phase(PunchPhase::ListenerRpc);
         let remote = self
             .signaling
             .select_punch_listener(
@@ -99,8 +113,13 @@ impl<R: UdpHolePunchRuntime, S: UdpHolePunchSignaling + 'static> MixedPunch<R, S
             .listener_mapped_addr;
         let ports = predicted_ports(remote.port(), incremental, self.budget.port_span());
         if usable_public_ips(&[remote.ip().to_string()]).is_empty() || ports.is_empty() {
+            self.progress.reason(PunchReason::InvalidMapping);
             return Ok(None);
         }
+        self.progress
+            .probes
+            .predicted_ports
+            .store(ports.len() as u64, Ordering::Relaxed);
         Ok(Some(ProbePlan {
             remote,
             ports,
@@ -113,6 +132,7 @@ impl<R: UdpHolePunchRuntime, S: UdpHolePunchSignaling + 'static> MixedPunch<R, S
         sockets: &UdpSocketArray<R>,
         plan: &ProbePlan,
     ) -> anyhow::Result<()> {
+        self.progress.phase(PunchPhase::ProbeSend);
         let packet =
             new_hole_punch_packet(plan.transaction_id, HOLE_PUNCH_PACKET_BODY_LEN).into_bytes();
         let mut remote = plan.remote;
@@ -130,6 +150,7 @@ impl<R: UdpHolePunchRuntime, S: UdpHolePunchSignaling + 'static> MixedPunch<R, S
         request: SendPunchPacketHardSym,
         plan: &ProbePlan,
     ) -> UdpHolePunchClientResult<Option<UdpPunchSocket>> {
+        self.progress.phase(PunchPhase::ProbeRpc);
         let signaling = self.signaling.clone();
         let peer = self.target.dst_peer_id;
         // Dropping either the attempt or the connection cancels this child operation.
@@ -160,17 +181,33 @@ impl<R: UdpHolePunchRuntime, S: UdpHolePunchSignaling + 'static> MixedPunch<R, S
             if punched.remote_addr.ip() != plan.remote.ip()
                 || !plan.ports.contains(&punched.remote_addr.port())
             {
+                self.progress
+                    .probes
+                    .rejected_probes
+                    .fetch_add(1, Ordering::Relaxed);
                 sockets.add_new_socket(punched.socket).await?;
                 continue;
             }
             // The peer's actual source port, not its STUN mapping, is the usable tuple.
+            self.progress.phase(PunchPhase::Handshake);
+            self.progress
+                .probes
+                .handshake_attempts
+                .fetch_add(1, Ordering::Relaxed);
             match self
                 .runtime
                 .connect_with_socket(punched.socket.clone(), punched.remote_addr)
                 .await
             {
                 Ok(socket) => return Ok(Some(socket)),
-                Err(_) => sockets.add_new_socket(punched.socket).await?,
+                Err(_) => {
+                    self.progress
+                        .probes
+                        .handshake_failures
+                        .fetch_add(1, Ordering::Relaxed);
+                    self.progress.reason(PunchReason::HandshakeFailed);
+                    sockets.add_new_socket(punched.socket).await?;
+                }
             }
         }
         Ok(None)

@@ -9,31 +9,40 @@ import (
 )
 
 const clientDiagnosticLimit = 240
+const clientDiagnosticReserved = 40
 const maxClientDiagnosticBytes = 4096
 const maxDiagnosticInteger = 1<<53 - 1
 
 var clientDiagnosticEvents = strings.Fields(`mode relay-timeout peer-created peer-create-failed peer-state peer-retry
 peer-offer-failed peer-signal-failed channel-closed link-failed path-state path-selected candidate-rejected
 tcp-discovery tcp-dial ice-state ice-gathering ice-candidate ice-error ice-summary sdp-state desktop-start
-desktop-failed desktop-closed native-state diagnostic-throttled`)
+desktop-failed desktop-closed native-state native-punch diagnostic-throttled`)
 
 var clientDiagnosticEnums = map[string]string{
 	"scope": "chat desktop", "transport": "rtc tcp mesh",
 	"state": "new checking connecting connected completed disconnected failed closed",
 	"mode":  "connecting direct relay offline",
 	"stage": "starting ready failed exhausted gathering complete offer answer engine-start engine-failed " +
-		"discovery stream-connect stream-failed stream-open stopped",
+		"discovery stream-connect stream-failed stream-open stopped selected skipped cancelled",
+	"strategy": "none cone-to-cone sym-to-cone easy-sym-to-easy-sym hard-sym-to-easy-sym",
+	"phase": "selection waiting-lock punch public-mapping listener-rpc socket-bind " +
+		"probe-send probe-rpc handshake admission",
 	"localType": "host srflx prflx relay unknown", "remoteType": "host srflx prflx relay unknown",
 	"candidateType": "host srflx prflx relay unknown", "direction": "local remote", "protocol": "udp tcp unknown",
 	"addressKind": "public private mdns loopback link-local fake-ip unknown",
 	"reason": "timeout peer-failed unhealthy unavailable candidate-limit candidate-rejected invalid-state " +
-		"invalid-description operation-failed network permission unsupported unknown",
+		"invalid-description operation-failed network permission unsupported unknown " +
+		"policy already-direct blacklisted open-network await-peer unsupported-nat symmetric-disabled " +
+		"no-public-mapping invalid-mapping no-reply rpc-timeout rpc-rejected rpc-transport " +
+		"invalid-service-key io busy handshake-failed admission-failed cancelled",
 }
 
 var clientDiagnosticNumbers = strings.Fields(`generation elapsedMs attempt rttMs errorCode localCandidates
 remoteCandidates candidatePairs failedPairs succeededPairs requestsSent requestsReceived responsesReceived
 bytesSent bytesReceived rejectedCandidates connectedPeers routeCount udpNatType tcpNatType
-suppressed stunServers turnServers`)
+suppressed stunServers turnServers diagnosticVersion peerUdpNatType durationMs sockets predictedPorts
+probesSent probesReceived matchedProbes rejectedProbes probeSendErrors probeReceiveErrors
+handshakeAttempts handshakeFailures`)
 
 var clientDiagnosticBooleans = strings.Fields("directHealthy relayHealthy ipv6 remoteKnown direct")
 
@@ -55,12 +64,25 @@ func (d *chatDiagnostics) clientEvent(session string, value interface{}) {
 		}
 		d.clientWindow, d.clientEvents, d.clientSuppressed = time.Now(), 0, 0
 	}
-	if d.clientEvents >= clientDiagnosticLimit {
+	limit := clientDiagnosticLimit - clientDiagnosticReserved
+	if clientDiagnosticOutcome(value) {
+		limit = clientDiagnosticLimit
+	}
+	if d.clientEvents >= limit {
 		d.clientSuppressed++
 		return
 	}
 	d.clientEvents++
 	d.logger.Info("connection diagnostic", append([]interface{}{"session", session}, fields...)...)
+}
+
+func clientDiagnosticOutcome(value interface{}) bool {
+	input, ok := value.(platform.JSON)
+	if !ok {
+		return false
+	}
+	event := input["event"]
+	return event == "mode" || event == "path-selected" || (event == "native-punch" && input["stage"] != "starting")
 }
 
 func sanitizeClientDiagnostic(value interface{}) []interface{} {

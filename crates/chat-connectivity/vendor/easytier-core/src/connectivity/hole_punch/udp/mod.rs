@@ -2,6 +2,7 @@ mod binding;
 mod client;
 mod common;
 mod connector;
+pub mod diagnostics;
 mod mixed;
 mod mixed_budget;
 mod punch_listener;

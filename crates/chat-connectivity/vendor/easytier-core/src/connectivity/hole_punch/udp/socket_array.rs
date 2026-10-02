@@ -36,6 +36,7 @@ pub struct UdpSocketArray<R>
 where
     R: VirtualUdpSocketFactory,
 {
+    probe_counters: Option<Arc<super::diagnostics::ProbeCounters>>,
     sockets: Arc<DashMap<SocketAddr, Arc<R::Socket>>>,
     max_socket_count: usize,
     socket_factory: Arc<R>,
@@ -62,6 +63,7 @@ where
         ));
 
         Self {
+            probe_counters: None,
             sockets: Arc::new(DashMap::new()),
             max_socket_count,
             socket_factory,
@@ -77,11 +79,17 @@ where
         !self.sockets.is_empty()
     }
 
+    pub fn with_probe_counters(mut self, counters: Arc<super::diagnostics::ProbeCounters>) -> Self {
+        self.probe_counters = Some(counters);
+        self
+    }
+
     pub async fn add_new_socket(&self, socket: Arc<R::Socket>) -> anyhow::Result<()> {
         let socket_map = self.sockets.clone();
         let local_addr = socket.local_addr()?;
         let interest_tids = self.interest_tids.clone();
         let tid_to_socket = self.tid_to_socket.clone();
+        let counters = self.probe_counters.clone();
         socket_map.insert(local_addr, socket.clone());
         self.tasks.lock().unwrap().spawn(
             async move {
@@ -93,8 +101,18 @@ where
                 tracing::trace!(?local_addr, "udp socket added");
                 loop {
                     let Ok((len, addr)) = socket.recv_from(&mut buf).await else {
+                        if let Some(counts) = &counters {
+                            counts
+                                .probe_receive_errors
+                                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        }
                         break;
                     };
+                    if let Some(counts) = &counters {
+                        counts
+                            .probes_received
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
 
                     tracing::debug!(?len, ?addr, "got raw packet");
 
@@ -107,6 +125,11 @@ where
                     tracing::debug!(?addr, ?tid, "got udp hole punch packet");
 
                     if interest_tids.contains(&tid) {
+                        if let Some(counts) = &counters {
+                            counts
+                                .matched_probes
+                                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        }
                         tracing::info!(?addr, ?tid, "got hole punching packet with interest tid");
                         tid_to_socket
                             .entry(tid)
@@ -138,6 +161,11 @@ where
                         .with_context(self.socket_context.clone().with_ip_version(IpVersion::V4)),
                 )
                 .await?;
+            if let Some(counts) = &self.probe_counters {
+                counts
+                    .sockets
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
             self.add_new_socket(socket).await?;
         }
 
@@ -156,7 +184,16 @@ where
 
         for socket in sockets.iter() {
             for _ in 0..3 {
-                socket.send_to(data, addr).await?;
+                let result = socket.send_to(data, addr).await;
+                if let Some(counts) = &self.probe_counters {
+                    let counter = if result.is_ok() {
+                        &counts.probes_sent
+                    } else {
+                        &counts.probe_send_errors
+                    };
+                    counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                }
+                result?;
             }
         }
 

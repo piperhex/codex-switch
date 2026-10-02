@@ -16,10 +16,21 @@ it('redacts injected addresses, credentials and errors and bounds reporting with
   // Runtime/native input need not conform to TypeScript's declared types.
   expect(sanitizeDiagnostic(unsafe as never)).toEqual({ state: 'failed', responsesReceived: 2 });
   for (let i = 0; i < 1000; i++) diagnostic('ice-summary', unsafe as never);
-  expect(report).toHaveBeenCalledTimes(180);
+  expect(report).toHaveBeenCalledTimes(140);
   expect(JSON.stringify(report.mock.calls)).not.toMatch(/private|password|192\.168/);
   vi.advanceTimersByTime(60_000); diagnostic('ice-state', { state: 'checking' });
-  expect(report).toHaveBeenCalledWith('diagnostic-throttled', expect.objectContaining({ suppressed: 820 }));
+  expect(report).toHaveBeenCalledWith('diagnostic-throttled', expect.objectContaining({ suppressed: 860 }));
+});
+
+it('reserves room for punch outcomes after candidate noise while retaining the overall cap', () => {
+  vi.useFakeTimers(); vi.spyOn(console, 'debug').mockImplementation(() => {});
+  const report = vi.fn(), diagnostic = connectionDiagnostic('session', true, report);
+  for (let i = 0; i < 200; i++) diagnostic('ice-candidate', { candidateType: 'host' });
+  diagnostic('native-punch', { strategy: 'hard-sym-to-easy-sym', stage: 'failed', phase: 'probe-rpc',
+    reason: 'timeout', attempt: 7, probesSent: 12288, probesReceived: 0 });
+  expect(report).toHaveBeenLastCalledWith('native-punch', expect.objectContaining({ attempt: 7, probesReceived: 0 }));
+  for (let i = 0; i < 100; i++) diagnostic('mode', { mode: 'relay' });
+  expect(report).toHaveBeenCalledTimes(180);
 });
 
 it('reports failed ICE probes with zero responses without exposing pair addresses', () => {

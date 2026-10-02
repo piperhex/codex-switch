@@ -22,10 +22,20 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum Event {
-    Diagnostic { stage: Stage, snapshot: Snapshot },
-    Status { route: RouteStatus },
+    Diagnostic {
+        stage: Stage,
+        snapshot: Snapshot,
+    },
+    Punch {
+        report: easytier_core::connectivity::hole_punch::PunchReport,
+    },
+    Status {
+        route: RouteStatus,
+    },
     Open,
-    Data { text: String },
+    Data {
+        text: String,
+    },
     Closed,
 }
 
@@ -119,11 +129,12 @@ async fn serve(
         .await
         .map_err(|_| Error::Unavailable)?
         .map_err(|_| Error::Unavailable)?;
+    let punch_events = engine.udp_punch_diagnostics();
     let result = tokio::select! {
         _ = canceled.changed() => Ok(()),
         _ = crate::lease::expired(expiry) => Ok(()),
         result = run(&engine, &config, incoming, events.clone()) => result,
-        _ = diagnostics::monitor(&engine, config.remote_name(), events) => Err(Error::Closed),
+        _ = diagnostics::monitor(&engine, config.remote_name(), events, punch_events) => Err(Error::Closed),
     };
     engine.stop().await;
     result

@@ -35,6 +35,19 @@ The peer and coordinator protocols are unchanged. Updating the hard-side native 
 this fallback with a compatible old easy-side client. Desktop, its unattended service, Android and iOS use the same
 crate; ordinary browsers cannot open these raw UDP sockets and retain WebRTC plus WebSocket relay.
 
+## Structured diagnostics
+
+`udp/diagnostics` adds an instance-owned bounded broadcast stream exposed through
+`CoreInstance::udp_punch_diagnostics`. Strategy decisions share the scheduler's eligibility logic;
+each outbound UDP attempt records its lifecycle and a fixed error classification. The mixed strategy additionally
+measures socket allocation, successful local probe sends, received/matched/rejected packets and handshake failures.
+`connector_attempts.rs` separates the existing retry loops from connector lifecycle wiring.
+
+Reports serialize only enums and counters; peer IDs stay internal for host-side session filtering. No candidate
+addresses, raw RPC errors or credentials cross the JSON bridge. Hosts subscribe before startup; lag and dropped
+bridge reports are counted, and diagnostic producers never wait for a consumer. Missing probe counts on other
+UDP strategies must not be interpreted as zero. Transport admission remains distinct from a verified direct route.
+
 ## Scope and tests
 
 - `udp/common.rs`, `udp/connector.rs`, `udp/mod.rs`, `udp/task.rs`: strategy selection, scheduling and regression tests.

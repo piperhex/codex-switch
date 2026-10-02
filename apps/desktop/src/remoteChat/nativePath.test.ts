@@ -5,6 +5,25 @@ import type { Channel, PeerOptions } from '../../../../shared/remote-chat/protoc
 
 const config = { secret: 'ab'.repeat(32), servers: ['udp://peer.example:11010'],
   stunServers: ['stun.example:3478'], expiresAt: 100_000 };
+
+it('forwards redacted native punch reports without treating successful admission as an open channel', () => {
+  let receive!: (event: NativePathEvent) => void;
+  const diagnostic = vi.fn();
+  const bridge: NativePathBridge = { open: async (_options, callback) => { receive = callback; return 'handle'; },
+    send: async () => {}, close: async () => {} };
+  const path = new NativePath({ sessionId: 'session', desktop: false, config, diagnostic }, bridge);
+  const report = { strategy: 'hard-sym-to-easy-sym', stage: 'complete', phase: 'admission',
+    attempt: 2, udpNatType: 6, peerUdpNatType: 8, probesSent: 12288, probesReceived: 1,
+    peerId: 1234, address: '192.0.2.1', secret: 'private' };
+  receive({ type: 'punch', report } as never);
+  expect(diagnostic).toHaveBeenCalledWith('native-punch', expect.objectContaining({
+    scope: 'chat', transport: 'mesh', protocol: 'udp', phase: 'admission', attempt: 2,
+  }));
+  expect(JSON.stringify(diagnostic.mock.calls)).not.toMatch(/peerId|192\.0\.2|private/);
+  expect(path.readyState).toBe('connecting');
+  path.close(); receive({ type: 'punch', report } as never);
+  expect(diagnostic).toHaveBeenCalledOnce();
+});
 afterEach(() => vi.useRealTimers());
 
 function harness(open?: NativePathBridge['open']) {

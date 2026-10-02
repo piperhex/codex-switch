@@ -20,11 +20,16 @@ use crate::{
 
 use crate::connectivity::hole_punch::policy::BackOff;
 
+#[path = "connector_attempts.rs"]
+mod attempts;
+
 use super::{
     BLACKLIST_TIMEOUT_SEC, UdpBothEasySymPunchClient, UdpHolePunchClientError,
     UdpHolePunchPeerSource, UdpHolePunchRuntime, UdpHolePunchSignaling, UdpHolePunchTransportSink,
     UdpNatType, UdpPunchClientMethod, UdpPunchSocket, UdpPunchTaskInfo, UdpSymToConePunchClient,
-    collect_udp_punch_tasks, punch_cone_to_cone, should_blacklist_signal_error,
+    collect_udp_punch_tasks,
+    diagnostics::{PunchAttempt, PunchDiagnostics, PunchPhase, PunchReason, PunchReport},
+    punch_cone_to_cone, should_blacklist_signal_error,
 };
 
 #[derive(Clone, Default)]
@@ -101,6 +106,7 @@ where
     T: UdpHolePunchTransportSink + 'static,
     R: UdpHolePunchRuntime,
 {
+    diagnostics: Arc<PunchDiagnostics>,
     peer_source: Arc<P>,
     signaling: Arc<S>,
     transport_sink: Arc<T>,
@@ -122,6 +128,7 @@ where
 {
     fn new(parts: Arc<UdpHolePunchConnectorParts<P, S, T, R>>) -> Arc<Self> {
         Arc::new(Self {
+            diagnostics: Arc::default(),
             peer_source: parts.peer_source.clone(),
             signaling: parts.signaling.clone(),
             transport_sink: parts.transport_sink.clone(),
@@ -161,8 +168,10 @@ where
         &self,
         dst_peer_id: PeerId,
         ret: Result<Option<UdpPunchSocket>, UdpHolePunchClientError>,
-    ) -> Result<Option<UdpPunchSocket>, Error> {
-        match ret {
+        attempt: PunchAttempt,
+    ) -> (Result<Option<UdpPunchSocket>, Error>, PunchAttempt) {
+        attempt.observe(&ret);
+        let result = match ret {
             Ok(ret) => Ok(ret),
             Err(UdpHolePunchClientError::Signaling(err)) => {
                 if should_blacklist_signal_error(&err) {
@@ -171,16 +180,18 @@ where
                 Err(err.into())
             }
             Err(err) => Err(err.into()),
-        }
+        };
+        (result, attempt)
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, ret))]
     async fn handle_punch_result(
         &self,
-        ret: Result<Option<UdpPunchSocket>, Error>,
+        ret: (Result<Option<UdpPunchSocket>, Error>, PunchAttempt),
         backoff: Option<&mut BackOff>,
         round: Option<&mut u32>,
     ) -> bool {
+        let (ret, attempt) = ret;
         let op = |rollback: bool| {
             if rollback {
                 if let Some(backoff) = backoff {
@@ -194,7 +205,7 @@ where
             }
         };
 
-        match ret {
+        let admitted = match ret {
             Ok(Some(socket)) => {
                 let (connected, requested_url) = socket.into_connected();
                 if let Err(err) = self
@@ -222,175 +233,9 @@ where
                 op(true);
                 false
             }
-        }
-    }
-
-    #[tracing::instrument(skip(self))]
-    async fn cone_to_cone(self: Arc<Self>, task_info: UdpPunchTaskInfo) -> Result<(), Error> {
-        let mut backoff = BackOff::new(vec![1000, 1000, 2000, 4000, 4000, 8000, 8000, 16000]);
-
-        loop {
-            backoff.sleep_for_next_backoff().await;
-
-            if self.should_skip_blacklisted(task_info.dst_peer_id) {
-                break;
-            }
-
-            let ret = punch_cone_to_cone(
-                self.runtime.clone(),
-                self.signaling.clone(),
-                task_info.dst_peer_id,
-            )
-            .await;
-            let ret = self.map_client_result(task_info.dst_peer_id, ret);
-
-            if self
-                .handle_punch_result(ret, Some(&mut backoff), None)
-                .await
-            {
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    #[tracing::instrument(skip(self))]
-    async fn sym_to_cone(self: Arc<Self>, task_info: UdpPunchTaskInfo) -> Result<(), Error> {
-        let mut backoff =
-            BackOff::new(vec![1000, 1000, 2000, 4000, 4000, 8000, 8000, 16000, 64000]);
-        let mut round = 0;
-        let mut port_idx = rand::random();
-
-        loop {
-            backoff.sleep_for_next_backoff().await;
-
-            if self.should_skip_blacklisted(task_info.dst_peer_id) {
-                break;
-            }
-
-            if self.try_cone_before_sym.load(Ordering::Relaxed) {
-                let ret = punch_cone_to_cone(
-                    self.runtime.clone(),
-                    self.signaling.clone(),
-                    task_info.dst_peer_id,
-                )
-                .await;
-                let ret = self.map_client_result(task_info.dst_peer_id, ret);
-                if self.handle_punch_result(ret, None, None).await {
-                    break;
-                }
-                if self.should_skip_blacklisted(task_info.dst_peer_id) {
-                    break;
-                }
-            }
-
-            let ret = {
-                let _lock = self.sym_punch_lock.lock().await;
-                self.sym_to_cone_client
-                    .do_hole_punching(
-                        task_info.dst_peer_id,
-                        round,
-                        &mut port_idx,
-                        task_info.my_nat_type,
-                    )
-                    .await
-            };
-            let ret = self.map_client_result(task_info.dst_peer_id, ret);
-
-            if self
-                .handle_punch_result(ret, Some(&mut backoff), Some(&mut round))
-                .await
-            {
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    #[tracing::instrument(skip(self))]
-    async fn both_easy_sym(self: Arc<Self>, task_info: UdpPunchTaskInfo) -> Result<(), Error> {
-        let mut backoff =
-            BackOff::new(vec![1000, 1000, 2000, 4000, 4000, 8000, 8000, 16000, 64000]);
-
-        loop {
-            backoff.sleep_for_next_backoff().await;
-
-            if self.should_skip_blacklisted(task_info.dst_peer_id) {
-                break;
-            }
-
-            if self.try_cone_before_sym.load(Ordering::Relaxed) {
-                let ret = punch_cone_to_cone(
-                    self.runtime.clone(),
-                    self.signaling.clone(),
-                    task_info.dst_peer_id,
-                )
-                .await;
-                let ret = self.map_client_result(task_info.dst_peer_id, ret);
-                if self.handle_punch_result(ret, None, None).await {
-                    break;
-                }
-                if self.should_skip_blacklisted(task_info.dst_peer_id) {
-                    break;
-                }
-            }
-
-            let mut is_busy = false;
-            let ret = {
-                let _lock = self.sym_punch_lock.lock().await;
-                self.both_easy_sym_client
-                    .do_hole_punching(
-                        task_info.dst_peer_id,
-                        task_info.my_nat_type,
-                        task_info.dst_nat_type,
-                        &mut is_busy,
-                    )
-                    .await
-            };
-            let ret = self.map_client_result(task_info.dst_peer_id, ret);
-
-            if is_busy {
-                backoff.rollback();
-            } else if self
-                .handle_punch_result(ret, Some(&mut backoff), None)
-                .await
-            {
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    // Mixed NAT attempts have a separate, slower budget: never spin on an RPC error.
-    async fn mixed_sym(self: Arc<Self>, task_info: UdpPunchTaskInfo) -> Result<(), Error> {
-        let mut backoff = BackOff::new(vec![1000, 10000, 30000, 60000]);
-        let mut budget = super::mixed_budget::MixedBudget::default();
-        loop {
-            backoff.sleep_for_next_backoff().await;
-            if self.should_skip_blacklisted(task_info.dst_peer_id) {
-                return Ok(());
-            }
-            let result = {
-                let _lock = self.sym_punch_lock.lock().await;
-                super::mixed::MixedPunch {
-                    runtime: self.runtime.clone(),
-                    signaling: self.signaling.clone(),
-                    stun: self.stun.clone(),
-                    target: task_info,
-                    budget,
-                }
-                .run()
-                .await
-            };
-            let result = self.map_client_result(task_info.dst_peer_id, result);
-            if self.handle_punch_result(result, None, None).await {
-                return Ok(());
-            }
-            budget = budget.next();
-        }
+        };
+        attempt.finish(admitted);
+        admitted
     }
 }
 
@@ -434,15 +279,36 @@ where
             data.sym_to_cone_client.clear_udp_array().await;
         }
 
-        if my_nat_type.is_open() {
-            return Vec::new();
-        }
-
         data.blacklist.cleanup();
 
         let my_peer_id = data.peer_source.local_peer_id();
         let policy = data.peer_source.p2p_policy_flags();
         let candidates = data.peer_source.candidates().await;
+        data.diagnostics.retain_peers(
+            &candidates
+                .iter()
+                .map(|peer| peer.peer_id)
+                .collect::<Vec<_>>(),
+        );
+        for peer in &candidates {
+            let task = UdpPunchTaskInfo {
+                dst_peer_id: peer.peer_id,
+                dst_nat_type: peer.udp_nat_type.into(),
+                my_nat_type,
+            };
+            let reason = super::task::selection_reason(
+                (my_peer_id, task),
+                policy,
+                peer,
+                data.blacklist.contains(peer.peer_id),
+            );
+            data.diagnostics.selected(
+                task,
+                my_nat_type
+                    .get_punch_hole_method(task.dst_nat_type, policy.disable_sym_hole_punching),
+                reason,
+            );
+        }
         let peers_to_connect =
             collect_udp_punch_tasks(my_peer_id, my_nat_type, policy, candidates, |peer_id| {
                 data.blacklist.contains(peer_id)
@@ -496,6 +362,7 @@ where
     T: UdpHolePunchTransportSink + 'static,
     R: UdpHolePunchRuntime,
 {
+    diagnostics: Arc<PunchDiagnostics>,
     client: PeerTaskManager<UdpHolePunchPeerTaskLauncher<P, S, T, R>>,
 }
 
@@ -526,6 +393,7 @@ where
         });
         let data = UdpHolePunchConnectorData::new(parts);
         Self {
+            diagnostics: data.diagnostics.clone(),
             client: PeerTaskManager::new_with_external_signal(
                 UdpHolePunchPeerTaskLauncher(data),
                 external_signal,
@@ -535,6 +403,10 @@ where
 
     pub fn run_as_client(&self) {
         self.client.start();
+    }
+
+    pub fn punch_diagnostics(&self) -> tokio::sync::broadcast::Receiver<PunchReport> {
+        self.diagnostics.subscribe()
     }
 
     pub async fn stop(&self) {

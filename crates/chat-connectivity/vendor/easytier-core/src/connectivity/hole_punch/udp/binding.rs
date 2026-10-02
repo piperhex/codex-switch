@@ -178,6 +178,12 @@ where
         }
     }
 
+    pub(crate) fn punch_diagnostics(
+        &self,
+    ) -> tokio::sync::broadcast::Receiver<super::diagnostics::PunchReport> {
+        self.client.punch_diagnostics()
+    }
+
     pub(crate) async fn start(&self) -> anyhow::Result<()> {
         if self
             .peer_source

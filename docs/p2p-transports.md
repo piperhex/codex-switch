@@ -54,6 +54,27 @@ Chrome 的 Direct Sockets 面向另外安装的 Isolated Web Apps，不适用于
 - 原生聊天内核：记录启动、发现、流连接和停止阶段，以及已连接节点数、路由数、是否发现对端、
   是否直连和内核返回的 NAT 类型枚举值。探测报告不等待前端消费，不阻塞业务帧。
 
+原生内核的 `native-state` 带有 `diagnosticVersion=2` 时，还支持 `native-punch`：
+
+- `strategy`、`udpNatType`、`peerUdpNatType` 表示实际策略和该策略使用的双方 NAT 分类。
+  `stage=selected/skipped` 仅在选择变化时输出；跳过原因包括等待对端发起、策略限制、黑名单和不支持的 NAT 组合。
+- 每轮有独立 `attempt`，记录 `starting` 与 `complete/failed/cancelled`，以及 `durationMs`。
+  `complete` 只代表打洞传输接入成功；是否实际直连仍看 `native-state.direct` 与聊天的 `mode`。
+- 混合对称 NAT 策略还记录 `phase`：等待锁、检查公网映射、申请对端监听、绑定套接字、发送探测、
+  协调对端探测、握手和接入。`reason` 区分无响应、超时、RPC 超时/拒绝/传输失败、握手失败和接入失败。
+- `sockets`、`predictedPorts` 为本轮规模；`probesSent` 是成功交给本地套接字的探测包数，
+  `probesReceived` 是探测套接字实际收到的包数，`matchedProbes` 是匹配本轮事务的包数。
+  `rejectedProbes` 记录来源校验拒绝，另有收发错误和握手尝试/失败计数。发包成功不代表对端收到。
+  其他 UDP 策略当前记录轮次、结果和 RPC 错误分类，不填写尚未测量的包计数。
+
+例如 `phase=probe-rpc reason=timeout probesSent=12288 probesReceived=0` 表示本地已经发出探测，
+等待对端探测阶段超时；`phase=listener-rpc reason=rpc-rejected probesSent=0` 表示协调阶段已被拒绝。
+这两种情况不能混为“运营商丢包”。缺失计数仍表示未提供，而不是零。
+
+事件缓冲区按内核实例隔离且有固定上限，慢消费者不会阻塞打洞；`native-state.suppressed` 记录该实例
+累计丢失的诊断事件数。客户端和服务器在总限额内各预留 40 条给打洞结果、策略变化和连接模式变化，
+避免候选和拨号日志挤掉关键结果。断线、退出和限流期间日志仍是尽力上报，缺失终止事件不能证明未执行。
+
 新 Go 后端在 `chat-policy` 中声明 `connectionDiagnostics: 1`；新客户端仅在收到该能力后上传，
 每次重连重新协商。旧服务器仍可使用本地日志。诊断帧不会转发给对端，不占聊天中转额度。
 客户端每会话每分钟最多输出 180 条，服务器每连接每分钟最多接受 240 条，超量后记录抑制数量。
@@ -62,6 +83,8 @@ Chrome 的 Direct Sockets 面向另外安装的 Isolated Web Apps，不适用于
 
 Android 和 Web 共用观测与候选处理模块；PC 原生和浏览器捕获路径均保留后续候选。
 完整双端服务器诊断需要更新 Go 后端及参与连接的客户端；原生内核诊断需要重新构建原生包。
+新增打洞字段由桌面、无人值守服务、Android 和 iOS 共用；Web 共用脱敏与日志额度规则，
+普通浏览器继续上报 WebRTC 与中转事件，不生成原生 UDP 打洞事件。旧后端会忽略新事件。
 `requestsSent > 0` 且 `responsesReceived = 0` 只能证明该轮探测未获得响应，不能单独判定运营商或 NAT 类型。
 缺失统计也不能视为零：部分 WebRTC 实现不提供全部字段，原生主机目前只提供状态和候选计数。
 

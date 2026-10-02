@@ -101,6 +101,7 @@ struct Harness {
     connected: AtomicUsize,
     reject: bool,
     hang_rpc: bool,
+    fail_handshake: bool,
     active_rpc: AtomicUsize,
 }
 
@@ -124,6 +125,7 @@ impl Harness {
             connected: AtomicUsize::new(0),
             reject: false,
             hang_rpc: false,
+            fail_handshake: false,
             active_rpc: AtomicUsize::new(0),
         })
     }
@@ -143,6 +145,7 @@ impl Harness {
                 dst_nat_type: nat.into(),
             },
             budget: MixedBudget::default(),
+            progress: Arc::default(),
         }
     }
 }
@@ -180,6 +183,7 @@ impl UdpHolePunchRuntime for Harness {
         socket: Arc<Socket>,
         remote: SocketAddr,
     ) -> anyhow::Result<UdpPunchSocket> {
+        anyhow::ensure!(!self.fail_handshake, "simulated handshake failure");
         socket.send_to(b"roundtrip", remote).await?;
         let mut reply = [0; 32];
         let (len, source) =
@@ -194,6 +198,9 @@ impl UdpHolePunchRuntime for Harness {
         Ok(UdpPunchSocket::new(session, remote, ()))
     }
 }
+
+#[path = "mixed_diagnostic_tests.rs"]
+mod diagnostic_tests;
 
 #[async_trait]
 impl StunInfoProvider for Harness {
@@ -283,7 +290,8 @@ impl UdpHolePunchSignaling for Harness {
 async fn mixed_nat_roundtrip_uses_observed_port_and_same_socket_for_both_directions() {
     for incremental in [true, false] {
         let harness = Harness::new(incremental, false);
-        let socket = harness.attempt().run().await.unwrap();
+        let attempt = harness.attempt();
+        let socket = attempt.run().await.unwrap();
         assert!(
             socket.is_some(),
             "mixed endpoint-dependent mappings must carry a round trip"
@@ -292,13 +300,25 @@ async fn mixed_nat_roundtrip_uses_observed_port_and_same_socket_for_both_directi
         let nat = harness.nat.lock().unwrap();
         assert_eq!(nat.mappings.len(), MAPPING_LIMIT);
         assert!(nat.sent <= MAPPING_LIMIT * 3 + 1);
+        let counts = attempt.progress.probes.snapshot().unwrap();
+        assert_eq!(counts.probes_sent as usize, nat.sent - 1);
+        assert_eq!(counts.sockets, 16);
+        assert_eq!(counts.predicted_ports, 256);
+        assert!(counts.probes_received > 0 && counts.matched_probes > 0);
+        assert_eq!(counts.handshake_attempts, 1);
+        assert_eq!(counts.handshake_failures, 0);
     }
 }
 
 #[tokio::test]
 async fn failed_mixed_attempt_is_bounded_and_releases_all_sockets() {
     let harness = Harness::new(true, true);
-    assert!(harness.attempt().run().await.unwrap().is_none());
+    let attempt = harness.attempt();
+    assert!(attempt.run().await.unwrap().is_none());
+    let counts = attempt.progress.probes.snapshot().unwrap();
+    assert_eq!(counts.probes_sent, (MAPPING_LIMIT * 3) as u64);
+    assert_eq!(counts.probes_received, 0);
+    assert_eq!(counts.handshake_attempts, 0);
     tokio::time::sleep(Duration::from_millis(50)).await;
     assert_eq!(harness.connected.load(Ordering::SeqCst), 0);
     assert!(
@@ -336,7 +356,20 @@ async fn cancellation_releases_socket_matrix_without_waiting_for_remote() {
 async fn rejected_signaling_never_allocates_or_sends_probe_packets() {
     let mut harness = Harness::new(true, false);
     Arc::get_mut(&mut harness).unwrap().reject = true;
-    assert!(harness.attempt().run().await.is_err());
+    let diagnostics = Arc::new(super::super::diagnostics::PunchDiagnostics::default());
+    let mut reports = diagnostics.subscribe();
+    let mut attempt = harness.attempt();
+    let observed = diagnostics.begin(attempt.target, UdpPunchClientMethod::HardSymToEasySym);
+    attempt.progress = observed.progress.clone();
+    let result = attempt.run().await;
+    assert!(result.is_err());
+    observed.observe(&result);
+    observed.finish(false);
+    reports.try_recv().unwrap();
+    let report = reports.try_recv().unwrap();
+    assert_eq!(report.phase, PunchPhase::ListenerRpc);
+    assert_eq!(report.reason, Some(PunchReason::InvalidServiceKey));
+    assert_eq!(report.probes.unwrap().probes_sent, 0);
     assert!(harness.sockets.lock().unwrap().is_empty());
     assert_eq!(harness.nat.lock().unwrap().sent, 0);
 }
@@ -347,8 +380,20 @@ async fn hung_rpc_is_cancelled_at_attempt_deadline_and_on_disconnect() {
         let mut harness = Harness::new(true, true);
         Arc::get_mut(&mut harness).unwrap().hang_rpc = true;
         let attempt = harness.attempt();
+        let diagnostics = Arc::new(super::super::diagnostics::PunchDiagnostics::default());
+        let mut reports = diagnostics.subscribe();
+        let observed = diagnostics.begin(attempt.target, UdpPunchClientMethod::HardSymToEasySym);
+        let attempt = MixedPunch {
+            progress: observed.progress.clone(),
+            ..attempt
+        };
         let started = tokio::time::Instant::now();
-        let task = tokio::spawn(async move { attempt.run().await });
+        let task = tokio::spawn(async move {
+            let result = attempt.run().await;
+            observed.observe(&result);
+            observed.finish(false);
+            result
+        });
         tokio::time::timeout(ATTEMPT_TIMEOUT, async {
             while harness.active_rpc.load(Ordering::SeqCst) == 0 {
                 tokio::time::sleep(RESPONSE_POLL).await;
@@ -364,6 +409,17 @@ async fn hung_rpc_is_cancelled_at_attempt_deadline_and_on_disconnect() {
             assert!(started.elapsed() <= ATTEMPT_TIMEOUT + RESPONSE_POLL);
         }
         tokio::time::sleep(RESPONSE_POLL).await;
+        reports.try_recv().unwrap();
+        let report = reports.try_recv().unwrap();
+        assert_eq!(report.phase, PunchPhase::ProbeRpc);
+        assert_eq!(
+            report.reason,
+            Some(if disconnect {
+                PunchReason::Cancelled
+            } else {
+                PunchReason::Timeout
+            })
+        );
         assert_eq!(harness.active_rpc.load(Ordering::SeqCst), 0);
         assert!(
             harness

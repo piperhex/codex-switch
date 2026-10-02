@@ -9,6 +9,10 @@ pub mod port_mapping;
 pub(crate) mod tcp;
 pub(crate) mod udp;
 
+pub use udp::diagnostics::{
+    ProbeSnapshot, PunchPhase, PunchReason, PunchReport, PunchStage, PunchStrategy,
+};
+
 /// Registration seam for hole-punch RPC services.
 ///
 /// The engines build the proto-generated server wrapper around their RPC

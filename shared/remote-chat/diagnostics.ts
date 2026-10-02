@@ -3,6 +3,13 @@ export type { DiagnosticEvent, DiagnosticFields } from './diagnosticSchema';
 export type ConnectionDiagnostic = (event: DiagnosticEvent, fields?: DiagnosticFields) => void;
 const WINDOW_MS = 60_000;
 const MAX_EVENTS = 180;
+const RESERVED_EVENTS = 40;
+
+/** Preserve outcomes when repeated candidates and dial attempts exhaust the routine log budget. */
+export function isDiagnosticOutcome(event: DiagnosticEvent, fields?: DiagnosticFields): boolean {
+  return event === 'mode' || event === 'path-selected'
+    || (event === 'native-punch' && fields?.stage !== 'starting');
+}
 
 /** Only connection metadata belongs here: never log SDP, candidates, keys or message content. */
 export function connectionDiagnostic(sessionId: string, desktop: boolean,
@@ -18,9 +25,11 @@ export function connectionDiagnostic(sessionId: string, desktop: boolean,
     if (!DIAGNOSTIC_EVENTS.includes(event)) return;
     if (Date.now() - window >= WINDOW_MS) {
       window = Date.now(); count = 0;
-      if (suppressed) { emit('diagnostic-throttled', { suppressed }); suppressed = 0; }
+      if (suppressed) { emit('diagnostic-throttled', { suppressed }); suppressed = 0; count = 1; }
     }
-    if (count++ >= MAX_EVENTS) { suppressed++; return; }
+    const limit = isDiagnosticOutcome(event, fields) ? MAX_EVENTS : MAX_EVENTS - RESERVED_EVENTS;
+    if (count >= limit) { suppressed++; return; }
+    count++;
     emit(event, fields);
   };
 }
