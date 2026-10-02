@@ -21,11 +21,11 @@ export async function existingChatSettings() {
   assert.equal(delayed.ok, true);
   await tap('第二模型 · 极高，聊天设置');
   await choose('模型', '测试模型');
-  await waitText('正在保存设置…');
+  await waitText('正在同步设置…');
   await choose('推理强度', '高');
   await choose('访问权限', '请求批准');
   await screenshot('15-existing-chat-settings-saving');
-  await waitFor(async () => !(await hasText('正在保存设置…')), 'settings saved');
+  await waitFor(async () => !(await hasText('正在同步设置…')), 'settings saved');
   const reset = await fetch('http://127.0.0.1:1490/test/settings-delay', { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ milliseconds: 0 }) });
   assert.equal(reset.ok, true);
