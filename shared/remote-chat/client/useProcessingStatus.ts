@@ -16,5 +16,6 @@ export function useProcessingStatus({ turn, active, processing }: ChatProcessing
   const phase = current?.phase ?? 'request';
   const total = formatTurnDuration(totalSeconds * SECOND_MS, { compactHours: true });
   const totalLabel = guiText('(共计{duration})', { duration: total });
-  return { phase, label: `${PROCESSING_LABELS[phase]} · ${formatTurnDuration(phaseSeconds * SECOND_MS)} ${totalLabel}` };
+  const phaseLabel = `${PROCESSING_LABELS[phase]} · ${formatTurnDuration(phaseSeconds * SECOND_MS)}`;
+  return { phase, label: `${phaseLabel} ${totalLabel}` };
 }

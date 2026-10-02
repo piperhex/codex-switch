@@ -1,4 +1,5 @@
-import { useProcessingStatus, type ChatProcessingProps } from '../../../../shared/remote-chat/client/useProcessingStatus';
+import { useProcessingStatus, type ChatProcessingProps }
+  from '../../../../shared/remote-chat/client/useProcessingStatus';
 import { useLanguage } from '../i18n';
 
 export function ChatProcessing(props: ChatProcessingProps) {
