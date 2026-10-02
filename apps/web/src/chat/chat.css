@@ -79,6 +79,7 @@ html:has(.app-shell.chat-active), body:has(.app-shell.chat-active) { overscroll-
 .chat-connection-info { display: flex; align-items: center; min-width: 0; }
 .chat-connection-info > span { white-space: pre; flex-shrink: 0; }
 .chat-connection-info .chat-connection { min-width: 0; }
+.chat-connection-status { flex-shrink: 0; white-space: nowrap; }
 .chat-project-name { max-width: 60%; }
 .chat-project-picker { max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
 .chat-project-path { overflow-wrap: anywhere; }

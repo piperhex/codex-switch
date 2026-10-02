@@ -28,11 +28,20 @@ export function ChatConnectionInfo({ state, controller, device, active, chooseDe
     <div className={`chat-connection-info${canReconnect ? ' is-reconnecting' : ''}`}>
       <button className="chat-connection chat-muted chat-ellipsis" type="button" aria-label={t("选择电脑")}
         onClick={chooseDevice}>
-        {device ? <>{device.name} · <span role="status">
-          {status}</span></>
-          : t("选择电脑，开始聊天")}
+        {device ? device.name : t("选择电脑，开始聊天")}
       </button>
-      {canReconnect && <ChatReconnectButton retryAt={state.retryAt} onClick={controller.connectNow} />}
+      {device && <>
+        <span className="chat-muted"> · </span>
+        <button type="button" className="chat-connection chat-connection-status chat-muted"
+          aria-label={`${status} · ${t('连接体检')}`} aria-expanded={healthOpen}
+          onClick={() => setHealthOpen(true)}>
+          <span role="status">{status}</span>
+        </button>
+      </>}
+      {canReconnect && <>
+        <span className="chat-muted"> · </span>
+        <ChatReconnectButton retryAt={state.retryAt} onClick={controller.connectNow} />
+      </>}
       {state.error === HOST_IDENTITY_CHANGED && <button className="chat-button" onClick={() => setVerifying(true)}>
         {t('核对电脑身份')}</button>}
       {!state.selected && !canReconnect && <>
@@ -42,8 +51,6 @@ export function ChatConnectionInfo({ state, controller, device, active, chooseDe
           {state.draftProject?.label || t("未选择项目")}</button>
       </>}
     </div>
-    {device && <button type="button" className="chat-connection chat-muted" onClick={() => setHealthOpen(true)}>
-      {t('连接体检')}</button>}
     {healthOpen && <ChatConnectionHealth state={state} device={device}
       reconnect={controller.connectNow} close={() => setHealthOpen(false)} />}
     {picking && canChoose && <ChatProjectPicker cwd={state.draftProject?.cwd}

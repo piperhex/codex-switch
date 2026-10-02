@@ -28,10 +28,21 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
   useEffect(() => { if (!canChoose) setPicking(false); }, [canChoose]);
   return <>
     <View style={connectionStyles.row}>
-      <Text numberOfLines={1} style={[styles.headerMeta, connectionStyles.status,
-        canReconnect && connectionStyles.reconnectingStatus]}>
-        {device ? `${device.name} · ${canReconnect ? '' : status}` : t("选择电脑，开始聊天")}</Text>
-      {canReconnect && <ChatReconnectButton retryAt={state.retryAt} onPress={controller.connectNow} />}
+      <Text numberOfLines={1} style={[styles.headerMeta, connectionStyles.device,
+        canReconnect && connectionStyles.reconnectingDevice]}>
+        {device ? device.name : t("选择电脑，开始聊天")}</Text>
+      {device && <>
+        <Text style={styles.headerMeta}> · </Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${status} · ${t('连接体检')}`}
+          accessibilityState={{ expanded: healthOpen }} hitSlop={{ top: 6, bottom: 6 }}
+          onPress={() => setHealthOpen(true)}>
+          <Text style={styles.headerMeta}>{status}</Text>
+        </Pressable>
+      </>}
+      {canReconnect && <>
+        <Text style={styles.headerMeta}> · </Text>
+        <ChatReconnectButton retryAt={state.retryAt} onPress={controller.connectNow} />
+      </>}
       {state.error === HOST_IDENTITY_CHANGED && <Pressable onPress={() => setVerifying(true)} accessibilityRole="button">
         <Text>{t("核对电脑身份")}</Text></Pressable>}
       {!state.selected && !canReconnect && <>
@@ -43,8 +54,6 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
         </Pressable>
       </>}
     </View>
-    {device && <Pressable accessibilityRole="button" onPress={() => setHealthOpen(true)}>
-      <Text style={styles.headerMeta}>{t('连接体检')}</Text></Pressable>}
     {healthOpen && <ChatConnectionHealth state={state} device={device}
       reconnect={controller.connectNow} close={() => setHealthOpen(false)} />}
     {picking && canChoose && <ChatProjectPicker cwd={state.draftProject?.cwd}
@@ -56,7 +65,7 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
 
 const connectionStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', minWidth: 0 },
-  status: { flexShrink: 1 },
-  reconnectingStatus: { maxWidth: '40%' },
+  device: { flexShrink: 1 },
+  reconnectingDevice: { maxWidth: '40%' },
   project: { flexShrink: 1, minWidth: 0, maxWidth: '60%' },
 });

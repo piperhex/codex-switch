@@ -4,7 +4,8 @@ import { connect, send, settled, screenshot, fixtureUrl } from './chat-helpers';
 export async function reliabilityJourney(page: Page, request: APIRequestContext, info: TestInfo) {
   await connect(page);
   await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 16_000 });
-  await page.getByRole('button', { name: '连接体检', exact: true }).click();
+  await expect(page.locator('.chat-header').getByText('连接体检', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: /^(P2P|Relay) · 连接体检$/ }).click();
   await expect(page.getByText('账号登录 · 正常', { exact: true })).toBeVisible();
   await expect(page.getByText('电脑在线 · 正常', { exact: true })).toBeVisible();
   await expect(page.getByText('电脑聊天 · 正常', { exact: true })).toBeVisible();
@@ -25,7 +26,7 @@ export async function reliabilityJourney(page: Page, request: APIRequestContext,
   await request.post(`${fixtureUrl}/test/connection-block`, { data: { blocked: true } });
   try {
     await expect(page.locator('.chat-task-status')).toContainText('任务状态待更新');
-    await page.getByRole('button', { name: '连接体检', exact: true }).click();
+    await page.locator('.chat-connection-status').click();
     await expect(page.getByText('连接线路 · 待确认', { exact: true })).toBeVisible();
     await screenshot(page, info, 'connection-recovery');
     await page.getByRole('button', { name: '关闭', exact: true }).last().click();
