@@ -114,6 +114,22 @@ function descendants(value: unknown): React.ReactElement<Record<string, unknown>
   return [value, ...descendants(value.props.children)];
 }
 
+it('loads and displays code in an external deployment directory using its exact path', () => {
+  const path = 'F:/codex-deploy/admin-web/source/apps/desktop/src/remoteChat/legacyLinkFailures.test.ts';
+  state.text = { path, text: 'const ready = true;\n' };
+  providerProps.load.mockResolvedValue(state.text);
+  const preview = openFile(path);
+  const component = preview.type as (props: typeof preview.props) => React.ReactElement;
+  const sheet = component(preview.props);
+  const effect = vi.mocked(React.useEffect).mock.calls.at(-1)![0];
+  const cleanup = effect();
+  expect(providerProps.load).toHaveBeenCalledWith(providerProps.threadId, path);
+  expect(descendants(sheet).find(node => node.type === 'Code')?.props).toMatchObject({
+    text: state.text.text, lineNumbers: true, copyLabel: '复制文件内容',
+  });
+  cleanup?.();
+});
+
 it.each(['./index.html', './INDEX.HTM'])('renders HTML files directly while retaining the download action: %s', path => {
   state.text = { path, text: '<html><body>Preview</body></html>' };
   const preview = openFile(path);

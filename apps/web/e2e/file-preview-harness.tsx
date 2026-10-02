@@ -1,13 +1,13 @@
 import { createRoot } from 'react-dom/client';
 import { ChatFilePreview, type FilePreviewContext } from '../src/chat/ChatFilePreview';
-import { longMarkdown, markdown } from './file-preview-fixture';
+import { externalCodePath, longMarkdown, markdown, sourceCode } from './file-preview-fixture';
 import '../src/styles.css';
 import '../src/chat/chat.css';
 import '../src/chat/messages.css';
 
 const files: Record<string, string> = {
   'verification.md': markdown, 'README.MARKDOWN': markdown, 'long.md': longMarkdown,
-  'empty.md': ' \n', 'source.ts': 'const ready = true;\n',
+  'empty.md': ' \n', 'source.ts': sourceCode, [externalCodePath]: sourceCode,
   'page.HTML': '<h1>页面预览</h1><script>document.body.dataset.ready = "yes";'
     + 'try { parent.previewScriptRan = true } catch {}'
     + 'try { localStorage.setItem("unsafe", "yes") } catch {}'

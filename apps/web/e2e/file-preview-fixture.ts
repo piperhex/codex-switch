@@ -6,3 +6,7 @@ export const markdown = '# 文件预览\n\n日期：2026-09-22。\n\n## 修改�
   + '[说明](https://example.com)\n\n<script>window.previewScriptRan = true</script>\n';
 
 export const longMarkdown = markdown + '\n- 保留原始格式和完整内容。\n'.repeat(1000) + '\n最后一行\n';
+
+export const externalCodePath =
+  'F:/codex-deploy/admin-web/source/apps/desktop/src/remoteChat/legacyLinkFailures.test.ts';
+export const sourceCode = 'const ready = true;\n';

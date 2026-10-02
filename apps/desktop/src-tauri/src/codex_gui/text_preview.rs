@@ -1,11 +1,15 @@
-//! Bounded, read-only text previews within the workspace recorded by the chat server.
+//! Bounded text previews for workspace files and exact edits recorded by the chat server.
 use super::{
     client::Client,
     error::{GuiError, Result},
     protocol::{thread_params, GuiResponse},
 };
 use serde::Serialize;
+use serde_json::{json, Value};
 use std::{fs::File, io::Read, path::Path};
+
+#[path = "text_references.rs"]
+mod references;
 
 const DEFAULT_TEXT_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_PATH_LENGTH: usize = 4096;
@@ -24,21 +28,27 @@ pub(super) async fn preview(
 ) -> Result<GuiResponse> {
     let max_bytes = max_bytes.unwrap_or(DEFAULT_TEXT_BYTES).max(1);
     validate_path(&path)?;
-    let response = client
-        .request("thread/read", thread_params(thread_id)?)
-        .await?;
-    let root = response["thread"]["cwd"]
-        .as_str()
-        .ok_or(GuiError::TextPreview)?
-        .to_owned();
+    let mut params = thread_params(thread_id)?;
+    params["includeTurns"] = json!(true);
+    let response = client.request("thread/read", params).await?;
     let preview = tauri::async_runtime::spawn_blocking(move || {
-        read_text_limited(Path::new(&root), &path, max_bytes)
+        read_thread_text(&response["thread"], &path, max_bytes)
     })
     .await
     .map_err(|_| GuiError::TextPreview)??;
     Ok(GuiResponse {
         data: serde_json::to_value(preview).map_err(|_| GuiError::TextPreview)?,
     })
+}
+
+fn read_thread_text(thread: &Value, source: &str, max_bytes: u64) -> Result<TextPreview> {
+    let root = thread["cwd"].as_str().ok_or(GuiError::TextPreview)?;
+    read_text_with_references(
+        Path::new(root),
+        source,
+        max_bytes,
+        &references::changed_files(thread),
+    )
 }
 
 fn validate_path(path: &str) -> Result<()> {
@@ -67,7 +77,17 @@ fn read_text(root: &Path, source: &str) -> Result<TextPreview> {
     read_text_limited(root, source, DEFAULT_TEXT_BYTES)
 }
 
+#[cfg(test)]
 fn read_text_limited(root: &Path, source: &str, max_bytes: u64) -> Result<TextPreview> {
+    read_text_with_references(root, source, max_bytes, &[])
+}
+
+fn read_text_with_references(
+    root: &Path,
+    source: &str,
+    max_bytes: u64,
+    references: &[&str],
+) -> Result<TextPreview> {
     validate_path(source)?;
     if !root.is_absolute() {
         return Err(GuiError::TextPreview);
@@ -77,7 +97,9 @@ fn read_text_limited(root: &Path, source: &str, max_bytes: u64) -> Result<TextPr
         .join(source)
         .canonicalize()
         .map_err(|_| GuiError::TextPreview)?;
-    if !path.starts_with(&root) || !path.is_file() {
+    if !path.is_file()
+        || (!path.starts_with(&root) && !references::matches_file(&path, &root, references))
+    {
         return Err(GuiError::TextPreview);
     }
     let file = File::open(&path).map_err(|_| GuiError::TextPreview)?;

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { longMarkdown, markdown } from './file-preview-fixture';
+import { externalCodePath, longMarkdown, markdown, sourceCode } from './file-preview-fixture';
 import { screenshot } from './chat-helpers';
 
 async function open(page: Page, path = 'verification.md') {
@@ -56,6 +56,18 @@ test('copies the complete source even when the long source view is paginated', a
   await expect(page.locator('pre')).not.toContainText('最后一行');
   await page.getByRole('button', { name: '复制原文', exact: true }).first().click();
   expect(await clipboard(page)).toBe(longMarkdown);
+});
+
+test('previews and copies code from an external deployment path', async ({ page }, info) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await open(page, externalCodePath);
+  await expect(page.locator('pre')).toHaveText(sourceCode);
+  await page.getByRole('button', { name: '复制文件内容', exact: true }).click();
+  expect(await clipboard(page)).toBe(sourceCode);
+  await expect(page.getByRole('button', { name: '下载', exact: true })).toBeEnabled();
+  const code = await page.locator('pre').boundingBox();
+  expect(code!.x + code!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await screenshot(page, info, 'external-code-file-preview');
 });
 
 test('handles uppercase extensions, empty files, ordinary source and load failures', async ({ page }) => {
