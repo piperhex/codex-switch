@@ -4,30 +4,6 @@ fn stop_unix_process(name: &str) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn windows_hidden_command(program: &str) -> Command {
-    let mut command = Command::new(program);
-    command.creation_flags(CREATE_NO_WINDOW);
-    command
-}
-
-#[cfg(target_os = "windows")]
-fn windows_powershell_line(script: &str) -> Option<String> {
-    let output = windows_hidden_command("powershell")
-        .args(["-NoProfile", "-Command", script])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .map(str::to_string)
-}
-
-#[cfg(target_os = "windows")]
 fn normalize_windows_chatgpt_target(path: &str) -> Option<String> {
     let trimmed = path.trim();
     if trimmed.is_empty() {

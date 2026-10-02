@@ -4,8 +4,6 @@ const OFFICIAL_CONVERSATION_PROVIDER: &str = "openai";
 const LOCAL_PROXY_CONVERSATION_PROVIDER: &str = "codex-switch-local";
 #[cfg(unix)]
 const LEGACY_CODEX_COMMAND: &str = "codex";
-#[cfg(target_os = "windows")]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
 static ACCOUNT_AUTO_SWITCH_STATE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 static ACCOUNT_SWITCH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 

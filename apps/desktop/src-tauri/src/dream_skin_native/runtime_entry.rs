@@ -1,9 +1,27 @@
-/// All application launch callers use this entry point. Recording the target and
-/// launching share the recovery lock so another operation cannot replace the hint.
-pub(crate) fn restart_runtime_session(executable: Option<&Path>) -> Result<(), String> {
-    let _operation = OPERATION_LOCK
-        .lock()
-        .map_err(|_| "暂时无法启动 Codex，请稍后重试。".to_string())?;
+/// Keeps recovery and theme operations out of a prepared restart, including credential sync.
+pub(crate) struct PreparedRuntimeSession {
+    _operation: std::sync::MutexGuard<'static, ()>,
+    paths: RuntimePaths,
+    install: CodexInstall,
+}
+
+impl PreparedRuntimeSession {
+    pub(crate) fn restart(self) -> Result<(), String> {
+        start_managed_runtime(
+            &self.paths,
+            &self.install,
+            SkinVerificationMode::Background,
+            RuntimeLaunchReason::Explicit,
+        )
+    }
+}
+
+/// Resolve the launch service and installation before the caller closes ChatGPT.
+pub(crate) fn prepare_runtime_session(
+    executable: Option<&Path>,
+) -> Result<PreparedRuntimeSession, String> {
+    let _operation = crate::client_lifecycle::try_lock(&OPERATION_LOCK)
+        .map_err(|error| error.to_string())?;
     let paths = MONITOR
         .get()
         .and_then(|control| {
@@ -17,8 +35,13 @@ pub(crate) fn restart_runtime_session(executable: Option<&Path>) -> Result<(), S
     if let Some(executable) = executable {
         record_runtime_executable(executable)?;
     }
-    // A failed or unavailable managed launch must never start a second profile.
-    restart_managed_runtime(&paths, SkinVerificationMode::Background)
+    let install = find_runtime_launch_install()?;
+    Ok(PreparedRuntimeSession { _operation, paths, install })
+}
+
+/// All launch callers retain the same operation guard through process startup.
+pub(crate) fn restart_runtime_session(executable: Option<&Path>) -> Result<(), String> {
+    prepare_runtime_session(executable)?.restart()
 }
 
 fn record_runtime_executable(executable: &Path) -> Result<(), String> {

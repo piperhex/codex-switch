@@ -31,37 +31,21 @@ pub(crate) fn refresh_and_get_chatgpt_launch_target<R: Runtime>(
 
     #[cfg(target_os = "windows")]
     {
-        let saved_target = resolve_paths(app)
+        // The managed runtime resolves the official installation when no hint exists.
+        // Do not run an unbounded PowerShell package lookup before that same discovery.
+        resolve_paths(app)
             .ok()
             .and_then(|paths| read_state(&paths).local_codex_path)
             .filter(|path| Path::new(path).is_file())
             .map(|path| ChatGptLaunchTarget {
                 executable: path.into(),
-            });
-        saved_target.or_else(official_default_chatgpt_target)
+            })
     }
 
     #[cfg(not(target_os = "windows"))]
     {
         None
     }
-}
-
-#[cfg(target_os = "windows")]
-fn official_default_chatgpt_target() -> Option<ChatGptLaunchTarget> {
-    windows_powershell_line(concat!(
-        "(Get-AppxPackage -Name OpenAI.Codex -ErrorAction SilentlyContinue | ",
-        "Select-Object -First 1 -ExpandProperty InstallLocation)"
-    ))
-    .and_then(|path| {
-        let target = Path::new(&path).join("app").join("ChatGPT.exe");
-        target
-            .is_file()
-            .then(|| target.as_os_str().to_string_lossy().into_owned())
-    })
-    .map(|path| ChatGptLaunchTarget {
-        executable: path.into(),
-    })
 }
 
 #[cfg(target_os = "windows")]

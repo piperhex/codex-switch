@@ -872,7 +872,7 @@ export function DashboardApp() {
   const confirmRestartChatGpt = useCallback(() => {
     Modal.confirm({
       title: t("actions.restartChatGptConfirmTitle"),
-      content: t("actions.restartChatGptConfirmDescription"),
+      content: <span className="compact-confirm-copy">{t("actions.restartChatGptConfirmDescription")}</span>,
       okText: t("actions.restartChatGpt"),
       cancelText: t("table.cancel"),
       okButtonProps: { danger: true },

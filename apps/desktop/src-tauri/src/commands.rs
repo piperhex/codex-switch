@@ -7,11 +7,11 @@ use std::{
     time::Duration,
 };
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(all(unix, not(target_os = "macos")))]
 use std::process::Command;
 
 #[cfg(target_os = "windows")]
-use std::{os::windows::process::CommandExt, thread, time::Instant};
+use std::{thread, time::Instant};
 
 use chrono::{NaiveDate, TimeZone, Utc};
 use reqwest::blocking::{Client, Response};

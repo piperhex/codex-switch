@@ -13,6 +13,7 @@ mod claude_code;
 mod claude_code_provider;
 mod claude_desktop;
 mod client_integration;
+mod client_lifecycle;
 mod cloud;
 mod codex_api;
 mod codex_config;

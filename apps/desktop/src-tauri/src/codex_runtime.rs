@@ -140,6 +140,14 @@ pub(crate) fn restart_managed_session(executable: Option<&Path>) -> Result<(), S
     crate::dream_skin_native::restart_runtime_session(executable)
 }
 
+/// Reserve a validated runtime before a manual restart closes the current client.
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub(crate) fn prepare_managed_session(
+    executable: Option<&Path>,
+) -> Result<crate::dream_skin_native::PreparedRuntimeSession, String> {
+    crate::dream_skin_native::prepare_runtime_session(executable)
+}
+
 /// Refreshes Codex's model and config caches through the managed renderer channel.
 pub(crate) fn refresh_models(source: ModelRefreshSource) {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
