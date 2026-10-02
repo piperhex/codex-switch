@@ -43,6 +43,8 @@ crate; ordinary browsers cannot open these raw UDP sockets and retain WebRTC plu
   mapping drift, bidirectional data, deadlines, cancellation, rejection and exhausted attempts.
 - Feature guards in `instance/manager.rs`, `instance/tests.rs`, `config/toml.rs`, `process_runtime.rs`, and
   `tunnel/encrypt/mod.rs` allow the retained upstream tests and the minimal native feature set to compile cleanly.
+- Atomic flow counters and port allocators use `try_update`, available at the Rust 1.95 minimum version,
+  to preserve their behavior without deprecated `fetch_update` warnings on newer toolchains.
 
 Run the hole-punch tests from the parent workspace with `--no-default-features` and
 `--features aes-gcm,proxy-smoltcp-stack,tcp-hole-punch`; the native connectivity CI does this on Windows, Linux and macOS.

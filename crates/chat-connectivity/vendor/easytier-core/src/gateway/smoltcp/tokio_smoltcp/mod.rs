@@ -126,7 +126,7 @@ impl Net {
     }
     pub fn get_port(&self) -> u16 {
         self.from_port
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |x| {
                 Some(if x > 60000 { 10000 } else { x + 1 })
             })
             .unwrap()
