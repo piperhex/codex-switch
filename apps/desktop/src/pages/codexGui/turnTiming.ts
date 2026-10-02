@@ -31,11 +31,13 @@ export function turnElapsedMs(turn: Turn, now: number): number | null {
   return end == null ? null : Math.max(0, end - turn.startedAt * SECOND_MS);
 }
 
-export function formatTurnDuration(milliseconds: number): string {
+export function formatTurnDuration(milliseconds: number, options: { compactHours?: boolean } = {}): string {
   const seconds = Math.floor(milliseconds / SECOND_MS);
   const minutes = Math.floor(seconds / SECONDS_PER_MINUTE);
   if (!minutes) return guiText("{value1}秒", { value1: seconds });
   const remainder = seconds % SECONDS_PER_MINUTE;
   if (minutes < MINUTES_PER_HOUR) return guiText("{value1}分{value2}秒", { value1: minutes, value2: remainder });
-  return guiText("{value1}小时{value2}分{value3}秒", { value1: Math.floor(minutes / MINUTES_PER_HOUR), value2: minutes % MINUTES_PER_HOUR, value3: remainder });
+  const template = options.compactHours ? "{value1}时{value2}分{value3}秒" : "{value1}小时{value2}分{value3}秒";
+  return guiText(template, { value1: Math.floor(minutes / MINUTES_PER_HOUR),
+    value2: minutes % MINUTES_PER_HOUR, value3: remainder });
 }

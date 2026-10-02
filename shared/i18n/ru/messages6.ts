@@ -56,6 +56,8 @@ export const messages6 = {
   "{value1}秒": "{value1} с",
   "{value1}分{value2}秒": "{value1} мин {value2} с",
   "{value1}小时{value2}分{value3}秒": "{value1} ч {value2} мин {value3} с",
+  "{value1}时{value2}分{value3}秒": "{value1} ч {value2} мин {value3} с",
+  "(共计{duration})": "(всего {duration})",
   "今日 Token 用量：{value1}": "Токены за сегодня: {value1}",
   "今日预估费用：{value1}": "Стоимость за сегодня: {value1}",
   "{value1}重置卡": "Карт сброса лимита: {value1}",

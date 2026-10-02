@@ -17,6 +17,7 @@ export function useProcessingSeconds(turn: Turn | undefined, active = true, star
     const timer = setInterval(tick, SECOND_MS);
     return () => clearInterval(timer);
   }, [turn?.id, running, active, startedAtMs]);
-  const start = startedAtMs ?? (turn?.startedAt == null ? clock.start : turn.startedAt * SECOND_MS);
-  return Math.max(0, Math.floor((clock.now - start) / SECOND_MS));
+  const turnStart = turn?.startedAt == null ? clock.start : turn.startedAt * SECOND_MS;
+  const elapsed = (start: number) => Math.max(0, Math.floor((clock.now - start) / SECOND_MS));
+  return { phaseSeconds: elapsed(startedAtMs ?? turnStart), totalSeconds: elapsed(turnStart) };
 }

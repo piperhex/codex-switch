@@ -6,7 +6,7 @@ import { useProcessingStatus, type ChatProcessingProps } from '../../../../share
 export function ChatProcessing(props: ChatProcessingProps) {
   useLanguage();
   const { label } = useProcessingStatus(props);
-  return <View style={styles.historyStatus}>
+  return <View style={[styles.historyStatus, { paddingHorizontal: 16 }]}>
     <ActivityIndicator size="small" />
     <Text style={[styles.status, { flexShrink: 1, maxWidth: 400 }]}>{label}</Text>
   </View>;
