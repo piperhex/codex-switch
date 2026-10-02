@@ -13,7 +13,8 @@ export function useDownloadConnection(options: {
     const update = () => {
       const state = controller.snapshot();
       downloadManager.bind({ owner: downloadOwner(session), deviceId, deviceName,
-        ready: state.ready, threadId: state.selected?.id, cwd: state.selected?.cwd ?? state.draftProject?.cwd,
+        ready: state.ready, mode: state.mode,
+        threadId: state.selected?.id, cwd: state.selected?.cwd ?? state.draftProject?.cwd,
         client: controller.downloads, files: controller.files });
     };
     update();

@@ -1,5 +1,6 @@
 import type { DownloadLocation, DownloadClient } from '../../../../shared/remote-chat/downloads';
 import type { FileClient } from '../../../../shared/remote-chat/fileDownload';
+import type { ConnectionMode } from '../../../../shared/remote-chat/protocol';
 
 export interface DownloadSource extends DownloadLocation {
   owner: string;
@@ -25,6 +26,7 @@ export interface DownloadConnection {
   deviceId: string;
   deviceName: string;
   ready: boolean;
+  mode: ConnectionMode;
   threadId?: string;
   cwd?: string;
   client: DownloadClient;

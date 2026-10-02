@@ -1,6 +1,7 @@
 import { t, useLanguage } from '../i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
+import { downloadConnectionLabel } from '../../../../shared/remote-chat/downloadConnection';
 import type { DownloadConnection } from './types';
 import { colors, styles } from './styles';
 
@@ -37,7 +38,7 @@ export function DownloadSources({ connection, browse }: {
     <View style={styles.connection}>
       <View style={[styles.connectionDot, !ready && styles.offlineDot]} />
       <Text style={styles.connectionName} numberOfLines={1}>{connection?.deviceName || t("尚未连接电脑")}</Text>
-      <Text style={styles.caption}>{ready ? t("已连接") : t("未连接")}</Text>
+      <Text style={styles.caption}>{t(downloadConnectionLabel(connection?.mode))}</Text>
     </View>
     <Text style={styles.sectionLabel}>{t("添加下载")}</Text>
     <View style={styles.sourceRow}>

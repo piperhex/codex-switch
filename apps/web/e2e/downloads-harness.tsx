@@ -5,6 +5,7 @@ import { downloadManager } from '../src/downloads/manager';
 import { ChatFilePreview } from '../src/chat/ChatFilePreview';
 import type { DownloadClient } from '../../../shared/remote-chat/downloads';
 import type { FileClient } from '../../../shared/remote-chat/fileDownload';
+import type { ConnectionMode } from '../../../shared/remote-chat/protocol';
 import '../src/styles.css';
 import '../src/chat/chat.css';
 import '../src/chat/messages.css';
@@ -44,18 +45,20 @@ function Harness() {
   const [visible, setVisible] = useState(true);
   const [preview, setPreview] = useState(false);
   const [ready, setReady] = useState(true);
+  const [mode, setMode] = useState<ConnectionMode>('direct');
   const [owner, setOwner] = useState('owner');
   useEffect(() => {
     void downloadManager.initialize();
-    downloadManager.bind({ owner, ready, deviceId: 'computer', deviceName: '测试电脑',
+    downloadManager.bind({ owner, ready, mode: ready ? mode : 'offline', deviceId: 'computer', deviceName: '测试电脑',
       threadId: 'thread', cwd: 'C:/project', client, files });
-    return () => downloadManager.unbind(files);
-  }, [owner, ready]);
+  }, [owner, ready, mode]);
+  useEffect(() => () => downloadManager.unbind(files), []);
   return <main>
     <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
       <button onClick={() => setVisible(value => !value)}>切换页面</button>
       <button onClick={() => setPreview(true)}>预览文件</button>
       <button onClick={() => setReady(value => !value)}>{ready ? '断开电脑' : '连接电脑'}</button>
+      <button onClick={() => setMode(value => value === 'direct' ? 'relay' : 'direct')}>切换连接方式</button>
       <button onClick={() => setOwner(value => value === 'owner' ? 'other' : 'owner')}>切换用户</button>
     </nav>
     {visible && <DownloadManagerPage owner={owner} onBack={() => setVisible(false)} />}

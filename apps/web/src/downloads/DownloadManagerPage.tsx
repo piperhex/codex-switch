@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Download, Folder, Monitor } from 'lucide-react';
 import { t, useLanguage } from '../i18n';
+import { downloadConnectionLabel } from '../../../../shared/remote-chat/downloadConnection';
 import { DownloadBrowser } from './DownloadBrowser';
 import { DownloadCard } from './DownloadCard';
 import { useDownloadTasks } from './useDownloadTasks';
@@ -22,7 +23,8 @@ export function DownloadManagerPage({ owner, onBack }: { owner: string; onBack: 
       <button type="button" className="download-card" disabled={!connection?.ready}
         onClick={() => setView('computer')}><Monitor size={24} /><strong>{t('此电脑')}</strong></button>
     </div>
-    <p className="download-help">{connection?.ready ? connection.deviceName : t('先在聊天中连接电脑，即可浏览文件。')}</p>
+    <p className="download-help">{connection?.deviceName || t('先在聊天中连接电脑，即可浏览文件。')}
+      {connection && <span role="status"> · {t(downloadConnectionLabel(connection.mode))}</span>}</p>
     <p className="download-help">{t('切换页面后下载会继续。关闭网页会暂停，重新打开后可继续下载。完成后点击“保存到设备”。')}</p>
     {error && <p role="alert" className="download-notice">{t(error)}</p>}
     <h3>{t('下载任务')} <small>{tasks.length}</small></h3>

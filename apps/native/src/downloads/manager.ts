@@ -49,7 +49,8 @@ export const downloadManager = {
   bind(value: DownloadConnection) {
     const previous = connection;
     const sameSource = previous?.files === value.files && previous.owner === value.owner;
-    if (sameSource && previous.ready === value.ready && previous.threadId === value.threadId
+    if (sameSource && previous.ready === value.ready && previous.mode === value.mode
+      && previous.threadId === value.threadId
       && previous.cwd === value.cwd && previous.deviceName === value.deviceName) return;
     connection = value; emit();
     if (sameSource && previous.ready === value.ready) return;
