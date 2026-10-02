@@ -39,7 +39,7 @@ export function completedChatTarget(event: GuiEvent, context: { account: string;
 export function attentionChatTarget(event: GuiEvent, context: { account: string; deviceId: string }) {
   let eventId: string | undefined;
   if (event.method.endsWith('/requestApproval') || event.method === 'item/tool/requestUserInput') {
-    if (event.id !== undefined && event.id !== null) eventId = `request-${event.id}`;
+    if (event.id !== undefined && event.id !== null) eventId = event.params.notificationEventId ?? `request-${event.id}`;
   } else if (event.method === 'item/completed' && event.params.item?.delivery === 'async'
     && event.params.item.questions?.length) eventId = `question-${event.params.item.id}`;
   if (!eventId) return null;

@@ -1,19 +1,26 @@
 //! Content-free alerts originate in the app-server reader, independently of the main WebView.
-use super::protocol::GuiEvent;
+use super::{
+    protocol::GuiEvent,
+    push_outbox::{self as outbox, OutboxError, Result},
+};
+use crate::cloud::PushIdentity;
 use serde::Serialize;
 use std::sync::{mpsc, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use tauri::Manager;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Notice {
-    thread_id: String,
-    event_id: String,
-    kind: &'static str,
+pub(super) struct Notice {
+    pub thread_id: String,
+    pub event_id: String,
+    pub kind: String,
 }
-static OUTBOX: OnceLock<mpsc::SyncSender<(tauri::AppHandle, Notice)>> = OnceLock::new();
 
-fn notice(event: &GuiEvent) -> Option<Notice> {
+static WAKE: OnceLock<mpsc::SyncSender<()>> = OnceLock::new();
+const RETRY_POLL: Duration = Duration::from_secs(5);
+
+fn notice(event: &GuiEvent, session: &str) -> Option<Notice> {
     let thread_id = event.params.get("threadId")?.as_str()?.to_owned();
     let (event_id, kind) = if event.method == "turn/completed" {
         let turn = event.params.get("turn")?;
@@ -31,7 +38,10 @@ fn notice(event: &GuiEvent) -> Option<Notice> {
             .as_str()
             .map(str::to_owned)
             .unwrap_or_else(|| id.to_string());
-        (format!("request-{id}"), "attention")
+        // Engine request IDs may be reused after a restart, even in the same thread.
+        use sha2::{Digest, Sha256};
+        let digest = Sha256::digest(format!("{session}:{id}"));
+        (format!("request-{digest:x}"), "attention")
     } else if event.method == "item/completed" {
         let item = event.params.get("item")?;
         if item.get("delivery")?.as_str()? != "async"
@@ -49,111 +59,142 @@ fn notice(event: &GuiEvent) -> Option<Notice> {
     Some(Notice {
         thread_id,
         event_id,
-        kind,
+        kind: kind.into(),
     })
 }
 
-pub(super) fn receive(app: &tauri::AppHandle, event: &GuiEvent) {
-    let Some(notice) = notice(event) else {
-        return;
-    };
-    let sender = OUTBOX.get_or_init(|| {
-        let (sender, receiver) = mpsc::sync_channel(128);
-        std::thread::spawn(move || run(receiver));
-        sender
-    });
-    if sender.try_send((app.clone(), notice)).is_err() {
-        eprintln!("chat notification queue unavailable");
+/// Share the same ID with live clients so local and remote alerts deduplicate.
+pub(super) fn identify(event: &mut GuiEvent, session: &str) {
+    if let Some(notice) = notice(event, session) {
+        event.params["notificationEventId"] = notice.event_id.into();
     }
 }
 
-fn run(receiver: mpsc::Receiver<(tauri::AppHandle, Notice)>) {
-    let Ok(client) = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-    else {
+/// Persist on a blocking worker before publishing the corresponding GUI event.
+pub(super) async fn receive(app: &tauri::AppHandle, event: &GuiEvent, session: &str) {
+    let Some(notice) = notice(event, session) else {
         return;
     };
-    let mut disabled: Option<(String, Instant)> = None;
-    for (app, notice) in receiver {
-        let config = match crate::cloud::remote_control_config(&app) {
-            Ok(Some(config)) => config,
-            Ok(None) => continue,
-            Err(_) => {
-                eprintln!("chat notification identity unavailable");
-                continue;
-            }
-        };
-        if disabled.as_ref().is_some_and(|(server, until)| {
-            server == &config.websocket_url && Instant::now() < *until
-        }) {
-            continue;
-        }
-        match send(&client, &config, &notice) {
-            Ok(false) => {
-                disabled = Some((
-                    config.websocket_url,
-                    Instant::now() + Duration::from_secs(600),
-                ))
-            }
-            Ok(true) => {}
-            Err(()) => eprintln!("chat notification could not reach server"),
+    let handle = app.clone();
+    let saved = tauri::async_runtime::spawn_blocking(move || persist(&handle, &notice)).await;
+    match saved {
+        Ok(Ok(())) => wake(),
+        _ => {
+            eprintln!("chat notification could not be saved");
+            super::web::publish(
+                app,
+                "codex-gui-event",
+                GuiEvent {
+                    method: "chat/notifications/error".into(),
+                    id: None,
+                    params: serde_json::json!({}),
+                },
+            );
         }
     }
+}
+
+fn persist(app: &tauri::AppHandle, notice: &Notice) -> Result<()> {
+    let Some(identity) = crate::cloud::push_identity(app).map_err(|_| OutboxError::Storage)? else {
+        return Ok(());
+    };
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| OutboxError::Storage)?;
+    outbox::insert(&outbox::open(&root)?, &identity, notice)
+}
+
+fn wake() {
+    if let Some(sender) = WAKE.get() {
+        match sender.try_send(()) {
+            Ok(()) | Err(mpsc::TrySendError::Full(())) => {} // Wake-ups coalesce; events are already on disk.
+            Err(mpsc::TrySendError::Disconnected(())) => {
+                eprintln!("chat notification worker stopped")
+            }
+        }
+    }
+}
+
+/// Start at application startup so old events retry even before the next AI task.
+pub(crate) fn start(app: &tauri::AppHandle) {
+    WAKE.get_or_init(|| {
+        let (sender, receiver) = mpsc::sync_channel(1);
+        let app = app.clone();
+        std::thread::spawn(move || run(app, receiver));
+        sender
+    });
+}
+
+fn run(app: tauri::AppHandle, receiver: mpsc::Receiver<()>) {
+    loop {
+        if drain(&app).is_err() {
+            eprintln!("chat notifications pending; will retry");
+        }
+        if matches!(
+            receiver.recv_timeout(RETRY_POLL),
+            Err(mpsc::RecvTimeoutError::Disconnected)
+        ) {
+            break;
+        }
+    }
+}
+
+fn drain(app: &tauri::AppHandle) -> Result<()> {
+    let Some(identity) = crate::cloud::push_identity(app).map_err(|_| OutboxError::Delivery)?
+    else {
+        return Ok(());
+    };
+    let root = app
+        .path()
+        .app_data_dir()
+        .map_err(|_| OutboxError::Storage)?;
+    let connection = outbox::open(&root)?;
+    let entries = outbox::due(&connection, &identity, chrono::Utc::now().timestamp())?;
+    if entries.is_empty() {
+        return Ok(());
+    }
+    let client = crate::system_proxy::apply(reqwest::blocking::Client::builder())
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|_| OutboxError::Delivery)?;
+    for entry in entries {
+        let delivered = match crate::cloud::push_access_token(app, &identity) {
+            Ok(Some(token)) => send(&client, &identity, &token, &entry.notice).is_ok(),
+            Ok(None) => return Ok(()),
+            Err(_) => false,
+        };
+        if delivered {
+            outbox::acknowledge(&connection, entry.id)?;
+        } else {
+            outbox::retry(&connection, &entry, chrono::Utc::now().timestamp())?;
+        }
+    }
+    Ok(())
 }
 
 fn send(
     client: &reqwest::blocking::Client,
-    config: &crate::cloud::RemoteControlConfig,
+    identity: &PushIdentity,
+    token: &str,
     notice: &Notice,
-) -> Result<bool, ()> {
-    let mut url = url::Url::parse(&config.websocket_url).map_err(|_| ())?;
-    let scheme = if url.scheme() == "wss" {
-        "https"
-    } else {
-        "http"
-    };
-    url.set_scheme(scheme)?;
-    let path = format!(
-        "{}chat-push/events",
-        url.path().trim_end_matches("device-switch")
-    );
-    url.set_path(&path);
-    url.set_query(None);
-    url.set_fragment(None);
-    let mut payload = serde_json::to_value(notice).map_err(|_| ())?;
-    payload["deviceId"] = config.device_id.clone().into();
+) -> Result<()> {
+    let mut payload = serde_json::to_value(notice).map_err(|_| OutboxError::Delivery)?;
+    payload["deviceId"] = identity.device_id.clone().into();
     let result = client
-        .post(url)
-        .bearer_auth(&config.access_token)
+        .post(format!("{}/chat-push/events", identity.base_url))
+        .bearer_auth(token)
         .json(&payload)
         .send()
-        .map_err(|_| ())?;
-    if matches!(result.status().as_u16(), 404 | 503) {
-        return Ok(false);
+        .map_err(|_| OutboxError::Delivery)?;
+    // Only the queue's commit acknowledgement permits deletion; a proxy/login page does not.
+    if result.status() != reqwest::StatusCode::NO_CONTENT {
+        return Err(OutboxError::Delivery);
     }
-    if !result.status().is_success() {
-        return Err(());
-    }
-    Ok(true)
+    Ok(())
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn publishes_only_actionable_metadata() {
-        let mut event = GuiEvent {
-            method: "turn/completed".into(),
-            id: None,
-            params: serde_json::json!({"threadId":"thread","turn":{"id":"turn","status":"completed", "items":["secret"]}}),
-        };
-        let value = serde_json::to_string(&notice(&event).unwrap()).unwrap();
-        assert!(!value.contains("secret"));
-        event.params["turn"]["status"] = "interrupted".into();
-        assert!(notice(&event).is_none());
-        event.method = "item/commandExecution/requestApproval".into();
-        event.id = Some(serde_json::json!(42));
-        assert_eq!(notice(&event).unwrap().kind, "attention");
-    }
-}
+#[path = "push_notifications_tests.rs"]
+mod tests;

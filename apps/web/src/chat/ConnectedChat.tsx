@@ -14,6 +14,7 @@ import { ChatSidebar } from './ChatSidebar';
 import { useDesktopLayout, usePanelVisibility } from '../useDesktopLayout';
 import { ChatDevices } from './ChatDevices';
 import { ChatConnectionInfo } from './ChatConnectionInfo';
+import { ChatTaskStatus } from './ChatTaskStatus';
 import { ChatQuotesProvider } from './ChatQuotes';
 import { ChatDetailsWorkspace } from './ChatDetailsWorkspace';
 import { ConversationChangesButton } from '../../../desktop/src/pages/codexGui/ConversationChangesButton';
@@ -99,6 +100,7 @@ export function ConnectedChat({ chat, device, devices, active, scope, email, cho
         value={state.selected?.turns ? { turns: state.selected.turns } : undefined} />}
       {headerEnd}
     </header>
+    <ChatTaskStatus state={state} />
     {!!state.error && <p role="alert" className="chat-error">{t(state.error)}</p>}
     {state.desktopOnly && <p className="chat-muted" style={{ maxWidth: 400 }}>
       {t('桌面已就绪。打开远程桌面，登录电脑后即可继续聊天。')}</p>}

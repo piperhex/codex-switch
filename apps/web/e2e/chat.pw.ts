@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { openChatList, connect, navigate, send, settled, screenshot, state, fixtureUrl,
   openChatSettings, operationCount } from './chat-helpers';
 import { chatJourney } from './chat-journey';
+import { reliabilityJourney } from './chat-reliability';
 import { historyJourney } from './chat-history';
 import { attachmentJourney } from './chat-attachments';
 import { imageEditorJourney } from './chat-image-editor';
@@ -35,6 +36,12 @@ test.beforeEach(async ({ page, request }, info) => {
 
 
 test('keeps composer icons below single and multiline drafts', async ({ page }) => composerLayout(page));
+test('shows task receipts and connection health over relay', async ({ page, request }, info) => {
+  await reliabilityJourney(page, request, info);
+});
+test('shows task receipts and connection health over direct', async ({ page, request }, info) => {
+  await reliabilityJourney(page, request, info);
+});
 test('connects independently over WebRTC without advertising native TCP', async ({ page }) => {
   const capabilities: boolean[] = [];
   page.on('websocket', socket => {

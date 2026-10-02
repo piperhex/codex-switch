@@ -1,4 +1,5 @@
 import type { ChatConnection, ConnectionEvents } from './connection';
+import { mergeTaskDelivery } from '../taskDelivery';
 import type { RemoteComposerCatalog } from '../composerCatalog';
 import type { ProjectFilesRequest, ProjectFilesResponse } from '../projectFiles';
 import { applyChatEvent } from './events';
@@ -94,7 +95,15 @@ export class ChatController {
     this.historyReader = new HistoryReader((body) => this.connection.request('request', body), versions);
     if (offline) this.offlineWriter = new OfflineWriter(offline, this.cacheFailure);
     this.connection = createConnection({
-      mode: (mode) => this.changeMode(mode), error: (error) => this.update({ error }),
+      mode: (mode) => this.changeMode(mode), error: (error) => this.update({ error, connectionIssue: error }),
+      stage: (connectionStage) => this.update({ connectionStage }),
+      delivery: (value) => {
+        const turn = this.state.selected?.id === value.threadId ? this.state.selected.turns?.at(-1) : undefined;
+        const receipt = value.phase === 'sending' ? { ...value, afterTurnId: turn?.id,
+          afterUserCount: turn?.items.filter(item => item.type === 'userMessage').length ?? 0 } : value;
+        this.update({ deliveries: { ...this.state.deliveries,
+          [value.threadId]: mergeTaskDelivery(this.state.deliveries?.[value.threadId], receipt) } });
+      },
       ready: () => { void this.synchronize(); },
       // Resuming the coordinator socket must not replace a pending GUI initialization deadline.
       retryAt: (retryAt) => { if (!this.transportConnected) this.update({ retryAt }); },
@@ -193,7 +202,8 @@ export class ChatController {
     if (event?.method === 'connection/closed' || event?.method === 'codex/disconnected') {
       this.skillGeneration += 1;
       this.synchronization += 1;
-      this.update({ ready: false, connecting: false, error: CONNECTION_ERRORS.guiDisconnected });
+      this.update({ ready: false, connecting: false, error: CONNECTION_ERRORS.guiDisconnected,
+        connectionIssue: CONNECTION_ERRORS.guiDisconnected });
       this.scheduleSynchronization();
     }
   }
@@ -277,14 +287,14 @@ export class ChatController {
     clearTimeout(this.syncTimer);
     const generation = ++this.synchronization;
     this.synchronizing = generation;
-    this.update({ connecting: true, retryAt: null });
+    this.update({ connecting: true, retryAt: null, connectionStage: 'chat' });
     try {
       const response = await this.connection.request<unknown>('connect', chatHandshake);
       if (!this.active || generation !== this.synchronization) return;
       const approvals = chatApprovals(response);
       if (response && typeof response === 'object' && 'desktopOnly' in response && response.desktopOnly === true) {
         this.update({ desktopOnly: true, approvals: [], selected: null, threads: [], queue: emptyQueue(),
-          ready: true, connecting: false, retryAt: null, error: '' });
+          ready: true, connecting: false, retryAt: null, error: '', connectionStage: 'ready', connectionIssue: '' });
         return;
       }
       this.update({ desktopOnly: false });
@@ -296,12 +306,12 @@ export class ChatController {
       }
       await Promise.all([this.list(), this.composer.load(), this.refreshSelected(), this.loadQueue(generation)]);
       if (this.active && generation === this.synchronization) {
-        this.update({ ready: true, connecting: false, retryAt: null });
+        this.update({ ready: true, connecting: false, retryAt: null, connectionStage: 'ready', connectionIssue: '' });
         this.composer.retry();
       }
     } catch (error) {
       if (!this.active || generation !== this.synchronization) return;
-      this.update({ connecting: false, error: guiConnectionError(error) });
+      this.update({ connecting: false, error: guiConnectionError(error), connectionIssue: guiConnectionError(error) });
       this.scheduleSynchronization();
     } finally { if (this.synchronizing === generation) this.synchronizing = undefined; }
   }

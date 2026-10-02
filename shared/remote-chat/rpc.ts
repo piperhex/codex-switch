@@ -2,6 +2,7 @@ import { REQUEST_TIMEOUT_MS, type RpcMessage, type RpcRequest } from './protocol
 import { CONNECTION_ERRORS } from './connectionErrors';
 import { chatMessageCharLimit } from './framing';
 import type { TransferProgress } from './uploadProgress';
+import { taskRequest, type TaskDelivery } from './taskDelivery';
 
 const TRANSFER_CHARS_PER_SECOND = 128 * 1024;
 const SMALL_REQUEST_CHARS = 1024 * 1024;
@@ -31,6 +32,7 @@ export class ChatRpc {
     send: (message: RpcMessage, progress?: TransferProgress) => Promise<void>;
     event: (event: unknown) => void;
     prefix: string;
+    delivery?: (value: TaskDelivery) => void;
   }) {}
 
   request<T>(method: RpcRequest['method'], body?: unknown, progress?: TransferProgress): Promise<T> {
@@ -40,6 +42,7 @@ export class ChatRpc {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
+        this.report(request, 'unknown');
         reject(new Error(method === 'connect' ? CONNECTION_ERRORS.guiTimeout
           : '电脑暂未确认结果，请刷新对话后再试，避免重复发送。'));
       }, requestTimeout(body));
@@ -50,7 +53,10 @@ export class ChatRpc {
           else progress(fraction);
         } : undefined;
       this.pending.set(id, { request, resolve: (value) => resolve(value as T), reject, timer, progress: report });
-      void this.options.send(request, report).catch((error: unknown) => this.fail(id, error));
+      this.report(request, 'sending');
+      void this.options.send(request, report).then(() => {
+        if (this.pending.has(id)) this.report(request, 'sent');
+      }).catch((error: unknown) => this.fail(id, error));
     });
   }
 
@@ -61,6 +67,7 @@ export class ChatRpc {
     if (!pending) return;
     this.pending.delete(message.id);
     clearTimeout(pending.timer);
+    this.report(pending.request, message.error ? 'unknown' : 'received');
     if (message.error) pending.reject(new Error(message.error));
     else pending.resolve(message.data);
   }
@@ -77,10 +84,16 @@ export class ChatRpc {
     if (!pending) return;
     this.pending.delete(id);
     clearTimeout(pending.timer);
+    this.report(pending.request, 'unknown');
     pending.reject(error instanceof Error ? error : new Error('连接已中断。'));
   }
 
   close() {
     for (const id of this.pending.keys()) this.fail(id, new Error('连接已中断，请重新连接电脑。'));
+  }
+
+  private report(request: RpcRequest, phase: TaskDelivery['phase']) {
+    const task = taskRequest(request);
+    if (task) this.options.delivery?.({ ...task, phase });
   }
 }

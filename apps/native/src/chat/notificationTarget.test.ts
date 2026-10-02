@@ -36,6 +36,14 @@ it('notifies completed and failed turns, including chats outside the visible con
   } }, { account, deviceId: 'pc' })).toBeNull();
 });
 
+it('uses the desktop event identity for both live and cloud approval alerts', () => {
+  const turnId = 'request-engine-scoped';
+  const notice = attentionChatTarget({ method: 'item/commandExecution/requestApproval', id: 42,
+    params: { threadId: 'chat', notificationEventId: turnId } }, { account, deviceId: 'pc' });
+  expect(notice).toEqual({ ...target, turnId });
+  expect(notificationId(notice!)).toBe(notificationId({ ...target, turnId }));
+});
+
 it('rejects malformed targets and distinguishes turns and computers', () => {
   for (const value of [null, {}, { ...target, account: '' }, { ...target, deviceId: '' },
     { ...target, threadId: 42 }, { ...target, turnId: 'x'.repeat(201) }]) {

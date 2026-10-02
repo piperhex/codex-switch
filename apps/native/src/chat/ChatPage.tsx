@@ -21,6 +21,7 @@ import { ChatSearch } from './ChatSearch';
 import { ChatDrawer, type ChatDrawerMethods } from './ChatDrawer';
 import { ChatDevices } from './ChatDevices';
 import { ChatConnectionInfo } from './ChatConnectionInfo';
+import { ChatTaskStatus } from './ChatTaskStatus';
 import { ChatTools } from './ChatTools';
 import { useChat } from './useChat';
 import { useDownloadConnection } from '../downloads/useDownloadConnection';
@@ -155,6 +156,7 @@ function ConnectedChat({ session, device, devices, active: pageActive, chooseDev
           deviceName={device?.name} cwd={state.selected?.cwd ?? state.draftProject?.cwd ?? ''} />
       </View>
     </View>
+    <ChatTaskStatus state={state} />
     {!!state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
     {state.desktopOnly && <Text style={[styles.subtitle, { maxWidth: 400, paddingHorizontal: 16 }]}>
       {t("桌面已就绪。打开远程桌面，登录电脑后即可继续聊天。")}</Text>}

@@ -63,6 +63,7 @@ export function applyChatEvent(state: ChatState, event: GuiEvent): ChatState {
 
 function reduceChatEvent(state: ChatState, event: GuiEvent): ChatState {
   const { method, params } = event;
+  if (method === 'chat/notifications/error') return { ...state, notificationError: true };
   if (event.id != null) return { ...state,
     approvals: [...state.approvals.filter((entry) => entry.id !== event.id), event] };
   if (method === 'serverRequest/resolved') return { ...state,

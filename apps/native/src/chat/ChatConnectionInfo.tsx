@@ -8,6 +8,7 @@ import { ChatProjectPicker } from './ChatProjectPicker';
 import { ChatReconnectButton } from './ChatReconnectButton';
 import { HOST_IDENTITY_CHANGED } from '../../../../shared/remote-chat/trustedHost';
 import { HostIdentityVerification } from './HostIdentityVerification';
+import { ChatConnectionHealth } from './ChatConnectionHealth';
 import { styles } from './styles';
 
 const modeLabels = { get connecting() { return t("正在连接…"); }, direct: 'P2P', relay: 'Relay', get offline() { return t("等待重新连接"); } };
@@ -18,6 +19,7 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
   useLanguage();
   const [picking, setPicking] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
   const canChoose = active && state.ready && !state.selected && !state.sending;
   const canReconnect = active && device && !state.ready && !state.connecting && state.mode !== 'connecting';
   let status = modeLabels[state.mode];
@@ -41,6 +43,10 @@ export function ChatConnectionInfo({ state, controller, device, active }: {
         </Pressable>
       </>}
     </View>
+    {device && <Pressable accessibilityRole="button" onPress={() => setHealthOpen(true)}>
+      <Text style={styles.headerMeta}>{t('连接体检')}</Text></Pressable>}
+    {healthOpen && <ChatConnectionHealth state={state} device={device}
+      reconnect={controller.connectNow} close={() => setHealthOpen(false)} />}
     {picking && canChoose && <ChatProjectPicker cwd={state.draftProject?.cwd}
       load={controller.loadProjectDirectories} close={() => setPicking(false)}
       choose={(project) => { controller.chooseDraftProject(project); setPicking(false); }} />}

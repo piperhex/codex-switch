@@ -23,6 +23,10 @@ export interface SendInput {
 export interface ChatProject { cwd: string; label: string }
 
 export interface ChatState {
+  connectionStage?: import('../connectionHealth').ConnectionStage;
+  connectionIssue?: string;
+  deliveries?: Record<string, import('../taskDelivery').TaskDelivery>;
+  notificationError?: boolean;
   desktopOnly?: boolean;
   upload?: import('../uploadProgress').UploadProgress;
   processing?: import('../../../apps/desktop/src/pages/codexGui/processing').ProcessingState;

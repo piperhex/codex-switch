@@ -182,7 +182,7 @@ func (s *service) queue(owner string, input event) error {
 			return err
 		}
 		for _, token := range tokens {
-			key := digest(owner + ":" + token.ID + ":" + input.DeviceID + ":" + input.Kind + ":" + input.EventID)
+			key := deliveryID(owner, token.ID, input)
 			entry := delivery{ID: key, OwnerID: owner, SubscriptionID: token.ID, DeviceID: input.DeviceID,
 				ThreadID: input.ThreadID, EventID: input.EventID, Kind: input.Kind, NextAt: time.Now().UTC(), CreatedAt: time.Now().UTC()}
 			if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&entry).Error; err != nil {
@@ -191,6 +191,11 @@ func (s *service) queue(owner string, input event) error {
 		}
 		return nil
 	})
+}
+
+func deliveryID(owner, subscriptionID string, input event) string {
+	return digest(owner + ":" + subscriptionID + ":" + input.DeviceID + ":" +
+		input.ThreadID + ":" + input.Kind + ":" + input.EventID)
 }
 
 func (s *service) run(ctx context.Context) {

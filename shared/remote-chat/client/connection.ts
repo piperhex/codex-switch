@@ -15,6 +15,8 @@ import {
 } from '../protocol';
 
 export interface ConnectionEvents {
+  stage?: (stage: import('../connectionHealth').ConnectionStage) => void;
+  delivery?: (value: import('../taskDelivery').TaskDelivery) => void;
   upload?: (progress: UploadProgress) => void;
   mode: (mode: ConnectionMode) => void;
   ready: () => void;
@@ -78,6 +80,7 @@ export class ChatConnection {
   }
 
   private async connect() {
+    this.options.stage?.('login');
     this.options.retryAt?.(null);
     const generation = ++this.generation;
     this.socketAuthenticated = false;
@@ -90,6 +93,7 @@ export class ChatConnection {
     try {
       const session = await this.options.authorize();
       if (!this.active || generation !== this.generation) return;
+      this.options.stage?.('computer');
       const keys = keyPair(this.options.randomBytes);
       const url = chatSocketUrl(session.baseUrl);
       const socket = (this.options.createSocket ?? browserChatSocket)(url);
@@ -197,6 +201,7 @@ export class ChatConnection {
       return;
     }
     if (message.type === 'paired' && typeof message.sessionId === 'string') {
+      this.options.stage?.('path');
       this.socketAuthenticated = true;
       if (message.transportVersion === 2 && typeof message.resumeToken === 'string') {
         this.resume = { sessionId: message.sessionId, resumeToken: message.resumeToken };
@@ -236,6 +241,7 @@ export class ChatConnection {
   }) {
     if (this.link) throw new Error('Already paired');
     this.rpc = new ChatRpc({ prefix: input.keys.publicKey.slice(0, 24),
+      delivery: this.options.delivery,
       send: (message, progress) => this.link!.send(message, progress), event: this.options.event });
     this.link = new ChatLink({
       sessionId: input.id, desktop: false, secret: input.keys.secret, iceServers: input.iceServers, tcp: input.tcp,

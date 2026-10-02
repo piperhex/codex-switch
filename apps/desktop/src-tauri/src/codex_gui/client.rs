@@ -57,6 +57,7 @@ pub(super) struct Client {
     next_id: AtomicU64,
     pub(super) alive: AtomicBool,
     events_enabled: AtomicBool,
+    notification_session: String,
     app: AppHandle,
 }
 
@@ -122,6 +123,7 @@ impl Client {
             next_id: AtomicU64::new(1),
             alive: AtomicBool::new(true),
             events_enabled: AtomicBool::new(false),
+            notification_session: uuid::Uuid::new_v4().to_string(),
             app,
         });
         tokio::spawn(client.clone().read(stdout));
@@ -236,6 +238,7 @@ impl Client {
                 id: value.get("id").cloned(),
             };
             workspaces::hide_project_paths(&mut event.params, &self.projectless_root);
+            super::push_notifications::identify(&mut event, &self.notification_session);
             if matches!(method, "turn/started" | "turn/completed") {
                 self.track_live_turn(&event).await;
             }
@@ -281,7 +284,7 @@ impl Client {
                     .await
                     .remove(&event.params["requestId"].to_string());
             }
-            self.emit(event);
+            self.emit(event).await;
         } else if let Some(id) = value["id"].as_u64() {
             if let Some(sender) = self.pending.lock().await.remove(&id) {
                 let result = if value.get("error").is_some() {
@@ -312,7 +315,8 @@ impl Client {
             method: "serverRequest/resolved".into(),
             params: json!({"requestId": event.id}),
             id: None,
-        });
+        })
+        .await;
         Ok(())
     }
 
@@ -324,11 +328,11 @@ impl Client {
         !self.active_turns.lock().await.is_empty() || !self.pending.lock().await.is_empty()
     }
 
-    fn emit(&self, mut event: GuiEvent) {
+    async fn emit(&self, mut event: GuiEvent) {
         if !self.events_enabled.load(Ordering::Acquire) {
             return;
         }
-        super::push_notifications::receive(&self.app, &event);
+        super::push_notifications::receive(&self.app, &event, &self.notification_session).await;
         super::conversation_context::display(&mut event.params);
         super::web::publish(&self.app, "codex-gui-event", event);
     }
@@ -347,7 +351,8 @@ impl Client {
                 method: "connection/closed".into(),
                 params: json!({}),
                 id: None,
-            });
+            })
+            .await;
         }
     }
 

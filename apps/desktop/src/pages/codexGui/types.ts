@@ -108,6 +108,7 @@ export interface ThreadTokenUsage {
   modelContextWindow?: number | null;
 }
 export interface EventParams {
+  notificationEventId?: string;
   threadName?: string | null;
   serverName?: string;
   _meta?: { tool_params?: Record<string, unknown> };

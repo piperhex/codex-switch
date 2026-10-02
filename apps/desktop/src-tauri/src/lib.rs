@@ -178,6 +178,7 @@ pub fn run() {
             }
             commands::initialize_local_state(app.handle());
             codex_gui::releases::start(app.handle());
+            codex_gui::push_notifications::start(app.handle());
             chrome_plugin::refresh_on_startup();
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
             if let Err(error) = app.deep_link().register_all() {

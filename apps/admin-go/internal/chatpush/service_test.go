@@ -54,6 +54,18 @@ func TestNotificationsContainOnlyRoutingMetadata(t *testing.T) {
 	}
 }
 
+func TestDeliveryIdentityDeduplicatesRetriesButNotOtherThreads(t *testing.T) {
+	input := event{DeviceID: "pc", ThreadID: "thread", EventID: "request-1", Kind: "attention"}
+	first := deliveryID("owner", "phone", input)
+	if first != deliveryID("owner", "phone", input) {
+		t.Fatal("retry must use the same delivery")
+	}
+	input.ThreadID = "another-thread"
+	if first == deliveryID("owner", "phone", input) {
+		t.Fatal("approval IDs can repeat across threads")
+	}
+}
+
 func TestExpoRequestUsesProviderCredentialAndValidatesHTTPStatus(t *testing.T) {
 	status := http.StatusOK
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
