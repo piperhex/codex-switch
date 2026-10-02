@@ -15,6 +15,7 @@ import { UsageSettingsCards } from "../settings/UsageSettingsCards";
 import { TotpSyncSettingsCard } from "../settings/TotpSyncSettingsCard";
 import { NetworkProxySettingsCard } from "../settings/NetworkProxySettings";
 import { RemoteDesktopSettingsCard } from '../settings/RemoteDesktopSettingsCard';
+import { ChatGptEnhancementsCard } from "../settings/ChatGptEnhancementsCard";
 import styles from "./index.module.less";
 
 interface SettingsSectionProps {
@@ -71,6 +72,7 @@ export function SettingsPage(settings: SettingsPageProps) {
       <SettingsSection id="settings-system" title={settings.t("settings.sections.system.title")}
         description={settings.t("settings.sections.system.description")}>
         <SystemSettingsCards settings={settings} />
+        <ChatGptEnhancementsCard t={settings.t} />
       </SettingsSection>
       <SettingsSection id="settings-usage" title={settings.t("settings.sections.usage.title")}
         description={settings.t("settings.sections.usage.description")}>

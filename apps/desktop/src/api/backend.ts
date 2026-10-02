@@ -255,6 +255,7 @@ let updateInstallInProgress = false;
 let pendingUpdateInstallPromise: Promise<void> | null = null;
 const LAUNCH_AT_STARTUP_PREVIEW_KEY = "codex-switch:launch-at-startup";
 const CLOSE_TO_TRAY_PREVIEW_KEY = "codex-switch:close-to-tray";
+const NON_PROXY_ENHANCEMENTS_PREVIEW_KEY = "codex-switch:non-proxy-enhancements";
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
 const PRIVACY_MODE_PREVIEW_KEY = "codex-switch:privacy-mode";
 const HIDE_ACCOUNT_NOTES_PREVIEW_KEY = "codex-switch:hide-account-notes";
@@ -617,6 +618,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
       codexHomes: [],
       launchAtStartup: window.localStorage.getItem(LAUNCH_AT_STARTUP_PREVIEW_KEY) !== "false",
       closeToTray: window.localStorage.getItem(CLOSE_TO_TRAY_PREVIEW_KEY) !== "false",
+      nonProxyEnhancementsEnabled: window.localStorage.getItem(NON_PROXY_ENHANCEMENTS_PREVIEW_KEY) !== "false",
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
       hideAccountNotes: window.localStorage.getItem(HIDE_ACCOUNT_NOTES_PREVIEW_KEY) === "true",
@@ -2012,6 +2014,14 @@ export async function updateCloseToTray(enabled: boolean): Promise<AppSettings> 
   return invoke<AppSettings>("set_close_to_tray", { enabled });
 }
 
+export async function updateNonProxyEnhancements(enabled: boolean): Promise<AppSettings> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(NON_PROXY_ENHANCEMENTS_PREVIEW_KEY, String(enabled));
+    return loadAppSettings();
+  }
+  return invoke<AppSettings>("set_non_proxy_enhancements", { enabled });
+}
+
 export async function updateFloatingBubble(enabled: boolean): Promise<AppSettings> {
   if (!hasLocalBackend) {
     window.localStorage.setItem(FLOATING_BUBBLE_PREVIEW_KEY, String(enabled));
@@ -2931,7 +2941,11 @@ export async function openManagedFolder(target: "codexHome" | "accountStore"): P
 }
 
 export async function loadDreamSkinStatus(): Promise<DreamSkinStatus> {
-  if (!hasLocalBackend) return previewDreamSkinStatus();
+  if (!hasLocalBackend) return {
+    ...previewDreamSkinStatus(),
+    available: previewLocalProxyStatus().running
+      || window.localStorage.getItem(NON_PROXY_ENHANCEMENTS_PREVIEW_KEY) !== "false",
+  };
   return invoke<DreamSkinStatus>("get_dream_skin_status");
 }
 

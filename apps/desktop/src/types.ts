@@ -488,6 +488,7 @@ export interface AppSettings {
   codexHomes?: CodexHomeEntry[];
   launchAtStartup?: boolean;
   closeToTray?: boolean;
+  nonProxyEnhancementsEnabled?: boolean;
   floatingBubbleEnabled: boolean;
   privacyMode: boolean;
   hideAccountNotes: boolean;
@@ -838,6 +839,8 @@ export type DreamSkinAppearance = "auto" | "light" | "dark";
 
 export interface DreamSkinStatus {
   supported: boolean;
+  available?: boolean;
+  restartRequired?: boolean;
   platform: string;
   installed: boolean;
   runtimeInstalled: boolean;

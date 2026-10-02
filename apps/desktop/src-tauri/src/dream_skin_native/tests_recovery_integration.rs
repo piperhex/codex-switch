@@ -28,6 +28,7 @@ struct Simulation {
     skin_installed: bool,
     skin_paused: bool,
     proxy_running: bool,
+    enhancements_enabled: bool,
     running_executable: Option<PathBuf>,
     probe: ProbeResponse,
     write_fails: bool,
@@ -49,6 +50,7 @@ impl Default for Simulation {
             skin_installed: true,
             skin_paused: false,
             proxy_running: false,
+            enhancements_enabled: true,
             running_executable: Some(executable),
             probe: ProbeResponse::Unavailable,
             write_fails: false,
@@ -95,6 +97,10 @@ fn pause_path() -> Result<SimulatedPath, String> {
 
 fn runtime_proxy_running() -> bool {
     with_simulation(|simulation| simulation.proxy_running)
+}
+
+fn runtime_enhancements_enabled() -> bool {
+    with_simulation(|simulation| simulation.proxy_running || simulation.enhancements_enabled)
 }
 
 fn read_session() -> NativeSessionState {
@@ -226,10 +232,11 @@ fn a_busy_operation_lock_skips_recovery_without_waiting() {
 #[test]
 fn conditions_are_rechecked_after_the_original_outage_observation() {
     let _suite = TEST_SUITE_LOCK.lock().unwrap();
-    let changes: [fn(&mut Simulation); 6] = [
+    let changes: [fn(&mut Simulation); 7] = [
         |simulation| simulation.probe = ProbeResponse::Empty,
         |simulation| simulation.probe = ProbeResponse::OtherError,
         |simulation| simulation.skin_paused = true,
+        |simulation| simulation.enhancements_enabled = false,
         |simulation| simulation.session.recovery_attempted = true,
         |simulation| simulation.running_executable = None,
         |simulation| simulation.running_executable = Some(PathBuf::from("updated/ChatGPT.exe")),
@@ -299,6 +306,18 @@ fn paused_skin_only_recovers_when_proxy_is_running() {
     assert_no_start_or_write();
     with_simulation(|simulation| simulation.proxy_running = true);
     recover(&observed).unwrap();
+    with_simulation(|simulation| assert_eq!(simulation.starts, 1));
+}
+
+#[test]
+fn disabled_enhancements_do_not_block_proxy_recovery() {
+    let _suite = TEST_SUITE_LOCK.lock().unwrap();
+    reset_simulation();
+    with_simulation(|simulation| {
+        simulation.enhancements_enabled = false;
+        simulation.proxy_running = true;
+    });
+    recover(&read_session()).unwrap();
     with_simulation(|simulation| assert_eq!(simulation.starts, 1));
 }
 

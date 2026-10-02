@@ -17,6 +17,8 @@ pub(crate) struct DreamSkinThemeSummary {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DreamSkinStatus {
     pub(crate) supported: bool,
+    pub(crate) available: bool,
+    pub(crate) restart_required: bool,
     pub(crate) platform: String,
     pub(crate) installed: bool,
     pub(crate) runtime_installed: bool,
@@ -89,6 +91,8 @@ pub(crate) fn state_root() -> Result<PathBuf, String> {
 fn unsupported_status() -> DreamSkinStatus {
     DreamSkinStatus {
         supported: false,
+        available: false,
+        restart_required: false,
         platform: platform_name().to_string(),
         installed: false,
         runtime_installed: false,

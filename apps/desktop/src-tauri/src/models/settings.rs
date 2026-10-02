@@ -10,6 +10,8 @@ pub(crate) struct AppSettings {
     pub(crate) launch_at_startup: bool,
     #[serde(default = "default_close_to_tray")]
     pub(crate) close_to_tray: bool,
+    #[serde(default = "default_non_proxy_enhancements_enabled")]
+    pub(crate) non_proxy_enhancements_enabled: bool,
     #[serde(default = "default_floating_bubble_enabled")]
     pub(crate) floating_bubble_enabled: bool,
     #[serde(default)]
@@ -243,6 +245,10 @@ fn default_close_to_tray() -> bool {
     true
 }
 
+fn default_non_proxy_enhancements_enabled() -> bool {
+    true
+}
+
 fn default_auto_disable_status_codes() -> Vec<u16> {
     vec![401, 402, 403, 429]
 }
@@ -258,6 +264,7 @@ impl Default for AppSettings {
             codex_homes: Vec::new(),
             launch_at_startup: default_launch_at_startup(),
             close_to_tray: default_close_to_tray(),
+            non_proxy_enhancements_enabled: default_non_proxy_enhancements_enabled(),
             floating_bubble_enabled: default_floating_bubble_enabled(),
             theme_color: None,
             language: None,

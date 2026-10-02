@@ -1,45 +1,7 @@
-fn start_managed_runtime(
-    paths: &RuntimePaths,
-    install: &CodexInstall,
-    verification_mode: SkinVerificationMode,
-    reason: RuntimeLaunchReason,
-) -> Result<(), String> {
-    let _launch = RuntimeLaunchGuard::acquire();
-    let mut state = read_session();
-    state.begin_launch(&install.executable, reason);
-    write_session(&state)?;
-    let result = launch_runtime_renderer(paths, install, &mut state)
-        .and_then(|()| verify_runtime_skin(verification_mode, state.port));
-    if result.is_err() {
-        state.fail_launch();
-        write_session(&state)?;
-    }
-    result
-}
-
-fn launch_runtime_renderer(
-    paths: &RuntimePaths,
-    install: &CodexInstall,
-    state: &mut NativeSessionState,
-) -> Result<(), String> {
-    stop_codex(install)?;
-    let port = select_port()?;
-    let profile = cdp_profile_path()?;
-    ensure_directory(&profile)?;
-    let arguments = managed_runtime_arguments(port, &profile);
-    state.port = Some(port);
-    write_session(state)?;
-    launch_codex(install, &arguments)?;
-    ensure_monitor(paths.clone());
-    wake_monitor();
-    wait_for_targets(port, CODEX_RENDERER_START_TIMEOUT)?;
-    state.session = NativeRuntimeStatus::Active;
-    write_session(state)?;
-    refresh_models_after_runtime_ready(paths);
-    Ok(())
-}
-
 fn verify_runtime_skin(mode: SkinVerificationMode, port: Option<u16>) -> Result<(), String> {
+    if !runtime_enhancements_enabled() {
+        return Ok(());
+    }
     let skin_installed = marker_path()?.is_file();
     let skin_paused = pause_path()?.is_file();
     if skin_verification_required(skin_installed, skin_paused) {
@@ -142,6 +104,7 @@ pub(crate) fn setup_runtime(app: &AppHandle) -> Result<(), String> {
 }
 
 fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String> {
+    ensure_skin_allowed()?;
     initialize_store()?;
     if restart_chatgpt {
         load_theme(&active_theme_root()?).map_err(|_| {
@@ -177,6 +140,7 @@ pub(crate) fn install(app: &AppHandle) -> Result<(), String> {
 }
 
 fn ensure_installed(app: &AppHandle) -> Result<RuntimePaths, String> {
+    ensure_skin_allowed()?;
     if !marker_path()?.is_file() {
         install_unlocked(app, false)?;
     }
@@ -194,8 +158,8 @@ pub(crate) fn apply_theme(app: &AppHandle, theme_id: &str) -> Result<(), String>
         .lock()
         .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
     // A running Dream Skin session watches the active theme payload and
-    // reinjects it when its revision changes.  Only the initial installation
-    // needs a managed launch to give ChatGPT/Codex its CDP arguments.
+    // reinjects it when its revision changes. Initial installation and returning
+    // from an ordinary launch both need a renderer channel before injection.
     let already_installed = marker_path()?.is_file();
     let paths = ensure_installed(app)?;
     let directory = if BUILT_IN_THEME_IDS.contains(&theme_id) {
@@ -206,7 +170,7 @@ pub(crate) fn apply_theme(app: &AppHandle, theme_id: &str) -> Result<(), String>
     };
     copy_theme_to_active(&directory)?;
     let _ = fs::remove_file(pause_path()?);
-    if already_installed {
+    if already_installed && read_session().port.is_some() {
         ensure_monitor(paths);
         wake_monitor();
         Ok(())
@@ -289,7 +253,7 @@ pub(crate) fn import_image(
     copy_theme_to_active(&staging)?;
     save_current_theme(&options.name)?;
     let _ = fs::remove_file(pause_path()?);
-    if already_installed {
+    if already_installed && read_session().port.is_some() {
         ensure_monitor(paths);
         wake_monitor();
         Ok(())

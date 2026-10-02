@@ -2,6 +2,17 @@ fn runtime_proxy_running() -> bool {
     crate::local_proxy::is_running()
 }
 
+fn runtime_enhancements_enabled() -> bool {
+    crate::client_integration::enabled_for(runtime_proxy_running())
+}
+
+fn ensure_skin_allowed() -> Result<(), String> {
+    if runtime_enhancements_enabled() {
+        return Ok(());
+    }
+    Err("请先在设置中开启「ChatGPT 增强功能」，再使用皮肤。".to_string())
+}
+
 fn is_skin_surface_url(value: &str) -> bool {
     let Ok(url) = Url::parse(value) else {
         return false;
@@ -141,7 +152,7 @@ fn monitor_iteration(
         injected.clear();
         *last_port = Some(port);
     }
-    let paused = !skin_enabled || pause_path()?.is_file();
+    let paused = !runtime_enhancements_enabled() || !skin_enabled || pause_path()?.is_file();
     let payload = if paused {
         None
     } else {

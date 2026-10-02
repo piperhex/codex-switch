@@ -167,7 +167,7 @@ fn check_existing_channel(
 pub(crate) fn inspect_connection(
     action: ConnectionAction,
 ) -> Result<CodexConnectionResult, ConnectionError> {
-    if MONITOR.get().is_none() {
+    if !super::runtime_enhancements_enabled() || MONITOR.get().is_none() {
         return Ok(CodexConnectionResult {
             state: CodexConnectionState::Unsupported,
             restart_required: false,

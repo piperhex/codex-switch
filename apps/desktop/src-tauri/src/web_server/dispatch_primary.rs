@@ -37,6 +37,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "get_app_info" => serialize(crate::commands::get_app_info(app)),
         "list_accounts" => serialize(block_on(crate::commands::list_accounts(app))),
         "get_app_settings" => serialize(block_on(crate::floating_bubble::get_app_settings(app))),
+        "set_non_proxy_enhancements" => serialize(block_on(
+            crate::client_integration::set_non_proxy_enhancements(app, argument(&args, "enabled")?),
+        )),
         "set_claude_code_write_target" => serialize(block_on(
             crate::claude_code::set_claude_code_write_target(
                 app,

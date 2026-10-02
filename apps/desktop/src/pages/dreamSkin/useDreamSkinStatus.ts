@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal } from "antd";
-import { loadDreamSkinResourcesStatus, loadDreamSkinStatus } from "../../api/backend";
+import { loadDreamSkinResourcesStatus, loadDreamSkinStatus, subscribeToProviderEvents } from "../../api/backend";
 import type { Translate } from "../../i18n";
 import type { DreamSkinResourcesStatus, DreamSkinStatus } from "../../types";
 import type { StatusState } from "./types";
@@ -12,8 +12,11 @@ export function useDreamSkinStatus(t: Translate, notify: (message: string) => vo
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const refreshing = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (refreshing.current) return;
+    refreshing.current = true;
     setLoading(true);
     try {
       setStatus(await loadDreamSkinStatus());
@@ -21,15 +24,21 @@ export function useDreamSkinStatus(t: Translate, notify: (message: string) => vo
     } catch (loadError) {
       setError(String(loadError));
     } finally {
+      refreshing.current = false;
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  useEffect(() => subscribeToProviderEvents(refresh), [refresh]);
+
   useEffect(() => {
     let cancelled = false;
+    let inFlight = false;
     const poll = () => {
+      if (inFlight) return;
+      inFlight = true;
       void loadDreamSkinResourcesStatus()
         .then((next) => { if (!cancelled) setResources(next); })
         .catch((resourceError) => {
@@ -43,7 +52,7 @@ export function useDreamSkinStatus(t: Translate, notify: (message: string) => vo
             totalBytes: current?.totalBytes,
             error: String(resourceError),
           }));
-        });
+        }).finally(() => { inFlight = false; });
     };
     poll();
     const timer = window.setInterval(poll, 750);

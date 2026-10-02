@@ -44,6 +44,11 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
     return <div className="dream-skin-page"><Alert showIcon type="warning"
       message={t("dreamSkin.unsupported.title")} description={t("dreamSkin.unsupported.description")} /></div>;
   }
+  if (status?.available === false) {
+    return <div className="dream-skin-page"><Alert showIcon type="info"
+      message={t("settings.chatGptEnhancements.skinDisabledTitle")}
+      description={t("settings.chatGptEnhancements.skinDisabledDescription")} /></div>;
+  }
 
   return <div className="dream-skin-page">
     <DreamSkinAlerts error={error} resources={resources} resourcePercent={resourcePercent}

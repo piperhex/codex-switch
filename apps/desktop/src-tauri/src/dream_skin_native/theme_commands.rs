@@ -175,7 +175,8 @@ fn list_saved_themes() -> Vec<DreamSkinThemeSummary> {
 
 pub(crate) fn status(platform: &str) -> DreamSkinStatus {
     let installed = marker_path().is_ok_and(|path| path.is_file());
-    let paused = pause_path().is_ok_and(|path| path.is_file());
+    let available = runtime_enhancements_enabled();
+    let paused = !available || pause_path().is_ok_and(|path| path.is_file());
     let session_state = read_session();
     let active = active_theme_root()
         .ok()
@@ -191,6 +192,8 @@ pub(crate) fn status(platform: &str) -> DreamSkinStatus {
     };
     DreamSkinStatus {
         supported: true,
+        available,
+        restart_required: session_state.port.is_none(),
         platform: platform.to_string(),
         installed,
         runtime_installed: installed,

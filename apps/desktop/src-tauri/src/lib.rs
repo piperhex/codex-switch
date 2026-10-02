@@ -12,6 +12,7 @@ mod chrome_plugin;
 mod claude_code;
 mod claude_code_provider;
 mod claude_desktop;
+mod client_integration;
 mod cloud;
 mod codex_api;
 mod codex_config;
@@ -161,6 +162,7 @@ pub fn run() {
             codex_home::initialize_paths(app.handle())?;
             storage::migrate_app_settings_for_version(app.handle())?;
             let settings = storage::read_app_settings(app.handle())?;
+            client_integration::setup(app.handle())?;
             if let Err(error) = error_logs::setup(app.handle()) {
                 eprintln!("failed to initialize error logs: {error}");
             }
@@ -528,6 +530,7 @@ pub fn run() {
             floating_bubble::get_app_settings,
             autostart::set_launch_at_startup,
             main_window::set_close_to_tray,
+            client_integration::set_non_proxy_enhancements,
             floating_bubble::set_floating_bubble,
             floating_bubble::set_privacy_mode,
             floating_bubble::set_hide_account_notes,

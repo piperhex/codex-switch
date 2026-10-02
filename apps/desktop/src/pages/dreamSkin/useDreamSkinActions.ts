@@ -65,9 +65,9 @@ function useImportActions(options: SharedOptions) {
       );
       if (ok) setImportOpen(false);
     };
-    if (status?.installed) await operation();
+    if (status?.installed && !status.restartRequired) await operation();
     else confirmChatGptRestart(operation);
-  }, [confirmChatGptRestart, importOptions, importPath, runStatusOperation, status?.installed, t]);
+  }, [confirmChatGptRestart, importOptions, importPath, runStatusOperation, status, t]);
 
   return { chooseCustomImage, importOpen, importOptions, setImportOpen, setImportOptions, submitImport };
 }
@@ -93,11 +93,11 @@ function useSaveActions(options: SharedOptions) {
 type ThemeOptions = SharedOptions & Pick<CatalogState, "refreshMarket" | "setCommunityThemes">;
 
 function runInstalledOperation(
-  installed: boolean | undefined,
+  status: DreamSkinStatus | null,
   operation: () => Promise<unknown>,
   confirmChatGptRestart: (operation: () => Promise<unknown>) => void,
 ) {
-  if (installed) void operation();
+  if (status?.installed && !status.restartRequired) void operation();
   else confirmChatGptRestart(operation);
 }
 
@@ -113,8 +113,8 @@ export function useThemeActions(options: ThemeOptions): ThemeActions {
       () => applyDreamSkinTheme(themeId),
       t("dreamSkin.toast.applied"),
     );
-    runInstalledOperation(status?.installed, operation, confirmChatGptRestart);
-  }, [confirmChatGptRestart, runStatusOperation, status?.installed, t]);
+    runInstalledOperation(status, operation, confirmChatGptRestart);
+  }, [confirmChatGptRestart, runStatusOperation, status, t]);
 
   const changeAppearance = useCallback((appearance: DreamSkinAppearance) => {
     void runStatusOperation(
@@ -159,8 +159,8 @@ export function useThemeActions(options: ThemeOptions): ThemeActions {
       },
       marketSuccessMessage(theme, t),
     );
-    runInstalledOperation(status?.installed, operation, confirmChatGptRestart);
-  }, [applyTheme, confirmChatGptRestart, refreshMarket, runStatusOperation, status?.installed, t]);
+    runInstalledOperation(status, operation, confirmChatGptRestart);
+  }, [applyTheme, confirmChatGptRestart, refreshMarket, runStatusOperation, status, t]);
 
   const installAndApplyCommunityTheme = useCallback((theme: DreamSkinCommunityTheme) => {
     if (theme.installed && !theme.updateAvailable) return applyTheme(theme.themeId);
@@ -176,8 +176,8 @@ export function useThemeActions(options: ThemeOptions): ThemeActions {
       },
       marketSuccessMessage(theme, t),
     );
-    runInstalledOperation(status?.installed, operation, confirmChatGptRestart);
-  }, [applyTheme, confirmChatGptRestart, runStatusOperation, setCommunityThemes, status?.installed, t]);
+    runInstalledOperation(status, operation, confirmChatGptRestart);
+  }, [applyTheme, confirmChatGptRestart, runStatusOperation, setCommunityThemes, status, t]);
 
   return {
     applyTheme,

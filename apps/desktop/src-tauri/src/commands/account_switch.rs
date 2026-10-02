@@ -166,7 +166,9 @@ fn deactivate_account_unlocked<R: Runtime>(
     if proxy_running && write_codex {
         crate::providers::refresh_official_codex_models();
     }
-    crate::claude_code::sync_after_switch(app)?;
+    if crate::client_integration::enabled_for(proxy_running) {
+        crate::claude_code::sync_after_switch(app)?;
+    }
     crate::system_tray::refresh_menu(app);
     Ok(Some(account_id))
 }

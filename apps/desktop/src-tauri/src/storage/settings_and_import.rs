@@ -128,6 +128,7 @@ pub(crate) fn read_app_settings<R: Runtime>(
         .unwrap_or_default();
     model_context_settings::apply_saved_context_settings(&path, &mut settings)?;
     language_settings::apply_saved_language(&path, &mut settings);
+    settings.non_proxy_enhancements_enabled = crate::client_integration::read_preference(&path)?;
     Ok(settings)
 }
 

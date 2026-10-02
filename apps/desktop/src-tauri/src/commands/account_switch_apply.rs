@@ -59,14 +59,14 @@ fn apply_account_switch<R: Runtime>(
     } = context;
     let state = official_account_state(&original_state, id, reason);
     let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
+    let enhancements_enabled = crate::client_integration::enabled_for(proxy_running);
     if !write_codex {
         write_state(&paths, &state)?;
     } else if proxy_running {
         write_proxy_account_state(app, &paths, &state, &original_state)?;
     } else {
         for target in resolve_enabled_paths(app)? {
-            write_json_atomic(&target.current_auth, &selected)?;
-            crate::providers::restore_official_config(&target)?;
+            write_direct_account_auth(&target, &selected, enhancements_enabled)?;
         }
         write_state(&paths, &state)?;
     }
@@ -77,9 +77,17 @@ fn apply_account_switch<R: Runtime>(
         AccountSwitchCompletion {
             proxy_running,
             write_codex,
-            refresh_model_catalog: reason.refreshes_official_model_catalog(),
+            refresh_model_catalog: enhancements_enabled && reason.refreshes_official_model_catalog(),
         },
     )
+}
+
+fn write_direct_account_auth(paths: &Paths, auth: &Value, enhancements_enabled: bool) -> Result<(), String> {
+    write_json_atomic(&paths.current_auth, auth)?;
+    if enhancements_enabled {
+        crate::providers::restore_official_config(paths)?;
+    }
+    Ok(())
 }
 
 fn official_account_state(
@@ -135,7 +143,9 @@ fn finish_account_switch<R: Runtime>(
     if completion.refresh_model_catalog {
         crate::official_models::refresh_after_account_switch(id);
     }
-    crate::claude_code::sync_after_switch(app)?;
+    if crate::client_integration::enabled_for(completion.proxy_running) {
+        crate::claude_code::sync_after_switch(app)?;
+    }
     crate::system_tray::refresh_menu(app);
     Ok(())
 }

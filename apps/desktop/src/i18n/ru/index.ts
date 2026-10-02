@@ -7,6 +7,15 @@ import { messages6 } from "./messages6";
 import { messages7 } from "./messages7";
 
 export const russian = {
+  "settings.chatGptEnhancements.title": "Дополнительные функции ChatGPT",
+  "settings.chatGptEnhancements.label": "Включить дополнительные функции",
+  "settings.chatGptEnhancements.description": "Действует вне режима прокси. При отключении смена аккаунта "
+    + "по-прежнему перезапускает ChatGPT, но обновляет только данные входа, без оформления.",
+  "settings.chatGptEnhancements.nextLaunch": "Режим запуска изменится при следующем запуске ChatGPT или смене аккаунта.",
+  "settings.chatGptEnhancements.loadError": "Не удалось загрузить настройку. Откройте настройки заново.",
+  "settings.chatGptEnhancements.saveError": "Не удалось сохранить настройку. Повторите попытку.",
+  "settings.chatGptEnhancements.skinDisabledTitle": "Оформление ChatGPT отключено",
+  "settings.chatGptEnhancements.skinDisabledDescription": "Включите дополнительные функции ChatGPT в настройках.",
   ...messages1,
   ...messages2,
   ...messages3,

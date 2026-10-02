@@ -3,6 +3,9 @@ fn renderer_recovery_required(skin_active: bool, proxy_running: bool) -> bool {
 }
 
 fn recovery_is_enabled() -> Result<bool, String> {
+    if !runtime_enhancements_enabled() {
+        return Ok(false);
+    }
     let skin_active = marker_path()?.is_file() && !pause_path()?.is_file();
     Ok(renderer_recovery_required(
         skin_active,

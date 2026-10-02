@@ -111,6 +111,7 @@ mod compatible_json_import_tests {
     }
 
     include!("compatible_import_tests.rs");
+    include!("direct_account_auth_tests.rs");
     include!("account_usage_tests.rs");
     include!("conversation_sync_tests.rs");
 }

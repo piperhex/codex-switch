@@ -134,8 +134,7 @@ pub(crate) fn refresh_usage_summary() {
     crate::dream_skin_native::notify_usage_summary_changed();
 }
 
-/// Relaunches Codex with the local renderer channel. Theme injection remains
-/// controlled exclusively by Dream Skin's installation and pause state.
+/// Relaunches Codex, enabling the renderer channel only when enhancements are allowed.
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub(crate) fn restart_managed_session(executable: Option<&Path>) -> Result<(), String> {
     crate::dream_skin_native::restart_runtime_session(executable)
@@ -237,6 +236,9 @@ fn next_model_refresh_generation() -> u64 {
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 fn apply_model_refresh(generation: u64, request: ModelRefreshRequest) {
+    if !crate::client_integration::enabled_for(crate::local_proxy::is_running()) {
+        return;
+    }
     let _guard = MODEL_REFRESH_LOCK
         .get_or_init(|| Mutex::new(()))
         .lock()
