@@ -59,8 +59,14 @@ async fn native_capture_reaches_a_real_browser_decoder() {
         (token.clone(), stopped.clone()),
     );
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    let upgrading = std::env::var_os("CSW_NATIVE_TEST_UPGRADE").is_some();
+    let script = if upgrading {
+        "native-desktop-upgrade.mjs"
+    } else {
+        "native-desktop-stream.mjs"
+    };
     let result = tokio::process::Command::new("node")
-        .arg(root.join("apps/desktop/e2e/native-desktop-stream.mjs"))
+        .arg(root.join("apps/desktop/e2e").join(script))
         .env("CSW_NATIVE_TEST_ENDPOINT", endpoint)
         .env("CSW_NATIVE_TEST_TOKEN", token)
         .env("CSW_NATIVE_TEST_ASPECT", aspect.to_string())
@@ -77,7 +83,12 @@ async fn native_capture_reaches_a_real_browser_decoder() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    if std::env::var_os("CSW_NATIVE_TEST_ICE").is_some() {
+    if upgrading {
+        assert!(
+            matches!(connection, Some(Connection::Direct)),
+            "native upgraded to direct pair"
+        );
+    } else if std::env::var_os("CSW_NATIVE_TEST_ICE").is_some() {
         assert!(
             matches!(connection, Some(Connection::Relay)),
             "native selected relay pair"

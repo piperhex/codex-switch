@@ -63,20 +63,46 @@ pub(crate) struct OpenRequest {
 }
 
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct SignalRequest {
     pub id: String,
     pub answer: Option<String>,
     pub candidates: Vec<serde_json::Value>,
+    pub direct_upgrade: Option<DirectUpgrade>,
+}
+
+#[derive(Clone, Copy, Deserialize, Serialize)]
+pub(crate) struct DirectUpgrade {
+    pub generation: u32,
+    pub action: UpgradeAction,
+}
+
+#[derive(Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum UpgradeAction {
+    Start,
+    Signal,
+    Commit,
+    Cancel,
 }
 
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct Offer {
     pub sdp: String,
+    #[serde(default)]
+    pub direct_upgrade: bool,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub(crate) struct SignalReply {
     pub candidates: Vec<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sdp: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub committed: Option<bool>,
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]

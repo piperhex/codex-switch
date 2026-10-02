@@ -1,5 +1,5 @@
 import { object, type IceServer } from '../../../../shared/remote-chat/protocol';
-import { validateSettings, type DesktopOffer, type DesktopSettings, type DesktopSignal }
+import { validateSettings, type DesktopOffer, type DesktopSettings, type DesktopSignal, type DesktopSignalReply }
   from '../../../../shared/remote-desktop/protocol';
 import { HostSession } from './hostSession';
 import type { ConnectionDiagnostic } from '../../../../shared/remote-chat/diagnostics';
@@ -8,7 +8,7 @@ export interface DesktopHostSession {
   readonly closed: boolean;
   open(): Promise<DesktopOffer>;
   close(): unknown;
-  signal(signal: DesktopSignal): Promise<{ candidates: RTCIceCandidateInit[] }>;
+  signal(signal: DesktopSignal): Promise<DesktopSignalReply>;
   update(settings: DesktopSettings): Promise<void>;
   renew?(expiresAt: number): Promise<void>;
 }

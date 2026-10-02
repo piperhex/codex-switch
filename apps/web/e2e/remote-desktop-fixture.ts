@@ -5,7 +5,9 @@ import type { IceServer } from '../../../shared/remote-chat/protocol';
 import { clipboardFixture, desktopClipboard } from './remote-desktop-clipboard-fixture';
 import type { ClipboardContent, ClipboardMessage } from '../../../shared/remote-desktop/clipboard';
 
-declare global { interface Window { desktopRelayFixture?: { iceServers: IceServer[] } } }
+declare global { interface Window { desktopRelayFixture?: {
+  iceServers: IceServer[]; upgrade?: boolean; failDirectAttempts?: number; loseCommitReply?: boolean;
+} } }
 
 const canvas = document.createElement('canvas');
 // Supply a real Opus source through the existing video fixture to exercise the production receiver.
@@ -104,7 +106,9 @@ Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {
 if (window.desktopRelayFixture) {
   const Peer = window.RTCPeerConnection;
   window.RTCPeerConnection = new Proxy(Peer, { construct(target, args: [RTCConfiguration?]) {
-    const peer = new target({ ...args[0], iceTransportPolicy: 'relay' });
+    const blocked = 2 + 2 * (window.desktopRelayFixture?.failDirectAttempts ?? 0);
+    const relay = !window.desktopRelayFixture?.upgrade || desktopTest.peers.length < blocked;
+    const peer = new target({ ...args[0], iceTransportPolicy: relay ? 'relay' : 'all' });
     peer.addEventListener('icecandidateerror', event => desktopTest.iceErrors.push(`${event.errorCode}: ${event.errorText}`));
     peer.addEventListener('icecandidate', event => {
       if (event.candidate) desktopTest.iceErrors.push(`candidate: ${event.candidate.type} ${event.candidate.protocol}`);
@@ -115,7 +119,7 @@ if (window.desktopRelayFixture) {
 }
 const host = new RemoteDesktopHost(); host.register('fixture', window.desktopRelayFixture?.iceServers ?? []);
 export async function desktopRequest<T>(body: object): Promise<T> {
-  const request = body as { action: string; settings?: DesktopSettings };
+  const request = body as { action: string; settings?: DesktopSettings; directUpgrade?: { action: string } };
   // Windows WebKit has no WebRTC. Its layout tests hold signaling while Chromium tests real media separately.
   if (request.action === 'open' && new URLSearchParams(location.search).has('layout-only')) {
     return new Promise<T>(() => {});
@@ -123,6 +127,9 @@ export async function desktopRequest<T>(body: object): Promise<T> {
   if (request.settings) desktopTest.settings.push(request.settings);
   try {
     const result = await host.request(body, 'fixture');
+    if (request.directUpgrade?.action === 'commit' && window.desktopRelayFixture?.loseCommitReply) {
+      window.desktopRelayFixture.loseCommitReply = false; throw new Error('Fixture lost commit reply');
+    }
     if (request.action === 'open' && new URLSearchParams(location.search).has('legacy')) {
       delete (result as { capabilities?: unknown }).capabilities;
     }

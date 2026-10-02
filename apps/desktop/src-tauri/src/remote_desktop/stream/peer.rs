@@ -26,6 +26,9 @@ pub(super) struct Peer {
     pub audio: Arc<TrackLocalStaticSample>,
     pub feedback: tokio::sync::watch::Receiver<super::feedback::Feedback>,
     pub transports: super::turn_transport::Transports,
+    pub candidates: tokio::sync::Mutex<Vec<serde_json::Value>>,
+    pub ice: tokio::sync::Mutex<super::model::IceDiagnostics>,
+    pub signaling: tokio::sync::Mutex<()>,
 }
 
 pub(super) async fn create(mut servers: Vec<IceServer>, separate_clipboard: bool) -> Result<Peer> {
@@ -53,7 +56,13 @@ pub(super) async fn create(mut servers: Vec<IceServer>, separate_clipboard: bool
     };
     #[cfg(test)]
     let configuration = RTCConfiguration {
-        ice_transport_policy: if std::env::var_os("CSW_NATIVE_TEST_ICE").is_some() {
+        ice_transport_policy: if std::env::var_os("CSW_NATIVE_TEST_ICE").is_some()
+            && configuration.ice_servers.iter().any(|server| {
+                server
+                    .urls
+                    .iter()
+                    .any(|url| url.starts_with("turn:") || url.starts_with("turns:"))
+            }) {
             webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy::Relay
         } else {
             webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy::All
@@ -103,101 +112,139 @@ pub(super) async fn create(mut servers: Vec<IceServer>, separate_clipboard: bool
         audio,
         feedback,
         transports,
+        candidates: tokio::sync::Mutex::new(Vec::new()),
+        ice: tokio::sync::Mutex::new(super::model::IceDiagnostics::default()),
+        signaling: tokio::sync::Mutex::new(()),
     })
 }
 
-pub(super) fn bind(
-    stream: &Arc<Stream>,
-    inputs: tokio::sync::mpsc::Sender<bytes::Bytes>,
-    clipboard: tokio::sync::mpsc::Sender<bytes::Bytes>,
-) {
-    let weak = Arc::downgrade(stream);
-    if !Arc::ptr_eq(&stream.peer.clipboard, &stream.peer.controls) {
-        stream.peer.clipboard.on_message(Box::new(move |message| {
-            receive(&weak, &clipboard, message);
-            Box::pin(async {})
-        }));
+pub(super) fn bind(stream: &Arc<Stream>, peer: &Arc<Peer>) {
+    bind_candidates(peer);
+    bind_state(stream, peer);
+    bind_channel(stream, peer, false);
+    if !Arc::ptr_eq(&peer.clipboard, &peer.controls) {
+        bind_channel(stream, peer, true);
     }
+}
+
+fn bind_candidates(peer: &Arc<Peer>) {
+    let weak = Arc::downgrade(peer);
+    peer.connection.on_ice_candidate(Box::new(move |candidate| {
+        let weak = weak.clone();
+        Box::pin(async move {
+            let (Some(peer), Some(candidate)) = (weak.upgrade(), candidate) else {
+                return;
+            };
+            let candidate = candidate
+                .to_json()
+                .ok()
+                .and_then(|value| serde_json::to_value(value).ok());
+            let Some(candidate) = candidate else {
+                // Candidate serialization failure leaves other gathered paths available.
+                eprintln!("desktop candidate serialization failed");
+                return;
+            };
+            peer.ice.lock().await.local_candidates += 1;
+            let mut pending = peer.candidates.lock().await;
+            if pending.len() < super::MAX_CANDIDATES {
+                pending.push(candidate);
+            }
+        })
+    }));
+}
+
+fn bind_state(stream: &Arc<Stream>, peer: &Arc<Peer>) {
     let weak = Arc::downgrade(stream);
-    stream
-        .peer
-        .connection
-        .on_ice_candidate(Box::new(move |candidate| {
-            let weak = weak.clone();
-            Box::pin(async move {
-                let (Some(stream), Some(candidate)) = (weak.upgrade(), candidate) else {
-                    return;
-                };
-                let Ok(candidate) = candidate.to_json() else {
-                    stream.cancel.send_replace(true);
-                    return;
-                };
-                let Ok(candidate) = serde_json::to_value(candidate) else {
-                    stream.cancel.send_replace(true);
-                    return;
-                };
-                stream.stats.lock().await.ice.local_candidates += 1;
-                let mut pending = stream.candidates.lock().await;
-                if pending.len() < super::MAX_CANDIDATES {
-                    pending.push(candidate);
-                }
-            })
-        }));
-    let weak = Arc::downgrade(stream);
-    stream
-        .peer
-        .connection
+    let peer_weak = Arc::downgrade(peer);
+    peer.connection
         .on_peer_connection_state_change(Box::new(move |state| {
-            let weak = weak.clone();
+            let (weak, peer_weak) = (weak.clone(), peer_weak.clone());
             Box::pin(async move {
-                if let Some(stream) = weak.upgrade() {
-                    stream.stats.lock().await.ice.state = state.to_string();
-                    if matches!(
-                        state,
-                        RTCPeerConnectionState::Failed | RTCPeerConnectionState::Closed
-                    ) {
-                        stream.cancel.send_replace(true);
+                if let (Some(stream), Some(peer)) = (weak.upgrade(), peer_weak.upgrade()) {
+                    peer.ice.lock().await.state = state.to_string();
+                    if Arc::ptr_eq(&stream.peer.borrow(), &peer) {
+                        stream.stats.lock().await.ice = peer.ice.lock().await.clone();
+                        if matches!(
+                            state,
+                            RTCPeerConnectionState::Failed | RTCPeerConnectionState::Closed
+                        ) {
+                            stream.cancel.send_replace(true);
+                        }
                     }
                 }
             })
         }));
+}
+
+fn bind_channel(stream: &Arc<Stream>, peer: &Arc<Peer>, clipboard: bool) {
+    let channel = if clipboard {
+        &peer.clipboard
+    } else {
+        &peer.controls
+    };
     let weak = Arc::downgrade(stream);
-    stream.peer.controls.on_open(Box::new(move || {
-        if let Some(stream) = weak.upgrade() {
-            stream.connected.send_replace(true);
+    let peer_weak = Arc::downgrade(peer);
+    channel.on_message(Box::new(move |message| {
+        let (weak, peer_weak) = (weak.clone(), peer_weak.clone());
+        Box::pin(async move {
+            receive(weak, peer_weak, message, clipboard).await;
+        })
+    }));
+    if clipboard {
+        return;
+    }
+    let weak = Arc::downgrade(stream);
+    let peer_weak = Arc::downgrade(peer);
+    channel.on_open(Box::new(move || {
+        if let (Some(stream), Some(peer)) = (weak.upgrade(), peer_weak.upgrade()) {
+            if Arc::ptr_eq(&stream.peer.borrow(), &peer) {
+                stream.connected.send_replace(true);
+            }
         }
         Box::pin(async {})
     }));
     let weak = Arc::downgrade(stream);
-    stream.peer.controls.on_message(Box::new(move |message| {
-        receive(&weak, &inputs, message);
-        Box::pin(async {})
-    }));
-    let weak = Arc::downgrade(stream);
-    stream.peer.controls.on_close(Box::new(move || {
-        if let Some(stream) = weak.upgrade() {
-            stream.cancel.send_replace(true);
+    let peer_weak = Arc::downgrade(peer);
+    channel.on_close(Box::new(move || {
+        if let (Some(stream), Some(peer)) = (weak.upgrade(), peer_weak.upgrade()) {
+            if Arc::ptr_eq(&stream.peer.borrow(), &peer) {
+                stream.cancel.send_replace(true);
+            }
         }
         Box::pin(async {})
     }));
 }
 
-fn receive(
-    weak: &Weak<Stream>,
-    inputs: &tokio::sync::mpsc::Sender<bytes::Bytes>,
+async fn receive(
+    weak: Weak<Stream>,
+    peer: Weak<Peer>,
     message: DataChannelMessage,
+    clipboard: bool,
 ) {
-    let Some(stream) = weak.upgrade() else {
+    let (Some(stream), Some(peer)) = (weak.upgrade(), peer.upgrade()) else {
         return;
     };
+    if !Arc::ptr_eq(&stream.peer.borrow(), &peer)
+        && !super::direct::is_retiring(&stream, &peer).await
+    {
+        return;
+    }
     if !message.is_string || message.data.len() > 64 * 1024 {
         stream.cancel.send_replace(true);
         return;
     }
     if message.data.as_ref() == br#"{"kind":"ping"}"# {
         stream.heartbeat.send_replace(std::time::Instant::now());
+        if Arc::ptr_eq(&stream.peer.borrow(), &peer) {
+            super::direct::retire(&stream).await;
+        }
         return;
     }
+    let inputs = if clipboard {
+        &stream.clipboard_inputs
+    } else {
+        &stream.inputs
+    };
     if inputs.try_send(message.data).is_err() {
         stream.cancel.send_replace(true);
     }

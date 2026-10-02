@@ -16,9 +16,15 @@ export interface DesktopCapabilities {
   keyboard?: boolean; clipboard?: boolean; horizontalScroll?: boolean; control?: boolean;
 }
 export interface DesktopOffer extends DesktopDisplays {
-  sdp: string; iceServers: IceServer[]; capabilities?: DesktopCapabilities;
+  sdp: string; iceServers: IceServer[]; capabilities?: DesktopCapabilities; directUpgrade?: boolean;
 }
-export interface DesktopSignal { answer?: string; candidates: RTCIceCandidateInit[] }
+export interface DirectUpgrade { generation: number; action: 'start' | 'signal' | 'commit' | 'cancel' }
+export interface DesktopSignal {
+  answer?: string; candidates: RTCIceCandidateInit[]; directUpgrade?: DirectUpgrade;
+}
+export interface DesktopSignalReply {
+  candidates: RTCIceCandidateInit[]; sdp?: string; generation?: number; committed?: boolean;
+}
 export interface DesktopStats {
   audio?: 'starting' | 'playing' | 'unavailable';
   fps: number; width: number; height: number; bitrate: number; connection?: 'direct' | 'relay';
@@ -36,7 +42,7 @@ export type DesktopInput =
 export interface DesktopClient {
   diagnostic?: import('../remote-chat/diagnostics').ConnectionDiagnostic;
   open(id: string, settings: DesktopSettings): Promise<DesktopOffer>;
-  signal(id: string, signal: DesktopSignal): Promise<{ candidates: RTCIceCandidateInit[] }>;
+  signal(id: string, signal: DesktopSignal): Promise<DesktopSignalReply>;
   settings(id: string, settings: DesktopSettings): Promise<void>;
   close(id: string): Promise<void>;
 }

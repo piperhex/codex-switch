@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { IceServer } from '../../../../shared/remote-chat/protocol';
-import type { DesktopDisplays, DesktopSettings, DesktopSignal } from '../../../../shared/remote-desktop/protocol';
+import type { DesktopDisplays, DesktopSettings, DesktopSignal, DesktopSignalReply }
+  from '../../../../shared/remote-desktop/protocol';
 import { openDesktopCapture } from './displays';
 import { diagnosticError } from '../../../../shared/remote-chat/iceCandidate';
 import type { ConnectionDiagnostic, DiagnosticFields } from '../../../../shared/remote-chat/diagnostics';
@@ -40,7 +41,7 @@ export class NativeDesktopSession {
 
   private async openStream() {
     try {
-      return await invoke<{ sdp: string }>('remote_desktop_stream_open', { request: {
+      return await invoke<{ sdp: string; directUpgrade?: boolean }>('remote_desktop_stream_open', { request: {
         id: this.id, profile: profile(this.settings), clipboardChannel: this.settings.clipboardChannel === true,
         iceServers: this.iceServers.map(server => ({ ...server,
           urls: Array.isArray(server.urls) ? server.urls : [server.urls] })),
@@ -53,7 +54,7 @@ export class NativeDesktopSession {
   }
 
   signal(signal: DesktopSignal) {
-    return invoke<{ candidates: RTCIceCandidateInit[] }>('remote_desktop_stream_signal', {
+    return invoke<DesktopSignalReply>('remote_desktop_stream_signal', {
       request: { ...signal, id: this.id },
     });
   }

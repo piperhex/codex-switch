@@ -1,6 +1,6 @@
 import type { IceServer } from '../../../../shared/remote-chat/protocol';
 import { DesktopAdaptation, type NetworkSample } from '../../../../shared/remote-desktop/adaptation';
-import type { DesktopSettings, DesktopSignal } from '../../../../shared/remote-desktop/protocol';
+import type { DesktopSettings, DesktopSignal, DesktopSignalReply } from '../../../../shared/remote-desktop/protocol';
 import { DesktopCapture } from './capture';
 import { DesktopControls } from './controls';
 import { MAX_CONTROL_MESSAGE_BYTES } from '../../../../shared/remote-desktop/clipboard';
@@ -8,24 +8,29 @@ import { RtcObserver } from '../../../../shared/remote-chat/rtcObserver';
 import { addIceCandidate } from '../../../../shared/remote-chat/iceCandidate';
 import type { ConnectionDiagnostic } from '../../../../shared/remote-chat/diagnostics';
 
+import { BrowserDesktopDirectHost, type BrowserDesktopPeer } from './directHost';
+
 const HEARTBEAT_TIMEOUT = 12_000;
 const SETUP_TIMEOUT = 30_000;
 const STATS_INTERVAL = 2000;
 const MAX_CANDIDATES = 128;
 
 export class DesktopHostSession {
-  private readonly pc: RTCPeerConnection;
+  private pc: RTCPeerConnection;
+  private readonly initialPc: RTCPeerConnection;
   private readonly capture = new DesktopCapture();
   private readonly adaptation = new DesktopAdaptation();
   private readonly controls = new DesktopControls(this.capture, () => this.fail(), message => {
     if (this.channel.readyState === 'open') this.channel.send(JSON.stringify(message));
   });
-  private readonly channel: RTCDataChannel;
-  private readonly clipboardChannel: RTCDataChannel;
+  private channel: RTCDataChannel;
+  private clipboardChannel: RTCDataChannel;
   private readonly clipboardControls = new DesktopControls(this.capture, () => this.clipboardChannel.close(), message => {
     if (this.clipboardChannel.readyState === 'open') this.clipboardChannel.send(JSON.stringify(message));
   });
   private sender?: RTCRtpSender;
+  private media?: MediaStream;
+  private readonly direct: BrowserDesktopDirectHost;
   private candidates: RTCIceCandidateInit[] = [];
   private receivedCandidates = 0;
   private stopped = false;
@@ -34,12 +39,15 @@ export class DesktopHostSession {
   private lastStats = 0;
   private frames = 0;
   private settings: DesktopSettings;
-  private readonly observer?: RtcObserver;
+  private observer?: RtcObserver;
 
   constructor(settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number,
     private readonly diagnostic?: ConnectionDiagnostic) {
+    this.direct = new BrowserDesktopDirectHost({ iceServers, stream: () => this.media,
+      bind: peer => this.bind(peer), activate: peer => this.activate(peer) });
     this.settings = settings;
     this.pc = new RTCPeerConnection({ iceServers });
+    this.initialPc = this.pc;
     if (diagnostic) this.observer = new RtcObserver(this.pc, diagnostic);
     this.channel = this.pc.createDataChannel('remote-desktop-controls', { ordered: true });
     this.clipboardChannel = settings.clipboardChannel
@@ -48,26 +56,32 @@ export class DesktopHostSession {
     this.bind();
   }
 
-  private bind() {
-    if (this.clipboardChannel !== this.channel) this.clipboardChannel.addEventListener('message', ({ data }) => {
-      if (this.stopped || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
+  private bind(peer: BrowserDesktopPeer = { pc: this.pc, channel: this.channel, clipboard: this.clipboardChannel }) {
+    const { pc, channel, clipboard: clipboardChannel } = peer;
+    if (clipboardChannel !== channel) clipboardChannel.addEventListener('message', ({ data }) => {
+      if (this.stopped || (this.pc !== pc && !this.direct.isRetiring(pc))
+        || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
       try {
         if ((JSON.parse(data) as { kind?: string }).kind !== 'clipboard') return;
         this.clipboardControls.receive(data);
-      } catch { this.clipboardChannel.close(); }
+      } catch { clipboardChannel.close(); }
     });
-    this.pc.addEventListener('icecandidate', ({ candidate }) => {
-      if (candidate && this.candidates.length < MAX_CANDIDATES) this.candidates.push(candidate.toJSON());
+    pc.addEventListener('icecandidate', ({ candidate }) => {
+      if (this.pc === pc && candidate && this.candidates.length < MAX_CANDIDATES) {
+        this.candidates.push(candidate.toJSON());
+      }
     });
-    this.pc.addEventListener('connectionstatechange', () => {
-      if (['failed', 'closed'].includes(this.pc.connectionState)) this.close();
+    pc.addEventListener('connectionstatechange', () => {
+      if (this.pc === pc && ['failed', 'closed'].includes(pc.connectionState)) this.close();
     });
-    this.channel.addEventListener('close', () => this.close());
-    this.channel.addEventListener('message', ({ data }) => {
-      if (this.stopped || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) {
+    channel.addEventListener('close', () => { if (this.pc === pc) this.close(); });
+    channel.addEventListener('message', ({ data }) => {
+      if (this.stopped || (this.pc !== pc && !this.direct.isRetiring(pc))) return;
+      if (typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) {
         this.fail(); return;
       }
       if (data === '{"kind":"ping"}') {
+        if (this.pc === pc) this.direct.retire();
         clearTimeout(this.expires); this.expires = setTimeout(() => this.close(), HEARTBEAT_TIMEOUT); return;
       }
       try { this.controls.receive(data); } catch { this.fail(); }
@@ -77,6 +91,7 @@ export class DesktopHostSession {
   async open() {
     const stream = await this.capture.open(this.adaptation.profile(this.settings).width, this.settings.displayId, this.expiresAt);
     if (this.stopped) throw new Error('桌面连接已结束。');
+    this.media = stream;
     this.sender = this.pc.addTrack(stream.getVideoTracks()[0], stream);
     // Android's bundled decoder factory offers native H.264 hardware decoding with native software fallback.
     const codecs = RTCRtpSender.getCapabilities('video')?.codecs;
@@ -90,11 +105,13 @@ export class DesktopHostSession {
     await this.pc.setLocalDescription(offer);
     this.lastStats = performance.now();
     void this.tick();
-    return { sdp: offer.sdp ?? '', iceServers: this.iceServers, ...this.capture.displays };
+    return { sdp: offer.sdp ?? '', iceServers: this.iceServers, directUpgrade: true, ...this.capture.displays };
   }
 
-  async signal(signal: DesktopSignal) {
+  async signal(signal: DesktopSignal): Promise<DesktopSignalReply> {
     if (this.stopped) throw new Error('桌面连接已结束，请重新连接。');
+    if (signal.directUpgrade) return this.direct.signal(signal);
+    if (this.pc !== this.initialPc) return { candidates: [] };
     if (!Array.isArray(signal.candidates) || signal.candidates.length + this.receivedCandidates > MAX_CANDIDATES) {
       throw new Error('桌面连接信息无效。');
     }
@@ -113,6 +130,17 @@ export class DesktopHostSession {
       await addIceCandidate(this.pc, candidate, this.diagnostic);
     }
     return { candidates: this.candidates.splice(0) };
+  }
+
+  private activate(peer: BrowserDesktopPeer): BrowserDesktopPeer {
+    const previous = { pc: this.pc, channel: this.channel, clipboard: this.clipboardChannel };
+    this.pc = peer.pc; this.channel = peer.channel; this.clipboardChannel = peer.clipboard;
+    this.sender = peer.sender; this.candidates.length = 0; this.receivedCandidates = 0;
+    this.observer?.close();
+    if (this.diagnostic) {
+      this.observer = new RtcObserver(peer.pc, this.diagnostic); void this.observer.snapshot();
+    }
+    return previous;
   }
 
   update(settings: DesktopSettings) { this.settings = settings; }
@@ -179,7 +207,7 @@ export class DesktopHostSession {
   close() {
     if (this.stopped) return this.capture.close();
     this.stopped = true; clearTimeout(this.timer); clearTimeout(this.expires);
-    this.observer?.close(); this.diagnostic?.('desktop-closed');
+    this.direct.close(); this.observer?.close(); this.diagnostic?.('desktop-closed');
     this.clipboardControls.close(); this.clipboardChannel.close();
     this.controls.close(); this.channel.close(); this.pc.close(); return this.capture.close();
   }

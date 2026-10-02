@@ -10,6 +10,8 @@ mod candidates;
 #[cfg(windows)]
 mod capture_recovery;
 #[cfg(windows)]
+mod direct;
+#[cfg(windows)]
 mod encoder;
 #[cfg(windows)]
 mod feedback;
@@ -26,6 +28,8 @@ mod peer;
 mod pump;
 #[cfg(windows)]
 mod sample;
+#[cfg(windows)]
+mod signaling;
 #[cfg(all(test, windows))]
 mod stack_test;
 #[cfg(windows)]

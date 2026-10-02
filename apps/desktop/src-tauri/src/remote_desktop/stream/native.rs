@@ -10,13 +10,17 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::{mpsc, watch, Mutex};
-use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
 pub(super) struct Stream {
     pub id: String,
     pub display: super::super::monitors::Monitor,
-    pub peer: Peer,
-    pub candidates: Mutex<Vec<serde_json::Value>>,
+    pub peer: watch::Sender<Arc<Peer>>,
+    pub initial_peer: std::sync::Weak<Peer>,
+    pub upgrades: Mutex<super::direct::Upgrades>,
+    pub ice_servers: Vec<IceServer>,
+    pub separate_clipboard: bool,
+    pub inputs: mpsc::Sender<bytes::Bytes>,
+    pub clipboard_inputs: mpsc::Sender<bytes::Bytes>,
     pub profile: watch::Sender<Profile>,
     pub connected: watch::Sender<bool>,
     pub cancel: watch::Sender<bool>,
@@ -24,7 +28,6 @@ pub(super) struct Stream {
     pub stats: Mutex<StreamStats>,
     pub last_frame: Mutex<Instant>,
     pub audio: Mutex<AudioState>,
-    received_candidates: Mutex<usize>,
 }
 
 impl Stream {
@@ -39,18 +42,27 @@ impl Stream {
         let display = super::capture_recovery::display(&request.id).await?;
         let (mut encoder, _) =
             super::capture_recovery::open(&path, profile, &display, &request.id).await?;
-        let peer = match peer::create(request.ice_servers, request.clipboard_channel).await {
+        let peer = match peer::create(request.ice_servers.clone(), request.clipboard_channel).await
+        {
             Ok(peer) => peer,
             Err(error) => {
                 encoder.stop().await;
                 return Err(error);
             }
         };
+        let (inputs, receiver) = mpsc::channel(64);
+        let (clipboard, clipboard_receiver) = mpsc::channel(8);
+        let peer = Arc::new(peer);
         let stream = Arc::new(Self {
             id: request.id,
             display,
-            peer,
-            candidates: Mutex::new(Vec::new()),
+            peer: watch::channel(Arc::clone(&peer)).0,
+            initial_peer: Arc::downgrade(&peer),
+            upgrades: Mutex::new(super::direct::Upgrades::default()),
+            ice_servers: request.ice_servers,
+            separate_clipboard: request.clipboard_channel,
+            inputs,
+            clipboard_inputs: clipboard,
             profile: watch::channel(profile).0,
             connected: watch::channel(false).0,
             cancel: watch::channel(false).0,
@@ -58,12 +70,9 @@ impl Stream {
             stats: Mutex::new(StreamStats::default()),
             last_frame: Mutex::new(Instant::now()),
             audio: Mutex::new(AudioState::Starting),
-            received_candidates: Mutex::new(0),
         });
-        let (inputs, receiver) = mpsc::channel(64);
-        let (clipboard, clipboard_receiver) = mpsc::channel(8);
-        peer::bind(&stream, inputs, clipboard);
-        let offer = stream.offer().await;
+        peer::bind(&stream, &peer);
+        let offer = peer.offer().await;
         if offer.is_err() {
             encoder.stop().await;
             stream.close().await;
@@ -76,58 +85,23 @@ impl Stream {
         Ok((stream, offer))
     }
 
-    async fn offer(&self) -> Result<Offer> {
-        let offer = self
-            .peer
-            .connection
-            .create_offer(None)
-            .await
-            .map_err(|_| DesktopError::Platform)?;
-        let sdp = offer.sdp.clone();
-        self.peer
-            .connection
-            .set_local_description(offer)
-            .await
-            .map_err(|_| DesktopError::Platform)?;
-        Ok(Offer { sdp })
-    }
-
-    pub async fn signal(&self, request: SignalRequest) -> Result<SignalReply> {
-        let mut received = self.received_candidates.lock().await;
-        if request.candidates.len() + *received > super::MAX_CANDIDATES {
-            return Err(DesktopError::Invalid);
+    pub async fn signal(self: &Arc<Self>, request: SignalRequest) -> Result<SignalReply> {
+        if *self.cancel.borrow() {
+            return Err(DesktopError::Expired);
         }
-        if let Some(answer) = request.answer {
-            if answer.len() > 64_000 || self.peer.connection.remote_description().await.is_some() {
-                return Err(DesktopError::Invalid);
-            }
-            let description =
-                RTCSessionDescription::answer(answer).map_err(|_| DesktopError::Invalid)?;
-            self.peer
-                .connection
-                .set_remote_description(description)
-                .await
-                .map_err(|_| DesktopError::Platform)?;
+        if let Some(upgrade) = request.direct_upgrade {
+            return super::direct::signal(self, upgrade, request).await;
         }
-        // Count rejected candidates too, so unsupported addresses cannot bypass the session limit.
-        *received += request.candidates.len();
-        let rejected = super::candidates::apply(&self.peer.connection, request.candidates).await?;
-        let mut stats = self.stats.lock().await;
-        stats.ice.remote_candidates = *received;
-        stats.ice.rejected_candidates += rejected;
-        drop(stats);
-        Ok(SignalReply {
-            candidates: self.candidates.lock().await.drain(..).collect(),
-        })
+        let peer = self.initial_peer.upgrade().ok_or(DesktopError::Expired)?;
+        peer.signal(request).await
     }
 
     pub async fn close(&self) {
         self.cancel.send_replace(true);
         self.stats.lock().await.closed = true;
-        if let Err(error) = self.peer.connection.close().await {
-            eprintln!("desktop media cleanup: {error}");
-        }
-        self.peer.transports.close();
+        let peer = Arc::clone(&self.peer.borrow());
+        peer.close().await;
+        super::direct::close(self).await;
     }
 
     pub async fn keep_alive(&self) -> Result<()> {

@@ -7,6 +7,7 @@ import { monitorDesktopStats } from './statsMonitor';
 import { addIceCandidate, diagnosticError } from '../remote-chat/iceCandidate';
 import { RtcObserver } from '../remote-chat/rtcObserver';
 import { connectionDiagnostic, type ConnectionDiagnostic, type DiagnosticFields } from '../remote-chat/diagnostics';
+import { DesktopDirectUpgrade, type DirectPeer } from './directUpgrade';
 
 interface ReceiverOptions {
   client: DesktopClient;
@@ -46,6 +47,7 @@ export class DesktopReceiver {
   private muted = false;
   private readonly diagnostic: ConnectionDiagnostic;
   private observer?: RtcObserver;
+  private upgrade?: DesktopDirectUpgrade;
   private capabilities: DesktopCapabilities = {};
   private audioTracks = new Set<MediaStreamTrack>();
   readonly clipboard = new DesktopClipboard(message => {
@@ -71,6 +73,10 @@ export class DesktopReceiver {
       this.options.displays?.(offer);
       const pc = this.options.createPeer({ iceServers: offer.iceServers });
       this.pc = pc;
+      if (offer.directUpgrade) this.upgrade = new DesktopDirectUpgrade({
+        createPeer: this.options.createPeer, iceServers: offer.iceServers,
+        signal: signal => this.options.client.signal(this.id, signal), activate: peer => this.activate(peer),
+      });
       this.observer = new RtcObserver(pc, this.diagnostic);
       this.bindPeer(pc);
       await pc.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
@@ -88,10 +94,10 @@ export class DesktopReceiver {
 
   private bindPeer(pc: RTCPeerConnection) {
     pc.addEventListener('icecandidate', event => {
-      if (event.candidate && !this.stopped) this.candidates.push(event.candidate.toJSON());
+      if (event.candidate && !this.stopped && this.pc === pc) this.candidates.push(event.candidate.toJSON());
     });
     pc.addEventListener('track', event => {
-      if (this.stopped) return;
+      if (this.stopped || this.pc !== pc) return;
       if (event.track.kind === 'audio') {
         this.audioTracks.add(event.track);
         event.track.enabled = !this.muted;
@@ -102,15 +108,14 @@ export class DesktopReceiver {
       if (!this.media.getTracks().some(track => track.id === event.track.id)) this.media.addTrack(event.track);
       this.options.stream(this.media);
     });
-    pc.addEventListener('datachannel', event => this.bindChannel(event.channel));
+    pc.addEventListener('datachannel', event => { if (this.pc === pc) this.bindChannel(event.channel); });
     pc.addEventListener('connectionstatechange', () => {
+      if (this.stopped || this.pc !== pc) return;
       if (pc.connectionState === 'connected') {
         clearTimeout(this.timeout); clearTimeout(this.recoveryTimeout);
         this.recoveryTimeout = undefined;
         this.options.status(''); this.options.connected?.();
-        this.stopStats ??= monitorDesktopStats(pc, stats => {
-          this.measured = stats; this.options.stats({ ...this.hostStats, ...stats });
-        });
+        this.startStats(pc);
       } else if (['failed', 'closed'].includes(pc.connectionState) && !this.stopped) {
         this.fail('桌面连接已断开，请重新连接。');
       } else if (pc.connectionState === 'disconnected') {
@@ -120,29 +125,60 @@ export class DesktopReceiver {
     });
   }
 
+  private startStats(pc: RTCPeerConnection) {
+    this.stopStats ??= monitorDesktopStats(pc, stats => {
+      this.measured = stats; this.options.stats({ ...this.hostStats, ...stats }); this.upgrade?.update(stats);
+    });
+  }
+
+  private activate(peer: DirectPeer) {
+    if (this.stopped) { peer.pc.close(); return; }
+    const previous = this.pc;
+    clearTimeout(this.poll); clearTimeout(this.recoveryTimeout); clearInterval(this.heartbeat);
+    this.observer?.close(); this.stopStats?.(); this.stopStats = undefined;
+    this.clipboard.cancel(); this.audioTracks.clear(); this.candidates.length = 0;
+    this.pc = peer.pc; this.media = peer.stream; this.clipboardChannel = undefined;
+    for (const track of peer.stream.getAudioTracks()) {
+      track.enabled = !this.muted; this.audioTracks.add(track);
+    }
+    this.bindPeer(peer.pc); this.bindChannel(peer.channel);
+    if (peer.clipboard) this.bindChannel(peer.clipboard);
+    this.observer = new RtcObserver(peer.pc, this.diagnostic);
+    void this.observer.snapshot();
+    this.options.stream(peer.stream); this.options.audio?.(this.audioTracks.size > 0);
+    this.options.status(''); this.startStats(peer.pc); previous?.close();
+  }
+
   private bindChannel(channel: RTCDataChannel) {
     if (this.stopped) { channel.close(); return; }
     if (channel.label === 'remote-desktop-clipboard') {
       this.clipboardChannel = channel;
-      channel.addEventListener('close', () => { this.clipboardChannel = undefined; this.clipboard.cancel(); });
+      channel.addEventListener('close', () => {
+        if (this.clipboardChannel === channel) { this.clipboardChannel = undefined; this.clipboard.cancel(); }
+      });
       channel.addEventListener('message', ({ data }) => {
-        if (this.stopped || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
+        if (this.stopped || this.clipboardChannel !== channel
+          || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
         try { this.clipboard.receive(JSON.parse(data) as ClipboardReply); }
         catch { this.clipboard.cancel(); }
       });
       return;
     }
     this.channel = channel;
-    channel.addEventListener('open', () => {
-      if (this.stopped) return;
+    const opened = () => {
+      if (this.stopped || this.channel !== channel) return;
       const ping = () => { if (channel.readyState === 'open') channel.send('{"kind":"ping"}'); };
+      clearInterval(this.heartbeat);
       ping(); this.heartbeat = setInterval(ping, HEARTBEAT_INTERVAL);
-    });
+    };
+    channel.addEventListener('open', opened);
+    if (channel.readyState === 'open') opened();
     channel.addEventListener('close', () => {
-      if (!this.stopped) this.fail('桌面连接已断开，请重新连接。');
+      if (!this.stopped && this.channel === channel) this.fail('桌面连接已断开，请重新连接。');
     });
     channel.addEventListener('message', ({ data }) => {
-      if (this.stopped || typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
+      if (this.stopped || this.channel !== channel || typeof data !== 'string'
+        || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
       try {
         const message = JSON.parse(data) as DesktopStats & { kind?: string; message?: string };
         if (message.kind === 'clipboard') { this.clipboard.receive(message as unknown as ClipboardReply); return; }
@@ -155,21 +191,24 @@ export class DesktopReceiver {
   }
 
   private async signal(answer?: string) {
-    if (this.stopped) return;
+    const pc = this.pc;
+    if (this.stopped || !pc) return;
     try {
       const reply = await this.options.client.signal(this.id, { answer, candidates: this.candidates.splice(0) });
-      if (this.stopped) return;
+      if (this.stopped || this.pc !== pc) return;
       for (const candidate of reply.candidates) {
-        if (this.stopped || !this.pc) return;
+        if (this.stopped || this.pc !== pc) return;
         this.observer?.candidate(candidate, 'remote');
-        await addIceCandidate(this.pc, candidate, this.diagnostic);
+        await addIceCandidate(pc, candidate, this.diagnostic);
       }
+      if (this.stopped || this.pc !== pc) return;
       // Single flight. Keep gathering late ICE candidates until connected, then stop polling.
-      if (this.pc?.connectionState !== 'connected' || this.candidates.length
-        || this.pc.iceGatheringState !== 'complete') {
+      if (pc.connectionState !== 'connected' || this.candidates.length || pc.iceGatheringState !== 'complete') {
         this.poll = setTimeout(() => { void this.signal(); }, SIGNAL_INTERVAL);
       }
-    } catch (error) { this.fail('桌面连接未能建立，请检查网络后重试。', diagnosticError(error)); }
+    } catch (error) {
+      if (!this.stopped && this.pc === pc) this.fail('桌面连接未能建立，请检查网络后重试。', diagnosticError(error));
+    }
   }
 
   input(input: DesktopInput) {
@@ -206,6 +245,7 @@ export class DesktopReceiver {
     if (this.stopped) return this.closing ?? Promise.resolve();
     this.stopped = true;
     this.diagnostic('desktop-closed'); this.observer?.close();
+    this.upgrade?.close();
     this.clipboard.stop();
     clearTimeout(this.poll); clearTimeout(this.timeout); clearInterval(this.heartbeat);
     clearTimeout(this.recoveryTimeout);

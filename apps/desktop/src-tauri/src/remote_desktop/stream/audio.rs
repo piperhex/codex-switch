@@ -122,7 +122,7 @@ async fn capture(stream: &Stream, path: &Path, previous: &mut std::time::Instant
 async fn send(stream: &Stream, packet: Vec<u8>, elapsed: Duration) -> Result<()> {
     tokio::time::timeout(
         Duration::from_millis(250),
-        super::sample::write_frame(&stream.peer.audio, packet, elapsed),
+        super::direct::write(stream, packet, elapsed, true),
     )
     .await
     .map_err(|_| DesktopError::Platform)??;

@@ -64,7 +64,8 @@ async fn video(stream: &Arc<Stream>, path: PathBuf, encoder: &mut Encoder) -> Re
     wait_connected(stream).await?;
     let mut cancel = stream.cancel.subscribe();
     let mut settings = stream.profile.subscribe();
-    let mut feedback = stream.peer.feedback.clone();
+    let mut peers = stream.peer.subscribe();
+    let mut feedback = peers.borrow().feedback.clone();
     let mut keyframe_version = 0;
     let mut keyframe_at = Instant::now() - Duration::from_secs(1);
     let mut interval = tokio::time::interval(Duration::from_secs(2));
@@ -83,8 +84,17 @@ async fn video(stream: &Arc<Stream>, path: PathBuf, encoder: &mut Encoder) -> Re
         }
         tokio::select! {
             _ = cancel.changed() => return Ok(()),
+            _ = peers.changed() => {
+                feedback = peers.borrow_and_update().feedback.clone();
+                keyframe_version = 0;
+                encoder.request_keyframe().await?;
+            },
             changed = feedback.changed() => {
-                if changed.is_err() { return Err(DesktopError::Platform); }
+                if changed.is_err() {
+                    if !peers.has_changed().unwrap_or(false) { return Err(DesktopError::Platform); }
+                    feedback = peers.borrow_and_update().feedback.clone();
+                    continue;
+                }
                 let requested = feedback.borrow_and_update().keyframes;
                 if requested != keyframe_version && keyframe_at.elapsed() >= Duration::from_millis(250) {
                     if let Err(error) = encoder.request_keyframe().await {
@@ -154,7 +164,7 @@ async fn monitor(
     stream.keep_alive().await?;
     report(stream, encoder, progress.frames, progress.started).await?;
     let bitrate = (progress.bytes as f64 * 8.0 / progress.started.elapsed().as_secs_f64()) as u32;
-    let feedback = *stream.peer.feedback.borrow();
+    let feedback = *stream.peer.borrow().feedback.borrow();
     if let Some(profile) = progress.rate.sample(feedback, bitrate) {
         reconfigure(stream, path, encoder, profile).await?;
     }
@@ -173,7 +183,7 @@ async fn send_frame(stream: &Stream, data: Vec<u8>) -> Result<()> {
     // A slow sender must not build an unbounded queue of stale desktop frames.
     tokio::time::timeout(
         Duration::from_millis(250),
-        super::sample::write_frame(&stream.peer.video, data, duration),
+        super::direct::write(stream, data, duration, false),
     )
     .await
     .map_err(|_| DesktopError::Platform)?
@@ -182,8 +192,8 @@ async fn send_frame(stream: &Stream, data: Vec<u8>) -> Result<()> {
 async fn report(stream: &Stream, encoder: &Encoder, frames: u32, started: Instant) -> Result<()> {
     use super::model::Connection;
     use webrtc::ice_transport::ice_candidate_type::RTCIceCandidateType;
-    let connection = stream
-        .peer
+    let peer = Arc::clone(&stream.peer.borrow());
+    let connection = peer
         .connection
         .sctp()
         .transport()
@@ -208,19 +218,17 @@ async fn report(stream: &Stream, encoder: &Encoder, frames: u32, started: Instan
             closed: false,
             connection,
             audio,
-            ice: current.ice.clone(),
+            ice: peer.ice.lock().await.clone(),
         };
         *current = stats.clone();
         stats
     };
     let mut message = serde_json::to_value(&stats).map_err(|_| DesktopError::Platform)?;
     message["kind"] = "stats".into();
-    stream
-        .peer
-        .controls
-        .send_text(message.to_string())
-        .await
-        .map_err(|_| DesktopError::Platform)?;
+    let sent = peer.controls.send_text(message.to_string()).await;
+    if Arc::ptr_eq(&stream.peer.borrow(), &peer) {
+        sent.map_err(|_| DesktopError::Platform)?;
+    }
     Ok(())
 }
 
@@ -253,12 +261,14 @@ pub(super) async fn inputs(
             }
         };
         if let Some(reply) = reply {
+            let peer = Arc::clone(&stream.peer.borrow());
             let channel = if clipboard {
-                &stream.peer.clipboard
+                &peer.clipboard
             } else {
-                &stream.peer.controls
+                &peer.controls
             };
-            if channel.send_text(reply).await.is_err() {
+            if channel.send_text(reply).await.is_err() && Arc::ptr_eq(&stream.peer.borrow(), &peer)
+            {
                 stream.cancel.send_replace(true);
                 return;
             }
