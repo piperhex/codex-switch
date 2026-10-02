@@ -6,6 +6,7 @@ import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { decodeChatUtf8 } from '../utf8';
 import type { Channel } from '../protocol';
 import type { TcpSocket } from './types';
+import { connectionEndpoint } from '../connectionEndpoints';
 
 const MAX_PACKET_BYTES = 128 * 1024;
 const HANDSHAKE_TIMEOUT_MS = 5000;
@@ -37,6 +38,12 @@ export class TcpChannel implements Channel {
 
   get readyState() { return this.state; }
   get bufferedAmount() { return this.options.socket.bufferedAmount; }
+  get connectionEndpoints() {
+    if (this.state !== 'open') return;
+    const socket = this.options.socket;
+    return { local: connectionEndpoint(socket.localAddress, socket.localPort, 'tcp'),
+      remote: connectionEndpoint(socket.remoteAddress, socket.remotePort, 'tcp') };
+  }
   onOpen(callback: () => void) { this.opened.add(callback); }
   onClose(callback: () => void) { if (this.state === 'closed') callback(); else this.closed.add(callback); }
   onMessage(callback: (text: string) => void) { this.messages.add(callback); }

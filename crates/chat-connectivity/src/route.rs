@@ -13,6 +13,35 @@ pub struct RouteStatus {
     pub protocol: Option<String>,
     pub ipv6: bool,
     pub rtt_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_endpoint: Option<RouteEndpoint>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_endpoint: Option<RouteEndpoint>,
+}
+
+/// IP and port of the selected physical tunnel, for local connection details only.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct RouteEndpoint {
+    pub host: String,
+    pub port: u16,
+}
+
+fn endpoint(address: &easytier_proto::common::Url) -> Option<RouteEndpoint> {
+    let address = url::Url::parse(&address.url).ok()?;
+    let host = match address.host()? {
+        url::Host::Ipv4(ip) if !ip.is_unspecified() => ip.to_string(),
+        url::Host::Ipv6(ip) if !ip.is_unspecified() => ip.to_string(),
+        url::Host::Domain(host) => {
+            let ip = host.parse::<std::net::IpAddr>().ok()?;
+            if ip.is_unspecified() {
+                return None;
+            }
+            ip.to_string()
+        }
+        _ => return None,
+    };
+    let port = address.port().filter(|port| *port > 0)?;
+    Some(RouteEndpoint { host, port })
 }
 
 /// A private virtual address reachable through a rendezvous relay must never count as P2P.
@@ -38,6 +67,7 @@ pub(super) fn from_snapshots(
     let Some(connection) = selected_connection(peer) else {
         return RouteStatus::default();
     };
+    let tunnel = connection.tunnel.as_ref();
     RouteStatus {
         direct: true,
         protocol: connection
@@ -49,6 +79,17 @@ pub(super) fn from_snapshots(
             .stats
             .as_ref()
             .map(|stats| stats.latency_us / 1000),
+        local_endpoint: tunnel
+            .and_then(|tunnel| tunnel.local_addr.as_ref())
+            .and_then(endpoint),
+        remote_endpoint: tunnel
+            .and_then(|tunnel| {
+                tunnel
+                    .resolved_remote_addr
+                    .as_ref()
+                    .or(tunnel.remote_addr.as_ref())
+            })
+            .and_then(endpoint),
     }
 }
 

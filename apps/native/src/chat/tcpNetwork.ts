@@ -27,6 +27,8 @@ function port(socket: Socket): SocketPort {
   return {
     get localAddress() { return socket.localAddress ?? ''; },
     get localPort() { return socket.localPort ?? 0; },
+    get remoteAddress() { return socket.remoteAddress; },
+    get remotePort() { return socket.remotePort; },
     get bufferedAmount() { return writing; },
     write: data => {
       if (closed || writing + data.length > MAX_BUFFER_BYTES) throw new Error('TCP path busy');

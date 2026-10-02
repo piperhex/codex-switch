@@ -50,6 +50,25 @@ it('renders detected endpoints on native with complete IPv6 addresses and ports'
   expect(content).not.toContain('尚未识别');
 });
 
+it('shows the active P2P pair separately and hides it immediately on relay or reconnect', () => {
+  const state: ChatState = { ...initialChatState(), mode: 'direct', ready: true, directEndpoints: {
+    local: { host: '192.168.1.4', port: 45678, protocol: 'tcp' },
+    remote: { host: '2001:db8:1234:5678:abcd:ef01:2345:6789', port: 65535, protocol: 'tcp' },
+  } };
+  const render = () => text(ChatConnectionHealth({ state,
+    device: { online: true }, reconnect: vi.fn(), close: vi.fn() }));
+  expect(render()).toContain('当前 P2P 连接');
+  expect(render()).toContain('192.168.1.4:45678 · TCP');
+  expect(render()).toContain('[2001:db8:1234:5678:abcd:ef01:2345:6789]:65535 · TCP');
+  for (const mode of ['relay', 'connecting', 'offline'] as const) {
+    state.mode = mode;
+    expect(render()).not.toContain('当前 P2P 连接');
+    expect(render()).not.toContain('192.168.1.4');
+  }
+  state.mode = 'direct'; state.directEndpoints = undefined;
+  expect(render().match(/暂无法获取/g)).toHaveLength(2);
+});
+
 it('keeps routine progress hidden and renders uncertain delivery and failures', () => {
   const state: ChatState = { ...initialChatState(), ready: true, mode: 'relay',
     selected: { id: 'thread', cwd: '', preview: '', updatedAt: 0,

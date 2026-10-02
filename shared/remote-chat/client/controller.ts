@@ -100,6 +100,7 @@ export class ChatController {
       mode: (mode) => this.changeMode(mode), error: (error) => this.update({ error, connectionIssue: error }),
       stage: (connectionStage) => this.update({ connectionStage }),
       publicEndpoints: (publicEndpoints) => this.update({ publicEndpoints }),
+      directEndpoints: (directEndpoints) => this.update({ directEndpoints }),
       delivery: (value) => {
         const turn = this.state.selected?.id === value.threadId ? this.state.selected.turns?.at(-1) : undefined;
         const receipt = value.phase === 'sending' ? { ...value, afterTurnId: turn?.id,

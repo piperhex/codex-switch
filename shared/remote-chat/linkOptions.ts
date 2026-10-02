@@ -2,6 +2,7 @@ import type { ConnectionMode, IceServer, PeerFactory, RpcMessage } from './proto
 import type { PacketCipherFactory } from './packetCipher';
 
 export interface LinkOptions {
+  directEndpoints?: (value?: import('./connectionEndpoints').ConnectionEndpoints) => void;
   sessionId: string;
   desktop: boolean;
   secret: Uint8Array;

@@ -1,4 +1,10 @@
 export const reliabilityEnglish: Readonly<Record<string, string>> = {
+  '当前 P2P 连接': 'Current P2P connection',
+  '本机 IP 和端口': 'This device’s IP and port',
+  '电脑 IP 和端口': 'Computer’s IP and port',
+  '暂无法获取': 'Currently unavailable',
+  '显示当前直连使用的地址，可能是局域网地址。':
+    'Addresses used by the current direct connection, which may be local network addresses.',
   '本机公网 IP 和端口': 'This device’s public IP and port',
   '电脑公网 IP 和端口': 'Computer’s public IP and port',
   '尚未识别': 'Not detected yet',
@@ -81,6 +87,12 @@ export const reliabilityEnglish: Readonly<Record<string, string>> = {
 };
 
 export const reliabilityRussian: Readonly<Record<string, string>> = {
+  '当前 P2P 连接': 'Текущее P2P-подключение',
+  '本机 IP 和端口': 'IP и порт этого устройства',
+  '电脑 IP 和端口': 'IP и порт компьютера',
+  '暂无法获取': 'Пока недоступно',
+  '显示当前直连使用的地址，可能是局域网地址。':
+    'Адреса текущего прямого подключения, в том числе адреса локальной сети.',
   '本机公网 IP 和端口': 'Публичный IP и порт этого устройства',
   '电脑公网 IP 和端口': 'Публичный IP и порт компьютера',
   '尚未识别': 'Пока не определены',

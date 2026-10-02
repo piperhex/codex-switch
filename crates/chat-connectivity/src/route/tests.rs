@@ -58,6 +58,11 @@ fn verified_udp_and_tcp_punches_are_direct_even_without_non_punched_connections(
                 protocol: Some(protocol.into()),
                 ipv6: false,
                 rtt_ms: Some(24),
+                local_endpoint: None,
+                remote_endpoint: Some(RouteEndpoint {
+                    host: "192.0.2.1".into(),
+                    port: 11010
+                }),
             }
         );
     }
@@ -133,4 +138,61 @@ fn reports_the_selected_punched_connections_resolved_address_family() {
         url: "udp://[2001:db8::1]:11010".into(),
     });
     assert!(from_snapshots(&routes, &peers, REMOTE_NAME).ipv6);
+}
+
+#[test]
+fn endpoints_follow_the_selected_tunnel_and_clear_when_the_route_is_lost() {
+    let (mut routes, mut peers) = fixture("udp", true);
+    let tunnel = peers[0].conns[0].tunnel.as_mut().unwrap();
+    tunnel.local_addr = Some(Url {
+        url: "udp://192.168.1.2:40000".into(),
+    });
+    tunnel.resolved_remote_addr = Some(Url {
+        url: "udp://[2001:db8::8]:42000".into(),
+    });
+    let status = from_snapshots(&routes, &peers, REMOTE_NAME);
+    assert_eq!(
+        status.local_endpoint,
+        Some(RouteEndpoint {
+            host: "192.168.1.2".into(),
+            port: 40000
+        })
+    );
+    assert_eq!(
+        status.remote_endpoint,
+        Some(RouteEndpoint {
+            host: "2001:db8::8".into(),
+            port: 42000
+        })
+    );
+    let serialized = serde_json::to_value(&status).unwrap();
+    assert_eq!(serialized["remoteEndpoint"]["host"], "2001:db8::8");
+    routes[0].cost = 2;
+    let lost = from_snapshots(&routes, &peers, REMOTE_NAME);
+    assert!(lost.local_endpoint.is_none());
+    assert!(lost.remote_endpoint.is_none());
+}
+
+#[test]
+fn endpoints_never_expose_hostnames_credentials_or_wildcard_bindings() {
+    for address in [
+        "udp://0.0.0.0:1234",
+        "udp://[::]:1234",
+        "tcp://host.example:1234",
+        "invalid",
+    ] {
+        assert!(endpoint(&Url {
+            url: address.into()
+        })
+        .is_none());
+    }
+    assert_eq!(
+        endpoint(&Url {
+            url: "tcp://user:secret@192.0.2.1:1234/path".into()
+        }),
+        Some(RouteEndpoint {
+            host: "192.0.2.1".into(),
+            port: 1234
+        })
+    );
 }

@@ -87,10 +87,14 @@ it('bounds the number of rendered addresses and publishes connection facts to ch
   const publicEndpoints = changed.mock.lastCall![0];
   expect(publicEndpoints.local).toHaveLength(MAX_PUBLIC_ENDPOINTS);
   const controller = new ChatController(events => {
-    return { start() { events.publicEndpoints?.(publicEndpoints); }, stop() {},
+    return { start() { events.publicEndpoints?.(publicEndpoints);
+      events.directEndpoints?.({ local: publicEndpoints.local[0], remote: publicEndpoints.remote[0] }); },
+      stop() { events.directEndpoints?.(); },
       request: async <T>() => ({} as T) };
   });
   controller.start();
   expect(controller.snapshot().publicEndpoints).toEqual(publicEndpoints);
+  expect(controller.snapshot().directEndpoints?.local).toEqual(publicEndpoints.local[0]);
   controller.stop();
+  expect(controller.snapshot().directEndpoints).toBeUndefined();
 });

@@ -2,6 +2,7 @@ import type { Channel } from './protocol';
 import type { ConnectionDiagnostic } from './diagnostics';
 import { sanitizeDiagnostic, type DiagnosticFields } from './diagnosticSchema';
 import type { NativeMediaEndpoint, NativeMediaRoute, NativeMediaSession } from '../remote-desktop/nativeMedia';
+import { connectionEndpoint, type ConnectionEndpoints } from './connectionEndpoints';
 
 export interface NativeTraversalConfig { secret: string; servers: string[]; stunServers: string[]; expiresAt: number }
 export interface NativePathOptions {
@@ -20,7 +21,8 @@ export type NativePathEvent = { type: 'open' | 'closed' } | { type: 'data'; text
       | 'peerUdpNatType' | 'attempt' | 'durationMs' | 'sockets' | 'predictedPorts' | 'probesSent' | 'probesReceived'
       | 'matchedProbes' | 'rejectedProbes' | 'probeSendErrors' | 'probeReceiveErrors'
       | 'handshakeAttempts' | 'handshakeFailures'> }
-  | { type: 'status'; route: { direct: boolean; protocol?: string; ipv6: boolean; rttMs?: number } };
+  | { type: 'status'; route: { direct: boolean; protocol?: string; ipv6: boolean; rttMs?: number;
+    localEndpoint?: { host: string; port: number } | null; remoteEndpoint?: { host: string; port: number } | null } };
 export interface NativePathBridge {
   open(options: NativePathOptions, event: (event: NativePathEvent) => void): Promise<string>;
   send(id: string, text: string): Promise<void>;
@@ -34,6 +36,7 @@ const MAX_BUFFER = 512 * 1024;
 
 /** The native engine persists across ICE generations and reports P2P only for a verified direct route. */
 export class NativePath implements Channel {
+  private endpoints?: ConnectionEndpoints;
   private state = 'connecting';
   private pending = 0;
   private outgoing = Promise.resolve();
@@ -50,6 +53,7 @@ export class NativePath implements Channel {
     });
   }
   get readyState() { return this.state; }
+  get connectionEndpoints() { return this.state === 'open' ? this.endpoints : undefined; }
   renew(expiresAt: number) {
     if (this.state === 'closed' || !Number.isSafeInteger(expiresAt)) return;
     void this.id.then(id => this.bridge.renew?.(id, expiresAt)).catch(() => this.close());
@@ -89,6 +93,11 @@ export class NativePath implements Channel {
       this.messages.forEach(callback => callback(event.text));
     } else if (event.type === 'status') {
       if (!event.route.direct) this.state = 'connecting';
+      const { localEndpoint: local, remoteEndpoint: remote, protocol } = event.route;
+      this.endpoints = event.route.direct ? {
+        local: connectionEndpoint(local?.host, local?.port, protocol),
+        remote: connectionEndpoint(remote?.host, remote?.port, protocol),
+      } : undefined;
       this.options.diagnostic?.('path-state', { transport: 'mesh',
         state: event.route.direct ? 'connected' : 'disconnected',
         ipv6: event.route.ipv6, rttMs: event.route.rttMs });

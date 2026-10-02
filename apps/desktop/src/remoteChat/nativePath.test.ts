@@ -56,6 +56,21 @@ it('releases a native handle that arrives after the owner has closed', async () 
   await vi.waitFor(() => expect(test.bridge.close).toHaveBeenCalledWith('late'));
 });
 
+it('exposes only the active physical route endpoints and clears them on route loss', () => {
+  const test = harness();
+  test.receive({ type: 'open' });
+  test.receive({ type: 'status', route: { direct: true, ipv6: true, protocol: 'udp',
+    localEndpoint: { host: '192.168.1.4', port: 45678 }, remoteEndpoint: { host: '2001:db8::8', port: 42123 } } });
+  expect(test.path.connectionEndpoints).toEqual({
+    local: { host: '192.168.1.4', port: 45678, protocol: 'udp' },
+    remote: { host: '2001:db8::8', port: 42123, protocol: 'udp' } });
+  test.receive({ type: 'status', route: { direct: false, ipv6: false } });
+  expect(test.path.connectionEndpoints).toBeUndefined();
+  test.receive({ type: 'open' });
+  expect(test.path.connectionEndpoints).toBeUndefined();
+  test.path.close();
+});
+
 it('keeps the native engine across multiple ICE generations and closes it with the session', () => {
   vi.useFakeTimers(); vi.setSystemTime(10_000);
   const native = { readyState: 'connecting', bufferedAmount: 0, send: vi.fn(), close: vi.fn(), renew: vi.fn(),

@@ -11,6 +11,7 @@ export type Signal = import('./tcp/types').TcpSignal
   | { kind: 'ice'; candidate: string; sdpMid: string | null; sdpMLineIndex: number | null };
 export interface IceServer { urls: string | string[]; username?: string; credential?: string; nativeMedia?: boolean }
 export interface Channel {
+  readonly connectionEndpoints?: import('./connectionEndpoints').ConnectionEndpoints;
   readonly readyState: string;
   readonly bufferedAmount: number;
   send(data: string): void;

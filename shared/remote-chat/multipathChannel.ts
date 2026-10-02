@@ -22,6 +22,7 @@ export class MultipathChannel implements Channel {
   constructor(private readonly options: Pick<PeerOptions, 'stateChanged' | 'disconnected' | 'diagnostic'>) {}
   get readyState() { return this.state; }
   get bufferedAmount() { return this.selected?.channel.bufferedAmount ?? 0; }
+  get connectionEndpoints() { return this.state === 'open' ? this.selected?.channel.connectionEndpoints : undefined; }
   onOpen(callback: () => void) { this.opened.add(callback); }
   onClose(callback: () => void) { this.closed.add(callback); }
   onMessage(callback: (text: string) => void) { this.messages.add(callback); }

@@ -53,6 +53,7 @@
 .connection-health-badge-icon { width: 13px; height: 13px; }
 .connection-health-copy .connection-health-badge { max-width: 100%; align-self: flex-start; margin-top: 2px; }
 .connection-health-addresses { padding: 12px; border: 1px solid #eeeeef; border-radius: 14px; }
+.connection-health-addresses h3 { margin: 0 0 12px; font-size: 14px; line-height: 22px; font-weight: 700; }
 .connection-health-addresses dl { display: flex; flex-direction: column; gap: 12px; margin: 0; }
 .connection-health-addresses dt { font-size: 14px; line-height: 22px; font-weight: 600; }
 .connection-health-addresses dd { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 0; }

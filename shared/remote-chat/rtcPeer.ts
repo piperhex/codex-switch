@@ -4,13 +4,14 @@ import { RtcObserver } from './rtcObserver';
 
 const MAX_PENDING_CANDIDATES = 128;
 
-function dataChannel(channel: RTCDataChannel): Channel {
+function dataChannel(channel: RTCDataChannel, observer: RtcObserver): Channel {
   return {
+    get connectionEndpoints() { return channel.readyState === 'open' ? observer.connectionEndpoints : undefined; },
     get readyState() { return channel.readyState; },
     get bufferedAmount() { return channel.bufferedAmount; },
     send: (data) => channel.send(data),
     close: () => channel.close(),
-    onOpen: (callback) => channel.addEventListener('open', callback),
+    onOpen: (callback) => channel.addEventListener('open', () => { void observer.snapshot(); callback(); }),
     onClose: (callback) => {
       channel.addEventListener('close', callback);
       channel.addEventListener('error', callback);
@@ -27,16 +28,16 @@ export class RtcPeer implements Peer {
   private readonly candidates: RTCIceCandidateInit[] = [];
   private incoming = Promise.resolve();
   private closed = false;
-  private readonly observer?: RtcObserver;
+  private readonly observer: RtcObserver;
 
   constructor(private readonly options: PeerOptions, create: () => RTCPeerConnection) {
     this.pc = create();
-    if (options.diagnostic) this.observer = new RtcObserver(this.pc, options.diagnostic);
+    this.observer = new RtcObserver(this.pc, options.diagnostic);
     this.pc.addEventListener('icecandidate', ({ candidate }) => {
       if (!this.closed && candidate) options.signal({ kind: 'ice', candidate: candidate.candidate,
         sdpMid: candidate.sdpMid, sdpMLineIndex: candidate.sdpMLineIndex });
     });
-    this.pc.addEventListener('datachannel', ({ channel }) => options.channel(dataChannel(channel)));
+    this.pc.addEventListener('datachannel', ({ channel }) => options.channel(dataChannel(channel, this.observer)));
     this.pc.addEventListener('connectionstatechange', () => {
       if (this.closed) return;
       const state = this.pc.connectionState;
@@ -46,7 +47,7 @@ export class RtcPeer implements Peer {
   }
 
   async offer() {
-    this.options.channel(dataChannel(this.pc.createDataChannel('codex-chat-v1', { ordered: true })));
+    this.options.channel(dataChannel(this.pc.createDataChannel('codex-chat-v1', { ordered: true }), this.observer));
     const offer = await this.pc.createOffer();
     if (this.closed) return;
     await this.pc.setLocalDescription(offer);

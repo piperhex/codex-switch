@@ -6,6 +6,8 @@ export interface TcpSignal { kind: 'tcp'; publicKey: string; addresses: TcpAddre
 export interface TcpSocket {
   localAddress: string;
   localPort: number;
+  remoteAddress?: string;
+  remotePort?: number;
   bufferedAmount: number;
   write(data: Uint8Array): void;
   close(): void;

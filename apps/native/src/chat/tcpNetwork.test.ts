@@ -79,6 +79,11 @@ it('coordinates discovery and exchanges authenticated data over real TCP with a 
     const received = vi.fn(); channels[1].forEach(channel => channel.onMessage(received));
     channels[0].find(channel => channel.readyState === 'open')!.send('real TCP payload');
     await vi.waitFor(() => expect(received).toHaveBeenCalledExactlyOnceWith('real TCP payload'));
+    for (const paths of channels) {
+      const endpoints = paths.find(path => path.readyState === 'open')!.connectionEndpoints;
+      expect(endpoints?.local).toEqual({ host, port: expect.any(Number), protocol: 'tcp' });
+      expect(endpoints?.remote).toEqual({ host, port: expect.any(Number), protocol: 'tcp' });
+    }
     expect(signals.every(values => values.some(value => value.addresses.length > 0))).toBe(true);
   } finally {
     peers.forEach(peer => peer.close()); connections.forEach(socket => socket.destroy()); mapping.clear();

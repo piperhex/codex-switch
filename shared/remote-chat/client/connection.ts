@@ -16,6 +16,7 @@ import {
 } from '../protocol';
 
 export interface ConnectionEvents {
+  directEndpoints?: (value?: import('../connectionEndpoints').ConnectionEndpoints) => void;
   publicEndpoints?: (value: import('../publicEndpoints').ConnectionPublicEndpoints) => void;
   stage?: (stage: import('../connectionHealth').ConnectionStage) => void;
   delivery?: (value: import('../taskDelivery').TaskDelivery) => void;
@@ -250,6 +251,7 @@ export class ChatConnection {
       sessionId: input.id, desktop: false, secret: input.keys.secret, iceServers: input.iceServers, tcp: input.tcp,
       transportVersion: input.transportVersion, reconnectRelay: () => this.fail(CONNECTION_ERRORS.network, true),
       diagnosticsEnabled: () => this.diagnosticsEnabled,
+      directEndpoints: this.options.directEndpoints,
       createPeer: this.publicEndpoints.wrap(this.options.createPeer),
       nativeTraversal: input.nativeTraversal, createNativePath: this.options.createNativePath,
       createPacketCipher: this.options.createPacketCipher,

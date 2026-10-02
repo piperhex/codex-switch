@@ -10,6 +10,7 @@ import {
 import type { LinkOptions } from './linkOptions';
 import { HotLink } from './hotLink';
 import { CONNECTION_ERRORS } from './connectionErrors';
+import { ConnectionEndpointMonitor } from './connectionEndpoints';
 
 /** One logical encrypted connection across ICE direct transport and the admin fallback relay. */
 class LegacyChatLink {
@@ -52,6 +53,9 @@ class LegacyChatLink {
   }
 
   get connectionMode() { return this.mode; }
+  get directEndpoints() {
+    return !this.closed && this.mode === 'direct' ? this.channel?.connectionEndpoints : undefined;
+  }
 
   private signal(message: object) {
     if (this.closed) return false;
@@ -174,8 +178,13 @@ class LegacyChatLink {
 /** Transport v2 is used only when the coordinator and both endpoints advertise support. */
 export class ChatLink {
   private readonly implementation: LegacyChatLink | HotLink;
+  private readonly endpoints?: ConnectionEndpointMonitor;
   constructor(options: LinkOptions) {
     this.implementation = options.transportVersion === 2 ? new HotLink(options) : new LegacyChatLink(options);
+    if (options.directEndpoints) {
+      this.endpoints = new ConnectionEndpointMonitor(
+        () => this.implementation.directEndpoints, options.directEndpoints);
+    }
   }
   get resumable() { return this.implementation instanceof HotLink && this.implementation.resumable; }
   openNativeMedia(viewId: string) {
@@ -200,5 +209,5 @@ export class ChatLink {
     if (this.implementation instanceof HotLink) this.implementation.setRelayAvailable(available);
     else if (!available) this.implementation.close();
   }
-  close() { this.implementation.close(); }
+  close() { this.endpoints?.close(); this.implementation.close(); }
 }
