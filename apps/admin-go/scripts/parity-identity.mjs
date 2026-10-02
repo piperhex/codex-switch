@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { createPair, fixturePassword, fixtureUsers, paths, request } from './parity-client.mjs';
 import { fixtureDatabase } from './seed-parity.mjs';
+import { normalizeDefaultTemplate } from './parity-templates.mjs';
 
 const missingID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const unique = `${Date.now().toString(36)}`;
@@ -202,8 +203,9 @@ async function mailAndTemplates(pair) {
   await pair.step('update mail service', 'PATCH', paths('/admin/api/mail-services/', created), {
     body: { name: `Fixture updated ${unique}`, enabled: false, password: 'replaced-password' },
   });
-  await pair.step('list templates', 'GET', '/admin/api/email-templates');
-  await pair.step('get notification template', 'GET', '/admin/api/email-templates/official-account.bound');
+  await pair.step('list templates', 'GET', '/admin/api/email-templates', { normalize: normalizeDefaultTemplate });
+  await pair.step('get notification template', 'GET', '/admin/api/email-templates/official-account.bound',
+    { normalize: normalizeDefaultTemplate });
   await pair.step('template unknown variable', 'PATCH', '/admin/api/email-templates/official-account.bound', {
     body: { subject: 'Hello {{missing}}', body: 'Content' },
   });

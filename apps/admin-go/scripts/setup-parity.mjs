@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
+import { upgradeParityDatabase } from './upgrade-parity.mjs';
 
 const require = createRequire(new URL('../testdata/tools/package.json', import.meta.url));
 const { Client } = require('pg');
@@ -28,4 +29,5 @@ try {
     console.log('Initialized the isolated Go fixture database from the legacy schema');
   } else console.log('Existing isolated Go fixture database retained');
 } finally { await db.end(); }
+await upgradeParityDatabase();
 console.log('Fixture dependencies ready. Build/start admin-go, then run scripts/parity.mjs.');

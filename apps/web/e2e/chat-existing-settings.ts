@@ -10,7 +10,7 @@ export async function existingChatSettings({ page, request, info }: {
   await request.post(`${fixtureUrl}/test/settings-delay`, { data: { milliseconds: 5000 } });
   await openChatSettings(page);
   await choose(page, '推理强度', '极高');
-  if (!isDesktop(page)) await expect(page.getByText('正在保存设置…', { exact: true })).toBeVisible();
+  if (!isDesktop(page)) await expect(page.getByText('正在同步设置…', { exact: true })).toBeVisible();
   await choose(page, '模型', '第二模型');
   await choose(page, '推理强度', '极高');
   await choose(page, '访问权限', '请求批准');
@@ -19,7 +19,7 @@ export async function existingChatSettings({ page, request, info }: {
   await expect.poll(async () => (await state(request)).composer.settings, { timeout: 15_000 }).toEqual({
     model: 'second-model', effort: 'xhigh', access: 'read-only', speed: 'normal',
   });
-  await expect(page.getByText('正在保存设置…', { exact: true })).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByText('正在同步设置…', { exact: true })).toHaveCount(0, { timeout: 15_000 });
   await request.post(`${fixtureUrl}/test/settings-delay`, { data: { milliseconds: 0 } });
   await closeChatSettings(page);
   await click(page.getByRole('button', { name: '暂停生成' }));

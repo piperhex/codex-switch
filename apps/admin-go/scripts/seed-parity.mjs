@@ -19,6 +19,9 @@ export async function seedParity() {
   for (const database of ['legacy', 'admin_go']) {
     const client = await fixtureDatabase(database);
     try {
+      // Prior WebSocket runs can leave different transport-accounting totals in these local fixtures.
+      // Start analytics from the same empty history; later suites still assert live relay behavior.
+      await client.query('TRUNCATE TABLE chat_relay_traffic');
       await client.query(`INSERT INTO rbac_roles (code,name,description,system) VALUES
         ('fixture_restricted','Fixture restricted','Local parity fixture',false) ON CONFLICT (code) DO NOTHING`);
       for (const [name, fixture] of Object.entries(fixtureUsers)) {

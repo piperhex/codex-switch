@@ -9,6 +9,7 @@ import {
 
 import type { LinkOptions } from './linkOptions';
 import { HotLink } from './hotLink';
+import { CONNECTION_ERRORS } from './connectionErrors';
 
 /** One logical encrypted connection across ICE direct transport and the admin fallback relay. */
 class LegacyChatLink {
@@ -25,8 +26,9 @@ class LegacyChatLink {
     send: (part, delivered) => {
       if (!this.cipher) throw new Error('正在连接电脑。');
       const payload = this.cipher.encrypt(part);
-      if (this.relay && !this.quotaBlocked) this.signal({ type: 'relay', payload });
-      else this.channel!.send(payload);
+      if (this.relay && !this.quotaBlocked) {
+        if (!this.signal({ type: 'relay', payload })) throw new Error(CONNECTION_ERRORS.network);
+      } else this.channel!.send(payload);
       delivered?.();
     } });
   private readonly startedAt = Date.now();
@@ -52,7 +54,16 @@ class LegacyChatLink {
   get connectionMode() { return this.mode; }
 
   private signal(message: object) {
-    if (!this.closed) this.options.signal({ ...message, sessionId: this.options.sessionId });
+    if (this.closed) return false;
+    try {
+      this.options.signal({ ...message, sessionId: this.options.sessionId });
+      return true;
+    } catch {
+      // ICE/channel callbacks can race the socket close event; v1 must reconnect the whole session.
+      this.options.error(CONNECTION_ERRORS.network);
+      this.close();
+      return false;
+    }
   }
 
   private setKey(publicKey: string) {
