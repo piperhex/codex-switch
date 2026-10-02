@@ -7,6 +7,7 @@ import { t, useLanguage } from '../i18n';
 import { connectionHealth, healthStatusLabels, HEALTH_INLINE_STATUS_MAX_CHARACTERS,
   type HealthStatus, type HealthStep } from '../../../../shared/remote-chat/connectionHealth';
 import type { ChatState } from './types';
+import { publicEndpointRows } from '../../../../shared/remote-chat/publicEndpoints';
 import { healthStyles as css, healthTones, stepTones } from './connectionHealthStyles';
 
 type IconName = ComponentProps<typeof Feather>['name'];
@@ -34,6 +35,15 @@ export function ChatConnectionHealth({ state, device, reconnect, close }: {
         </View>
       </View>
       <View style={css.steps}>{health.steps.map(step => <HealthRow key={step.id} step={step} />)}</View>
+      <View style={css.addresses}>
+        {publicEndpointRows(state.publicEndpoints).map(row => <View key={row.id} style={css.addressRow}>
+          <Text style={css.label}>{t(row.label)}</Text>
+          {row.addresses.length ? row.addresses.map(address =>
+            <Text key={address} selectable style={css.address}>{address}</Text>)
+            : <Text style={css.detail}>{t('尚未识别')}</Text>}
+        </View>)}
+        <Text style={css.detail}>{t('显示本次连接识别到的公网地址。')}</Text>
+      </View>
       <View style={css.note}>
         <Feather name="info" size={22} color="#6782df" accessible={false} />
         <View style={css.copy}>

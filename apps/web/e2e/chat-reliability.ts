@@ -16,6 +16,8 @@ export async function reliabilityJourney(page: Page, request: APIRequestContext,
   expect((await panel.boundingBox())!.width).toBeLessThanOrEqual(400);
   await expect(panel.getByText('正常', { exact: true })).toHaveCount(4);
   await expect(panel.getByText('连接正常，可以发送任务', { exact: true })).toBeVisible();
+  await expect(panel.getByText('本机公网 IP 和端口', { exact: true })).toBeVisible();
+  await expect(panel.getByText('电脑公网 IP 和端口', { exact: true })).toBeVisible();
   await screenshot(page, info, 'connection-health');
   await page.getByRole('button', { name: '关闭', exact: true }).last().click();
   await send(page, 'approval accept');

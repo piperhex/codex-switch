@@ -34,6 +34,20 @@ it('renders the native connection check within the compact sheet width', () => {
   expect(content).toContain('电脑聊天');
   expect(content).toContain('连接正常，可以发送任务');
   expect(content).toContain('中转不会阻止 AI 执行。');
+  expect(content).toContain('本机公网 IP 和端口');
+  expect(content).toContain('电脑公网 IP 和端口');
+  expect(content.match(/尚未识别/g)).toHaveLength(2);
+});
+
+it('renders detected endpoints on native with complete IPv6 addresses and ports', () => {
+  const view = ChatConnectionHealth({ state: { ...initialChatState(), publicEndpoints: {
+    local: [{ host: '203.0.113.8', port: 42123, protocol: 'udp' }],
+    remote: [{ host: '2001:db8:1234:5678:abcd:ef01:2345:6789', port: 65535, protocol: 'tcp' }],
+  } }, device: { online: true }, reconnect: vi.fn(), close: vi.fn() });
+  const content = text(view);
+  expect(content).toContain('203.0.113.8:42123 · UDP');
+  expect(content).toContain('[2001:db8:1234:5678:abcd:ef01:2345:6789]:65535 · TCP');
+  expect(content).not.toContain('尚未识别');
 });
 
 it('keeps routine progress hidden and renders uncertain delivery and failures', () => {

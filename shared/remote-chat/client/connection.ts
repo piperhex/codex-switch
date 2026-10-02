@@ -10,11 +10,13 @@ import { RelayQuota, RELAY_QUOTA_MESSAGE } from '../relayUsage';
 import { hasUpload, uploadProgress, type UploadProgress } from '../uploadProgress';
 import { authorizationError, CONNECTION_ERRORS, socketConnectionError } from '../connectionErrors';
 import { SessionRenewal } from './sessionRenewal';
+import { PublicEndpointObserver } from '../publicEndpointObserver';
 import {
   chatSocketUrl, parseMessage, type ConnectionMode, type IceServer, type RpcRequest, type Signal,
 } from '../protocol';
 
 export interface ConnectionEvents {
+  publicEndpoints?: (value: import('../publicEndpoints').ConnectionPublicEndpoints) => void;
   stage?: (stage: import('../connectionHealth').ConnectionStage) => void;
   delivery?: (value: import('../taskDelivery').TaskDelivery) => void;
   upload?: (progress: UploadProgress) => void;
@@ -45,6 +47,7 @@ const CONNECTION_TIMEOUT_MS = 30_000;
 const SOCKET_CLOSE_GRACE_MS = 250;
 
 export class ChatConnection {
+  private readonly publicEndpoints = new PublicEndpointObserver(value => this.options.publicEndpoints?.(value));
   private readonly quota = new RelayQuota();
   private socket?: ChatSocket;
   private link?: ChatLink;
@@ -247,7 +250,7 @@ export class ChatConnection {
       sessionId: input.id, desktop: false, secret: input.keys.secret, iceServers: input.iceServers, tcp: input.tcp,
       transportVersion: input.transportVersion, reconnectRelay: () => this.fail(CONNECTION_ERRORS.network, true),
       diagnosticsEnabled: () => this.diagnosticsEnabled,
-      createPeer: this.options.createPeer,
+      createPeer: this.publicEndpoints.wrap(this.options.createPeer),
       nativeTraversal: input.nativeTraversal, createNativePath: this.options.createNativePath,
       createPacketCipher: this.options.createPacketCipher,
       signal: (frame) => {
@@ -312,6 +315,7 @@ export class ChatConnection {
     const link = this.link;
     this.link = undefined;
     link?.close();
+    this.publicEndpoints.reset();
     this.rpc?.close();
     this.rpc = undefined;
     this.options.mode('offline');

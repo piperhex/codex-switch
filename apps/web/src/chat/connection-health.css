@@ -52,6 +52,14 @@
 }
 .connection-health-badge-icon { width: 13px; height: 13px; }
 .connection-health-copy .connection-health-badge { max-width: 100%; align-self: flex-start; margin-top: 2px; }
+.connection-health-addresses { padding: 12px; border: 1px solid #eeeeef; border-radius: 14px; }
+.connection-health-addresses dl { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.connection-health-addresses dt { font-size: 14px; line-height: 22px; font-weight: 600; }
+.connection-health-addresses dd { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 0; }
+.connection-health-addresses dd span { font-size: 12px; line-height: 19px; user-select: text; }
+.connection-health-addresses p,
+.connection-health-address-unknown { color: #777f84; font-size: 12px; line-height: 19px; }
+.connection-health-addresses p { margin: 12px 0 0; }
 .connection-health-note {
   display: flex; align-items: center; gap: 14px; margin-top: 12px;
   padding: 16px; border-radius: 16px; background: #f4f6fd;

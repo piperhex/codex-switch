@@ -1,4 +1,8 @@
 export const reliabilityEnglish: Readonly<Record<string, string>> = {
+  '本机公网 IP 和端口': 'This device’s public IP and port',
+  '电脑公网 IP 和端口': 'Computer’s public IP and port',
+  '尚未识别': 'Not detected yet',
+  '显示本次连接识别到的公网地址。': 'Public addresses detected during this connection.',
   '连接体检': 'Connection check',
   '检测当前设备与电脑的连接状态': 'Check the connection between this device and your computer',
   '当前连接正常，聊天和任务可正常使用。': 'Your connection is working. Chat and tasks are available.',
@@ -77,6 +81,10 @@ export const reliabilityEnglish: Readonly<Record<string, string>> = {
 };
 
 export const reliabilityRussian: Readonly<Record<string, string>> = {
+  '本机公网 IP 和端口': 'Публичный IP и порт этого устройства',
+  '电脑公网 IP 和端口': 'Публичный IP и порт компьютера',
+  '尚未识别': 'Пока не определены',
+  '显示本次连接识别到的公网地址。': 'Публичные адреса, определённые при текущем подключении.',
   '连接体检': 'Проверка подключения',
   '检测当前设备与电脑的连接状态': 'Проверьте связь между этим устройством и компьютером',
   '当前连接正常，聊天和任务可正常使用。': 'Соединение работает. Чат и задачи доступны.',

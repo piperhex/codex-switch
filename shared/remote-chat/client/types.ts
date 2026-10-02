@@ -23,6 +23,7 @@ export interface SendInput {
 export interface ChatProject { cwd: string; label: string }
 
 export interface ChatState {
+  publicEndpoints?: import('../publicEndpoints').ConnectionPublicEndpoints;
   connectionStage?: import('../connectionHealth').ConnectionStage;
   connectionIssue?: string;
   deliveries?: Record<string, import('../taskDelivery').TaskDelivery>;

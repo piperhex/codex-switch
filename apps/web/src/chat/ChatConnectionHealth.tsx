@@ -4,6 +4,7 @@ import { t, useLanguage } from '../i18n';
 import { connectionHealth, healthStatusLabels, HEALTH_INLINE_STATUS_MAX_CHARACTERS,
   type HealthStep } from '../../../../shared/remote-chat/connectionHealth';
 import type { ChatState } from './types';
+import { publicEndpointRows } from '../../../../shared/remote-chat/publicEndpoints';
 import './connection-health.css';
 
 const stepIcons = { login: User, computer: Monitor, path: Share2, chat: MessageSquare };
@@ -28,6 +29,16 @@ export function ChatConnectionHealth({ state, device, reconnect, close }: {
       <ul className="connection-health-steps">
         {health.steps.map(step => <HealthRow key={step.id} step={step} />)}
       </ul>
+      <div className="connection-health-addresses">
+        <dl>
+          {publicEndpointRows(state.publicEndpoints).map(row => <div key={row.id}>
+            <dt>{t(row.label)}</dt>
+            <dd>{row.addresses.length ? row.addresses.map(address => <span key={address}>{address}</span>)
+              : <span className="connection-health-address-unknown">{t('尚未识别')}</span>}</dd>
+          </div>)}
+        </dl>
+        <p>{t('显示本次连接识别到的公网地址。')}</p>
+      </div>
       <div className="connection-health-note">
         <Info size={22} aria-hidden="true" />
         <div className="connection-health-copy">
