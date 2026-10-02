@@ -152,12 +152,19 @@ impl Conn for MediaSocket {
 struct Allocation(Arc<AtomicUsize>);
 impl Allocation {
     fn reserve(count: Arc<AtomicUsize>) -> std::result::Result<Self, turn::Error> {
-        count
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
-                (current < super::MAX_ALLOCATIONS).then_some(current + 1)
-            })
-            .map_err(|_| turn::Error::ErrFakeErr)?;
-        Ok(Self(count))
+        let mut current = count.load(Ordering::Acquire);
+        while current < super::MAX_ALLOCATIONS {
+            match count.compare_exchange_weak(
+                current,
+                current + 1,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return Ok(Self(count)),
+                Err(actual) => current = actual,
+            }
+        }
+        Err(turn::Error::ErrFakeErr)
     }
 }
 impl Drop for Allocation {
