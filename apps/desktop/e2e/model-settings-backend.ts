@@ -11,6 +11,7 @@ export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpd
   const usage: (() => void)[] = [];
   const pendingModels: (() => void)[] = [];
   let modelsPaused = false;
+  let modelRequests = 0;
   let speed: RequestSpeed = 'normal';
   let queue: QueueSnapshot = { revision: 0, threads: {} };
   const thread = (id: string) => ({ id, cwd: "", preview: id, updatedAt: 1, turns: [] });
@@ -55,6 +56,7 @@ export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpd
         const request = args.request;
         let data: unknown = {};
         if (request.operation === "models") {
+          modelRequests++;
           if (modelsPaused) await new Promise<void>((resolve) => pendingModels.push(resolve));
           data = { data: models, nextCursor: null };
         }
@@ -74,7 +76,7 @@ export function modelSettingsBackend(liveUpdate?: ModelSettingsSnapshot["liveUpd
       await route.fulfill({ json: { ok: true, result } });
     });
   }
-  return { attach, sends, pauseModels: () => { modelsPaused = true; },
+  return { attach, sends, modelRequests: () => modelRequests, pauseModels: () => { modelsPaused = true; },
     addModel: (model: string) => models.push({ ...models[0], id: model, model, displayName: model, isDefault: false }),
     releaseModels: () => { modelsPaused = false; pendingModels.splice(0).forEach((resolve) => resolve()); },
     startTurn: (threadId: string) => events.push({ name: "codex-gui-event",

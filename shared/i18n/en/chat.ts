@@ -1,4 +1,8 @@
 export const chat = {
+  '正在加载模型…': 'Loading models…',
+  '暂无可用模型，点击重试': 'No models available. Click to retry',
+  '模型加载失败，点击重试': 'Could not load models. Click to retry',
+  '模型加载超时，请重试。': 'Loading models timed out. Please try again.',
   '打开远程终端': 'Open remote terminal',
   '收起远程终端': 'Hide remote terminal',
   '远程终端': 'Remote terminal',

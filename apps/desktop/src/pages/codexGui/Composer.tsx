@@ -134,8 +134,10 @@ export const Composer = forwardRef<ComposerHandle, {
             <UsageStatus active={active} threadId={state.selected} tokenUsage={current?.tokenUsage} />
           </div>
           <ModelPicker models={state.models} model={state.settings.model} effort={state.settings.effort}
-            onOpen={() => void controller.modelCatalog.refresh().catch(controller.report)}
-            disabled={Boolean(state.modelCatalogLoading)} onChange={controller.settings} />
+            error={state.modelCatalogError}
+            onOpen={() => void controller.refreshModels().catch(controller.report)}
+            disabled={state.connection !== "ready" || Boolean(state.modelCatalogLoading)}
+            onChange={controller.settings} />
           <ComposerSubmit state={state} controller={controller}
             goalMode={goalMode.enabled}
             hasDraft={hasDraft} reading={reading || workspaceBusy

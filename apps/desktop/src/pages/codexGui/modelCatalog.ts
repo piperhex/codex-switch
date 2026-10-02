@@ -1,11 +1,15 @@
 import { guiText } from "../../i18n/guiText";
 import { guiApi } from "./api";
 import type { ListResponse, Model } from "./types";
+import { withModelCatalogTimeout } from "./modelCatalogTimeout";
+
+const MAX_CATALOG_PAGES = 100;
 
 interface CatalogHost {
   ready: () => boolean;
   accept: (models: Model[]) => void | Promise<void>;
   syncing?: (value: boolean) => void;
+  failed?: (message: string) => void;
 }
 
 /** Serializes paginated reads and discards responses from a previous connection or account. */
@@ -13,6 +17,7 @@ export class GuiModelCatalog {
   private active = true;
   private generation = 0;
   private pending?: Promise<void>;
+  private attempt?: AbortController;
   private invalid = false;
   private switching = 0;
   private fingerprint?: string;
@@ -41,28 +46,32 @@ export class GuiModelCatalog {
 
   refresh = (): Promise<void> => {
     if (!this.active || !this.host.ready() || this.switching) return Promise.resolve();
-    return this.pending ??= this.load().finally(() => { this.pending = undefined; });
+    if (this.pending) return this.pending;
+    this.host.failed?.("");
+    return this.pending = this.load().finally(() => { this.pending = undefined; });
   };
 
   invalidate = () => { this.generation++; this.markInvalid(); return this.refresh(); };
   activate = () => { this.active = true; };
-  suspend = () => { this.active = false; this.generation++; this.markInvalid(); };
+  suspend = () => {
+    this.active = false; this.generation++; this.attempt?.abort();
+    this.markInvalid(); this.host.failed?.("");
+  };
 
   private async load() {
     while (this.active && this.host.ready() && !this.switching) {
       let generation = this.generation;
+      const attempt = this.attempt = new AbortController();
+      const current = () => !attempt.signal.aborted && this.active && generation === this.generation;
       try {
-        const configured = this.providerSource ? await this.providerSource() : null;
-        // Refresh the CLI cache as well: running tasks also need the new models' capabilities.
-        const discovered = await this.readPages(generation);
-        const models = configured ?? discovered;
+        const models = await withModelCatalogTimeout(this.readModels(current), attempt.signal);
         if (!this.active) return;
         if (generation !== this.generation) continue;
         const fingerprint = JSON.stringify(models);
         if (!this.invalid && fingerprint === this.fingerprint) return;
         generation = ++this.generation;
         this.markInvalid();
-        await this.host.accept(models);
+        await withModelCatalogTimeout(Promise.resolve(this.host.accept(models)), attempt.signal);
         if (!this.active || generation !== this.generation) continue;
         this.fingerprint = fingerprint;
         this.invalid = false;
@@ -71,21 +80,33 @@ export class GuiModelCatalog {
       } catch (error) {
         if (!this.active) return;
         if (generation !== this.generation) continue;
+        this.host.failed?.(guiText("模型列表暂时无法更新，请稍后重试。"));
         throw error;
-      }
+      } finally { attempt.abort(); if (this.attempt === attempt) this.attempt = undefined; }
     }
   }
 
-  private async readPages(generation: number) {
+  private async readModels(current: () => boolean) {
+    const configured = this.providerSource ? await this.providerSource() : null;
+    if (!current()) return [];
+    // Refresh the CLI cache as well: running tasks also need the new models' capabilities.
+    const discovered = await this.readPages(current);
+    return configured ?? discovered;
+  }
+
+  private async readPages(current: () => boolean) {
     let cursor: string | undefined;
     const models: Model[] = [];
     const cursors = new Set<string>();
+    let pages = 0;
     do {
       const response = await guiApi.request<ListResponse<Model>>({ operation: "models", cursor });
-      if (!this.active || generation !== this.generation) return models;
+      if (!current()) return models;
       models.push(...response.data);
       cursor = response.nextCursor || undefined;
-      if (cursor && cursors.has(cursor)) throw new Error(guiText("模型列表暂时无法更新，请稍后重试。"));
+      if (cursor && (cursors.has(cursor) || ++pages >= MAX_CATALOG_PAGES)) {
+        throw new Error(guiText("模型列表暂时无法更新，请稍后重试。"));
+      }
       if (cursor) cursors.add(cursor);
     } while (cursor);
     return models;

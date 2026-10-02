@@ -14,6 +14,7 @@ interface ModelPickerProps extends ModelSelection {
   disabled: boolean;
   onChange: (selection: ModelSelection) => void;
   onOpen?: () => void;
+  error?: string;
 }
 
 function moveModelFocus(event: KeyboardEvent<HTMLDivElement>) {
@@ -69,7 +70,8 @@ export function ModelPicker(props: ModelPickerProps) {
     EFFORT_ORDER.indexOf(left.reasoningEffort) - EFFORT_ORDER.indexOf(right.reasoningEffort));
   const index = Math.max(0, levels.findIndex((level) =>
     level.reasoningEffort === (effort || selected?.defaultReasoningEffort)));
-  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+  // A successful refresh briefly blocks selections while reconciling saved settings.
+  useEffect(() => { if (props.disabled && props.error) setOpen(false); }, [props.disabled, props.error]);
   const changeOpen = (next: boolean) => {
     setOpen(next);
     if (next) { setChoosingModel(false); props.onOpen?.(); }
@@ -106,6 +108,17 @@ export function ModelPicker(props: ModelPickerProps) {
       </div> : <p className={styles.hint}>{guiText("该模型不支持调整推理强度")}</p>}
     </div>}
   </div>;
+  if (!model || (props.disabled && props.error)) {
+    const loading = props.disabled && !props.error;
+    let label = guiText("暂无可用模型，点击重试");
+    if (loading) label = guiText("正在加载模型…");
+    else if (props.error) label = guiText("模型加载失败，点击重试");
+    return <button type="button" className={`${styles.trigger} ${styles.catalogStatus}`}
+      disabled={loading || !props.onOpen}
+      aria-busy={loading} onClick={props.onOpen}>
+      <span className={styles.triggerModel}>{label}</span>
+    </button>;
+  }
   return <Popover trigger="click" placement="topRight" arrow={false} open={open && !disabled}
     onOpenChange={changeOpen} content={panel} styles={{ root: { maxWidth: 400 },
       body: { padding: 0, borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 16px rgb(0 0 0 / 8%)" } }}>

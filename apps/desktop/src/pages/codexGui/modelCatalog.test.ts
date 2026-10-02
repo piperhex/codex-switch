@@ -10,7 +10,7 @@ import type { Model } from "./types";
 
 vi.mock("./api", () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), subscribe: vi.fn() } }));
 vi.mock("./webEvents", () => ({ subscribeGuiEvent: vi.fn() }));
-vi.mock("../../api/backend", () => ({ subscribeToProviderEvents: () => () => {} }));
+vi.mock("../../api/backend", () => ({ isHostedWebApp: false, subscribeToProviderEvents: () => () => {} }));
 const model = (name: string): Model => ({ id: name, model: name, displayName: name, isDefault: true,
   defaultReasoningEffort: "medium",
   supportedReasoningEfforts: ["low", "medium", "high"].map((reasoningEffort) => ({ reasoningEffort, description: "" })),
@@ -98,7 +98,8 @@ it("stops polling and unsubscribes even when the subscription finishes after cle
   let finish!: (value: unknown) => void;
   vi.mocked(guiApi.request).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
   const stop = watchModelCatalog(catalog, vi.fn());
-  await vi.advanceTimersByTimeAsync(MODEL_CATALOG_REFRESH_MS * 3);
+  await vi.advanceTimersByTimeAsync(MODEL_CATALOG_REFRESH_MS);
+  expect(catalog.refresh()).toBe(catalog.refresh());
   expect(guiApi.request).toHaveBeenCalledOnce();
   stop(); catalog.suspend();
   const unsubscribe = vi.fn();

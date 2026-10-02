@@ -161,6 +161,7 @@ export interface GuiState {
   capacityRetry?: import("./capacityRetry").CapacityRetryState;
   modelSettingsLoading?: boolean;
   modelCatalogLoading?: boolean;
+  modelCatalogError?: string;
   computerUseSetup?: ComputerUseSetup;
   workspaceBusy?: boolean;
   pendingRequest?: PendingRequest;

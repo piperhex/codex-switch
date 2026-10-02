@@ -1,7 +1,7 @@
 import { guiText } from "../../i18n/guiText";
 import type { GuiModelCatalog } from "./modelCatalog";
 import { subscribeGuiEvent } from "./webEvents";
-import { subscribeToProviderEvents } from "../../api/backend";
+import { isHostedWebApp, subscribeToProviderEvents } from "../../api/backend";
 
 // Codex refreshes its remote catalog in the background; copy updates into the shared UI state.
 export const MODEL_CATALOG_REFRESH_MS = 60_000;
@@ -18,7 +18,8 @@ export function watchModelCatalog(catalog: GuiModelCatalog, report: (error: unkn
     void pending.catch(failed).finally(() => { if (observed === pending) observed = undefined; });
   };
   const timer = setInterval(refresh, MODEL_CATALOG_REFRESH_MS);
-  const stopProviders = subscribeToProviderEvents(() => refresh(true));
+  // Hosted subscriptions poll without a change signal; invalidating every tick starves slow reads.
+  const stopProviders = subscribeToProviderEvents(() => { if (!stopped) refresh(!isHostedWebApp); });
   void subscribeGuiEvent("codex-gui-account-changed", () => {
     if (!stopped) refresh(true);
   }).then((stop) => {

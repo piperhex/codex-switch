@@ -11,7 +11,8 @@ import type { GuiAccountSelection } from '../../../../../shared/remote-chat/guiA
 import type { ModelSettingsApi, ModelSettingsSnapshot } from './threadModelSettings';
 import type { Model } from './types';
 
-vi.mock('../../api/backend', () => ({ invoke: vi.fn(), subscribeToProviderEvents: () => () => {} }));
+vi.mock('../../api/backend', () => ({ invoke: vi.fn(), isHostedWebApp: false,
+  subscribeToProviderEvents: () => () => {} }));
 vi.mock('./api', () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), subscribe: vi.fn() } }));
 vi.mock('./webEvents', () => ({ subscribeGuiEvent: vi.fn() }));
 const model = (name: string): Model => ({ id: name, model: name, displayName: name, isDefault: true,

@@ -106,3 +106,46 @@ it("shows a concrete initial selection and restores the recommended effort by na
   await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="恢复推荐推理强度"]')!.click());
   expect(onChange).toHaveBeenLastCalledWith({ model: "kimi-k3", effort: "high" });
 });
+
+it("offers retry after an initial load fails and returns to loading while retrying", async () => {
+  const retry = vi.fn();
+  const render = (error?: string) => root.render(<ModelPicker models={[]} model="" effort=""
+    disabled onChange={vi.fn()} onOpen={retry} error={error} />);
+  await act(async () => render());
+  const trigger = container.querySelector<HTMLButtonElement>("button")!;
+  expect(trigger.textContent).toBe("正在加载模型…");
+  expect(trigger.disabled).toBe(true);
+  await act(async () => render("offline"));
+  expect(trigger.textContent).toBe("模型加载失败，点击重试");
+  expect(trigger.disabled).toBe(false);
+  await act(async () => trigger.click());
+  expect(retry).toHaveBeenCalledOnce();
+  expect(document.querySelector('[role="menu"]')).toBeNull();
+  await act(async () => render());
+  expect(trigger.disabled).toBe(true);
+  expect(trigger.getAttribute("aria-busy")).toBe("true");
+});
+
+it("distinguishes an empty catalog from loading and offers a retry", async () => {
+  const retry = vi.fn();
+  await act(async () => root.render(<ModelPicker models={[]} model="" effort="" disabled={false}
+    onChange={vi.fn()} onOpen={retry} />));
+  const trigger = container.querySelector<HTMLButtonElement>("button")!;
+  expect(trigger.textContent).toBe("暂无可用模型，点击重试");
+  expect(trigger.disabled).toBe(false);
+  await act(async () => trigger.click());
+  expect(retry).toHaveBeenCalledOnce();
+});
+
+it("offers retry instead of selecting stale models after an account switch fails", async () => {
+  const retry = vi.fn();
+  const change = vi.fn();
+  await act(async () => root.render(<ModelPicker models={models} model={models[0].model} effort="high"
+    disabled onChange={change} onOpen={retry} error="offline" />));
+  const trigger = container.querySelector<HTMLButtonElement>("button")!;
+  expect(trigger.textContent).toBe("模型加载失败，点击重试");
+  expect(trigger.disabled).toBe(false);
+  await act(async () => trigger.click());
+  expect(retry).toHaveBeenCalledOnce();
+  expect(change).not.toHaveBeenCalled();
+});

@@ -42,6 +42,7 @@ export class GuiController {
   private connecting?: Promise<void>;
   readonly modelCatalog = new GuiModelCatalog({ ready: () => this.state.connection === "ready",
     accept: (models) => this.setModels(models),
+    failed: (modelCatalogError) => this.patch({ modelCatalogError }),
     syncing: (modelCatalogLoading) => {
       this.patch({ modelCatalogLoading });
       if (!modelCatalogLoading) Object.keys(this.state.queued).forEach(id => void this.queue.flush(id));
@@ -154,6 +155,11 @@ export class GuiController {
     return this.connecting;
   };
 
+  refreshModels = () => {
+    if (this.state.modelCatalogError) this.clearError();
+    return this.state.connection === "ready" ? this.modelCatalog.refresh() : this.connect();
+  };
+
   private async initialize(options?: { reuseExisting: boolean }) {
     this.modelCatalog.suspend();
     this.patch({ connection: "connecting", error: "" });
@@ -174,7 +180,10 @@ export class GuiController {
       if (this.state.selected) await this.select(this.state.selected);
       this.patch(this.state.approvals.reduce(trackProcessingApproval, this.state));
       Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
-    } catch (error) { this.patch({ connection: "offline" }); this.report(error); }
+    } catch (error) {
+      this.patch({ connection: "offline", modelCatalogError: "模型列表暂时无法更新，请稍后重试。" });
+      this.report(error);
+    }
   }
 
   setModels = async (models: Model[]) => {

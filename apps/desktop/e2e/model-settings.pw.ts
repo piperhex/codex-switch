@@ -10,7 +10,8 @@ test('cycles lightning speed across desktop clients while usage polling is pendi
   await backend.attach(pcContext); await backend.attach(webContext);
   const pc = await pcContext.newPage(); const web = await webContext.newPage();
   try {
-    await Promise.all([pc.goto(url), web.goto(url)]);
+    await Promise.all([pc.goto(url, { waitUntil: "domcontentloaded" }),
+      web.goto(url, { waitUntil: "domcontentloaded" })]);
     await trigger(pc).click(); await trigger(web).click();
     const speed = pc.locator('.request-speed-button');
     for (const [mode, count] of [['fast', 1], ['ultrafast', 2], ['normal', 0]] as const) {
@@ -31,7 +32,7 @@ for (const width of [1280, 390]) {
     await backend.attach(page.context());
     await page.setViewportSize({ width, height: 900 });
     try {
-      await page.goto(url);
+      await page.goto(url, { waitUntil: "domcontentloaded" });
       await expect(trigger(page)).toContainText("模型一");
       backend.pauseModels();
       await trigger(page).click();
@@ -66,7 +67,8 @@ test("independent conversations synchronize across clients while usage polling i
   await backend.attach(pcContext); await backend.attach(webContext);
   const pc = await pcContext.newPage(); const web = await webContext.newPage();
   try {
-    await Promise.all([pc.goto(url), web.goto(url)]);
+    await Promise.all([pc.goto(url, { waitUntil: "domcontentloaded" }),
+      web.goto(url, { waitUntil: "domcontentloaded" })]);
     await pc.getByRole("button", { name: "对话 a" }).click();
     await web.getByRole("button", { name: "对话 b" }).click();
     await choose(pc, "模型一", "xhigh"); await choose(web, "模型二", "low");
@@ -76,7 +78,7 @@ test("independent conversations synchronize across clients while usage polling i
     await expect(trigger(web)).toHaveText("模型一极高");
     await choose(web, "模型二", "low");
     await expect(trigger(pc)).toHaveText("模型二低");
-    await web.reload();
+    await web.reload({ waitUntil: "domcontentloaded" });
     await expect(trigger(web)).toHaveText("模型二低");
     await web.getByRole("button", { name: "对话 b" }).click();
     await expect(trigger(web)).toHaveText("模型二低");
@@ -102,7 +104,7 @@ test("switches during generation with an inline marker while usage polling waits
   const backend = modelSettingsBackend("applied");
   await backend.attach(page.context());
   try {
-    await page.goto(url);
+    await page.goto(url, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "对话 a" }).click();
     await expect(page.getByRole("status", { name: "模型同步" })).toHaveText("模型设置已同步");
     backend.startTurn("a");
