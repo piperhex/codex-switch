@@ -7,13 +7,15 @@ export async function reliabilityJourney(page: Page, request: APIRequestContext,
   await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 16_000 });
   await expect(page.locator('.chat-header').getByText('连接体检', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: /^(P2P|Relay) · 连接体检$/ }).click();
-  await expect(page.getByText('账号登录 · 正常', { exact: true })).toBeVisible();
-  await expect(page.getByText('电脑在线 · 正常', { exact: true })).toBeVisible();
-  await expect(page.getByText('电脑聊天 · 正常', { exact: true })).toBeVisible();
+  await expect(page.getByRole('listitem', { name: '账号登录 · 正常', exact: true })).toBeVisible();
+  await expect(page.getByRole('listitem', { name: '电脑在线 · 正常', exact: true })).toBeVisible();
+  await expect(page.getByRole('listitem', { name: '电脑聊天 · 正常', exact: true })).toBeVisible();
   const relay = info.title.endsWith('over relay');
   await expect(page.getByText(relay ? '已通过中转连接' : '已直连电脑', { exact: true })).toBeVisible();
-  const panel = page.getByText('账号登录 · 正常', { exact: true }).locator('..').locator('..').locator('..');
+  const panel = page.locator('.connection-health');
   expect((await panel.boundingBox())!.width).toBeLessThanOrEqual(400);
+  await expect(panel.getByText('正常', { exact: true })).toHaveCount(4);
+  await expect(panel.getByText('连接正常，可以发送任务', { exact: true })).toBeVisible();
   await screenshot(page, info, 'connection-health');
   await page.getByRole('button', { name: '关闭', exact: true }).last().click();
   await send(page, 'approval accept');
@@ -30,7 +32,8 @@ export async function reliabilityJourney(page: Page, request: APIRequestContext,
   try {
     await expect(page.locator('.chat-task-status')).toContainText('任务状态待更新');
     await page.locator('.chat-connection-status').click();
-    await expect(page.getByText('连接线路 · 待确认', { exact: true })).toBeVisible();
+    await expect(page.getByRole('listitem', { name: '连接线路 · 待确认', exact: true })).toBeVisible();
+    await expect(page.locator('.connection-health-summary')).not.toHaveClass(/health-ok/);
     await screenshot(page, info, 'connection-recovery');
     await page.getByRole('button', { name: '关闭', exact: true }).last().click();
   } finally {

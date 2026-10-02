@@ -1,5 +1,13 @@
 export const reliabilityEnglish: Readonly<Record<string, string>> = {
   '连接体检': 'Connection check',
+  '检测当前设备与电脑的连接状态': 'Check the connection between this device and your computer',
+  '当前连接正常，聊天和任务可正常使用。': 'Your connection is working. Chat and tasks are available.',
+  '正在检查连接，请稍候。': 'Checking your connection. Please wait.',
+  '连接尚未就绪，请查看下方提示。': 'The connection is not ready. See the guidance below.',
+  '连接正常，可以发送任务': 'Connected. You can send tasks',
+  '接下来可以这样做': 'What you can do next',
+  '聊天和任务可正常使用。': 'Chat and tasks are available.',
+  '中转不会阻止 AI 执行。': 'AI can run through a relay connection.',
   '账号登录': 'Account sign-in',
   '电脑在线': 'Computer availability',
   '连接线路': 'Connection route',
@@ -70,6 +78,14 @@ export const reliabilityEnglish: Readonly<Record<string, string>> = {
 
 export const reliabilityRussian: Readonly<Record<string, string>> = {
   '连接体检': 'Проверка подключения',
+  '检测当前设备与电脑的连接状态': 'Проверьте связь между этим устройством и компьютером',
+  '当前连接正常，聊天和任务可正常使用。': 'Соединение работает. Чат и задачи доступны.',
+  '正在检查连接，请稍候。': 'Проверяем соединение. Подождите.',
+  '连接尚未就绪，请查看下方提示。': 'Соединение ещё не готово. Следуйте подсказкам ниже.',
+  '连接正常，可以发送任务': 'Подключено. Можно отправлять задачи',
+  '接下来可以这样做': 'Что можно сделать дальше',
+  '聊天和任务可正常使用。': 'Чат и задачи доступны.',
+  '中转不会阻止 AI 执行。': 'Ретранслятор не мешает работе ИИ.',
   '账号登录': 'Вход в аккаунт',
   '电脑在线': 'Доступность компьютера',
   '连接线路': 'Канал связи',

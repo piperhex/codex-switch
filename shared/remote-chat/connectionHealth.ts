@@ -3,8 +3,24 @@ import { CONNECTION_ERRORS } from './connectionErrors';
 import { HOST_IDENTITY_CHANGED } from './trustedHost';
 
 export type ConnectionStage = 'login' | 'computer' | 'path' | 'chat' | 'ready';
-export interface HealthStep { label: string; status: 'ok' | 'waiting' | 'blocked'; detail: string }
-export interface ConnectionHealth { title: string; next: string; steps: HealthStep[]; reconnect: boolean }
+export type HealthStatus = 'ok' | 'waiting' | 'blocked';
+export type HealthStepId = Exclude<ConnectionStage, 'ready'>;
+export interface HealthStep { id: HealthStepId; label: string; status: HealthStatus; detail: string }
+export interface ConnectionHealth {
+  title: string;
+  description: string;
+  status: HealthStatus;
+  nextTitle: string;
+  next: string;
+  steps: HealthStep[];
+  reconnect: boolean;
+}
+
+export const healthStatusLabels: Record<HealthStatus, string> = {
+  ok: '正常', waiting: '待确认', blocked: '需要处理',
+};
+// Longer translations move below the description to keep the card readable on narrow screens.
+export const HEALTH_INLINE_STATUS_MAX_CHARACTERS = 6;
 
 const LOGIN_ERRORS: readonly string[] = [CONNECTION_ERRORS.authorization, CONNECTION_ERRORS.expired];
 const COMPUTER_ERRORS: readonly string[] = [CONNECTION_ERRORS.unavailable, CONNECTION_ERRORS.interrupted];
@@ -36,7 +52,7 @@ function stepStatus(ok: boolean, blocked: boolean): HealthStep['status'] {
 function loginStep(facts: Facts): HealthStep {
   const status = stepStatus(facts.loginOk, facts.loginBlocked);
   const details = { ok: '登录验证已通过。', blocked: '请重新登录，并确认两端使用同一账号。', waiting: '正在验证登录状态。' };
-  return { label: '账号登录', status, detail: details[status] };
+  return { id: 'login', label: '账号登录', status, detail: details[status] };
 }
 
 function computerStep(facts: Facts): HealthStep {
@@ -44,26 +60,43 @@ function computerStep(facts: Facts): HealthStep {
   const status = stepStatus(contacted, facts.computerBlocked);
   const details = { ok: '已联系到电脑。', blocked: '请唤醒电脑、连接网络，并保持 Remote AI 运行。',
     waiting: '正在联系电脑，请确认电脑已开机。' };
-  return { label: '电脑在线', status, detail: details[status] };
+  return { id: 'computer', label: '电脑在线', status, detail: details[status] };
 }
 
 function pathStep(facts: Facts): HealthStep {
   let detail = '尚未建立可用连接，正在尝试直连和中转。';
   if (facts.path) detail = facts.state.mode === 'direct' ? '已直连电脑。' : '正在通过中转连接，聊天可正常使用。';
-  return { label: '连接线路', status: stepStatus(facts.path, false), detail };
+  return { id: 'path', label: '连接线路', status: stepStatus(facts.path, false), detail };
 }
 
 function chatStep(facts: Facts): HealthStep {
   const ready = facts.ready && !facts.state.desktopOnly;
-  return { label: '电脑聊天', status: stepStatus(ready, CHAT_ERRORS.includes(facts.issue)),
+  return { id: 'chat', label: '电脑聊天', status: stepStatus(ready, CHAT_ERRORS.includes(facts.issue)),
     detail: ready ? '聊天已就绪。' : '连接后将同步任务、消息和待确认事项。' };
 }
 
 /** Live transport evidence takes precedence over potentially stale presence records. */
 export function connectionHealth(state: ChatState, device?: { online: boolean }): ConnectionHealth {
   const facts = connectionFacts(state, device);
-  return { ...healthSummary(facts), steps: [loginStep(facts), computerStep(facts), pathStep(facts), chatStep(facts)],
+  const steps = [loginStep(facts), computerStep(facts), pathStep(facts), chatStep(facts)];
+  const status = healthStatus(facts, steps);
+  const description = {
+    ok: '当前连接正常，聊天和任务可正常使用。',
+    waiting: '正在检查连接，请稍候。',
+    blocked: '连接尚未就绪，请查看下方提示。',
+  }[status];
+  return { ...healthSummary(facts), description, status, steps,
+    nextTitle: status === 'ok' ? '连接正常，可以发送任务' : '接下来可以这样做',
     reconnect: Boolean(device) && !facts.ready && !state.connecting };
+}
+
+function healthStatus(facts: Facts, steps: HealthStep[]): HealthStatus {
+  if (!facts.device) return 'waiting';
+  if (facts.state.desktopOnly || facts.issue === HOST_IDENTITY_CHANGED) return 'blocked';
+  if (steps.every(step => step.status === 'ok')) return 'ok';
+  const needsAttention = facts.issue === CONNECTION_ERRORS.network || facts.issue === CONNECTION_ERRORS.server
+    || steps.some(step => step.status === 'blocked');
+  return needsAttention ? 'blocked' : 'waiting';
 }
 
 function healthSummary(input: Facts) {
@@ -77,7 +110,7 @@ function healthSummary(input: Facts) {
 
 function transportSummary({ state, issue, ready, path, computerBlocked }: Facts) {
   if (ready) return { title: state.mode === 'direct' ? '已直连电脑' : '已通过中转连接',
-    next: state.mode === 'direct' ? '连接正常，可以发送任务。' : '连接正常，可以发送任务；中转不会阻止 AI 执行。' };
+    next: state.mode === 'direct' ? '聊天和任务可正常使用。' : '中转不会阻止 AI 执行。' };
   if (computerBlocked) return { title: '暂时联系不到电脑', next: '请唤醒电脑并打开 Remote AI，然后点击“重新连接”。' };
   if (path) return { title: '正在恢复电脑上的聊天', next: CHAT_ERRORS.includes(issue)
     ? issue : '请稍候；若长时间未完成，请在电脑上打开聊天并检查账号和模型。' };

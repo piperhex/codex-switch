@@ -12,6 +12,7 @@ interface AdaptiveSheetProps {
   onBack?: () => void;
   children: ReactNode;
   width?: number;
+  className?: string;
   presentation?: "adaptive" | "drawer";
 }
 
@@ -24,6 +25,7 @@ export function AdaptiveSheet({
   onBack,
   children,
   width = 520,
+  className,
   presentation = "adaptive",
 }: AdaptiveSheetProps) {
   useLanguage();
@@ -38,19 +40,21 @@ export function AdaptiveSheet({
     ? <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>{back}{heading}</div> : heading;
   if (presentation === "drawer") {
     return <Drawer open={open} title={titleContent} placement="right" width={`min(${width}px, 100vw)`}
+      className={className}
       onClose={onClose} destroyOnHidden closable={{ 'aria-label': t("关闭"), placement: 'end' }}>
       {children}
     </Drawer>;
   }
   if (screens.md) {
-    return <Modal open={open} onCancel={onClose} footer={null} width={width} centered destroyOnClose
+    return <Modal open={open} onCancel={onClose} footer={null} width={width} centered destroyOnClose className={className}
       closable={{ 'aria-label': t("关闭") }}
       styles={{ header: truncateTitle ? { paddingRight: 32 } : undefined }}
       title={titleContent}>
       {children}
     </Modal>;
   }
-  return <Popup visible={open} onMaskClick={onClose} destroyOnClose bodyClassName="mobile-popup">
+  return <Popup visible={open} onMaskClick={onClose} destroyOnClose
+    bodyClassName={['mobile-popup', className].filter(Boolean).join(' ')}>
     <div className="sheet-handle" />
     <div className="sheet-header">{back}<div style={{ flex: 1, minWidth: 0 }}>
       <h2 className={titleClassName}>{title}</h2>{subtitle ? <p>{subtitle}</p> : null}</div>

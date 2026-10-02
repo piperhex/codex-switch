@@ -5,6 +5,7 @@ import { mergeTaskDelivery, type TaskDelivery } from '../../../../shared/remote-
 import { taskIssue, taskStatus } from '../../../../shared/remote-chat/taskStatus';
 import { connectionHealth } from '../../../../shared/remote-chat/connectionHealth';
 import { CONNECTION_ERRORS } from '../../../../shared/remote-chat/connectionErrors';
+import { HOST_IDENTITY_CHANGED } from '../../../../shared/remote-chat/trustedHost';
 import { initialChatState, type ChatState } from './types';
 
 afterEach(() => vi.useRealTimers());
@@ -111,6 +112,7 @@ it.each([
 ])('explains the connection issue %s', (connectionIssue, title) => {
   const health = connectionHealth({ ...initialChatState(), connectionIssue }, { online: true });
   expect(health.title).toBe(title);
+  expect(health.status).toBe('blocked');
   expect(health.next).not.toBe('');
   expect(health.reconnect).toBe(true);
 });
@@ -119,7 +121,20 @@ it('uses the live path over stale presence and separates chat errors from connec
   const value = state(); value.error = '任务失败';
   const health = connectionHealth(value, { online: false });
   expect(health.title).toBe('已通过中转连接');
+  expect(health.status).toBe('ok');
   expect(health.steps.every(step => step.status === 'ok')).toBe(true);
   value.ready = false; value.connectionIssue = CONNECTION_ERRORS.startup;
   expect(connectionHealth(value, { online: true }).title).toBe('正在恢复电脑上的聊天');
+  expect(connectionHealth(value, { online: true }).status).toBe('blocked');
+});
+
+it('keeps pending connections and desktop-only access distinct from ready chat', () => {
+  const pending = { ...initialChatState(), connecting: true };
+  expect(connectionHealth(pending).status).toBe('waiting');
+  expect(connectionHealth(pending, { online: true }).status).toBe('waiting');
+  expect(connectionHealth(pending, { online: true }).reconnect).toBe(false);
+  const desktopOnly = { ...state(), desktopOnly: true };
+  expect(connectionHealth(desktopOnly, { online: true }).status).toBe('blocked');
+  const identityChanged = { ...state(), connectionIssue: HOST_IDENTITY_CHANGED };
+  expect(connectionHealth(identityChanged, { online: true }).status).toBe('blocked');
 });

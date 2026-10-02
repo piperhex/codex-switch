@@ -1,0 +1,65 @@
+.connection-health-sheet .sheet-header { border-bottom: 0; align-items: flex-start; padding-bottom: 0; }
+.connection-health-sheet .sheet-header h2,
+.connection-health-sheet .modal-heading strong { font-size: 21px; line-height: 31px; font-weight: 800; }
+.connection-health-sheet .sheet-header p,
+.connection-health-sheet .modal-heading span {
+  max-width: 400px; font-size: 12px; line-height: 18px; white-space: normal; overflow-wrap: anywhere;
+}
+.connection-health-sheet .adaptive-sheet-content { padding-top: 19px; }
+.connection-health-sheet .sheet-close,
+.connection-health-sheet .ant-modal-close { border-radius: 50%; background: #f0f2f3; }
+.connection-health-sheet .ant-modal-content { padding: 20px; border-radius: 24px; }
+.connection-health-sheet .ant-modal-header { margin-bottom: 19px; padding-right: 32px; }
+.connection-health-sheet .ant-modal-body { max-height: 70dvh; overflow-y: auto; overscroll-behavior: contain; }
+.connection-health {
+  display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 400px;
+  margin: 0 auto; padding-bottom: 24px; color: var(--ink); overflow-wrap: anywhere;
+}
+.connection-health .health-ok { --health-color: #21883f; --health-background: #edf7f0; }
+.connection-health .health-waiting { --health-color: #946617; --health-background: #fff7e6; }
+.connection-health .health-blocked { --health-color: #bf4e46; --health-background: #fff0ee; }
+.connection-health-summary {
+  display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 16px;
+  color: var(--health-color); background: var(--health-background);
+}
+.connection-health-summary-icon,
+.connection-health-badge-icon {
+  display: flex; flex-shrink: 0; align-items: center; justify-content: center;
+  border-radius: 50%; color: #fff; background: var(--health-color);
+}
+.connection-health-summary-icon { width: 34px; height: 34px; }
+.connection-health-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 4px; }
+.connection-health-copy strong { font-size: 14px; line-height: 22px; font-weight: 600; }
+.connection-health-summary strong { font-size: 16px; line-height: 24px; font-weight: 700; }
+.connection-health-copy p { margin: 0; color: #777f84; font-size: 12px; line-height: 19px; }
+.connection-health-steps { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.connection-health-step {
+  display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 12px;
+  border: 1px solid #eeeeef; border-radius: 14px; background: #fff;
+}
+.connection-health-step-icon {
+  display: flex; flex-shrink: 0; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 50%;
+}
+.health-step-login { color: #21883f; background: #edf7f0; }
+.health-step-computer { color: #358bd5; background: #edf5fe; }
+.health-step-path { color: #7960db; background: #f0ecfc; }
+.health-step-chat { color: #d38132; background: #fff2e8; }
+.connection-health-badge {
+  display: flex; flex-shrink: 1; align-items: center; gap: 5px; max-width: 32%; padding: 6px 9px;
+  border-radius: 12px; color: var(--health-color); background: var(--health-background);
+  font-size: 12px; line-height: 18px; font-weight: 600;
+}
+.connection-health-badge-icon { width: 13px; height: 13px; }
+.connection-health-copy .connection-health-badge { max-width: 100%; align-self: flex-start; margin-top: 2px; }
+.connection-health-note {
+  display: flex; align-items: center; gap: 14px; margin-top: 12px;
+  padding: 16px; border-radius: 16px; background: #f4f6fd;
+}
+.connection-health-note > svg { flex-shrink: 0; color: #6782df; }
+.connection-health-reconnect {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 12px;
+  border: 0; border-radius: 12px; background: #0b8065; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.connection-health-reconnect:hover { background: #096f58; }
+.connection-health-reconnect:focus-visible { outline: 2px solid #0b8065; outline-offset: 3px; }

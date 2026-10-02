@@ -8,12 +8,18 @@ vi.mock('../i18n', () => ({ t: (value: string) => value, useLanguage() {} }));
 vi.mock('react-native', () => ({ Pressable: 'Pressable', View: 'View', Text: 'Text',
   StyleSheet: { create: <T,>(value: T) => value } }));
 vi.mock('../components/BottomSheet', () => ({ BottomSheet: 'BottomSheet' }));
+vi.mock('../components/SheetScrollView', () => ({ SheetScrollView: 'SheetScrollView' }));
+vi.mock('@expo/vector-icons/Feather', () => ({ default: 'Icon' }));
 beforeEach(() => vi.stubGlobal('React', React));
 afterEach(() => vi.unstubAllGlobals());
 
 function text(node: ReactNode): string {
   return Children.toArray(node).map(child => {
     if (!isValidElement<{ children?: ReactNode }>(child)) return String(child);
+    if (typeof child.type === 'function') {
+      const component = child.type as (props: { children?: ReactNode }) => ReactNode;
+      return text(component(child.props));
+    }
     return text(child.props.children);
   }).join(' ');
 }
@@ -26,6 +32,8 @@ it('renders the native connection check within the compact sheet width', () => {
   expect(content).toContain('已通过中转连接');
   expect(content).toContain('聊天可正常使用');
   expect(content).toContain('电脑聊天');
+  expect(content).toContain('连接正常，可以发送任务');
+  expect(content).toContain('中转不会阻止 AI 执行。');
 });
 
 it('keeps routine progress hidden and renders uncertain delivery and failures', () => {
