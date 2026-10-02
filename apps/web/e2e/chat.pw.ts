@@ -36,10 +36,10 @@ test.beforeEach(async ({ page, request }, info) => {
 
 
 test('keeps composer icons below single and multiline drafts', async ({ page }) => composerLayout(page));
-test('shows task receipts and connection health over relay', async ({ page, request }, info) => {
+test('shows only task issues and connection health over relay', async ({ page, request }, info) => {
   await reliabilityJourney(page, request, info);
 });
-test('shows task receipts and connection health over direct', async ({ page, request }, info) => {
+test('shows only task issues and connection health over direct', async ({ page, request }, info) => {
   await reliabilityJourney(page, request, info);
 });
 test('connects independently over WebRTC without advertising native TCP', async ({ page }) => {

@@ -1,12 +1,12 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { taskStatus } from '../../../../shared/remote-chat/taskStatus';
+import { taskIssue } from '../../../../shared/remote-chat/taskStatus';
 import { t, useLanguage } from '../i18n';
 import type { ChatState } from './types';
 import { palette } from './styles';
 
 export function ChatTaskStatus({ state }: { state: ChatState }) {
   useLanguage();
-  const status = taskStatus(state);
+  const status = taskIssue(state);
   if (!status && !state.notificationError) return null;
   return <View accessibilityLiveRegion="polite" style={css.content}>
     {status && <View style={css.row}>

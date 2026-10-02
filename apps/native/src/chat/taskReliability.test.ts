@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { ChatRpc } from '../../../../shared/remote-chat/rpc';
 import type { RpcMessage } from '../../../../shared/remote-chat/protocol';
 import { mergeTaskDelivery, type TaskDelivery } from '../../../../shared/remote-chat/taskDelivery';
-import { taskStatus } from '../../../../shared/remote-chat/taskStatus';
+import { taskIssue, taskStatus } from '../../../../shared/remote-chat/taskStatus';
 import { connectionHealth } from '../../../../shared/remote-chat/connectionHealth';
 import { CONNECTION_ERRORS } from '../../../../shared/remote-chat/connectionErrors';
 import { initialChatState, type ChatState } from './types';
@@ -74,16 +74,20 @@ it('never treats a previous completed turn as the result of a newly accepted mes
   value.deliveries = { thread: { requestId: 'send', threadId: 'thread', phase: 'received',
     afterTurnId: 'old', afterUserCount: 1 } };
   expect(taskStatus(value)?.label).toBe('电脑已收到');
+  expect(taskIssue(value)).toBeUndefined();
   value.selected!.turns!.push({ id: 'new', status: 'inProgress', items: [] });
   expect(taskStatus(value)?.label).toBe('AI 已开始处理');
+  expect(taskIssue(value)).toBeUndefined();
   value.selected!.turns!.at(-1)!.status = 'completed';
   expect(taskStatus(value)?.label).toBe('结果待确认');
+  expect(taskIssue(value)).toBeUndefined();
 });
 
 it('keeps an uncertain send visible even when unrelated history refreshes', () => {
   const value = state();
   value.deliveries = { thread: { requestId: 'send', threadId: 'thread', phase: 'unknown' } };
   expect(taskStatus(value)?.label).toBe('发送结果待核实');
+  expect(taskIssue(value)?.label).toBe('发送结果待核实');
   value.selected!.turns!.push({ id: 'unrelated', status: 'completed', items: [] });
   expect(taskStatus(value)?.label).toBe('发送结果待核实');
 });
@@ -94,8 +98,10 @@ it('shows stale running and approval state as unverified while reconnecting', ()
   value.mode = 'connecting'; // v2 may keep ready=true while both data paths are recovering.
   value.approvals = [{ id: 1, method: 'item/commandExecution/requestApproval', params: { threadId: 'thread' } }];
   expect(taskStatus(value)?.label).toBe('任务状态待更新');
+  expect(taskIssue(value)?.label).toBe('任务状态待更新');
   value.mode = 'direct';
   expect(taskStatus(value)?.label).toBe('等待你的确认');
+  expect(taskIssue(value)).toBeUndefined();
 });
 
 it.each([

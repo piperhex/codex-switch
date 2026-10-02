@@ -2,7 +2,7 @@ import React, { Children, isValidElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatTaskStatus } from './ChatTaskStatus';
 import { ChatConnectionHealth } from './ChatConnectionHealth';
-import { initialChatState } from './types';
+import { initialChatState, type ChatState } from './types';
 
 vi.mock('../i18n', () => ({ t: (value: string) => value, useLanguage() {} }));
 vi.mock('react-native', () => ({ Pressable: 'Pressable', View: 'View', Text: 'Text',
@@ -28,14 +28,27 @@ it('renders the native connection check within the compact sheet width', () => {
   expect(content).toContain('电脑聊天');
 });
 
-it('renders uncertain delivery and disk failure without claiming task completion', () => {
-  const state = { ...initialChatState(), notificationError: true,
+it('keeps routine progress hidden and renders uncertain delivery and failures', () => {
+  const state: ChatState = { ...initialChatState(), ready: true, mode: 'relay',
     selected: { id: 'thread', cwd: '', preview: '', updatedAt: 0,
-      turns: [{ id: 'old', status: 'completed', items: [] }] },
-    deliveries: { thread: { requestId: 'send', threadId: 'thread', phase: 'unknown' as const } } };
+      turns: [{ id: 'old', status: 'completed', items: [] }] } };
+  const turn = state.selected!.turns![0];
+  for (const status of ['inProgress', 'completed', 'interrupted']) {
+    turn.status = status;
+    expect(ChatTaskStatus({ state })).toBeNull();
+  }
+  turn.status = 'completed';
+  state.notificationError = true;
+  expect(text(ChatTaskStatus({ state }))).toContain('部分提醒未能保存');
+  expect(text(ChatTaskStatus({ state }))).not.toContain('结果待确认');
+  state.deliveries = { thread: { requestId: 'send', threadId: 'thread', phase: 'unknown' } };
   const content = text(ChatTaskStatus({ state }));
   expect(content).toContain('发送结果待核实');
   expect(content).toContain('避免重复发送');
   expect(content).toContain('部分提醒未能保存');
   expect(content).not.toContain('结果待确认');
+  state.deliveries = {};
+  state.notificationError = false;
+  turn.status = 'failed';
+  expect(text(ChatTaskStatus({ state }))).toContain('任务未完成');
 });

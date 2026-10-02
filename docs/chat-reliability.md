@@ -24,7 +24,13 @@ Web 同步任务状态和体检界面，本次不新增浏览器系统推送。
 
 ## 任务状态
 
-| 显示 | 依据 |
+聊天标题下仅显示异常提醒：连接中断后的任务状态待更新、发送结果待核实、任务失败、
+待发送消息出错或提醒保存失败。正常发送、接收、运行、完成和待审批不在这里显示，也不占位。
+审批仍在聊天中的审批卡片处理；正常进度和结果在聊天内容中查看。原生端与 Web 使用相同规则。
+
+任务状态仍按以下依据区分：
+
+| 状态 | 依据 |
 | --- | --- |
 | 正在发送 | 消息正在传输 |
 | 已发送 | 传输完成，尚未收到电脑的操作回执 |
@@ -44,7 +50,7 @@ Web 同步任务状态和体检界面，本次不新增浏览器系统推送。
 - Rust：`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch_lib_tests`
 - Go：`go -C apps/admin-go test ./internal/chatpush`
 - 原生：`npm run test -w @codex-switch/native`
-- Web：`npm run test:chat:e2e -w @codex-switch/web -- --grep "shows task receipts"`
+- Web：`npm run test:chat:e2e -w @codex-switch/web -- --grep "shows only task issues"`
 
 回归覆盖超过旧队列容量的落盘、数据库重开、退避和去重、账号隔离、HTTP 回执校验、
 传输与操作回执乱序、未知执行结果，以及窄屏／宽屏下直连、中转、审批和断线恢复。

@@ -3,6 +3,7 @@ import { connect, send, settled, screenshot, fixtureUrl } from './chat-helpers';
 
 export async function reliabilityJourney(page: Page, request: APIRequestContext, info: TestInfo) {
   await connect(page);
+  await expect(page.locator('.chat-task-status')).toHaveCount(0);
   await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 16_000 });
   await expect(page.locator('.chat-header').getByText('连接体检', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: /^(P2P|Relay) · 连接体检$/ }).click();
@@ -16,13 +17,15 @@ export async function reliabilityJourney(page: Page, request: APIRequestContext,
   await screenshot(page, info, 'connection-health');
   await page.getByRole('button', { name: '关闭', exact: true }).last().click();
   await send(page, 'approval accept');
-  await expect(page.locator('.chat-task-status')).toContainText('等待你的确认');
+  await expect(page.getByRole('button', { name: '允许这一次' })).toBeVisible();
+  await expect(page.locator('.chat-task-status')).toHaveCount(0);
   await page.getByRole('button', { name: '允许这一次' }).click();
   await settled(page);
-  await expect(page.locator('.chat-task-status')).toContainText('结果待确认');
+  await expect(page.locator('.chat-task-status')).toHaveCount(0);
   await screenshot(page, info, 'result-ready');
   await send(page, 'approval accept again');
-  await expect(page.locator('.chat-task-status')).toContainText('等待你的确认');
+  await expect(page.getByRole('button', { name: '允许这一次' })).toBeVisible();
+  await expect(page.locator('.chat-task-status')).toHaveCount(0);
   await request.post(`${fixtureUrl}/test/connection-block`, { data: { blocked: true } });
   try {
     await expect(page.locator('.chat-task-status')).toContainText('任务状态待更新');
@@ -34,7 +37,8 @@ export async function reliabilityJourney(page: Page, request: APIRequestContext,
     await request.post(`${fixtureUrl}/test/connection-block`, { data: { blocked: false } });
   }
   await expect(page.getByRole('button', { name: '允许这一次' })).toBeEnabled({ timeout: 40_000 });
+  await expect(page.locator('.chat-task-status')).toHaveCount(0);
   await page.getByRole('button', { name: '允许这一次' }).click();
   await settled(page);
-  await expect(page.locator('.chat-task-status')).toContainText('结果待确认');
+  await expect(page.locator('.chat-task-status')).toHaveCount(0);
 }

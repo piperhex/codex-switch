@@ -1,10 +1,10 @@
-import { taskStatus } from '../../../../shared/remote-chat/taskStatus';
+import { taskIssue } from '../../../../shared/remote-chat/taskStatus';
 import { t, useLanguage } from '../i18n';
 import type { ChatState } from './types';
 
 export function ChatTaskStatus({ state }: { state: ChatState }) {
   useLanguage();
-  const status = taskStatus(state);
+  const status = taskIssue(state);
   if (!status && !state.notificationError) return null;
   return <div role="status" className="chat-task-status" style={{ padding: '6px 16px', fontSize: 12 }}>
     {status && <div style={{ maxWidth: 400, overflowWrap: 'anywhere' }}>
