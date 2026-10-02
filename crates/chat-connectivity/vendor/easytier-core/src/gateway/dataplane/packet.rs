@@ -144,7 +144,19 @@ impl<V> FlowTable<V> {
                 };
                 (entry, Some(flags))
             }
-            ClassifiedPeerPacket::Udp { entry } => (entry, None),
+            ClassifiedPeerPacket::Udp { entry } => {
+                let listener = FlowKey {
+                    src: entry.src,
+                    dst: SocketAddr::new(entry.dst.ip(), 0),
+                    kind: FlowKind::UdpListen,
+                };
+                let entry = if !self.contains_key(&entry) && self.contains_key(&listener) {
+                    listener
+                } else {
+                    entry
+                };
+                (entry, None)
+            }
             ClassifiedPeerPacket::FragmentedUdp { source } => {
                 return PeerPacketRoute::FragmentedUdp {
                     source,
@@ -168,6 +180,49 @@ mod tests {
 
     use super::*;
     use crate::packet::{PacketType, ZCPacket};
+
+    #[test]
+    fn udp_listener_accepts_only_its_bound_port_and_registered_peer() {
+        let mut packet = ipv4_packet(IpProtocol::Udp, 8);
+        let mut ipv4 = Ipv4Packet::new_unchecked(&mut packet);
+        let mut udp = UdpPacket::new_unchecked(ipv4.payload_mut());
+        udp.set_src_port(1234);
+        udp.set_dst_port(4321);
+        udp.set_len(8);
+        let table = std::sync::Arc::new(FlowTable::default());
+        let entry = FlowKey {
+            src: "10.2.2.3:4321".parse().unwrap(),
+            dst: "10.1.1.2:0".parse().unwrap(),
+            kind: FlowKind::UdpListen,
+        };
+        let listener =
+            super::super::flow::FlowLease::try_register(table.clone(), entry.clone(), ()).unwrap();
+        assert_eq!(
+            table.route_peer_ipv4_payload(&packet, false),
+            PeerPacketRoute::Deliver {
+                entry,
+                tcp_flags: None
+            }
+        );
+        let mut wrong_port = packet.clone();
+        UdpPacket::new_unchecked(Ipv4Packet::new_unchecked(&mut wrong_port).payload_mut())
+            .set_dst_port(4322);
+        assert!(matches!(
+            table.route_peer_ipv4_payload(&wrong_port, false),
+            PeerPacketRoute::Unmatched { .. }
+        ));
+        let mut wrong_peer = packet.clone();
+        Ipv4Packet::new_unchecked(&mut wrong_peer).set_src_addr("10.1.1.3".parse().unwrap());
+        assert!(matches!(
+            table.route_peer_ipv4_payload(&wrong_peer, false),
+            PeerPacketRoute::Unmatched { .. }
+        ));
+        drop(listener);
+        assert!(matches!(
+            table.route_peer_ipv4_payload(&packet, false),
+            PeerPacketRoute::Unmatched { .. }
+        ));
+    }
 
     const TCP_SYN: u8 = 0x02;
 

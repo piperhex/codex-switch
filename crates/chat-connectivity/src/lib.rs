@@ -10,6 +10,7 @@ mod diagnostics;
 mod error;
 mod ffi;
 mod lease;
+mod media;
 mod route;
 #[cfg(test)]
 mod tests;
@@ -18,6 +19,8 @@ pub use addresses::local_addresses;
 pub use config::Config;
 pub use connection::{Connection, Event};
 pub use error::{Error, Result};
+pub use media::{MediaEndpoint, MediaProxy};
+pub use route::RouteStatus;
 /// JSON ABI for trusted native workers (mobile modules and the installed service child).
 /// This blocking function must never run on a UI thread or a Tokio runtime worker.
 pub fn bridge_call(request: &str) -> String {

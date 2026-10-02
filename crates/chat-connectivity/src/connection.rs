@@ -1,4 +1,8 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Weak},
+    time::Duration,
+};
 
 use easytier::instance::factory::{create_native_instance, NativeCoreInstance};
 use easytier_core::gateway::DataPlaneTcpStream;
@@ -18,6 +22,14 @@ use crate::{
 const QUEUE_MESSAGES: usize = 8;
 const MAX_FRAME: usize = 128 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+const MAX_MEDIA_VIEWS: usize = 2;
+
+struct EngineControls {
+    canceled: watch::Receiver<bool>,
+    expiry: watch::Receiver<u64>,
+    engine: watch::Sender<Option<Weak<NativeCoreInstance>>>,
+    route: watch::Sender<RouteStatus>,
+}
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
@@ -45,6 +57,10 @@ pub struct Connection {
     events: Mutex<mpsc::Receiver<Event>>,
     cancel: watch::Sender<bool>,
     deadline: watch::Sender<u64>,
+    engine: watch::Receiver<Option<Weak<NativeCoreInstance>>>,
+    route: watch::Receiver<RouteStatus>,
+    desktop: bool,
+    media: Mutex<HashMap<String, Arc<crate::MediaProxy>>>,
 }
 
 impl Connection {
@@ -56,14 +72,29 @@ impl Connection {
         let deadline = watch::channel(config.expires_at).0;
         let canceled = cancel.subscribe();
         let expiry = deadline.subscribe();
+        let desktop = config.desktop;
+        let (engine_tx, engine) = watch::channel(None);
+        let (route_tx, route) = watch::channel(RouteStatus::default());
+        let terminated = cancel.clone();
         tokio::spawn(async move {
             // All exit paths close the event stream, including engine initialization errors.
-            if serve(config, incoming, &events, (canceled, expiry))
-                .await
-                .is_err()
+            if serve(
+                config,
+                incoming,
+                &events,
+                EngineControls {
+                    canceled,
+                    expiry,
+                    engine: engine_tx,
+                    route: route_tx,
+                },
+            )
+            .await
+            .is_err()
             {
                 diagnostics::report(&events, Stage::EngineFailed, Snapshot::default());
             }
+            terminated.send_replace(true);
             diagnostics::report(&events, Stage::Stopped, Snapshot::default());
             // A stopped/suspended frontend must not prevent native resource cleanup.
             let _delivered =
@@ -74,6 +105,10 @@ impl Connection {
             events: Mutex::new(receiver),
             cancel,
             deadline,
+            engine,
+            route,
+            desktop,
+            media: Mutex::default(),
         }))
     }
 
@@ -101,6 +136,66 @@ impl Connection {
         self.sender.is_closed() || *self.cancel.borrow()
     }
 
+    /// Reuse this authenticated engine; media never crosses the chat stream or JavaScript.
+    pub async fn open_media(&self, id: &str) -> Result<crate::MediaEndpoint> {
+        if self.is_closed() {
+            return Err(Error::Closed);
+        }
+        if id.is_empty()
+            || id.len() > 100
+            || !id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        {
+            return Err(Error::Invalid);
+        }
+        let mut engine = self.engine.clone();
+        let instance = tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                if let Some(instance) = engine.borrow().as_ref().and_then(Weak::upgrade) {
+                    return Ok::<_, Error>(instance);
+                }
+                engine.changed().await.map_err(|_| Error::Closed)?;
+            }
+        })
+        .await
+        .map_err(|_| Error::Unavailable)??;
+        let mut media = self.media.lock().await;
+        if let Some(proxy) = media.get(id) {
+            return Ok(proxy.endpoint());
+        }
+        if self.is_closed() || media.len() >= MAX_MEDIA_VIEWS {
+            return Err(Error::Closed);
+        }
+        let proxy = crate::MediaProxy::start(
+            instance,
+            self.desktop,
+            self.route.clone(),
+            self.cancel.subscribe(),
+        )
+        .await?;
+        let endpoint = proxy.endpoint();
+        media.insert(id.into(), proxy);
+        Ok(endpoint)
+    }
+
+    pub async fn media_status(&self, id: &str) -> Result<RouteStatus> {
+        if self.is_closed() {
+            return Err(Error::Closed);
+        }
+        self.media
+            .lock()
+            .await
+            .get(id)
+            .map(|proxy| proxy.status())
+            .ok_or(Error::Closed)
+    }
+    pub async fn close_media(&self, id: &str) {
+        if let Some(proxy) = self.media.lock().await.remove(id) {
+            proxy.close();
+        }
+    }
+
     /// Only an authenticated signaling renewal may extend the lease.
     pub fn renew(&self, expires_at: u64) -> Result<()> {
         if expires_at <= crate::lease::now_ms() || *self.cancel.borrow() {
@@ -121,23 +216,44 @@ async fn serve(
     config: Config,
     incoming: mpsc::Receiver<String>,
     events: &mpsc::Sender<Event>,
-    controls: (watch::Receiver<bool>, watch::Receiver<u64>),
+    controls: EngineControls,
 ) -> Result<()> {
-    let (mut canceled, expiry) = controls;
+    let EngineControls {
+        mut canceled,
+        expiry,
+        engine: engine_tx,
+        route: route_tx,
+    } = controls;
     let core = config.core()?;
     let engine = tokio::task::spawn_blocking(move || create_native_instance(core))
         .await
         .map_err(|_| Error::Unavailable)?
         .map_err(|_| Error::Unavailable)?;
     let punch_events = engine.udp_punch_diagnostics();
+    engine_tx.send_replace(Some(Arc::downgrade(&engine)));
     let result = tokio::select! {
         _ = canceled.changed() => Ok(()),
         _ = crate::lease::expired(expiry) => Ok(()),
         result = run(&engine, &config, incoming, events.clone()) => result,
         _ = diagnostics::monitor(&engine, config.remote_name(), events, punch_events) => Err(Error::Closed),
+        _ = monitor_route(&engine, config.remote_name(), &route_tx) => Err(Error::Closed),
     };
+    engine_tx.send_replace(None);
+    route_tx.send_replace(RouteStatus::default());
     engine.stop().await;
     result
+}
+
+async fn monitor_route(
+    engine: &NativeCoreInstance,
+    remote: &str,
+    output: &watch::Sender<RouteStatus>,
+) {
+    let mut timer = tokio::time::interval(Duration::from_millis(500));
+    loop {
+        timer.tick().await;
+        output.send_replace(route::status(engine, remote).await);
+    }
 }
 
 async fn run(

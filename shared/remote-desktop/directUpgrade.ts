@@ -2,6 +2,9 @@ import type { IceServer } from '../remote-chat/protocol';
 import type { DesktopSignal, DesktopSignalReply, DesktopStats } from './protocol';
 import { addIceCandidate } from '../remote-chat/iceCandidate';
 import { DesktopStatsSampler } from './stats';
+import type { NativeMediaSession } from './nativeMedia';
+import type { ConnectionDiagnostic } from '../remote-chat/diagnostics';
+import { RtcObserver } from '../remote-chat/rtcObserver';
 
 const RETRY_DELAYS = [5000, 15_000, 30_000, 60_000];
 const PROBE_TIMEOUT = 25_000;
@@ -9,9 +12,10 @@ const SIGNAL_INTERVAL = 400;
 const COMMIT_RETRY = 2000;
 const MAX_CANDIDATES = 128;
 
-/** A probe must never allocate TURN or interrupt the working media connection. */
+/** Probes exclude public relays and keep the current media connection while trying direct paths. */
 export function directIceServers(servers: IceServer[]): IceServer[] {
   return servers.flatMap(server => {
+    if (server.nativeMedia) return [server];
     const urls = (Array.isArray(server.urls) ? server.urls : [server.urls])
       .filter(url => /^stuns?:/i.test(url));
     return urls.length ? [{ urls }] : [];
@@ -26,11 +30,15 @@ interface Options {
   iceServers: IceServer[];
   signal: (signal: DesktopSignal) => Promise<DesktopSignalReply>;
   activate: (peer: DirectPeer) => void;
+  nativeMedia?: NativeMediaSession;
+  diagnostic?: ConnectionDiagnostic;
 }
 interface Probe {
   generation: number; pc: RTCPeerConnection; candidates: RTCIceCandidateInit[];
   stream?: MediaStream; channel?: RTCDataChannel; clipboard?: RTCDataChannel;
   started: number; committing: boolean;
+  observer?: RtcObserver;
+  native?: boolean;
 }
 
 /** One pending peer at most. Commit retries are idempotent: a lost reply cannot tear down a promoted peer. */
@@ -64,6 +72,8 @@ export class DesktopDirectUpgrade {
       const pc = this.options.createPeer({ iceServers: directIceServers(this.options.iceServers) });
       probe = { pc, generation: ++this.generation, candidates: [], started: Date.now(), committing: false };
       this.probe = probe; this.bind(probe);
+      if (this.options.diagnostic) probe.observer = new RtcObserver(pc,
+        (event, fields) => this.options.diagnostic?.(event, { ...fields, generation: probe!.generation }));
       const offer = await this.signal(probe, 'start');
       if (!this.current(probe)) return;
       if (!offer.sdp || offer.generation !== probe.generation) throw new Error('Unsupported direct upgrade');
@@ -127,7 +137,10 @@ export class DesktopDirectUpgrade {
         decoded = true;
       }
     });
-    return this.current(probe) && decoded && new DesktopStatsSampler().sample(report).connection === 'direct';
+    const stats = new DesktopStatsSampler(this.options.nativeMedia?.endpoint).sample(report);
+    probe.native = stats.nativeMedia;
+    if (stats.nativeMedia && !(await this.options.nativeMedia?.status())?.direct) return false;
+    return this.current(probe) && decoded && stats.connection === 'direct';
   }
 
   private async commit(probe: Probe) {
@@ -139,6 +152,10 @@ export class DesktopDirectUpgrade {
         probe.committing = false; await this.discard(probe); return;
       }
       this.probe = undefined; this.route = 'direct'; this.attempt = 0;
+      probe.observer?.close();
+      this.options.diagnostic?.('path-selected', {
+        transport: probe.native ? 'mesh' : 'rtc', generation: probe.generation,
+      });
       this.options.activate({ pc: probe.pc, stream: probe.stream!, channel: probe.channel!,
         clipboard: probe.clipboard });
     } catch {
@@ -149,7 +166,8 @@ export class DesktopDirectUpgrade {
 
   private async discard(probe: Probe) {
     if (this.probe !== probe || probe.committing) return;
-    probe.pc.close();
+    probe.observer?.close(); probe.pc.close();
+    this.options.diagnostic?.('path-state', { transport: 'rtc', generation: probe.generation, state: 'failed' });
     try { await this.signal(probe, 'cancel'); } catch { /* Host also expires abandoned probes. */ }
     if (this.probe !== probe) return;
     this.probe = undefined; this.attempt++;
@@ -158,6 +176,6 @@ export class DesktopDirectUpgrade {
 
   close() {
     this.stopped = true; clearTimeout(this.timer); this.timer = undefined;
-    this.probe?.pc.close(); this.probe = undefined;
+    this.probe?.observer?.close(); this.probe?.pc.close(); this.probe = undefined;
   }
 }

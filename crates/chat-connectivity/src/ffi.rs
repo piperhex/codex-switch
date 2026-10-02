@@ -71,6 +71,9 @@ enum Operation {
     Poll { id: String, wait_ms: Option<u64> },
     Close { id: String },
     Renew { id: String, expires_at: u64 },
+    MediaOpen { id: String, view_id: String },
+    MediaStatus { id: String, view_id: String },
+    MediaClose { id: String, view_id: String },
     Reset,
     Addresses,
 }
@@ -111,6 +114,17 @@ fn dispatch(request: Request) -> Result<Value> {
         }
         Operation::Poll { id, wait_ms } => poll(hub, &id, wait_ms),
         Operation::Addresses => Ok(json!(crate::local_addresses()?)),
+        Operation::MediaOpen { id, view_id } => Ok(json!(hub
+            .runtime
+            .block_on(owned_connection(hub, &id, &request.owner)?.open_media(&view_id))?)),
+        Operation::MediaStatus { id, view_id } => Ok(json!(hub
+            .runtime
+            .block_on(owned_connection(hub, &id, &request.owner)?.media_status(&view_id))?)),
+        Operation::MediaClose { id, view_id } => {
+            hub.runtime
+                .block_on(owned_connection(hub, &id, &request.owner)?.close_media(&view_id));
+            Ok(Value::Null)
+        }
     }
 }
 
@@ -157,6 +171,16 @@ fn connection(hub: &Hub, id: &str) -> Result<Arc<Connection>> {
         .lock()
         .map_err(|_| Error::Closed)?
         .get(id)
+        .map(|entry| entry.connection.clone())
+        .ok_or(Error::Closed)
+}
+
+fn owned_connection(hub: &Hub, id: &str, owner: &str) -> Result<Arc<Connection>> {
+    hub.handles
+        .lock()
+        .map_err(|_| Error::Closed)?
+        .get(id)
+        .filter(|entry| entry.owner == owner)
         .map(|entry| entry.connection.clone())
         .ok_or(Error::Closed)
 }

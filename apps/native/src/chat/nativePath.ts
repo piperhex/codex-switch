@@ -34,6 +34,9 @@ export const createMobileNativePath: NativePathFactory | undefined = connectivit
     },
     send: (id, text) => call<void>({ operation: 'send', id, text }),
     renew: (id, expiresAt) => call<void>({ operation: 'renew', id, expires_at: expiresAt }),
+    mediaOpen: (id, viewId) => call({ operation: 'media-open', id, view_id: viewId }),
+    mediaStatus: (id, viewId) => call({ operation: 'media-status', id, view_id: viewId }),
+    mediaClose: (id, viewId) => call({ operation: 'media-close', id, view_id: viewId }),
     close: id => { stopped = true; return call<void>({ operation: 'close', id }); },
   });
 } : undefined;

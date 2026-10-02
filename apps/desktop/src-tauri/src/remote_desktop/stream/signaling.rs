@@ -56,6 +56,11 @@ impl Peer {
             .await
             .is_some_and(|pair| {
                 ![pair.local.typ, pair.remote.typ].contains(&RTCIceCandidateType::Relay)
+                    || self.native_media.as_ref().is_some_and(|(local, remote)| {
+                        pair.local.typ == RTCIceCandidateType::Relay
+                            && &pair.local.address == local
+                            && &pair.remote.address == remote
+                    })
             })
     }
 

@@ -94,6 +94,7 @@ export class HotPeer {
   }
 
   renew(expiresAt: number) { this.nativePath?.renew(expiresAt); }
+  openNativeMedia(viewId: string) { return this.nativePath?.openMedia?.(viewId) ?? Promise.resolve(undefined); }
 
   async offer() {
     if (this.closed) return;

@@ -9,7 +9,7 @@ export type Signal = import('./tcp/types').TcpSignal
   | { kind: 'key'; key: string; identity?: { key: string; signature: string } }
   | { kind: 'sdp'; type: 'offer' | 'answer'; sdp: string }
   | { kind: 'ice'; candidate: string; sdpMid: string | null; sdpMLineIndex: number | null };
-export interface IceServer { urls: string | string[]; username?: string; credential?: string }
+export interface IceServer { urls: string | string[]; username?: string; credential?: string; nativeMedia?: boolean }
 export interface Channel {
   readonly readyState: string;
   readonly bufferedAmount: number;

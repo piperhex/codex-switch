@@ -76,10 +76,13 @@ fn reserve(state: &mut Upgrades, generation: u32) -> Result<()> {
 }
 
 fn direct_servers(servers: &[IceServer]) -> Vec<IceServer> {
-    // No second TURN allocation or second capture/encoder is created for a probe.
+    // Reuse local native adapters; probes need neither public TURN nor a second capture/encoder.
     servers
         .iter()
         .filter_map(|server| {
+            if server.native_media {
+                return Some(server.clone());
+            }
             let urls: Vec<_> = server
                 .urls
                 .iter()
@@ -90,6 +93,7 @@ fn direct_servers(servers: &[IceServer]) -> Vec<IceServer> {
                 urls,
                 username: String::new(),
                 credential: String::new(),
+                ..Default::default()
             })
         })
         .collect()

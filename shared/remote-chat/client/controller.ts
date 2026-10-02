@@ -49,7 +49,7 @@ export class ChatController {
   private readonly listeners = new Set<() => void>();
   private readonly eventListeners = new Set<(event: GuiEvent) => void>();
   private readonly connection: Pick<ChatConnection, 'request' | 'start' | 'stop'>
-    & Partial<Pick<ChatConnection, 'confirmHostIdentity' | 'reportDiagnostic' | 'retryNow'>>;
+    & Partial<Pick<ChatConnection, 'confirmHostIdentity' | 'reportDiagnostic' | 'retryNow' | 'openNativeMedia'>>;
   private readonly queueConnection = new QueueConnection((body) => this.connection.request('request', body));
   private readonly asyncAnswers = new AsyncAnswers({ snapshot: () => this.state,
     request: (body) => this.connection.request('request', body), update: (patch) => this.update(patch),
@@ -58,7 +58,8 @@ export class ChatController {
     request: (body) => this.connection.request('request', body), subscribe: (listener) => this.subscribeEvents(listener),
   });
   readonly guiTools = createGuiToolsClient(<T>(body: object) => this.connection.request<T>('request', body),
-    (event, fields) => this.connection.reportDiagnostic?.(event, fields));
+    (event, fields) => this.connection.reportDiagnostic?.(event, fields),
+    viewId => this.connection.openNativeMedia?.(viewId) ?? Promise.resolve(undefined));
   private listGeneration = 0;
   private readGeneration = 0;
   private refreshThreadId: string | null = null;

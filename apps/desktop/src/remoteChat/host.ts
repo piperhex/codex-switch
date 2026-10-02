@@ -194,6 +194,7 @@ export class ChatHost {
       this.lease(sessionId, message.expiresAt);
     }
     this.operations.desktop.diagnose(sessionId, link.reportDiagnostic);
+    this.operations.desktop.nativeMedia(sessionId, id => link.openNativeMedia(id));
     connectionDetails.open(sessionId, message.clientInfo);
     if (this.quota.blocked) link.setRelayQuotaBlocked(true);
     this.send({ type: 'signal', sessionId, payload: { kind: 'key', key: keys.publicKey } });

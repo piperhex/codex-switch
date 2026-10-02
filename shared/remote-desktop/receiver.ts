@@ -8,6 +8,7 @@ import { addIceCandidate, diagnosticError } from '../remote-chat/iceCandidate';
 import { RtcObserver } from '../remote-chat/rtcObserver';
 import { connectionDiagnostic, type ConnectionDiagnostic, type DiagnosticFields } from '../remote-chat/diagnostics';
 import { DesktopDirectUpgrade, type DirectPeer } from './directUpgrade';
+import { closeNativeMedia, openNativeMedia, nativeMediaIceServers, type NativeMediaSession } from './nativeMedia';
 
 interface ReceiverOptions {
   client: DesktopClient;
@@ -48,6 +49,8 @@ export class DesktopReceiver {
   private readonly diagnostic: ConnectionDiagnostic;
   private observer?: RtcObserver;
   private upgrade?: DesktopDirectUpgrade;
+  private nativeMedia?: NativeMediaSession;
+  private nativeSelected = false;
   private capabilities: DesktopCapabilities = {};
   private audioTracks = new Set<MediaStreamTrack>();
   readonly clipboard = new DesktopClipboard(message => {
@@ -67,14 +70,21 @@ export class DesktopReceiver {
     this.diagnostic('desktop-start');
     this.timeout = setTimeout(() => this.fail('桌面连接超时，请检查两端网络后重试。', 'timeout'), CONNECT_TIMEOUT);
     try {
-      const offer = await this.options.client.open(this.id, { ...settings, clipboardChannel: true });
+      this.nativeMedia = await openNativeMedia(this.options.client.nativeMedia, this.id, this.diagnostic);
+      if (this.stopped) { await closeNativeMedia(this.nativeMedia); return; }
+      const offer = await this.options.client.open(this.id, {
+        ...settings, clipboardChannel: true, nativeMedia: Boolean(this.nativeMedia),
+      });
       if (this.stopped) { await this.closeRemote(); return; }
       this.capabilities = offer.capabilities ?? {}; this.options.capabilities?.(this.capabilities);
       this.options.displays?.(offer);
-      const pc = this.options.createPeer({ iceServers: offer.iceServers });
+      if (!offer.nativeMedia) { await closeNativeMedia(this.nativeMedia); this.nativeMedia = undefined; }
+      if (this.stopped) return;
+      const iceServers = nativeMediaIceServers(offer.iceServers, this.nativeMedia?.endpoint);
+      const pc = this.options.createPeer({ iceServers });
       this.pc = pc;
       if (offer.directUpgrade) this.upgrade = new DesktopDirectUpgrade({
-        createPeer: this.options.createPeer, iceServers: offer.iceServers,
+        createPeer: this.options.createPeer, iceServers, nativeMedia: this.nativeMedia, diagnostic: this.diagnostic,
         signal: signal => this.options.client.signal(this.id, signal), activate: peer => this.activate(peer),
       });
       this.observer = new RtcObserver(pc, this.diagnostic);
@@ -127,8 +137,11 @@ export class DesktopReceiver {
 
   private startStats(pc: RTCPeerConnection) {
     this.stopStats ??= monitorDesktopStats(pc, stats => {
+      const selected = stats.nativeMedia === true && stats.connection === 'direct';
+      if (selected && !this.nativeSelected) this.diagnostic('path-selected', { transport: 'mesh', rttMs: stats.rttMs });
+      this.nativeSelected = selected;
       this.measured = stats; this.options.stats({ ...this.hostStats, ...stats }); this.upgrade?.update(stats);
-    });
+    }, this.nativeMedia);
   }
 
   private activate(peer: DirectPeer) {
@@ -239,7 +252,11 @@ export class DesktopReceiver {
         new Promise<void>(resolve => { timer = setTimeout(resolve, CLOSE_TIMEOUT_MS); })]);
     }
     catch { /* The host also expires disconnected sessions and releases held buttons. */ }
-    finally { clearTimeout(timer); }
+    finally {
+      clearTimeout(timer);
+      await closeNativeMedia(this.nativeMedia);
+      this.nativeMedia = undefined;
+    }
   }
   stop() {
     if (this.stopped) return this.closing ?? Promise.resolve();

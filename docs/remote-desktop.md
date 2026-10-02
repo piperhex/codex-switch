@@ -60,9 +60,16 @@ the existing unsupported-platform behavior.
 - The existing authenticated, end-to-end encrypted chat connection carries offer/answer, ICE and display settings.
   Host ownership is the individual chat session, not a client-supplied owner or the persistent terminal owner.
 - A separate WebRTC connection carries video and system audio with DTLS/SRTP encryption and an ordered control DataChannel.
-  It uses the ICE servers supplied by the authenticated coordinator. Optional TURN UDP/TCP/TLS supplies a media
+  It uses the ICE servers supplied by the authenticated coordinator. Updated native viewers and hosts also add
+  an ephemeral loopback TURN adapter backed by the existing chat EasyTier engine. Its virtual UDP sockets carry
+  media through that engine's authenticated direct route; adapter credentials never cross the desktop RPC.
+  This reuses chat UDP/TCP hole punching and IPv6 without sending media through JavaScript or chat framing.
+  Optional public TURN UDP/TCP/TLS supplies a media
   relay when direct connectivity fails. Chat WebSocket relay and video relay remain separate connections.
   The desktop overlay reports the selected video candidate route, independently of the chat's P2P/Relay label.
+  A local adapter pair counts as direct only after verifying its issued virtual addresses and the native route.
+  Direct upgrade probes retain local adapters while excluding public TURN. Closing the view or chat grant releases
+  adapters; old binaries and ordinary Web viewers continue with their existing WebRTC connectivity.
   See [video relay deployment](../apps/admin-go/DESKTOP-RELAY.md) for credentials, quotas and network requirements.
 - Android receives encrypted media directly in native libwebrtc. Decryption, jitter buffering and decoding
   run on native WebRTC threads; `RTCView` renders through `SurfaceViewRenderer`. JavaScript receives only stream

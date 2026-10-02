@@ -3,6 +3,7 @@ import type { DesktopSignal, DesktopSignalReply } from '../../../../shared/remot
 import { directIceServers } from '../../../../shared/remote-desktop/directUpgrade';
 import { DesktopStatsSampler } from '../../../../shared/remote-desktop/stats';
 import { addIceCandidate } from '../../../../shared/remote-chat/iceCandidate';
+import { nativeMediaEndpoint } from '../../../../shared/remote-desktop/nativeMedia';
 
 const PROBE_LIFETIME = 35_000;
 const MIN_RETRY = 5000;
@@ -97,7 +98,7 @@ export class BrowserDesktopDirectHost {
     if (!this.committed) {
       const probe = this.probe;
       if (!probe) return { candidates: [], generation: this.generation, committed: false };
-      const stats = new DesktopStatsSampler().sample(await probe.pc.getStats());
+      const stats = new DesktopStatsSampler(nativeMediaEndpoint(this.options.iceServers)).sample(await probe.pc.getStats());
       if (this.stopped || probe !== this.probe || stats.connection !== 'direct'
         || probe.pc.connectionState !== 'connected' || probe.channel.readyState !== 'open') {
         return { candidates: [], generation: this.generation, committed: false };

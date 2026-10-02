@@ -967,6 +967,7 @@ where
             socket,
             flows: self.entries.clone(),
             routes: std::sync::Mutex::new(std::collections::HashMap::new()),
+            listeners: std::sync::Mutex::new(std::collections::HashMap::new()),
             local_addr,
             _reservation: reservation,
             _data_plane_lease: data_plane_ref,

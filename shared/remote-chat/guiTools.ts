@@ -21,9 +21,10 @@ export const GUI_TOOL_OPERATIONS = new Set([
 
 /** Requests use the selected computer's authenticated chat connection. */
 export function createGuiToolsClient(request: <T>(body: object) => Promise<T>,
-  diagnostic?: import('./diagnostics').ConnectionDiagnostic) {
+  diagnostic?: import('./diagnostics').ConnectionDiagnostic,
+  nativeMedia?: import('../remote-desktop/nativeMedia').NativeMediaFactory) {
   return {
-    desktop: desktopClient(request, diagnostic),
+    desktop: desktopClient(request, diagnostic, nativeMedia),
     status: () => request<RemoteCliStatus>({ operation: 'guiCliStatus' }),
     release: () => request<CliRelease>({ operation: 'guiCliRelease' }),
     install: (version: string) => request<RemoteCliStatus>({ operation: 'guiCliInstall', version }),

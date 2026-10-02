@@ -14,6 +14,58 @@ pub(crate) struct State(Mutex<HashMap<String, Arc<Connection>>>);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct MediaRequest {
+    id: String,
+    view_id: String,
+    action: MediaAction,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum MediaAction {
+    Open,
+    Status,
+    Close,
+}
+
+/// Uses an existing authenticated native handle, never caller-provided destinations or credentials.
+#[tauri::command]
+pub(crate) async fn remote_native_media(
+    app: AppHandle,
+    window: Webview,
+    request: MediaRequest,
+) -> Result<serde_json::Value, String> {
+    authorize(&window)?;
+    let connection = app
+        .state::<State>()
+        .0
+        .lock()
+        .await
+        .get(&request.id)
+        .cloned()
+        .ok_or(UNAVAILABLE)?;
+    let result = match request.action {
+        MediaAction::Open => serde_json::to_value(
+            connection
+                .open_media(&request.view_id)
+                .await
+                .map_err(|_| UNAVAILABLE)?,
+        ),
+        MediaAction::Status => serde_json::to_value(
+            connection
+                .media_status(&request.view_id)
+                .await
+                .map_err(|_| UNAVAILABLE)?,
+        ),
+        MediaAction::Close => {
+            connection.close_media(&request.view_id).await;
+            Ok(serde_json::Value::Null)
+        }
+    };
+    result.map_err(|_| UNAVAILABLE.into())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct OpenRequest {
     session_id: String,
 }

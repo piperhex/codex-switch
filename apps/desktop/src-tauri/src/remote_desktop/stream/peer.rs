@@ -19,6 +19,7 @@ use webrtc::{
 };
 
 pub(super) struct Peer {
+    pub native_media: Option<(String, String)>,
     pub connection: Arc<RTCPeerConnection>,
     pub controls: Arc<RTCDataChannel>,
     pub clipboard: Arc<RTCDataChannel>,
@@ -32,6 +33,10 @@ pub(super) struct Peer {
 }
 
 pub(super) async fn create(mut servers: Vec<IceServer>, separate_clipboard: bool) -> Result<Peer> {
+    let native_media = servers
+        .iter()
+        .find(|server| server.native_media)
+        .map(|server| (server.local_address.clone(), server.remote_address.clone()));
     let transports = super::turn_transport::prepare(&mut servers).await?;
     let mut media = MediaEngine::default();
     media
@@ -105,6 +110,7 @@ pub(super) async fn create(mut servers: Vec<IceServer>, separate_clipboard: bool
         Arc::clone(&controls)
     };
     Ok(Peer {
+        native_media,
         connection,
         controls,
         clipboard,

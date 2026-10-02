@@ -1,7 +1,8 @@
 # Chat connectivity
 
 Session-scoped EasyTier integration for desktop, the Windows unattended service, Android and iOS.
-Uses userspace TCP over the encrypted overlay; never creates a TUN device, changes host routes, or exposes arbitrary
+Uses userspace TCP for chat and a loopback WebRTC adapter over userspace UDP for desktop media;
+never creates a TUN device, changes host routes, or exposes arbitrary
 application ports. Browsers continue to use WebRTC and the existing encrypted WebSocket fallback.
 
 The native engine is pinned to EasyTier commit `ed73d318bb3bf19601e227ab83dd61d66ce4b9f8`.
@@ -41,6 +42,23 @@ device arm64 and both simulator architectures during installation of the local C
   EasyTier's `directly_connected_conns` excludes punched sockets and must not be used as a P2P allowlist.
   Transport admission alone does not open the chat stream; diagnostics use the same verified connection check.
 - Closing the owner cancels discovery, sockets and mapping leases. Native queues and frame sizes are bounded.
+- Desktop media adapters reuse the same engine and authorization. They bind only loopback with ephemeral TURN
+  credentials and allow datagrams only to/from the counterpart's virtual IP while its route is direct. Per-view
+  close and grant revocation stop allocations; no raw media crosses the JSON ABI. A peer-specific UDP receive
+  registration allows ICE's initial inbound packet without first sending to that port.
+
+## Desktop media regression
+
+The default Rust tests exchange real WebRTC control and H.264 RTP through two native adapters with relay-only ICE
+and no public relay. They also cover allocation limits, ownership, cancellation and passive UDP reception.
+With npm dependencies and Microsoft Edge installed, run the additional browser interoperability test:
+
+```sh
+cargo test --manifest-path crates/chat-connectivity/Cargo.toml browser_media -- --ignored --nocapture
+```
+
+It verifies decoded video, received audio and control messages with Chromium WebRTC, including multiple initial
+allocations being pruned during BUNDLE negotiation. It does not measure real carrier NAT success rates.
 
 ## Dependency notices
 

@@ -1,12 +1,14 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { DesktopDirectUpgrade, directIceServers } from '../../../../shared/remote-desktop/directUpgrade';
 import type { DesktopSignal, DesktopSignalReply } from '../../../../shared/remote-desktop/protocol';
+import type { NativeMediaSession } from '../../../../shared/remote-desktop/nativeMedia';
 
 class Peer extends EventTarget {
   connectionState = 'connecting';
   localDescription?: RTCSessionDescriptionInit;
   decoded = 0;
   relay = false;
+  native = false;
   close = vi.fn(() => { this.connectionState = 'closed'; });
   setRemoteDescription = vi.fn(async () => {});
   createAnswer = vi.fn(async () => ({ type: 'answer' as const, sdp: 'answer' }));
@@ -15,8 +17,10 @@ class Peer extends EventTarget {
   getStats = vi.fn(async () => new Map([
     ['transport', { id: 'transport', type: 'transport', selectedCandidatePairId: 'pair' }],
     ['pair', { id: 'pair', type: 'candidate-pair', localCandidateId: 'local', remoteCandidateId: 'remote' }],
-    ['local', { id: 'local', type: 'local-candidate', candidateType: this.relay ? 'relay' : 'host' }],
-    ['remote', { id: 'remote', type: 'remote-candidate', candidateType: 'srflx' }],
+    ['local', { id: 'local', type: 'local-candidate', candidateType: this.relay ? 'relay' : 'host',
+      address: this.native ? '10.253.0.2' : '192.0.2.1' }],
+    ['remote', { id: 'remote', type: 'remote-candidate', candidateType: 'srflx',
+      address: this.native ? '10.253.0.1' : '192.0.2.2' }],
     ['video', { id: 'video', type: 'inbound-rtp', kind: 'video', framesDecoded: this.decoded }],
   ]));
   emit(name: string, fields: object) { this.dispatchEvent(Object.assign(new Event(name), fields)); }
@@ -29,7 +33,7 @@ class Peer extends EventTarget {
   }
 }
 
-function fixture() {
+function fixture(nativeMedia?: NativeMediaSession) {
   vi.useFakeTimers();
   const peers: Peer[] = [];
   const createPeer = vi.fn(() => {
@@ -41,8 +45,9 @@ function fixture() {
     ...(request.directUpgrade?.action === 'commit' ? { committed: true } : {}),
   }));
   const activate = vi.fn();
-  const upgrade = new DesktopDirectUpgrade({ createPeer, signal, activate,
-    iceServers: [{ urls: ['stun:stun.test', 'turn:relay.test'], username: 'private', credential: 'secret' }] });
+  const upgrade = new DesktopDirectUpgrade({ createPeer, signal, activate, nativeMedia,
+    iceServers: [{ urls: ['stun:stun.test', 'turn:relay.test'], username: 'private', credential: 'secret' },
+      ...(nativeMedia ? [{ ...nativeMedia.endpoint, nativeMedia: true }] : [])] });
   return { peers, createPeer, signal, activate, upgrade };
 }
 afterEach(() => vi.useRealTimers());
@@ -119,4 +124,20 @@ it('waits for cancellation to finish before starting another probe', async () =>
   expect(f.peers).toHaveLength(1);
   cancel(); await vi.advanceTimersByTimeAsync(15_000);
   expect(f.peers).toHaveLength(2); f.upgrade.close();
+});
+
+it('promotes a local native adapter only after the underlying chat route is direct', async () => {
+  const status = vi.fn(async () => ({ direct: false, ipv6: false }));
+  const endpoint = { urls: ['turn:127.0.0.1:12345?transport=udp'], username: 'desktop-media', credential: 'secret',
+    localAddress: '10.253.0.2', remoteAddress: '10.253.0.1' };
+  const f = fixture({ endpoint, status, close: vi.fn() });
+  f.upgrade.update({ connection: 'relay' }); await vi.advanceTimersByTimeAsync(5000);
+  expect(f.createPeer).toHaveBeenCalledWith({ iceServers: [
+    { urls: ['stun:stun.test'] }, { ...endpoint, nativeMedia: true },
+  ] });
+  const peer = f.peers[0]; peer.ready(); peer.decoded = 10; peer.relay = true; peer.native = true;
+  await vi.advanceTimersByTimeAsync(400); expect(f.activate).not.toHaveBeenCalled();
+  status.mockResolvedValue({ direct: true, ipv6: false });
+  await vi.advanceTimersByTimeAsync(400); expect(f.activate).toHaveBeenCalledOnce();
+  f.upgrade.close();
 });

@@ -3,6 +3,8 @@ import { validateSettings, type DesktopOffer, type DesktopSettings, type Desktop
   from '../../../../shared/remote-desktop/protocol';
 import { HostSession } from './hostSession';
 import type { ConnectionDiagnostic } from '../../../../shared/remote-chat/diagnostics';
+import type { NativeMediaFactory } from '../../../../shared/remote-desktop/nativeMedia';
+import { NativeMediaHostSession } from './nativeMediaSession';
 
 export interface DesktopHostSession {
   readonly closed: boolean;
@@ -18,7 +20,9 @@ export class RemoteDesktopHost {
   constructor(private readonly createSession: (settings: DesktopSettings, ice: IceServer[], expiresAt?: number,
     diagnostic?: ConnectionDiagnostic) => DesktopHostSession
     = (settings, ice, expiresAt, diagnostic) => new HostSession(settings, ice, expiresAt, diagnostic)) {}
-  private peers = new Map<string, { ice: IceServer[]; expiresAt?: number; diagnostic?: ConnectionDiagnostic }>();
+  private peers = new Map<string, {
+    ice: IceServer[]; expiresAt?: number; diagnostic?: ConnectionDiagnostic; media?: NativeMediaFactory;
+  }>();
   private active?: { owner: string; id: string; session: DesktopHostSession };
   register(owner: string, iceServers: IceServer[], expiresAt?: number) {
     const expiry = typeof expiresAt === 'number' && Number.isFinite(expiresAt) ? expiresAt : this.peers.get(owner)?.expiresAt;
@@ -31,6 +35,10 @@ export class RemoteDesktopHost {
   diagnose(owner: string, diagnostic: ConnectionDiagnostic) {
     const peer = this.peers.get(owner);
     if (peer) peer.diagnostic = (event, fields) => diagnostic(event, { ...fields, scope: 'desktop' });
+  }
+  nativeMedia(owner: string, media: NativeMediaFactory) {
+    const peer = this.peers.get(owner);
+    if (peer) peer.media = media;
   }
   async request(value: unknown, owner: string) {
     const body = object(value);
@@ -60,10 +68,17 @@ export class RemoteDesktopHost {
     if (this.active && !this.active.session.closed) {
       throw new Error('已有远程桌面连接，请先关闭后再试。');
     }
+    const previous = this.active?.session;
     const peer = this.peers.get(input.owner);
-    const session = this.createSession(settings, input.iceServers, peer?.expiresAt, peer?.diagnostic);
+    const session = new NativeMediaHostSession({ id: input.id, settings, iceServers: input.iceServers,
+      media: peer?.media, diagnostic: peer?.diagnostic,
+      create: ice => this.createSession(settings, ice, peer?.expiresAt, peer?.diagnostic) });
     this.active = { owner: input.owner, id: input.id, session };
-    try { return await session.open(); }
+    try {
+      // Capture may expire before the viewer's close RPC arrives; release its native adapter too.
+      if (previous) await previous.close();
+      return await session.open();
+    }
     catch (error) {
       session.close();
       if (this.active?.session === session) this.active = undefined;

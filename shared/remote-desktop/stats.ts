@@ -1,4 +1,5 @@
 import type { DesktopStats } from './protocol';
+import { isNativeMediaPair, type NativeMediaEndpoint } from './nativeMedia';
 
 type Report = Record<string, unknown>;
 export interface DesktopStatsReports { forEach: (callback: (value: unknown) => void) => void }
@@ -7,7 +8,7 @@ const record = (value: unknown): Report => value !== null && typeof value === 'o
 const SECONDS_TO_MS = 1000;
 const BITS_PER_BYTE = 8;
 
-function routeStats(reports: Report[]): Partial<DesktopStats> {
+function routeStats(reports: Report[], nativeMedia?: NativeMediaEndpoint): Partial<DesktopStats> {
   const selected = reports.find(report => report.type === 'transport')?.selectedCandidatePairId;
   const pair = reports.find(report => report.type === 'candidate-pair'
     && (selected ? report.id === selected : report.nominated && report.state === 'succeeded'));
@@ -18,7 +19,9 @@ function routeStats(reports: Report[]): Partial<DesktopStats> {
   const network = ({ wifi: 'Wi-Fi', ethernet: 'Ethernet', cellular: 'Cellular' } as const)
     [String(local?.networkType) as 'wifi' | 'ethernet' | 'cellular'];
   const rtt = number(pair.currentRoundTripTime);
-  return { connection: local?.candidateType === 'relay' || remote?.candidateType === 'relay' ? 'relay' : 'direct',
+  const native = isNativeMediaPair({ local, remote }, nativeMedia);
+  return { nativeMedia: native, connection: !native && (local?.candidateType === 'relay' || remote?.candidateType === 'relay')
+    ? 'relay' : 'direct',
     rttMs: rtt === undefined ? undefined : rtt * SECONDS_TO_MS,
     transport: transport === 'UDP' || transport === 'TCP' || transport === 'TLS' ? transport : undefined, network };
 }
@@ -31,10 +34,11 @@ function delta(current: Report, previous: Report | undefined, key: string) {
 /** RTC counters are cumulative; show rates for the latest sample, never the sender's configured limits. */
 export class DesktopStatsSampler {
   private previous?: Report;
+  constructor(private readonly nativeMedia?: NativeMediaEndpoint) {}
   sample(input: DesktopStatsReports): Partial<DesktopStats> {
     const reports: Report[] = []; input.forEach(value => reports.push(record(value)));
     const video = reports.find(report => report.type === 'inbound-rtp' && (report.kind ?? report.mediaType) === 'video');
-    const result = routeStats(reports);
+    const result = routeStats(reports, this.nativeMedia);
     if (!video) return result;
     const previous = this.previous?.id === video.id ? this.previous : undefined;
     this.previous = video;

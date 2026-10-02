@@ -74,6 +74,12 @@ fn replacing_a_mobile_bridge_never_resets_or_closes_its_successor() {
         call(json!({"operation":"open","owner":"new","config":config(false)}))["data"].clone();
     assert!(old.is_string() && new.is_string());
     assert_ne!(old, new);
+    for operation in ["media-open", "media-status", "media-close"] {
+        assert!(call(
+            json!({"operation":operation,"owner":"other","id":new,"view_id":"desktop-test"})
+        )["error"]
+            .is_string());
+    }
     assert!(call(json!({"operation":"reset","owner":"old"}))["error"].is_null());
     assert!(call(json!({"operation":"close","id":old}))["error"].is_null());
     assert!(
@@ -136,7 +142,7 @@ async fn userspace_native_engines_exchange_bidirectional_data_without_tun() {
     assert!(result.is_ok(), "native userspace round trip timed out");
 }
 
-fn local_core(desktop: bool, session: &str) -> TomlConfig {
+pub(crate) fn local_core(desktop: bool, session: &str) -> TomlConfig {
     let mut settings = config(desktop);
     settings.session_id = session.into();
     let core = settings.core().unwrap();
@@ -148,11 +154,11 @@ fn local_core(desktop: bool, session: &str) -> TomlConfig {
     core
 }
 
-fn engine(core: TomlConfig) -> Arc<NativeCoreInstance> {
+pub(crate) fn engine(core: TomlConfig) -> Arc<NativeCoreInstance> {
     create_native_instance(core).unwrap()
 }
 
-fn endpoint(engine: &NativeCoreInstance) -> url::Url {
+pub(crate) fn endpoint(engine: &NativeCoreInstance) -> url::Url {
     engine
         .running_listeners()
         .into_iter()

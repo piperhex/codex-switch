@@ -24,19 +24,29 @@ impl Profile {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct IceServer {
     pub urls: Vec<String>,
     #[serde(default)]
     pub username: String,
     #[serde(default)]
     pub credential: String,
+    #[serde(default)]
+    pub native_media: bool,
+    #[serde(default)]
+    pub local_address: String,
+    #[serde(default)]
+    pub remote_address: String,
 }
 
 #[cfg(windows)]
 impl IceServer {
     pub(super) fn validate(&self) -> Result<()> {
         if self.urls.len() > 8 || self.username.len() > 512 || self.credential.len() > 512 {
+            return Err(DesktopError::Invalid);
+        }
+        if self.native_media && !self.valid_native_media() {
             return Err(DesktopError::Invalid);
         }
         for value in &self.urls {
@@ -49,6 +59,20 @@ impl IceServer {
             }
         }
         Ok(())
+    }
+
+    fn valid_native_media(&self) -> bool {
+        self.local_address == "10.253.0.1"
+            && self.remote_address == "10.253.0.2"
+            && self.username == "desktop-media"
+            && self.credential.len() == 64
+            && self.credential.bytes().all(|byte| byte.is_ascii_hexdigit())
+            && self.urls.len() == 1
+            && self.urls.iter().all(|url| {
+                url.strip_prefix("turn:127.0.0.1:")
+                    .and_then(|value| value.strip_suffix("?transport=udp"))
+                    .is_some_and(|port| port.parse::<u16>().is_ok_and(|port| port >= 1024))
+            })
     }
 }
 

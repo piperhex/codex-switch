@@ -64,6 +64,14 @@ Run the hole-punch tests from the parent workspace with `--no-default-features` 
 The simulator validates packet filtering and socket reuse; it is not a real carrier-network success-rate test.
 Replace this patch when upstream provides an equivalent bounded mixed-NAT strategy, retaining its regression tests.
 
+## Desktop media UDP receive registration
+
+`gateway/dataplane/{udp,flow,packet,mod}.rs` adds `DataPlaneUdpSocket::allow_peer` for the native desktop
+media adapter. Existing outbound UDP retains its exact-tuple behavior. An explicitly registered listener accepts
+initial packets only for its bound local address/port and one specified virtual peer IP, with RAII cleanup.
+This lets a remote WebRTC ICE agent send the first check before the local agent has transmitted to its port.
+Packet routing tests cover peer/port isolation and revocation; adapter tests cover a real one-way initial packet.
+
 ## STUN Max comparison
 
 Reviewed [uk0/stun_max at adc74688](https://github.com/uk0/stun_max/blob/adc74688ffdcebd0df1d978a52e908c748652d3c/client/core/stun.go).

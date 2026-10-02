@@ -20,6 +20,35 @@ fn reservations_bound_concurrent_creation_and_ignore_replayed_generations() {
     assert_eq!(state.generation, 2);
 }
 
+#[test]
+fn native_media_markers_require_local_credentials_and_stay_available_in_direct_probes() {
+    let adapter = IceServer {
+        urls: vec!["turn:127.0.0.1:12345?transport=udp".into()],
+        username: "desktop-media".into(),
+        credential: "ab".repeat(32),
+        native_media: true,
+        local_address: "10.253.0.1".into(),
+        remote_address: "10.253.0.2".into(),
+    };
+    assert!(adapter.validate().is_ok());
+    let public = IceServer {
+        urls: vec!["turn:relay.example.test:3478".into()],
+        ..Default::default()
+    };
+    let filtered = direct_servers(&[public.clone(), adapter.clone()]);
+    assert_eq!(filtered.len(), 1);
+    assert!(filtered[0].native_media);
+    let mut forged = adapter.clone();
+    forged.urls = public.urls;
+    assert!(forged.validate().is_err());
+    forged = adapter.clone();
+    forged.remote_address = "192.0.2.1".into();
+    assert!(forged.validate().is_err());
+    forged = adapter;
+    forged.credential = "short".into();
+    assert!(forged.validate().is_err());
+}
+
 async fn fixture() -> Arc<Stream> {
     let peer = Arc::new(peer::create(vec![], false).await.unwrap());
     let stream = Arc::new(Stream {

@@ -20,6 +20,14 @@ thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "net", "macros", "io-util", "signal"] }
 url = "2"
 network-interface = "2.0.5"
+async-trait = "0.1"
+rand = "0.9"
+turn = "0.17.2"
+webrtc-util = { version = "0.17.2", features = ["conn"] }
+
+[dev-dependencies]
+webrtc = "0.17.1"
+bytes = "1"
 
 [dependencies.easytier-proto]
 git = "https://github.com/EasyTier/EasyTier"

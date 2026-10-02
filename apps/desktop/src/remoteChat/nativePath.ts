@@ -9,4 +9,7 @@ export const createDesktopNativePath: NativePathFactory = options => new NativeP
   },
   send: (id, text) => invoke('remote_native_path_send', { request: { id, text } }),
   close: id => invoke('remote_native_path_close', { id }),
+  mediaOpen: (id, viewId) => invoke('remote_native_media', { request: { id, viewId, action: 'open' } }),
+  mediaStatus: (id, viewId) => invoke('remote_native_media', { request: { id, viewId, action: 'status' } }),
+  mediaClose: (id, viewId) => invoke('remote_native_media', { request: { id, viewId, action: 'close' } }),
 });

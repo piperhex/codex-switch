@@ -3,7 +3,7 @@
 use std::{
     any::Any,
     collections::{HashMap, hash_map::Entry},
-    net::SocketAddr,
+    net::{IpAddr, SocketAddr},
     sync::{Arc, Mutex},
 };
 
@@ -16,6 +16,7 @@ pub struct DataPlaneUdpSocket {
     pub(super) socket: Arc<DataPlaneUdpIo>,
     pub(super) flows: FlowSet,
     pub(super) routes: Mutex<HashMap<SocketAddr, FlowLease<FlowData>>>,
+    pub(super) listeners: Mutex<HashMap<IpAddr, FlowLease<FlowData>>>,
     pub(super) local_addr: SocketAddr,
     pub(super) _reservation: Arc<dyn Any + Send + Sync>,
     pub(super) _data_plane_lease: DataPlaneLease,
@@ -23,6 +24,33 @@ pub struct DataPlaneUdpSocket {
 }
 
 impl DataPlaneUdpSocket {
+    /// Accept initial datagrams from one authenticated virtual peer before sending to its port.
+    /// The registration is scoped to this bound socket and is removed when the socket drops.
+    pub fn allow_peer(&self, peer: IpAddr) -> Result<(), std::io::Error> {
+        self.generation
+            .ensure_open()
+            .map_err(|error| error.into_io_error())?;
+        if !peer.is_ipv4() || peer.is_unspecified() || peer.is_multicast() {
+            return Err(std::io::ErrorKind::InvalidInput.into());
+        }
+        let mut listeners = self
+            .listeners
+            .lock()
+            .map_err(|_| std::io::ErrorKind::BrokenPipe)?;
+        if listeners.contains_key(&peer) {
+            return Ok(());
+        }
+        let entry = FlowKey {
+            src: self.local_addr,
+            dst: SocketAddr::new(peer, 0),
+            kind: super::flow::FlowKind::UdpListen,
+        };
+        let lease = FlowLease::try_register(self.flows.clone(), entry, FlowData::DataPlaneRoute)
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::AddrInUse))?;
+        listeners.insert(peer, lease);
+        Ok(())
+    }
+
     pub fn local_addr(&self) -> SocketAddr {
         self.local_addr
     }

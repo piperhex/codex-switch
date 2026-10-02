@@ -1568,16 +1568,20 @@ dependencies = [
 name = "csw-chat-connectivity"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "easytier",
  "easytier-core",
  "easytier-proto",
  "jni 0.21.1",
  "network-interface",
+ "rand 0.9.4",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "turn",
  "url",
+ "webrtc-util",
 ]
 
 [[package]]

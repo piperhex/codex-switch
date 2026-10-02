@@ -37,8 +37,18 @@ it('closes an in-flight capture when the chat session expires', async () => {
   const host = new RemoteDesktopHost(); host.register('alice', []);
   const openingTask = host.request(opening, 'alice');
   host.release();
-  await openingTask;
+  await expect(openingTask).rejects.toThrow('已结束');
   expect(vi.mocked(DesktopHostSession).mock.results[0].value.closed).toBe(true);
   await expect(host.request({ action: 'signal', id: 'desktop-1', candidates: [] }, 'alice'))
     .rejects.toThrow('连接电脑');
+});
+
+it('releases an expired session and its native adapter before replacing it', async () => {
+  const host = new RemoteDesktopHost(); host.register('alice', []);
+  await host.request(opening, 'alice');
+  const expired = vi.mocked(DesktopHostSession).mock.results[0].value;
+  expired.closed = true;
+  await host.request({ ...opening, id: 'desktop-2' }, 'alice');
+  expect(expired.close).toHaveBeenCalledOnce();
+  host.release();
 });

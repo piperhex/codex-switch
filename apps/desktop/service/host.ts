@@ -55,6 +55,7 @@ async function open(id: string, message: Record<string, unknown>) {
   });
   sessions.set(id, { link, resumeToken: String(message.resumeToken), lease: setTimeout(() => release(id), 60_000) });
   operations.desktop.diagnose(id, link.reportDiagnostic);
+  operations.desktop.nativeMedia(id, viewId => link.openNativeMedia(viewId));
   lease(id, message.expiresAt);
   send({ type: 'signal', sessionId: id, payload: { kind: 'key', key: keys.publicKey, identity } });
 }

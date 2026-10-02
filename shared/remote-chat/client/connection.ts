@@ -336,6 +336,7 @@ export class ChatConnection {
   reportDiagnostic: import('../diagnostics').ConnectionDiagnostic = (event, fields) => {
     this.link?.reportDiagnostic(event, fields);
   };
+  openNativeMedia = (viewId: string) => this.link?.openNativeMedia(viewId) ?? Promise.resolve(undefined);
 
   async confirmHostIdentity(fingerprint: string) {
     if (!this.options.verifyHostKey?.confirm) throw new Error('当前连接无法更新电脑身份。');

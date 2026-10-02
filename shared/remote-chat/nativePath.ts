@@ -1,12 +1,16 @@
 import type { Channel } from './protocol';
 import type { ConnectionDiagnostic } from './diagnostics';
 import { sanitizeDiagnostic, type DiagnosticFields } from './diagnosticSchema';
+import type { NativeMediaEndpoint, NativeMediaRoute, NativeMediaSession } from '../remote-desktop/nativeMedia';
 
 export interface NativeTraversalConfig { secret: string; servers: string[]; stunServers: string[]; expiresAt: number }
 export interface NativePathOptions {
   sessionId: string; desktop: boolean; config: NativeTraversalConfig; diagnostic?: ConnectionDiagnostic;
 }
-export interface NativeChannel extends Channel { renew(expiresAt: number): void }
+export interface NativeChannel extends Channel {
+  renew(expiresAt: number): void;
+  openMedia?(viewId: string): Promise<NativeMediaSession | undefined>;
+}
 export type NativePathFactory = (options: NativePathOptions) => NativeChannel;
 export type NativePathEvent = { type: 'open' | 'closed' } | { type: 'data'; text: string }
   | { type: 'diagnostic'; stage: import('./diagnostics').DiagnosticFields['stage'];
@@ -22,6 +26,9 @@ export interface NativePathBridge {
   send(id: string, text: string): Promise<void>;
   close(id: string): Promise<void>;
   renew?(id: string, expiresAt: number): Promise<void>;
+  mediaOpen?(id: string, viewId: string): Promise<NativeMediaEndpoint>;
+  mediaStatus?(id: string, viewId: string): Promise<NativeMediaRoute>;
+  mediaClose?(id: string, viewId: string): Promise<void>;
 }
 const MAX_BUFFER = 512 * 1024;
 
@@ -48,6 +55,17 @@ export class NativePath implements Channel {
     void this.id.then(id => this.bridge.renew?.(id, expiresAt)).catch(() => this.close());
   }
   get bufferedAmount() { return this.pending; }
+  async openMedia(viewId: string): Promise<NativeMediaSession | undefined> {
+    if (this.state === 'closed' || !this.bridge.mediaOpen || !this.bridge.mediaStatus || !this.bridge.mediaClose) {
+      return undefined;
+    }
+    const id = await this.id;
+    if (this.state === 'closed') return undefined;
+    const endpoint = await this.bridge.mediaOpen(id, viewId);
+    const close = () => this.bridge.mediaClose!(id, viewId);
+    if (this.state === 'closed') { await close(); return undefined; }
+    return { endpoint, status: () => this.bridge.mediaStatus!(id, viewId), close };
+  }
   onOpen(callback: () => void) { this.opened.add(callback); }
   onClose(callback: () => void) { this.closed.add(callback); }
   onMessage(callback: (text: string) => void) { this.messages.add(callback); }

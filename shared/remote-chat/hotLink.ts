@@ -74,6 +74,7 @@ export class HotLink {
   get resumable() { return !this.closed && Boolean(this.cipher); }
   reportDiagnostic: import('./diagnostics').ConnectionDiagnostic = (event, fields) => this.diagnostic(event, fields);
   get connectionMode() { return this.mode; }
+  openNativeMedia(viewId: string) { return this.peer.openNativeMedia(viewId); }
   offer() { return this.peer.offer(); }
   renew(expiresAt: number) { this.expiresAt = expiresAt; this.peer.renew(expiresAt); }
 

@@ -17,6 +17,7 @@ pub(crate) enum FlowKind {
     Udp = 1,
     Tcp = 2,
     TcpListen = 3,
+    UdpListen = 4,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
