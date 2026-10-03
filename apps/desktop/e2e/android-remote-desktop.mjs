@@ -56,13 +56,14 @@ try {
   await check('02-mouse-buttons', async () => {
     if (await hasText('展开鼠标面板')) await tap('展开鼠标面板');
     await waitText('鼠标左键');
-    await tap('鼠标左键'); await tap('鼠标右键'); await tap('展开滚动滑块');
-    const pad = (await nodes()).find(node => node['content-desc'] === '十字滚动滑块');
-    const [left, top, right, bottom] = pad.rect;
+    await tap('鼠标左键'); await tap('鼠标右键');
+    const wheel = (await nodes()).find(node => node['content-desc'] === '按住并拖动以滚动');
+    const [left, top, right, bottom] = wheel.rect;
     const x = String(Math.round((left + right) / 2));
-    const y = String(Math.round(top + (bottom - top) * .8));
-    await adb('shell', 'input', 'tap', x, y);
-    await adb('shell', 'input', 'tap', x, String(Math.round((top + bottom) / 2)));
+    const y = Math.round((top + bottom) / 2);
+    await adb('shell', 'input', 'swipe', x, String(y), x, String(y + 120), '500');
+    await waitText('鼠标左键');
+    assert(!(await hasText('十字滚动滑块')));
     await waitFor(async () => (await serverState()).desktop.inputs.some(value =>
       value.kind === 'wheel' && value.delta < 0), 'wheel input');
     const inputs = (await serverState()).desktop.inputs;
@@ -128,7 +129,7 @@ try {
     }, 'pointer reaches bottom-right');
     if (await hasText('展开鼠标面板')) await tap('展开鼠标面板');
     const controls = await nodes();
-    for (const label of ['鼠标左键', '鼠标右键', '展开滚动滑块', '滑动移动鼠标，轻点单击']) {
+    for (const label of ['鼠标左键', '鼠标右键', '按住并拖动以滚动', '滑动移动鼠标，轻点单击']) {
       const control = controls.find(node => node['content-desc'] === label);
       assert(control, label);
       assert(control.rect[0] >= left && control.rect[1] >= top, label);

@@ -30,14 +30,15 @@ it('accelerates with distance, repeats while held and immediately stops when rec
   control.move({ x: 4, y: -2 }); vi.advanceTimersByTime(1000); expect(wheel).toHaveBeenCalledTimes(count);
   control.move({ x: -60, y: 0 }); control.end();
   expect(change).toHaveBeenLastCalledWith({ x: 0, y: 0 });
-  vi.advanceTimersByTime(1000); expect(wheel).toHaveBeenCalledTimes(count + 1); expect(close).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(1000); expect(wheel).toHaveBeenCalledTimes(count + 1); expect(close).toHaveBeenCalledOnce();
 });
-it('dismisses only a center tap and never dismisses or keeps scrolling after a cancelled gesture', () => {
+it('dismisses every completed gesture once and never scrolls after cancellation', () => {
   const { control, wheel, close } = setup();
   control.start({ x: 2, y: 1 }); control.end(); expect(close).toHaveBeenCalledOnce();
+  control.start({ x: 0, y: 60 }); control.end(); expect(close).toHaveBeenCalledTimes(2);
   control.start({ x: 60, y: 0 }); control.stop(); control.end();
   control.move({ x: 0, y: -60 }); vi.advanceTimersByTime(1000);
-  expect(close).toHaveBeenCalledOnce(); expect(wheel).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
+  expect(close).toHaveBeenCalledTimes(2); expect(wheel).toHaveBeenCalledTimes(2); expect(vi.getTimerCount()).toBe(0);
 });
 it('does not turn horizontal gestures into vertical scrolling on an older host', () => {
   const { control, wheel } = setup(false);

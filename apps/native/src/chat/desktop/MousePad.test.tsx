@@ -6,6 +6,13 @@ import { DesktopMouse } from './MousePad';
 import { DesktopPointer } from '../../../../../shared/remote-desktop/input';
 import { desktopViewport } from '../../../../../shared/remote-desktop/geometry';
 import { useTrackpad } from './useTrackpad';
+import { DesktopScrollPad } from './DesktopScrollPad';
+
+const runtime = vi.hoisted(() => ({ scrolling: false }));
+vi.mock('../../../../../shared/remote-desktop/useScrollPad', () => ({ useScrollPad: () => ({
+  active: runtime.scrolling, layout: { x: 0, y: 0, size: 180 }, position: { x: 0, y: 0 },
+  start: vi.fn(), move: vi.fn(), end: vi.fn(),
+}) }));
 
 vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),
   useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
@@ -14,7 +21,8 @@ vi.mock('react-native', () => ({ View: 'View', Image: 'Image', Pressable: 'Press
   StyleSheet: { create: <T,>(styles: T) => styles, absoluteFillObject: { position: 'absolute' } } }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Icon', MaterialCommunityIcons: 'Icon' }));
 vi.mock('./useTrackpad', () => ({ useTrackpad: vi.fn(() => ({ panHandlers: {} })) }));
-interface Props { children?: ReactNode; style?: Array<{ left?: number; top?: number; width?: number; height?: number }>;
+interface Props { children?: ReactNode;
+  style?: Array<{ left?: number; top?: number; width?: number; height?: number; opacity?: number }>;
   accessibilityLabel?: string; pointerEvents?: string; onAccessibilityTap?: () => void; resizeMode?: string }
 function nodes(tree: ReactNode): ReactElement<Props>[] {
   return Children.toArray(tree).flatMap(child => isValidElement<Props>(child)
@@ -25,6 +33,7 @@ const assetRequire = createRequire(import.meta.url);
 const cursorAsset = assetRequire.resolve('../../../../../shared/remote-desktop/cursor.png');
 const previousAsset = assetRequire.cache[cursorAsset];
 beforeEach(() => {
+  runtime.scrolling = false;
   vi.stubGlobal('React', React);
   // Metro loads this file as an asset identifier, not as JavaScript.
   const asset = new Module(cursorAsset); asset.exports = 1; assetRequire.cache[cursorAsset] = asset;
@@ -38,7 +47,8 @@ it('renders the native local pointer and small controls over black letterboxing,
   const pointer = new DesktopPointer(vi.fn()); pointer.absolute(0.4, 1);
   const viewport = desktopViewport({ width: 400, height: 800 }, { width: 1600, height: 900 });
   const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
-  const render = () => nodes(DesktopMouse({ pointer, viewport, panel, visible: true, scroll: vi.fn() }));
+  const render = () => nodes(DesktopMouse({ pointer, viewport, panel, visible: true,
+    wheel: vi.fn(), horizontal: true }));
   const elements = render();
   const cursor = elements.find(node => node.props.pointerEvents === 'none')!;
   expect(cursor.props.style?.[1].left).toBeCloseTo(159.6);
@@ -64,7 +74,7 @@ it('renders the native local pointer and small controls over black letterboxing,
   icon.props.onAccessibilityTap!(); expect(panel.expand).toHaveBeenCalledOnce();
   panel.expanded = true;
   expect(render().some(node => node.type === Image)).toBe(true);
-  expect(nodes(DesktopMouse({ pointer, viewport, panel, visible: false, scroll: vi.fn() }))
+  expect(nodes(DesktopMouse({ pointer, viewport, panel, visible: false, wheel: vi.fn(), horizontal: true }))
     .some(node => node.props.pointerEvents === 'box-none')).toBe(false);
   pointer.dispose();
 });
@@ -76,7 +86,8 @@ it('keeps the native cursor and panel offset together at the screen edges', () =
     const viewport = desktopViewport(stage, { width: 1600, height: 900 });
     for (const point of [{ x: 0, y: 0 }, { x: 0.7, y: 0.8 }, { x: 1, y: 1 }]) {
       pointer.absolute(point.x, point.y);
-      const elements = nodes(DesktopMouse({ pointer, viewport, panel, visible: true, scroll: vi.fn() }));
+      const elements = nodes(DesktopMouse({ pointer, viewport, panel, visible: true,
+        wheel: vi.fn(), horizontal: true }));
       const cursor = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'none')!.props.style!);
       const controls = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'box-none')!.props.style!);
       expect(controls.left! - cursor.left!).toBeCloseTo(24);
@@ -92,10 +103,28 @@ it('keeps native controls visible after a pinch moves the pointer offscreen', ()
   const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
   const viewport = { stage: { width: 800, height: 450 },
     content: { x: -500, y: -300, width: 2400, height: 1350 } };
-  const elements = nodes(DesktopMouse({ pointer, viewport, panel, visible: true, zoomed: true, scroll: vi.fn() }));
+  const elements = nodes(DesktopMouse({ pointer, viewport, panel, visible: true, zoomed: true,
+    wheel: vi.fn(), horizontal: true }));
   const cursor = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'none')!.props.style!);
   const controls = Object.assign({}, ...elements.find(node => node.props.pointerEvents === 'box-none')!.props.style!);
   expect(cursor.left).toBeGreaterThan(800); expect(cursor.top).toBeGreaterThan(450);
   expect(controls).toMatchObject({ left: 672, top: 306, width: 120, height: 136 });
   pointer.dispose();
+});
+
+it('keeps the mouse controls mounted but invisible while the held wheel shows the cross', () => {
+  const pointer = new DesktopPointer(vi.fn());
+  const viewport = desktopViewport({ width: 400, height: 800 }, { width: 1600, height: 900 });
+  const panel = { expanded: true, expand: vi.fn(), activity: vi.fn(), hold: vi.fn() };
+  const render = () => nodes(DesktopMouse({ pointer, viewport, panel, visible: true,
+    wheel: vi.fn(), horizontal: true }));
+  const layer = (elements: ReactElement<Props>[]) => elements.find(node => node.props.pointerEvents === 'box-none')!;
+  const before = layer(render());
+  runtime.scrolling = true;
+  const during = render();
+  expect(Object.assign({}, ...layer(during).props.style!).opacity).toBe(0);
+  expect(nodes(before.props.children)[0].type).toBe(nodes(layer(during).props.children)[0].type);
+  expect(during.some(node => node.type === DesktopScrollPad)).toBe(true);
+  runtime.scrolling = false;
+  expect(Object.assign({}, ...layer(render()).props.style!).opacity).toBe(1); pointer.dispose();
 });

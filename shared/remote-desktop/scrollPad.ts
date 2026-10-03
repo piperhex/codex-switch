@@ -25,10 +25,9 @@ export class ScrollPadController {
   private position: Point = { x: 0, y: 0 };
   private timer?: ReturnType<typeof setInterval>;
   private active = false;
-  private moved = false;
   constructor(private readonly options: ScrollPadOptions) {}
   start(point: Point) {
-    this.stop(); this.active = true; this.moved = false;
+    this.stop(); this.active = true;
     this.move(point);
     this.timer = setInterval(() => this.tick(), SCROLL_PAD_INTERVAL);
   }
@@ -36,7 +35,6 @@ export class ScrollPadController {
     if (!this.active || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
     const horizontal = Math.abs(point.x) > Math.abs(point.y);
     const amount = Math.max(-SCROLL_PAD_TRAVEL, Math.min(SCROLL_PAD_TRAVEL, horizontal ? point.x : point.y));
-    if (Math.abs(amount) > DEAD_ZONE) this.moved = true;
     const distance = Math.abs(amount) <= DEAD_ZONE || (horizontal && !this.options.horizontal) ? 0 : amount;
     const wasResting = !this.position.x && !this.position.y;
     this.position = horizontal ? { x: distance, y: 0 } : { x: 0, y: distance };
@@ -44,7 +42,7 @@ export class ScrollPadController {
     if (wasResting && distance) this.tick();
   }
   end() {
-    const close = this.active && !this.moved;
+    const close = this.active;
     this.stop();
     if (close) this.options.close();
   }

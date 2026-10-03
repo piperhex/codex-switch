@@ -2,7 +2,6 @@ import { StyleSheet } from 'react-native';
 
 export const scrollPadStyles = StyleSheet.create({
   layer: { ...StyleSheet.absoluteFillObject, zIndex: 3 },
-  dismiss: { ...StyleSheet.absoluteFillObject },
   pad: { position: 'absolute' },
   cross: { position: 'absolute', backgroundColor: '#6a6f77', borderWidth: 2, borderColor: '#edf2f7', borderRadius: 14 },
   vertical: { left: '33.333%', top: 0, width: '33.333%', height: '100%' },

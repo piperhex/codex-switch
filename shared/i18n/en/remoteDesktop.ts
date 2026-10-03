@@ -23,7 +23,7 @@ export const remoteDesktopMessages: Record<string, string> = {
   '剪切': 'Cut', '全选': 'Select all', '撤销': 'Undo',
   '输入文字，即时发送到电脑': 'Type to send directly to your computer',
   '更新远程电脑上的应用后，即可使用这些按键。': 'Update the app on the remote computer to use these keys.',
-  '展开滚动滑块': 'Open scroll control', '收起滚动滑块': 'Close scroll control', '十字滚动滑块': 'Scroll control',
+  '按住并拖动以滚动': 'Hold and drag to scroll', '十字滚动滑块': 'Scroll control',
   '更新远程电脑上的应用后，即可左右滚动。': 'Update the remote computer app to scroll horizontally.',
   '剪贴板': 'Clipboard', '远程桌面键盘输入': 'Remote desktop keyboard input',
   '请更新远程电脑上的应用，启用实体键盘和剪贴板。':
@@ -86,10 +86,10 @@ export const remoteDesktopMessages: Record<string, string> = {
   '向上滚动': 'Scroll up', '向下滚动': 'Scroll down', '拖动鼠标面板': 'Move mouse panel',
   '滑动移动': 'Swipe to move', '拖拽中': 'Dragging', '显示桌面': 'Show desktop', '所有窗口': 'All windows',
   '发送到电脑的文字': 'Text to send to your computer', '输入文字': 'Enter text', '退格': 'Backspace', '回车': 'Enter',
-  '滑动画面或鼠标下半部移动指针，轻点单击。按住左键滑动即可拖拽，松手结束；长按不动可锁定拖拽，再点左键结束。中央箭头用于滚动，横线把手可移动鼠标面板。':
+  '滑动画面或鼠标下半部移动指针，轻点单击。按住左键滑动即可拖拽，松手结束；长按不动可锁定拖拽，再点左键结束。按住中央箭头并拖动可滚动，松手返回鼠标面板。横线把手可移动鼠标面板。':
     'Swipe the screen or lower mouse pad to move; tap to click. Slide while holding the left button to drag, then release '
-      + 'to stop. Hold it still to lock dragging; tap it again to release. Use the arrows to scroll and the center grip '
-      + 'to reposition the panel.',
+      + 'to stop. Hold it still to lock dragging; tap it again to release. Hold and drag the center arrows to scroll; '
+      + 'release to return to the mouse panel. Use the center grip to reposition the panel.',
   '正在连接桌面…': 'Connecting to the desktop…',
   '桌面连接超时，请检查两端网络后重试。': 'Connection timed out. Check both devices’ networks and try again.',
   '桌面连接已断开，请重新连接。': 'The desktop disconnected. Please reconnect.',

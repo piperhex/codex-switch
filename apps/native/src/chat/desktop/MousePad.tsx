@@ -9,14 +9,21 @@ import type { MousePanelActivity } from '../../../../../shared/remote-desktop/us
 import { useMouseButtons } from '../../../../../shared/remote-desktop/useMouseButtons';
 import { useTrackpad } from './useTrackpad';
 import { useLeftMouseButton } from './useLeftMouseButton';
+import { useScrollPad, type ScrollPadGesture } from '../../../../../shared/remote-desktop/useScrollPad';
+import type { DesktopWheel } from '../../../../../shared/remote-desktop/scrollPad';
+import { useScrollButton } from './useScrollButton';
+import { DesktopScrollPad } from './DesktopScrollPad';
 import { desktopStyles as s } from './styles';
 
 interface Props {
-  pointer: DesktopPointer; viewport: DesktopViewport; panel: MousePanelActivity; scroll: () => void;
+  pointer: DesktopPointer; viewport: DesktopViewport; panel: MousePanelActivity;
+  wheel: DesktopWheel; horizontal: boolean;
 }
+type MousePadProps = Omit<Props, 'wheel' | 'horizontal'> & { scroll: ScrollPadGesture };
 export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { visible: boolean; zoomed?: boolean }) {
   useLanguage();
   const position = useSyncExternalStore(props.pointer.subscribe, props.pointer.getSnapshot);
+  const scroll = useScrollPad({ ...props, enabled: visible && props.panel.expanded });
   const cursor = cursorPosition(position, props.viewport);
   const panelSize = props.panel.expanded ? MOUSE_PANEL_SIZE : MOUSE_ICON_SIZE;
   const panel = mousePanelPosition(cursor, zoomed ? props.viewport.stage : undefined, panelSize);
@@ -26,9 +33,13 @@ export function DesktopMouse({ visible, zoomed = false, ...props }: Props & { vi
       <Image accessible={false} source={require('../../../../../shared/remote-desktop/cursor.png')}
         resizeMode="contain" style={s.cursorImage} />
     </View>}
-    {visible && <View pointerEvents="box-none" style={[s.mouseLayer, panelSize, { left: panel.x, top: panel.y }]}>
-      {props.panel.expanded ? <MousePad {...props} /> : <MouseIcon {...props} />}
+    {visible && <View pointerEvents="box-none" accessibilityElementsHidden={scroll.active}
+      importantForAccessibility={scroll.active ? 'no-hide-descendants' : 'auto'}
+      style={[s.mouseLayer, panelSize, { left: panel.x, top: panel.y, opacity: scroll.active ? 0 : 1 }]}>
+      {props.panel.expanded ? <MousePad {...props} scroll={scroll} /> : <MouseIcon {...props} />}
     </View>}
+    {visible && scroll.active && <DesktopScrollPad layout={scroll.layout} position={scroll.position}
+      horizontal={props.horizontal} cancel={scroll.end} />}
   </>;
 }
 function MouseIcon({ pointer, viewport, panel }: Props) {
@@ -41,10 +52,11 @@ function MouseIcon({ pointer, viewport, panel }: Props) {
     <MaterialCommunityIcons name="mouse" size={23} color="#fff" />
   </View>;
 }
-function MousePad({ pointer, viewport, panel, scroll }: Props) {
+function MousePad({ pointer, viewport, panel, scroll }: MousePadProps) {
   useLanguage();
   const buttons = useMouseButtons(pointer);
   const left = useLeftMouseButton({ buttons, viewport, panel });
+  const wheel = useScrollButton(scroll);
   const pad = useTrackpad({ pointer, viewport, panel, id: 'pad', cancel: buttons.cancel });
   const grip = useTrackpad({ pointer, viewport, panel, id: 'grip', click: false, cancel: buttons.cancel });
   useEffect(() => { panel.hold('drag', buttons.dragging); return () => panel.hold('drag', false); },
@@ -67,10 +79,10 @@ function MousePad({ pointer, viewport, panel, scroll }: Props) {
       </Pressable></View>
     <View {...pad.panHandlers} style={[s.pad, pad.pressed && s.pressed]} accessibilityLabel={t("滑动移动鼠标，轻点单击")}>
       <Text style={s.mouseText}>{t("滑动移动")}</Text></View>
-    <Pressable accessibilityRole="button" accessibilityLabel={t("展开滚动滑块")} onPress={scroll}
-      style={({ pressed }) => [s.wheel, pressed && s.pressed]}>
+    <View accessible accessibilityRole="button" accessibilityLabel={t("按住并拖动以滚动")}
+      {...wheel.panHandlers} style={s.wheel}>
       <Ionicons name="chevron-up" size={18} color="#526684" />
-      <Ionicons name="chevron-down" size={18} color="#526684" /></Pressable>
+      <Ionicons name="chevron-down" size={18} color="#526684" /></View>
     <View {...grip.panHandlers} style={[s.grip, grip.pressed && s.pressed]} accessibilityLabel={t("拖动鼠标面板")}>
       <Ionicons name="reorder-two" size={22} color="#526684" /></View>
   </View>;

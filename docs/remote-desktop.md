@@ -125,12 +125,12 @@ support editing keys, modifiers and shortcuts, while local IME composition commi
 Local forms and toolbar controls keep their normal keyboard behavior. Blur, disconnect and session expiry
 release remotely held keys and buttons. Browser/OS-reserved shortcuts may remain local.
 
-On native and touch Web viewers, tapping the mouse panel's center wheel opens a compact cross-shaped
-scroll control. Drag its blue knob up/down or left/right to scroll the content under the remote cursor;
-holding farther from the center increases the speed. Releasing returns the knob to the center and stops
-scrolling. Tap the center or outside the cross to dismiss. The cross stays within the viewport, and
-interrupted gestures, backgrounding, mode changes and disconnects stop scrolling. Horizontal scrolling
-requires an updated Windows host; older hosts retain vertical scrolling with an update hint.
+On native and touch Web viewers, holding the mouse panel's center wheel shows a compact cross-shaped
+scroll control. Without lifting, drag up/down or left/right to scroll the content under the remote cursor;
+holding farther from the starting point increases the speed. Releasing stops scrolling and immediately
+restores the mouse panel. A tap does not leave the cross open or send a remote click. The cross stays within
+the viewport. Interrupted gestures, backgrounding, mode changes and disconnects stop scrolling and dismiss it.
+Horizontal scrolling requires an updated Windows host; older hosts retain vertical scrolling with an update hint.
 
 The desktop viewer uses the system clipboard for text, PNG images and files in both directions.
 Copy locally, then press Ctrl+V (or Shift+Insert) over the remote desktop to transfer and paste.
