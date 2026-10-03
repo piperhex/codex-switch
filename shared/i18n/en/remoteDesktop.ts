@@ -3,7 +3,7 @@ export const remoteDesktopMessages: Record<string, string> = {
   '桌面已就绪。打开远程桌面，登录电脑后即可继续聊天。':
     'The desktop is ready. Open remote desktop and sign in to the computer to continue chatting.',
   '请先登录电脑并打开聊天，再发送消息。': 'Sign in to the computer and open chat before sending a message.',
-  '桌面连接中断，正在自动重连…': 'Desktop connection lost. Reconnecting…',
+  '连接已断开，正在重连…': 'Connection lost. Reconnecting…',
   '正在恢复桌面连接…': 'Restoring the desktop connection…',
   '核对电脑身份': 'Verify computer identity',
   '设备指纹': 'Device fingerprint',

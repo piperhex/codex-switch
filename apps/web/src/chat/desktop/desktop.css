@@ -47,7 +47,10 @@
 .rd-stats button { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center;
   padding: 0; background: transparent; pointer-events: auto; border-radius: 6px; }
 .rd-status { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); padding: 14px; border-radius: 12px;
-  background: #222b3aee; width: max-content; max-width: min(400px, 90%); display: grid; gap: 10px; font-size: 14px; }
+  background: #222b3aee; width: max-content; max-width: calc(100% - 24px);
+  display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.rd-status > span { min-width: 0; max-width: 400px; overflow-wrap: anywhere; }
+.rd-status button { flex-shrink: 0; white-space: nowrap; }
 .rd-status button, .rd-settings button { background: #333d50; padding: 10px 12px; border-radius: 9px; }
 .rd-mouse { position: absolute; left: 0; top: 0; border: 2px solid #94a4be;
   border-radius: 40px; background: #dce9ffed; overflow: hidden; color: #526684; }

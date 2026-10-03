@@ -20,7 +20,7 @@ export class DesktopRecovery {
     if (this.stopped || this.retryTimer) return;
     const delay = RETRY_DELAYS[this.failures++];
     if (delay === undefined) { this.status(message); return; }
-    this.status('桌面连接中断，正在自动重连…');
+    this.status('连接已断开，正在重连…');
     this.retryTimer = setTimeout(() => {
       this.retryTimer = undefined;
       if (!this.stopped) this.reconnect();

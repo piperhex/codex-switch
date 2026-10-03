@@ -107,11 +107,15 @@ export function RemoteDesktop({ client, active, close }: {
             {session.stream && <DesktopMouse pointer={session.pointer} viewport={viewport} panel={panel}
               visible={panelVisible} zoomed={zoom.modified} wheel={wheel}
               horizontal={!!session.capabilities.horizontalScroll} />}
-            {!!(session.status || orientation.error) && <View style={s.message}>
-              <Text accessibilityRole="alert" style={s.text}>{session.status || orientation.error}</Text>
-              <Pressable onPress={session.retry}><Text style={s.text}>{t("重新连接")}</Text></Pressable></View>}
-            {viewOnly && !session.status && <View pointerEvents="none" style={s.message}>
-              <Text style={s.text}>{t("仅观看")}</Text></View>}
+            {!!(session.status || orientation.error) && <View pointerEvents="box-none" style={s.messageLayer}>
+              <View style={s.message}>
+                <Text accessibilityRole="alert" style={[s.text, s.messageText]}>
+                  {t(session.status || orientation.error)}</Text>
+                <Pressable accessibilityRole="button" style={s.retry} onPress={session.retry}>
+                  <Text style={s.text}>{t("重新连接")}</Text></Pressable>
+              </View></View>}
+            {viewOnly && !session.status && <View pointerEvents="none" style={s.messageLayer}>
+              <View style={s.message}><Text style={s.text}>{t("仅观看")}</Text></View></View>}
             {display && <DisplaySettings settings={session.settings} displays={session.displays} update={session.update}
               saving={session.saving || !session.stream}
               stats={{ visible: statsVisible, toggle: () => setStatsVisible(!statsVisible) }}
