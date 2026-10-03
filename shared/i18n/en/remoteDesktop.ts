@@ -86,9 +86,10 @@ export const remoteDesktopMessages: Record<string, string> = {
   '向上滚动': 'Scroll up', '向下滚动': 'Scroll down', '拖动鼠标面板': 'Move mouse panel',
   '滑动移动': 'Swipe to move', '拖拽中': 'Dragging', '显示桌面': 'Show desktop', '所有窗口': 'All windows',
   '发送到电脑的文字': 'Text to send to your computer', '输入文字': 'Enter text', '退格': 'Backspace', '回车': 'Enter',
-  '滑动画面或鼠标下半部移动指针，轻点单击。长按左键开始拖拽，再点左键结束。中央箭头用于滚动，横线把手可移动鼠标面板。':
-    'Swipe the screen or lower mouse pad to move; tap to click. Hold the left button to start dragging and tap it again '
-      + 'to release. Use the arrows to scroll and the center grip to reposition the panel.',
+  '滑动画面或鼠标下半部移动指针，轻点单击。按住左键滑动即可拖拽，松手结束；长按不动可锁定拖拽，再点左键结束。中央箭头用于滚动，横线把手可移动鼠标面板。':
+    'Swipe the screen or lower mouse pad to move; tap to click. Slide while holding the left button to drag, then release '
+      + 'to stop. Hold it still to lock dragging; tap it again to release. Use the arrows to scroll and the center grip '
+      + 'to reposition the panel.',
   '正在连接桌面…': 'Connecting to the desktop…',
   '桌面连接超时，请检查两端网络后重试。': 'Connection timed out. Check both devices’ networks and try again.',
   '桌面连接已断开，请重新连接。': 'The desktop disconnected. Please reconnect.',

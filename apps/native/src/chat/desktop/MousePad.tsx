@@ -8,6 +8,7 @@ import { cursorPosition, mousePanelPosition, MOUSE_PANEL_SIZE, MOUSE_ICON_SIZE, 
 import type { MousePanelActivity } from '../../../../../shared/remote-desktop/useMousePanel';
 import { useMouseButtons } from '../../../../../shared/remote-desktop/useMouseButtons';
 import { useTrackpad } from './useTrackpad';
+import { useLeftMouseButton } from './useLeftMouseButton';
 import { desktopStyles as s } from './styles';
 
 interface Props {
@@ -43,19 +44,27 @@ function MouseIcon({ pointer, viewport, panel }: Props) {
 function MousePad({ pointer, viewport, panel, scroll }: Props) {
   useLanguage();
   const buttons = useMouseButtons(pointer);
+  const left = useLeftMouseButton({ buttons, viewport, panel });
   const pad = useTrackpad({ pointer, viewport, panel, id: 'pad', cancel: buttons.cancel });
   const grip = useTrackpad({ pointer, viewport, panel, id: 'grip', click: false, cancel: buttons.cancel });
   useEffect(() => { panel.hold('drag', buttons.dragging); return () => panel.hold('drag', false); },
     [buttons.dragging, panel.hold]);
+  const clickLeft = () => { panel.activity(); buttons.down('left'); buttons.up('left'); };
   return <View style={s.mouse}>
-    <View style={s.mouseTop}>{(['left', 'right'] as const).map(button =>
-      <Pressable key={button} accessibilityRole="button" accessibilityLabel={button === 'left' ? t("鼠标左键") : t("鼠标右键")}
-        onPressIn={() => { panel.hold(button, true); buttons.down(button); }}
-        onPressOut={() => { buttons.up(button); panel.hold(button, false); }}
-        style={({ pressed }) => [s.mouseButton, button === 'right' && s.mouseRight,
-          (pressed || (button === 'left' && buttons.dragging)) && s.pressed]}>
-        <Text style={s.mouseText}>{button === 'left' ? (buttons.dragging ? t("拖拽中") : t("左键")) : t("右键")}</Text>
-      </Pressable>)}</View>
+    <View style={s.mouseTop}>
+      <View {...left.panHandlers} accessible accessibilityRole="button" accessibilityLabel={t("鼠标左键")}
+        accessibilityState={{ selected: buttons.dragging }}
+        onAccessibilityTap={clickLeft} accessibilityActions={[{ name: 'activate' }]}
+        onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'activate') clickLeft(); }}
+        style={[s.mouseButton, (left.pressed || buttons.dragging) && s.pressed]}>
+        <Text style={s.mouseText}>{buttons.dragging ? t("拖拽中") : t("左键")}</Text>
+      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel={t("鼠标右键")}
+        onPressIn={() => { panel.hold('right', true); buttons.down('right'); }}
+        onPressOut={() => { buttons.up('right'); panel.hold('right', false); }}
+        style={({ pressed }) => [s.mouseButton, s.mouseRight, pressed && s.pressed]}>
+        <Text style={s.mouseText}>{t("右键")}</Text>
+      </Pressable></View>
     <View {...pad.panHandlers} style={[s.pad, pad.pressed && s.pressed]} accessibilityLabel={t("滑动移动鼠标，轻点单击")}>
       <Text style={s.mouseText}>{t("滑动移动")}</Text></View>
     <Pressable accessibilityRole="button" accessibilityLabel={t("展开滚动滑块")} onPress={scroll}

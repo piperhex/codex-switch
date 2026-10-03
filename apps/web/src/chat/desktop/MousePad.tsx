@@ -35,20 +35,16 @@ function MouseIcon({ pointer, viewport, panel }: Props) {
 }
 
 function MousePad({ pointer, viewport, panel, scroll }: Props) {
-  const buttons = useMouseButtons(pointer);
+  const buttons = useMouseButtons(pointer, viewport, panel);
   const pad = useTrackpad({ pointer, viewport, panel, id: 'pad', cancel: buttons.cancel });
   const grip = useTrackpad({ pointer, viewport, panel, id: 'grip', click: false, cancel: buttons.cancel });
   useEffect(() => { panel.hold('drag', buttons.dragging); return () => panel.hold('drag', false); },
     [buttons.dragging, panel.hold]);
-  const up = (button: 'left' | 'right') => { buttons.up(button); panel.hold(button, false); };
   return <div className="rd-mouse" style={MOUSE_SIZE}>
     <div className="rd-mouse-top">{(['left', 'right'] as const).map(button =>
       <button key={button} aria-label={t(button === 'left' ? '鼠标左键' : '鼠标右键')}
         aria-pressed={button === 'left' && buttons.dragging}
-        onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId);
-          panel.hold(button, true); buttons.down(button); }}
-        onPointerUp={() => up(button)} onLostPointerCapture={() => up(button)}
-        onPointerCancel={() => { buttons.cancel(); panel.hold(button, false); }}>
+        {...buttons.handlers(button)}>
         {t(button === 'left' ? (buttons.dragging ? '拖拽中' : '左键') : '右键')}</button>)}</div>
     <div className="rd-pad" {...pad}>{t('滑动移动')}</div>
     <button className="rd-wheel" aria-label={t('展开滚动滑块')} onClick={scroll}>

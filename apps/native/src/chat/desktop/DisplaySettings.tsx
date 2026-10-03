@@ -56,6 +56,8 @@ export function DisplaySettings({ settings, displays, update, saving, close, sta
     </View><Text style={s.hint}>{t("默认根据网络情况调整画质和帧率，让操作保持流畅。")}</Text>
     <Text style={s.text}>{t("鼠标操作")}</Text>
     <Text style={s.hint}>{t("在鼠标面板外，双指张合缩放画面，双指滑动平移画面。")}</Text>
-    <Text style={s.hint}>{t("滑动画面或鼠标下半部移动指针，轻点单击。长按左键开始拖拽，再点左键结束。中央箭头用于滚动，横线把手可移动鼠标面板。")}</Text>
+    <Text style={s.hint}>
+      {t("滑动画面或鼠标下半部移动指针，轻点单击。按住左键滑动即可拖拽，松手结束；长按不动可锁定拖拽，再点左键结束。中央箭头用于滚动，横线把手可移动鼠标面板。")}
+    </Text>
   </ScrollView></View>;
 }
