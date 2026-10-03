@@ -31,6 +31,7 @@ async fn native_capture_reaches_a_real_browser_decoder() {
     );
     let id = opened.id;
     let request = OpenRequest {
+        relay_standby: std::env::var_os("CSW_NATIVE_TEST_STANDBY").is_some(),
         clipboard_channel: false,
         id: id.clone(),
         profile: Profile {
@@ -125,6 +126,9 @@ fn start_bridge(
                 .expect("test request");
             let result = if request.url() == "/offer" {
                 serde_json::to_value(&offer).expect("offer JSON")
+            } else if request.url() == "/stats" {
+                let stats = runtime.block_on(async { stream.stats.lock().await.clone() });
+                serde_json::to_value(stats).expect("stats JSON")
             } else {
                 let mut value: serde_json::Value =
                     serde_json::from_str(&body).expect("signal JSON");

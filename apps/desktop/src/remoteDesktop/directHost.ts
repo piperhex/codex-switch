@@ -16,6 +16,7 @@ interface Options {
   stream: () => MediaStream | undefined;
   bind: (peer: BrowserDesktopPeer) => void;
   activate: (peer: BrowserDesktopPeer) => BrowserDesktopPeer;
+  retain?: (peer: BrowserDesktopPeer) => void;
 }
 interface Probe extends BrowserDesktopPeer { candidates: RTCIceCandidateInit[]; received: number }
 
@@ -111,7 +112,13 @@ export class BrowserDesktopDirectHost {
   }
 
   isRetiring(pc: RTCPeerConnection) { return this.retiring?.pc === pc; }
-  retire() { this.retiring?.pc.close(); this.retiring = undefined; }
+  fallback() { if (!this.probe) this.committed = false; }
+  retire() {
+    const peer = this.retiring; this.retiring = undefined;
+    if (!peer) return;
+    if (this.options.retain && !this.stopped) this.options.retain(peer);
+    else peer.pc.close();
+  }
   private cancel() {
     if (this.committed) return;
     clearTimeout(this.expiry); this.expiry = undefined;

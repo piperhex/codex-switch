@@ -32,7 +32,15 @@ pub(super) struct Peer {
     pub signaling: tokio::sync::Mutex<()>,
 }
 
-pub(super) async fn create(mut servers: Vec<IceServer>, separate_clipboard: bool) -> Result<Peer> {
+pub(super) async fn create(servers: Vec<IceServer>, separate_clipboard: bool) -> Result<Peer> {
+    create_with_policy(servers, separate_clipboard, false).await
+}
+
+pub(super) async fn create_with_policy(
+    mut servers: Vec<IceServer>,
+    separate_clipboard: bool,
+    relay_only: bool,
+) -> Result<Peer> {
     let native_media = servers
         .iter()
         .find(|server| server.native_media)
@@ -49,6 +57,11 @@ pub(super) async fn create(mut servers: Vec<IceServer>, separate_clipboard: bool
         .with_interceptor_registry(registry)
         .build();
     let configuration = RTCConfiguration {
+        ice_transport_policy: if relay_only {
+            webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy::Relay
+        } else {
+            webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy::All
+        },
         ice_servers: servers
             .into_iter()
             .map(|server| RTCIceServer {
@@ -61,13 +74,14 @@ pub(super) async fn create(mut servers: Vec<IceServer>, separate_clipboard: bool
     };
     #[cfg(test)]
     let configuration = RTCConfiguration {
-        ice_transport_policy: if std::env::var_os("CSW_NATIVE_TEST_ICE").is_some()
-            && configuration.ice_servers.iter().any(|server| {
-                server
-                    .urls
-                    .iter()
-                    .any(|url| url.starts_with("turn:") || url.starts_with("turns:"))
-            }) {
+        ice_transport_policy: if relay_only
+            || std::env::var_os("CSW_NATIVE_TEST_ICE").is_some()
+                && configuration.ice_servers.iter().any(|server| {
+                    server
+                        .urls
+                        .iter()
+                        .any(|url| url.starts_with("turn:") || url.starts_with("turns:"))
+                }) {
             webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy::Relay
         } else {
             webrtc::peer_connection::policy::ice_transport_policy::RTCIceTransportPolicy::All
@@ -173,7 +187,8 @@ fn bind_state(stream: &Arc<Stream>, peer: &Arc<Peer>) {
                         if matches!(
                             state,
                             RTCPeerConnectionState::Failed | RTCPeerConnectionState::Closed
-                        ) {
+                        ) && !super::relay::recover(&stream, &peer).await
+                        {
                             stream.cancel.send_replace(true);
                         }
                     }
@@ -212,12 +227,16 @@ fn bind_channel(stream: &Arc<Stream>, peer: &Arc<Peer>, clipboard: bool) {
     let weak = Arc::downgrade(stream);
     let peer_weak = Arc::downgrade(peer);
     channel.on_close(Box::new(move || {
-        if let (Some(stream), Some(peer)) = (weak.upgrade(), peer_weak.upgrade()) {
-            if Arc::ptr_eq(&stream.peer.borrow(), &peer) {
-                stream.cancel.send_replace(true);
+        let (weak, peer_weak) = (weak.clone(), peer_weak.clone());
+        Box::pin(async move {
+            if let (Some(stream), Some(peer)) = (weak.upgrade(), peer_weak.upgrade()) {
+                if Arc::ptr_eq(&stream.peer.borrow(), &peer)
+                    && !super::relay::recover(&stream, &peer).await
+                {
+                    stream.cancel.send_replace(true);
+                }
             }
-        }
-        Box::pin(async {})
+        })
     }));
 }
 
@@ -230,6 +249,10 @@ async fn receive(
     let (Some(stream), Some(peer)) = (weak.upgrade(), peer.upgrade()) else {
         return;
     };
+    if !clipboard && message.is_string && super::relay::receive(&stream, &peer, &message.data).await
+    {
+        return;
+    }
     if !Arc::ptr_eq(&stream.peer.borrow(), &peer)
         && !super::direct::is_retiring(&stream, &peer).await
     {
@@ -243,6 +266,11 @@ async fn receive(
         stream.heartbeat.send_replace(std::time::Instant::now());
         if Arc::ptr_eq(&stream.peer.borrow(), &peer) {
             super::direct::retire(&stream).await;
+            if stream.relay_standby {
+                if let Err(error) = peer.controls.send_text(r#"{"kind":"pong"}"#).await {
+                    eprintln!("desktop heartbeat reply: {error}");
+                }
+            }
         }
         return;
     }

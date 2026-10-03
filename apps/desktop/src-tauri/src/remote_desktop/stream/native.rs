@@ -17,6 +17,8 @@ pub(super) struct Stream {
     pub peer: watch::Sender<Arc<Peer>>,
     pub initial_peer: std::sync::Weak<Peer>,
     pub upgrades: Mutex<super::direct::Upgrades>,
+    pub relay_standby: bool,
+    pub standby: Mutex<super::relay::Standby>,
     pub ice_servers: Vec<IceServer>,
     pub separate_clipboard: bool,
     pub inputs: mpsc::Sender<bytes::Bytes>,
@@ -59,6 +61,8 @@ impl Stream {
             peer: watch::channel(Arc::clone(&peer)).0,
             initial_peer: Arc::downgrade(&peer),
             upgrades: Mutex::new(super::direct::Upgrades::default()),
+            relay_standby: request.relay_standby,
+            standby: Mutex::new(super::relay::Standby::default()),
             ice_servers: request.ice_servers,
             separate_clipboard: request.clipboard_channel,
             inputs,
@@ -77,7 +81,8 @@ impl Stream {
             encoder.stop().await;
             stream.close().await;
         }
-        let offer = offer?;
+        let mut offer = offer?;
+        offer.relay_standby = stream.relay_standby;
         tokio::spawn(super::audio::run(Arc::clone(&stream), path.clone()));
         tokio::spawn(pump::run(Arc::clone(&stream), path, encoder));
         tokio::spawn(pump::inputs(Arc::clone(&stream), receiver, false));
@@ -88,6 +93,12 @@ impl Stream {
     pub async fn signal(self: &Arc<Self>, request: SignalRequest) -> Result<SignalReply> {
         if *self.cancel.borrow() {
             return Err(DesktopError::Expired);
+        }
+        if let Some(standby) = request.relay_standby {
+            if !self.relay_standby || request.direct_upgrade.is_some() {
+                return Err(DesktopError::Invalid);
+            }
+            return super::relay::signal(self, standby, request).await;
         }
         if let Some(upgrade) = request.direct_upgrade {
             return super::direct::signal(self, upgrade, request).await;
@@ -102,6 +113,7 @@ impl Stream {
         let peer = Arc::clone(&self.peer.borrow());
         peer.close().await;
         super::direct::close(self).await;
+        super::relay::close(self).await;
     }
 
     pub async fn keep_alive(&self) -> Result<()> {

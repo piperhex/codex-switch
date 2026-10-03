@@ -3,6 +3,7 @@ import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
 const { CSW_NATIVE_TEST_ENDPOINT: endpoint, CSW_NATIVE_TEST_TOKEN: token } = process.env;
+const standby = process.env.CSW_NATIVE_TEST_STANDBY === '1';
 if (!endpoint?.startsWith('http://127.0.0.1:') || !token) throw new Error('Local native harness required');
 const bundle = await build({ entryPoints: [fileURLToPath(new URL('../../../shared/remote-desktop/receiver.ts',
   import.meta.url))], bundle: true, write: false, format: 'iife', globalName: 'DesktopReceiverModule' });
@@ -32,7 +33,7 @@ try {
         close: async () => {}, settings: async () => {} },
       createPeer: configuration => {
         const peer = new RTCPeerConnection({ ...configuration,
-          iceTransportPolicy: state.peers.length ? 'all' : 'relay' });
+          iceTransportPolicy: configuration.iceTransportPolicy ?? (state.peers.length ? 'all' : 'relay') });
         state.peers.push(peer); return peer;
       },
       stream: stream => { video.srcObject = stream ?? null; if (stream) state.streams++; },
@@ -45,16 +46,36 @@ try {
     { timeout: 25_000 }).toBe(true);
   await expect.poll(() => page.evaluate(() => window.upgradeTest.stats.connection),
     { timeout: 40_000 }).toBe('direct');
-  await expect.poll(() => page.evaluate(() => window.upgradeTest.peers[0].connectionState)).toBe('closed');
+  await expect.poll(() => page.evaluate(() => window.upgradeTest.peers[0].connectionState))
+    .toBe(standby ? 'connected' : 'closed');
   const video = page.locator('video');
   const frames = await video.evaluate(element => element.getVideoPlaybackQuality().totalVideoFrames);
   await expect.poll(() => video.evaluate(element => element.getVideoPlaybackQuality().totalVideoFrames),
     { timeout: 10_000 }).toBeGreaterThan(frames);
+  if (standby) {
+    const relayFrames = () => page.evaluate(async () => {
+      const stats = await window.upgradeTest.peers[0].getStats();
+      return [...stats.values()].find(report => report.type === 'inbound-rtp' && report.kind === 'video')?.framesDecoded ?? 0;
+    });
+    const paused = await relayFrames();
+    await page.waitForTimeout(2500);
+    expect(await relayFrames()).toBe(paused);
+    await page.evaluate(() => window.upgradeTest.peers[1].close());
+    await expect.poll(() => page.evaluate(() => window.upgradeTest.stats.connection), { timeout: 10_000 }).toBe('relay');
+    const resumed = await video.evaluate(element => element.getVideoPlaybackQuality().totalVideoFrames);
+    await expect.poll(() => video.evaluate(element => element.getVideoPlaybackQuality().totalVideoFrames),
+      { timeout: 10_000 }).toBeGreaterThan(resumed + 5);
+    await expect.poll(() => page.evaluate(() => window.upgradeTest.stats.connection), { timeout: 40_000 }).toBe('direct');
+    expect(await page.evaluate(() => window.upgradeTest.peers[0].connectionState)).toBe('connected');
+  }
   const result = await page.evaluate(() => ({ routes: [...new Set(window.upgradeTest.routes)],
     peers: window.upgradeTest.peers.length, streams: window.upgradeTest.streams,
     failures: window.upgradeTest.failures, width: document.querySelector('video').videoWidth }));
-  expect(result.failures).toEqual([]); expect(result.peers).toBe(2); expect(errors).toEqual([]);
+  expect(result.failures).toEqual([]); expect(result.peers).toBe(standby ? 3 : 2); expect(errors).toEqual([]);
   expect(lostCommit).toBe(true);
+  // Host stats are sampled separately from viewer stats; observe them before closing the peer.
+  await expect.poll(() => page.evaluate(async () => (await window.nativeRequest('/stats')).connection),
+    { timeout: 10_000 }).toBe('direct');
   await page.evaluate(() => window.upgradeTest.receiver.stop());
   console.log(JSON.stringify(result));
 } finally { await browser.close(); }

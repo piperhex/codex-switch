@@ -217,10 +217,21 @@ pub(super) async fn is_retiring(stream: &Stream, peer: &Arc<Peer>) -> bool {
         .is_some_and(|old| Arc::ptr_eq(old, peer))
 }
 
+pub(super) async fn fallback(stream: &Stream) {
+    let mut state = stream.upgrades.lock().await;
+    if state.pending.is_none() {
+        state.committed = false;
+    }
+}
+
 pub(super) async fn retire(stream: &Stream) {
     let peer = stream.upgrades.lock().await.retiring.take();
     if let Some(peer) = peer {
-        peer.close().await;
+        if stream.relay_standby && !*stream.cancel.borrow() && !peer.direct().await {
+            super::relay::retain(stream, peer).await;
+        } else {
+            peer.close().await;
+        }
     }
 }
 
@@ -254,11 +265,7 @@ pub(super) async fn write(
     let active_track = if audio { &active.audio } else { &active.video };
     let Some(auxiliary) = auxiliary else {
         let result = super::sample::write_frame(active_track, data, elapsed).await;
-        return if Arc::ptr_eq(&stream.peer.borrow(), &active) {
-            result
-        } else {
-            Ok(())
-        };
+        return write_result(stream, &active, result).await;
     };
     let extra = data.clone();
     let (result, ()) = tokio::join!(
@@ -278,9 +285,14 @@ pub(super) async fn write(
         }
     );
     // A promotion can retire the peer while its final write is still in flight.
-    if Arc::ptr_eq(&stream.peer.borrow(), &active) {
-        result
-    } else {
-        Ok(())
+    write_result(stream, &active, result).await
+}
+
+async fn write_result(stream: &Stream, peer: &Arc<Peer>, result: Result<()>) -> Result<()> {
+    if !Arc::ptr_eq(&stream.peer.borrow(), peer)
+        || (result.is_err() && super::relay::recover(stream, peer).await)
+    {
+        return Ok(());
     }
+    result
 }

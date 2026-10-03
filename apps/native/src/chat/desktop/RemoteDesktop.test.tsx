@@ -94,6 +94,10 @@ it('uses native iOS video, forwards ICE configuration and keeps control actions 
   expect(runtime.createPeer).toHaveBeenCalledWith({
     iceServers: [{ urls: 'turn:relay.example.com', username: 'user', credential: 'secret' }],
   });
+  options.createPeer({ iceServers: [{ urls: 'turn:relay.example.com' }], iceTransportPolicy: 'relay' });
+  expect(runtime.createPeer).toHaveBeenLastCalledWith({
+    iceServers: [{ urls: 'turn:relay.example.com' }], iceTransportPolicy: 'relay',
+  });
   video.props.onDimensionsChange!({ nativeEvent: { width: 1920, height: 1080 } });
   expect(runtime.dimensions).toHaveBeenCalledWith({ width: 1920, height: 1080 });
   for (const label of ['显示桌面', '所有窗口', '旋转']) {

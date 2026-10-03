@@ -8,6 +8,7 @@ import { addIceCandidate, diagnosticError } from '../remote-chat/iceCandidate';
 import { RtcObserver } from '../remote-chat/rtcObserver';
 import { connectionDiagnostic, type ConnectionDiagnostic, type DiagnosticFields } from '../remote-chat/diagnostics';
 import { DesktopDirectUpgrade, type DirectPeer } from './directUpgrade';
+import { DesktopRelayStandby } from './relayStandby';
 import { closeNativeMedia, openNativeMedia, nativeMediaIceServers, type NativeMediaSession } from './nativeMedia';
 
 interface ReceiverOptions {
@@ -26,6 +27,7 @@ const SIGNAL_INTERVAL = 400;
 const HEARTBEAT_INTERVAL = 2000;
 const CONNECT_TIMEOUT = 25_000;
 const RECOVERY_GRACE_MS = 8000;
+const ACTIVE_HEARTBEAT_TIMEOUT_MS = 6000;
 const CLOSE_TIMEOUT_MS = 4000;
 
 /** Only signaling and small controls cross JS. Media stays in each platform's WebRTC engine. */
@@ -49,6 +51,10 @@ export class DesktopReceiver {
   private readonly diagnostic: ConnectionDiagnostic;
   private observer?: RtcObserver;
   private upgrade?: DesktopDirectUpgrade;
+  private standby?: DesktopRelayStandby;
+  private readonly boundPeers = new WeakSet<RTCPeerConnection>();
+  private readonly boundChannels = new WeakSet<RTCDataChannel>();
+  private lastActivePong = 0;
   private nativeMedia?: NativeMediaSession;
   private nativeSelected = false;
   private capabilities: DesktopCapabilities = {};
@@ -73,7 +79,7 @@ export class DesktopReceiver {
       this.nativeMedia = await openNativeMedia(this.options.client.nativeMedia, this.id, this.diagnostic);
       if (this.stopped) { await closeNativeMedia(this.nativeMedia); return; }
       const offer = await this.options.client.open(this.id, {
-        ...settings, clipboardChannel: true, nativeMedia: Boolean(this.nativeMedia),
+        ...settings, clipboardChannel: true, nativeMedia: Boolean(this.nativeMedia), relayStandby: true,
       });
       if (this.stopped) { await this.closeRemote(); return; }
       this.capabilities = offer.capabilities ?? {}; this.options.capabilities?.(this.capabilities);
@@ -81,6 +87,11 @@ export class DesktopReceiver {
       if (!offer.nativeMedia) { await closeNativeMedia(this.nativeMedia); this.nativeMedia = undefined; }
       if (this.stopped) return;
       const iceServers = nativeMediaIceServers(offer.iceServers, this.nativeMedia?.endpoint);
+      if (offer.relayStandby) this.standby = new DesktopRelayStandby({
+        createPeer: this.options.createPeer, iceServers,
+        signal: signal => this.options.client.signal(this.id, signal), activate: peer => this.activate(peer),
+        failed: () => this.fail('桌面连接已断开，请重新连接。'),
+      });
       const pc = this.options.createPeer({ iceServers });
       this.pc = pc;
       if (offer.directUpgrade) this.upgrade = new DesktopDirectUpgrade({
@@ -103,6 +114,8 @@ export class DesktopReceiver {
   }
 
   private bindPeer(pc: RTCPeerConnection) {
+    if (this.boundPeers.has(pc)) return;
+    this.boundPeers.add(pc);
     pc.addEventListener('icecandidate', event => {
       if (event.candidate && !this.stopped && this.pc === pc) this.candidates.push(event.candidate.toJSON());
     });
@@ -127,8 +140,9 @@ export class DesktopReceiver {
         this.options.status(''); this.options.connected?.();
         this.startStats(pc);
       } else if (['failed', 'closed'].includes(pc.connectionState) && !this.stopped) {
-        this.fail('桌面连接已断开，请重新连接。');
+        this.recover();
       } else if (pc.connectionState === 'disconnected') {
+        if (this.standby?.fallback()) { this.waitForFallback(); return; }
         this.options.status('网络中断，正在等待恢复…');
         this.recoveryTimeout ??= setTimeout(() => this.fail('桌面连接已断开，请重新连接。'), RECOVERY_GRACE_MS);
       }
@@ -141,13 +155,18 @@ export class DesktopReceiver {
       if (selected && !this.nativeSelected) this.diagnostic('path-selected', { transport: 'mesh', rttMs: stats.rttMs });
       this.nativeSelected = selected;
       this.measured = stats; this.options.stats({ ...this.hostStats, ...stats }); this.upgrade?.update(stats);
+      this.standby?.update(stats.connection === 'direct');
+      if (stats.nativeMedia && stats.connection !== 'direct' && this.standby?.fallback()) this.waitForFallback();
     }, this.nativeMedia);
   }
 
   private activate(peer: DirectPeer) {
     if (this.stopped) { peer.pc.close(); return; }
     const previous = this.pc;
+    const backup = previous && this.media && this.channel && this.measured.connection === 'relay'
+      ? { pc: previous, stream: this.media, channel: this.channel, clipboard: this.clipboardChannel } : undefined;
     clearTimeout(this.poll); clearTimeout(this.recoveryTimeout); clearInterval(this.heartbeat);
+    this.recoveryTimeout = undefined;
     this.observer?.close(); this.stopStats?.(); this.stopStats = undefined;
     this.clipboard.cancel(); this.audioTracks.clear(); this.candidates.length = 0;
     this.pc = peer.pc; this.media = peer.stream; this.clipboardChannel = undefined;
@@ -159,13 +178,29 @@ export class DesktopReceiver {
     this.observer = new RtcObserver(peer.pc, this.diagnostic);
     void this.observer.snapshot();
     this.options.stream(peer.stream); this.options.audio?.(this.audioTracks.size > 0);
-    this.options.status(''); this.startStats(peer.pc); previous?.close();
+    this.measured = {}; this.hostStats = { width: 0, height: 0, fps: 0, bitrate: 0 };
+    this.options.status(''); this.startStats(peer.pc);
+    if (backup && this.standby) this.standby.retain(backup);
+    else if (previous !== peer.pc) previous?.close();
+  }
+
+  private recover() {
+    if (this.standby?.fallback()) { this.waitForFallback(); return; }
+    this.fail('桌面连接已断开，请重新连接。');
+  }
+
+  private waitForFallback() {
+    this.options.status('正在恢复桌面连接…');
+    this.recoveryTimeout ??= setTimeout(() => this.fail('桌面连接已断开，请重新连接。'), RECOVERY_GRACE_MS);
   }
 
   private bindChannel(channel: RTCDataChannel) {
     if (this.stopped) { channel.close(); return; }
+    const bound = this.boundChannels.has(channel);
+    this.boundChannels.add(channel);
     if (channel.label === 'remote-desktop-clipboard') {
       this.clipboardChannel = channel;
+      if (bound) return;
       channel.addEventListener('close', () => {
         if (this.clipboardChannel === channel) { this.clipboardChannel = undefined; this.clipboard.cancel(); }
       });
@@ -178,20 +213,17 @@ export class DesktopReceiver {
       return;
     }
     this.channel = channel;
-    const opened = () => {
-      if (this.stopped || this.channel !== channel) return;
-      const ping = () => { if (channel.readyState === 'open') channel.send('{"kind":"ping"}'); };
-      clearInterval(this.heartbeat);
-      ping(); this.heartbeat = setInterval(ping, HEARTBEAT_INTERVAL);
-    };
-    channel.addEventListener('open', opened);
+    const opened = () => this.startHeartbeat(channel);
     if (channel.readyState === 'open') opened();
+    if (bound) return;
+    channel.addEventListener('open', opened);
     channel.addEventListener('close', () => {
-      if (!this.stopped && this.channel === channel) this.fail('桌面连接已断开，请重新连接。');
+      if (!this.stopped && this.channel === channel) this.recover();
     });
     channel.addEventListener('message', ({ data }) => {
       if (this.stopped || this.channel !== channel || typeof data !== 'string'
         || data.length > MAX_CONTROL_MESSAGE_BYTES) return;
+      if (data === '{"kind":"pong"}') { this.lastActivePong = Date.now(); return; }
       try {
         const message = JSON.parse(data) as DesktopStats & { kind?: string; message?: string };
         if (message.kind === 'clipboard') { this.clipboard.receive(message as unknown as ClipboardReply); return; }
@@ -201,6 +233,19 @@ export class DesktopReceiver {
         if (message.kind === 'error') this.fail(message.message || '远程操作未完成，请重试。');
       } catch { this.fail('桌面连接异常，请重新连接。'); }
     });
+  }
+
+  private startHeartbeat(channel: RTCDataChannel) {
+    if (this.stopped || this.channel !== channel) return;
+    this.lastActivePong = Date.now();
+    const ping = () => {
+      if (this.standby && Date.now() - this.lastActivePong >= ACTIVE_HEARTBEAT_TIMEOUT_MS
+        && this.standby.fallback()) this.waitForFallback();
+      try { if (channel.readyState === 'open') channel.send('{"kind":"ping"}'); }
+      catch { this.recover(); }
+    };
+    clearInterval(this.heartbeat);
+    this.heartbeat = setInterval(ping, HEARTBEAT_INTERVAL); ping();
   }
 
   private async signal(answer?: string) {
@@ -263,6 +308,7 @@ export class DesktopReceiver {
     this.stopped = true;
     this.diagnostic('desktop-closed'); this.observer?.close();
     this.upgrade?.close();
+    this.standby?.close();
     this.clipboard.stop();
     clearTimeout(this.poll); clearTimeout(this.timeout); clearInterval(this.heartbeat);
     clearTimeout(this.recoveryTimeout);

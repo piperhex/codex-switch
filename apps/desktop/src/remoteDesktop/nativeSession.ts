@@ -41,8 +41,10 @@ export class NativeDesktopSession {
 
   private async openStream() {
     try {
-      return await invoke<{ sdp: string; directUpgrade?: boolean }>('remote_desktop_stream_open', { request: {
+      return await invoke<{ sdp: string; directUpgrade?: boolean; relayStandby?: boolean }>(
+        'remote_desktop_stream_open', { request: {
         id: this.id, profile: profile(this.settings), clipboardChannel: this.settings.clipboardChannel === true,
+        relayStandby: this.settings.relayStandby === true,
         iceServers: this.iceServers.map(server => ({ ...server,
           urls: Array.isArray(server.urls) ? server.urls : [server.urls] })),
       } });

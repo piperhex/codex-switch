@@ -4,9 +4,10 @@ import { createGuiToolsClient } from '../../../shared/remote-chat/guiTools';
 import type { IceServer } from '../../../shared/remote-chat/protocol';
 import { clipboardFixture, desktopClipboard } from './remote-desktop-clipboard-fixture';
 import type { ClipboardContent, ClipboardMessage } from '../../../shared/remote-desktop/clipboard';
+import { STANDBY_PONG } from '../../../shared/remote-desktop/standbyProtocol';
 
 declare global { interface Window { desktopRelayFixture?: {
-  iceServers: IceServer[]; upgrade?: boolean; failDirectAttempts?: number; loseCommitReply?: boolean;
+  iceServers: IceServer[]; upgrade?: boolean; failDirectAttempts?: number; loseCommitReply?: boolean; directFirst?: boolean;
 } } }
 
 const canvas = document.createElement('canvas');
@@ -41,6 +42,7 @@ export const desktopTest = { inputs: [] as DesktopInput[], settings: [] as Deskt
   selectedDisplays: [] as string[], inputDisplays: [] as string[],
   displays,
   peers: [] as RTCPeerConnection[],
+  standbyReady: [] as RTCPeerConnection[],
   iceErrors: [] as string[],
   frames: 0, captures: 0, closed: 0, concurrent: 0, maxConcurrent: 0, errors: [] as string[] };
 
@@ -107,13 +109,17 @@ if (window.desktopRelayFixture) {
   const Peer = window.RTCPeerConnection;
   window.RTCPeerConnection = new Proxy(Peer, { construct(target, args: [RTCConfiguration?]) {
     const blocked = 2 + 2 * (window.desktopRelayFixture?.failDirectAttempts ?? 0);
-    const relay = !window.desktopRelayFixture?.upgrade || desktopTest.peers.length < blocked;
-    const peer = new target({ ...args[0], iceTransportPolicy: relay ? 'relay' : 'all' });
+    const relay = !window.desktopRelayFixture?.directFirst
+      && (!window.desktopRelayFixture?.upgrade || desktopTest.peers.length < blocked);
+    const peer = new target({ ...args[0], iceTransportPolicy: args[0]?.iceTransportPolicy ?? (relay ? 'relay' : 'all') });
     peer.addEventListener('icecandidateerror', event => desktopTest.iceErrors.push(`${event.errorCode}: ${event.errorText}`));
     peer.addEventListener('icecandidate', event => {
       if (event.candidate) desktopTest.iceErrors.push(`candidate: ${event.candidate.type} ${event.candidate.protocol}`);
     });
     peer.addEventListener('connectionstatechange', () => desktopTest.iceErrors.push(`state: ${peer.connectionState}`));
+    peer.addEventListener('datachannel', ({ channel }) => channel.addEventListener('message', ({ data }) => {
+      if (data === STANDBY_PONG && !desktopTest.standbyReady.includes(peer)) desktopTest.standbyReady.push(peer);
+    }));
     desktopTest.peers.push(peer); return peer;
   } });
 }

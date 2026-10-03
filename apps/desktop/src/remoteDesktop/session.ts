@@ -9,6 +9,7 @@ import { addIceCandidate } from '../../../../shared/remote-chat/iceCandidate';
 import type { ConnectionDiagnostic } from '../../../../shared/remote-chat/diagnostics';
 
 import { BrowserDesktopDirectHost, type BrowserDesktopPeer } from './directHost';
+import { BrowserDesktopRelayHost } from './relayHost';
 
 const HEARTBEAT_TIMEOUT = 12_000;
 const SETUP_TIMEOUT = 30_000;
@@ -31,6 +32,7 @@ export class DesktopHostSession {
   private sender?: RTCRtpSender;
   private media?: MediaStream;
   private readonly direct: BrowserDesktopDirectHost;
+  private readonly standby?: BrowserDesktopRelayHost;
   private candidates: RTCIceCandidateInit[] = [];
   private receivedCandidates = 0;
   private stopped = false;
@@ -43,8 +45,13 @@ export class DesktopHostSession {
 
   constructor(settings: DesktopSettings, private readonly iceServers: IceServer[], private expiresAt?: number,
     private readonly diagnostic?: ConnectionDiagnostic) {
+    if (settings.relayStandby) this.standby = new BrowserDesktopRelayHost({ iceServers, stream: () => this.media,
+      current: () => this.pc, bind: peer => this.bind(peer), activate: peer => {
+        this.direct.fallback(); return this.activate(peer);
+      } });
     this.direct = new BrowserDesktopDirectHost({ iceServers, stream: () => this.media,
-      bind: peer => this.bind(peer), activate: peer => this.activate(peer) });
+      bind: peer => this.bind(peer), activate: peer => this.activate(peer),
+      retain: this.standby ? peer => this.standby!.retain(peer) : undefined });
     this.settings = settings;
     this.pc = new RTCPeerConnection({ iceServers });
     this.initialPc = this.pc;
@@ -72,16 +79,20 @@ export class DesktopHostSession {
       }
     });
     pc.addEventListener('connectionstatechange', () => {
-      if (this.pc === pc && ['failed', 'closed'].includes(pc.connectionState)) this.close();
+      if (this.pc === pc && ['failed', 'closed'].includes(pc.connectionState)) void this.recover(pc);
     });
-    channel.addEventListener('close', () => { if (this.pc === pc) this.close(); });
+    channel.addEventListener('close', () => { if (this.pc === pc) void this.recover(pc); });
     channel.addEventListener('message', ({ data }) => {
+      if (!this.stopped && typeof data === 'string' && this.standby?.receive(peer, data)) {
+        clearTimeout(this.expires); this.expires = setTimeout(() => this.close(), HEARTBEAT_TIMEOUT); return;
+      }
       if (this.stopped || (this.pc !== pc && !this.direct.isRetiring(pc))) return;
       if (typeof data !== 'string' || data.length > MAX_CONTROL_MESSAGE_BYTES) {
         this.fail(); return;
       }
       if (data === '{"kind":"ping"}') {
         if (this.pc === pc) this.direct.retire();
+        if (this.standby && this.pc === pc) channel.send('{"kind":"pong"}');
         clearTimeout(this.expires); this.expires = setTimeout(() => this.close(), HEARTBEAT_TIMEOUT); return;
       }
       try { this.controls.receive(data); } catch { this.fail(); }
@@ -105,11 +116,14 @@ export class DesktopHostSession {
     await this.pc.setLocalDescription(offer);
     this.lastStats = performance.now();
     void this.tick();
-    return { sdp: offer.sdp ?? '', iceServers: this.iceServers, directUpgrade: true, ...this.capture.displays };
+    return { sdp: offer.sdp ?? '', iceServers: this.iceServers, directUpgrade: true,
+      relayStandby: Boolean(this.standby), ...this.capture.displays };
   }
 
   async signal(signal: DesktopSignal): Promise<DesktopSignalReply> {
     if (this.stopped) throw new Error('桌面连接已结束，请重新连接。');
+    if (signal.relayStandby && signal.directUpgrade) throw new Error('桌面连接信息无效。');
+    if (signal.relayStandby && this.standby) return this.standby.signal(signal);
     if (signal.directUpgrade) return this.direct.signal(signal);
     if (this.pc !== this.initialPc) return { candidates: [] };
     if (!Array.isArray(signal.candidates) || signal.candidates.length + this.receivedCandidates > MAX_CANDIDATES) {
@@ -133,7 +147,7 @@ export class DesktopHostSession {
   }
 
   private activate(peer: BrowserDesktopPeer): BrowserDesktopPeer {
-    const previous = { pc: this.pc, channel: this.channel, clipboard: this.clipboardChannel };
+    const previous = { pc: this.pc, channel: this.channel, clipboard: this.clipboardChannel, sender: this.sender };
     this.pc = peer.pc; this.channel = peer.channel; this.clipboardChannel = peer.clipboard;
     this.sender = peer.sender; this.candidates.length = 0; this.receivedCandidates = 0;
     this.observer?.close();
@@ -141,6 +155,12 @@ export class DesktopHostSession {
       this.observer = new RtcObserver(peer.pc, this.diagnostic); void this.observer.snapshot();
     }
     return previous;
+  }
+
+  private async recover(pc: RTCPeerConnection) {
+    if (this.stopped || this.pc !== pc) return;
+    this.direct.retire();
+    if (!await this.standby?.fallback(pc) && this.pc === pc) await this.close();
   }
 
   update(settings: DesktopSettings) { this.settings = settings; }
@@ -207,7 +227,7 @@ export class DesktopHostSession {
   close() {
     if (this.stopped) return this.capture.close();
     this.stopped = true; clearTimeout(this.timer); clearTimeout(this.expires);
-    this.direct.close(); this.observer?.close(); this.diagnostic?.('desktop-closed');
+    this.direct.close(); this.standby?.close(); this.observer?.close(); this.diagnostic?.('desktop-closed');
     this.clipboardControls.close(); this.clipboardChannel.close();
     this.controls.close(); this.channel.close(); this.pc.close(); return this.capture.close();
   }

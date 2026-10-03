@@ -6,7 +6,7 @@ export const DEFAULT_SETTINGS: DesktopSettings = { fps: 'auto', quality: 'auto' 
 export type DesktopQuality = 'auto' | 'smooth' | 'clear' | 'original';
 export interface DesktopSettings {
   fps: 'auto' | number; quality: DesktopQuality; displayId?: string; clipboardChannel?: boolean;
-  nativeMedia?: boolean;
+  nativeMedia?: boolean; relayStandby?: boolean;
 }
 export interface DesktopDisplay { id: string; name: string; width: number; height: number; primary: boolean }
 export interface DesktopPermissions {
@@ -18,11 +18,11 @@ export interface DesktopCapabilities {
 }
 export interface DesktopOffer extends DesktopDisplays {
   sdp: string; iceServers: IceServer[]; capabilities?: DesktopCapabilities; directUpgrade?: boolean;
-  nativeMedia?: boolean;
+  nativeMedia?: boolean; relayStandby?: boolean;
 }
 export interface DirectUpgrade { generation: number; action: 'start' | 'signal' | 'commit' | 'cancel' }
 export interface DesktopSignal {
-  answer?: string; candidates: RTCIceCandidateInit[]; directUpgrade?: DirectUpgrade;
+  answer?: string; candidates: RTCIceCandidateInit[]; directUpgrade?: DirectUpgrade; relayStandby?: DirectUpgrade;
 }
 export interface DesktopSignalReply {
   candidates: RTCIceCandidateInit[]; sdp?: string; generation?: number; committed?: boolean;
@@ -79,6 +79,7 @@ export function validateSettings(value: unknown): DesktopSettings {
   }
   return { fps: input.fps!, quality: input.quality!,
     ...(input.nativeMedia === true ? { nativeMedia: true } : {}),
+    ...(input.relayStandby === true ? { relayStandby: true } : {}),
     ...(input.clipboardChannel === true ? { clipboardChannel: true } : {}),
     ...(input.displayId === undefined ? {} : { displayId: input.displayId }) };
 }

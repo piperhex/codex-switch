@@ -70,6 +70,14 @@ the existing unsupported-platform behavior.
   A local adapter pair counts as direct only after verifying its issued virtual addresses and the native route.
   Direct upgrade probes retain local adapters while excluding public TURN. Closing the view or chat grant releases
   adapters; old binaries and ordinary Web viewers continue with their existing WebRTC connectivity.
+  Updated viewers negotiate `relayStandby` with the host. A relay used before direct promotion stays connected;
+  a session that starts direct establishes a separate public TURN-only backup. The native adapter is excluded
+  from that backup so it remains independent of the direct route. Standby control heartbeats run every two seconds,
+  with six seconds of silence marking the backup unavailable. Backup repair waits at least five seconds between
+  attempts and never replaces the working direct session. Standby peers do not receive continuous audio/video.
+  Direct failure activates the retained relay through its own encrypted control channel, without waiting for chat
+  signaling or restarting capture. The receiver then continues its normal direct upgrade attempts. Closing the
+  desktop releases both peers. Older hosts keep the previous reconnection behavior until updated.
   See [video relay deployment](../apps/admin-go/DESKTOP-RELAY.md) for credentials, quotas and network requirements.
 - Android receives encrypted media directly in native libwebrtc. Decryption, jitter buffering and decoding
   run on native WebRTC threads; `RTCView` renders through `SurfaceViewRenderer`. JavaScript receives only stream
@@ -231,6 +239,11 @@ primary display and a 2560 × 1600 secondary display using different Windows sca
 delivered 1920 × 1080 and 1920 × 1200 video respectively, with decoded system sound on both connections.
 Browser regression tests cover monitor switching in portrait, landscape and desktop layouts; native component
 tests cover selected/disabled controls. These checks do not replace Android/iOS physical-device validation.
+
+With isolated TURN credentials in `DESKTOP_UPGRADE_TEST_ICE`, `remote-desktop-standby.pw.ts` and
+`remote-desktop-upgrade.pw.ts` verify standby creation/repair, paused backup media, retained relay fallback and
+capture continuity. The native decoder test also covers relay → direct → relay → direct when
+`CSW_NATIVE_TEST_ICE`, `CSW_NATIVE_TEST_UPGRADE=1` and `CSW_NATIVE_TEST_STANDBY=1` are set.
 
 The native test renders a quiet 440 Hz tone and checks decoded audio samples alongside video frames. It needs
 an active default Windows output device. It also checks Opus packet/sample counts; waveform analysis avoids

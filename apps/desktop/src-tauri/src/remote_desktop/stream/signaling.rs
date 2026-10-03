@@ -17,6 +17,7 @@ impl Peer {
         Ok(Offer {
             sdp,
             direct_upgrade: true,
+            relay_standby: false,
         })
     }
 

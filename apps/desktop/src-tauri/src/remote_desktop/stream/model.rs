@@ -80,6 +80,8 @@ impl IceServer {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct OpenRequest {
     #[serde(default)]
+    pub relay_standby: bool,
+    #[serde(default)]
     pub clipboard_channel: bool,
     pub id: String,
     pub profile: Profile,
@@ -93,6 +95,7 @@ pub(crate) struct SignalRequest {
     pub answer: Option<String>,
     pub candidates: Vec<serde_json::Value>,
     pub direct_upgrade: Option<DirectUpgrade>,
+    pub relay_standby: Option<DirectUpgrade>,
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
@@ -116,6 +119,8 @@ pub(crate) struct Offer {
     pub sdp: String,
     #[serde(default)]
     pub direct_upgrade: bool,
+    #[serde(default)]
+    pub relay_standby: bool,
 }
 
 #[derive(Default, Deserialize, Serialize)]

@@ -49,7 +49,11 @@ fn native_media_markers_require_local_credentials_and_stay_available_in_direct_p
     assert!(forged.validate().is_err());
 }
 
-async fn fixture() -> Arc<Stream> {
+async fn fixture(relay_standby: bool) -> Arc<Stream> {
+    fixture_with_servers(relay_standby, vec![]).await
+}
+
+async fn fixture_with_servers(relay_standby: bool, ice_servers: Vec<IceServer>) -> Arc<Stream> {
     let peer = Arc::new(peer::create(vec![], false).await.unwrap());
     let stream = Arc::new(Stream {
         id: "direct-upgrade-unit-test".into(),
@@ -72,7 +76,9 @@ async fn fixture() -> Arc<Stream> {
         peer: watch::channel(Arc::clone(&peer)).0,
         initial_peer: Arc::downgrade(&peer),
         upgrades: Mutex::new(Upgrades::default()),
-        ice_servers: vec![],
+        relay_standby,
+        standby: Mutex::new(super::super::relay::Standby::default()),
+        ice_servers,
         separate_clipboard: false,
         inputs: mpsc::channel(1).0,
         clipboard_inputs: mpsc::channel(1).0,
@@ -149,7 +155,7 @@ async fn connect(host: &Arc<Peer>) -> (Peer, Arc<RTCDataChannel>) {
 
 #[tokio::test]
 async fn failed_probe_and_stale_requests_never_close_the_active_peer() {
-    let stream = fixture().await;
+    let stream = fixture(false).await;
     let original = Arc::clone(&stream.peer.borrow());
     let probe = pending(&stream).await;
     assert_eq!(commit(&stream, 1).await.unwrap().committed, Some(false));
@@ -169,7 +175,7 @@ async fn failed_probe_and_stale_requests_never_close_the_active_peer() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn promotion_is_idempotent_and_retires_the_old_peer_only_after_new_channel_ping() {
-    let stream = fixture().await;
+    let stream = fixture(false).await;
     let original = Arc::clone(&stream.peer.borrow());
     let probe = pending(&stream).await;
     let (client, channel) = connect(&probe).await;
@@ -199,4 +205,142 @@ async fn promotion_is_idempotent_and_retires_the_old_peer_only_after_new_channel
     );
     stream.close().await;
     client.close().await;
+}
+
+#[test]
+fn relay_backup_excludes_native_adapters_and_preserves_public_turn_credentials() {
+    let public = IceServer {
+        urls: vec!["stun:example.test".into(), "turn:relay.test".into()],
+        username: "temporary".into(),
+        credential: "credential".into(),
+        ..Default::default()
+    };
+    let native = IceServer {
+        native_media: true,
+        urls: vec!["turn:127.0.0.1:12345".into()],
+        ..Default::default()
+    };
+    let filtered = super::super::relay::servers(&[public, native]);
+    assert_eq!(filtered.len(), 1);
+    assert_eq!(filtered[0].urls, vec!["turn:relay.test"]);
+    assert_eq!(filtered[0].username, "temporary");
+    assert_eq!(filtered[0].credential, "credential");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn backup_heartbeats_and_activation_preserve_capture_and_do_not_warm_duplicate_media() {
+    let stream = fixture(true).await;
+    let original = Arc::clone(&stream.peer.borrow());
+    let (direct_client, _) = connect(&original).await;
+    let backup = Arc::new(peer::create(vec![], false).await.unwrap());
+    peer::bind(&stream, &backup);
+    let (relay_client, channel) = connect(&backup).await;
+    super::super::relay::retain(&stream, Arc::clone(&backup)).await;
+    assert!(auxiliary(&stream).await.is_none());
+    let (sender, mut receiver) = mpsc::unbounded_channel();
+    channel.on_message(Box::new(move |message| {
+        sender.send(message.data).unwrap();
+        Box::pin(async {})
+    }));
+    channel
+        .send_text(r#"{"kind":"standby-ping"}"#)
+        .await
+        .unwrap();
+    let pong = tokio::time::timeout(Duration::from_secs(5), receiver.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(pong.as_ref(), br#"{"kind":"standby-pong"}"#);
+    assert!(Arc::ptr_eq(&stream.peer.borrow(), &original));
+    channel
+        .send_text(r#"{"kind":"standby-activate"}"#)
+        .await
+        .unwrap();
+    let activated = tokio::time::timeout(Duration::from_secs(5), receiver.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(activated.as_ref(), br#"{"kind":"standby-active"}"#);
+    assert!(Arc::ptr_eq(&stream.peer.borrow(), &backup));
+    assert!(!*stream.cancel.borrow());
+    assert_eq!(
+        original.connection.connection_state(),
+        RTCPeerConnectionState::Closed
+    );
+    stream.close().await;
+    assert_eq!(
+        backup.connection.connection_state(),
+        RTCPeerConnectionState::Closed
+    );
+    direct_client.close().await;
+    relay_client.close().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn closing_the_active_peer_switches_to_the_backup_instead_of_cancelling_capture() {
+    let stream = fixture(true).await;
+    let original = Arc::clone(&stream.peer.borrow());
+    let (direct_client, _) = connect(&original).await;
+    let backup = Arc::new(peer::create(vec![], false).await.unwrap());
+    peer::bind(&stream, &backup);
+    let (relay_client, _) = connect(&backup).await;
+    super::super::relay::retain(&stream, Arc::clone(&backup)).await;
+    original.close().await;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !Arc::ptr_eq(&stream.peer.borrow(), &backup) {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(!*stream.cancel.borrow());
+    assert!(super::super::relay::recover(&stream, &original).await);
+    assert!(!super::super::relay::recover(&stream, &backup).await);
+    stream.close().await;
+    direct_client.close().await;
+    relay_client.close().await;
+}
+
+#[tokio::test]
+async fn retaining_a_relay_invalidates_a_pending_backup_commit() {
+    let stream = fixture_with_servers(
+        true,
+        vec![IceServer {
+            urls: vec!["turn:127.0.0.1:9".into()],
+            username: "fixture".into(),
+            credential: "fixture".into(),
+            ..Default::default()
+        }],
+    )
+    .await;
+    // Match the authorization lease normally created before a native stream starts.
+    let lease = crate::remote_desktop::SESSION.get_or_init(|| std::sync::Mutex::new(None));
+    let previous_lease = lease
+        .lock()
+        .unwrap()
+        .replace(crate::remote_desktop::Session {
+            permissions: crate::remote_desktop::permissions::Permissions::default(),
+            id: stream.id.clone(),
+            touched: Instant::now(),
+            deadline: Instant::now() + Duration::from_secs(60),
+            clipboard: None,
+            display: stream.display.clone(),
+            input: crate::remote_desktop::windows_input::InputState::default(),
+        });
+    let standby_signal = |action| {
+        serde_json::from_value::<SignalRequest>(serde_json::json!({
+            "id": "direct-upgrade-unit-test",
+            "candidates": [], "relayStandby": { "generation": 1, "action": action }
+        }))
+        .unwrap()
+    };
+    let offer = stream.signal(standby_signal("start")).await.unwrap();
+    assert!(offer.sdp.is_some());
+    let original = Arc::clone(&stream.peer.borrow());
+    super::super::relay::retain(&stream, Arc::clone(&original)).await;
+    assert!(stream.signal(standby_signal("commit")).await.is_err());
+    assert!(Arc::ptr_eq(&stream.peer.borrow(), &original));
+    assert!(!*stream.cancel.borrow());
+    stream.close().await;
+    *lease.lock().unwrap() = previous_lease;
 }

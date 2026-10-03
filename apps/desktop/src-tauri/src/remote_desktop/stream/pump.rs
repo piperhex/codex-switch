@@ -91,7 +91,9 @@ async fn video(stream: &Arc<Stream>, path: PathBuf, encoder: &mut Encoder) -> Re
             },
             changed = feedback.changed() => {
                 if changed.is_err() {
-                    if !peers.has_changed().unwrap_or(false) { return Err(DesktopError::Platform); }
+                    let failed = Arc::clone(&peers.borrow());
+                    if !peers.has_changed().unwrap_or(false)
+                        && !super::relay::recover(stream, &failed).await { return Err(DesktopError::Platform); }
                     feedback = peers.borrow_and_update().feedback.clone();
                     continue;
                 }
@@ -181,12 +183,18 @@ async fn send_frame(stream: &Stream, data: Vec<u8>) -> Result<()> {
         elapsed
     };
     // A slow sender must not build an unbounded queue of stale desktop frames.
-    tokio::time::timeout(
+    let active = Arc::clone(&stream.peer.borrow());
+    let result = tokio::time::timeout(
         Duration::from_millis(250),
         super::direct::write(stream, data, duration, false),
     )
     .await
-    .map_err(|_| DesktopError::Platform)?
+    .map_err(|_| DesktopError::Platform)
+    .and_then(|result| result);
+    if result.is_err() && super::relay::recover(stream, &active).await {
+        return Ok(());
+    }
+    result
 }
 
 async fn report(stream: &Stream, encoder: &Encoder, frames: u32, started: Instant) -> Result<()> {
@@ -226,7 +234,9 @@ async fn report(stream: &Stream, encoder: &Encoder, frames: u32, started: Instan
     let mut message = serde_json::to_value(&stats).map_err(|_| DesktopError::Platform)?;
     message["kind"] = "stats".into();
     let sent = peer.controls.send_text(message.to_string()).await;
-    if Arc::ptr_eq(&stream.peer.borrow(), &peer) {
+    if Arc::ptr_eq(&stream.peer.borrow(), &peer)
+        && !(sent.is_err() && super::relay::recover(stream, &peer).await)
+    {
         sent.map_err(|_| DesktopError::Platform)?;
     }
     Ok(())
@@ -267,7 +277,9 @@ pub(super) async fn inputs(
             } else {
                 &peer.controls
             };
-            if channel.send_text(reply).await.is_err() && Arc::ptr_eq(&stream.peer.borrow(), &peer)
+            if channel.send_text(reply).await.is_err()
+                && Arc::ptr_eq(&stream.peer.borrow(), &peer)
+                && !super::relay::recover(&stream, &peer).await
             {
                 stream.cancel.send_replace(true);
                 return;

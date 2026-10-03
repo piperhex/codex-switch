@@ -27,6 +27,8 @@ mod peer;
 #[cfg(windows)]
 mod pump;
 #[cfg(windows)]
+mod relay;
+#[cfg(windows)]
 mod sample;
 #[cfg(windows)]
 mod signaling;

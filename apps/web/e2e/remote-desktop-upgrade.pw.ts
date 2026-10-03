@@ -23,8 +23,10 @@ test('keeps relay video and controls during failed probes, then promotes decoded
   await page.getByRole('button', { name: '显示桌面', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.desktopTest.inputs.length)).toBeGreaterThan(0);
   await expect.poll(() => page.evaluate(() => window.desktopTest.peers.length), { timeout: 60_000 }).toBe(6);
-  await expect.poll(() => page.evaluate(() => window.desktopTest.peers.slice(0, 4)
+  await expect.poll(() => page.evaluate(() => window.desktopTest.peers.slice(2, 4)
     .every(peer => peer.connectionState === 'closed')), { timeout: 20_000 }).toBe(true);
+  expect(await page.evaluate(() => window.desktopTest.peers.slice(0, 2).map(peer => peer.connectionState)))
+    .toEqual(['connected', 'connected']);
   expect(await page.evaluate(() => window.desktopTest.captures)).toBe(1);
   const direct = await page.evaluate(async () => Promise.all(window.desktopTest.peers.slice(4).map(async peer => {
     const report = await peer.getStats();
@@ -39,6 +41,13 @@ test('keeps relay video and controls during failed probes, then promotes decoded
   const inputs = await page.evaluate(() => window.desktopTest.inputs.length);
   await page.getByRole('button', { name: '显示桌面', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.desktopTest.inputs.length)).toBeGreaterThan(inputs);
+  // P2P failure reuses the retained relay and the capture session, without another offer exchange.
+  await page.evaluate(() => window.desktopTest.peers[4].close());
+  await expect.poll(() => page.evaluate(() => window.desktopTest.peers[5].connectionState)).toBe('closed');
+  const fallbackFrames = await video.evaluate(element => element.getVideoPlaybackQuality().totalVideoFrames);
+  await expect.poll(() => video.evaluate(element => element.getVideoPlaybackQuality().totalVideoFrames))
+    .toBeGreaterThan(fallbackFrames + 5);
+  expect(await page.evaluate(() => window.desktopTest.captures)).toBe(1);
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.desktopTest.peers.every(peer => peer.connectionState === 'closed')))
     .toBe(true);

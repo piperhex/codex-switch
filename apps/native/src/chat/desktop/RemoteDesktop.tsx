@@ -25,7 +25,9 @@ import { desktopStyles as s } from './styles';
 // Native WebRTC owns decryption and decoding; Android uses SurfaceView and iOS uses Metal rendering.
 // No video frames, image strings or media ciphertext cross the React Native JavaScript bridge.
 const createPeer = (configuration: RTCConfiguration) =>
-  new RTCPeerConnection({ iceServers: configuration.iceServers }) as unknown as globalThis.RTCPeerConnection;
+  new RTCPeerConnection({ iceServers: configuration.iceServers,
+    ...(configuration.iceTransportPolicy ? { iceTransportPolicy: configuration.iceTransportPolicy } : {})
+  }) as unknown as globalThis.RTCPeerConnection;
 
 export function RemoteDesktop({ client, active, close }: {
   client: DesktopClient; active: boolean; close: () => void;
