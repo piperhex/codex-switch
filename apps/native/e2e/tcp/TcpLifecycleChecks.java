@@ -2,6 +2,7 @@ package com.asterinet.react.tcpsocket;
 
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -21,6 +22,19 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Runs the actual dependency's Java socket code with a controllable bridge worker queue. */
 public final class TcpLifecycleChecks {
     public static void main(String[] args) throws Exception {
+        AtomicReference<Throwable> uncaught = new AtomicReference<>();
+        Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> uncaught.compareAndSet(null, error));
+        try {
+            runChecks();
+            check(uncaught.get() == null, "uncaught socket worker exception: " + uncaught.get());
+        } finally {
+            Thread.setDefaultUncaughtExceptionHandler(previous);
+        }
+        System.out.println("TCP_LIFECYCLE_PASS: client cancellation/server queued listen/active accept/repeated close");
+    }
+
+    private static void runChecks() throws Exception {
         missingSocket();
         failedNetworkSelection();
         queuedTls();
@@ -28,7 +42,8 @@ public final class TcpLifecycleChecks {
         cancelDuringConnect();
         connectedSocket();
         duplicateServerClose();
-        System.out.println("TCP_LIFECYCLE_PASS: missing/failed/queued/connecting/connected/repeated close");
+        serverClosedBeforeListen();
+        activeServerClose();
     }
 
     private static void missingSocket() throws Exception {
@@ -135,6 +150,49 @@ public final class TcpLifecycleChecks {
         }
     }
 
+    private static void serverClosedBeforeListen() throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            TcpSocketServer server = fixture.listen(7);
+            ServerSocket socket = server.getServerSocket();
+            // Recreate the queued worker so close always wins before its first instruction.
+            Class<?> task = Class.forName(TcpSocketServer.class.getName() + "$TcpListenTask");
+            Constructor<?> constructor = task.getDeclaredConstructor(TcpSocketServer.class, TcpEventListener.class);
+            constructor.setAccessible(true);
+            Runnable delayedListen = (Runnable) constructor.newInstance(server, fixture.events);
+            fixture.module.close(7);
+            fixture.run(0);
+            delayedListen.run();
+            check(socket.isClosed(), "server cancellation must close the underlying socket");
+            check(fixture.closeCount(7) == 1, "queued server cancellation must close exactly once");
+            check(!fixture.events.events.contains("error:7"), "normal server cancellation reported an error");
+            checkServerStopped(server);
+        }
+    }
+
+    private static void activeServerClose() throws Exception {
+        try (Fixture fixture = new Fixture()) {
+            TcpSocketServer server = fixture.listen(8);
+            try (Socket peer = new Socket("127.0.0.1", server.getServerSocket().getLocalPort())) {
+                check(fixture.events.accepted.await(5, TimeUnit.SECONDS), "listener did not accept a connection");
+                server.close();
+                server.close();
+                check(fixture.closeCount(8) == 1, "active listener must close exactly once");
+                checkServerStopped(server);
+                check(!fixture.events.events.contains("error:8"), "closing accept reported an error");
+                TcpSocketClient client = (TcpSocketClient) fixture.sockets.values().stream()
+                    .filter(socket -> socket instanceof TcpSocketClient).findFirst().orElseThrow();
+                client.write(1, new byte[] { 42 });
+                peer.setSoTimeout(5000);
+                check(peer.getInputStream().read() == 42, "listener close broke an accepted connection");
+            }
+        }
+    }
+
+    private static void checkServerStopped(TcpSocketServer server) throws Exception {
+        ExecutorService executor = (ExecutorService) field(server, "listenExecutor");
+        check(executor.awaitTermination(5, TimeUnit.SECONDS), "closed server leaked its listener worker");
+    }
+
     private static void check(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
     }
@@ -193,6 +251,13 @@ public final class TcpLifecycleChecks {
         }
 
         void run(int index) { executor.tasks.remove(index).run(); }
+        TcpSocketServer listen(int id) {
+            module.listen(id, new Options());
+            run(0);
+            TcpSocketServer server = (TcpSocketServer) sockets.get(id);
+            owned.add(server);
+            return server;
+        }
         TcpSocketClient client(int id) { return (TcpSocketClient) sockets.get(id); }
         long closeCount(int id) { return events.events.stream().filter(event -> event.equals("close:" + id)).count(); }
 
@@ -201,12 +266,18 @@ public final class TcpLifecycleChecks {
             for (TcpSocket socket : owned) {
                 if (socket instanceof TcpSocketClient) {
                     ((TcpSocketClient) socket).destroy();
-                    ((ExecutorService) field(socket, "writeExecutor")).shutdownNow();
+                    stopWorker(socket, "writeExecutor");
                 } else {
                     ((TcpSocketServer) socket).close();
                 }
-                ((ExecutorService) field(socket, "listenExecutor")).shutdownNow();
+                stopWorker(socket, "listenExecutor");
             }
+        }
+
+        private void stopWorker(TcpSocket socket, String name) throws Exception {
+            ExecutorService worker = (ExecutorService) field(socket, name);
+            worker.shutdownNow();
+            check(worker.awaitTermination(5, TimeUnit.SECONDS), "socket worker remained blocked: " + name);
         }
     }
 

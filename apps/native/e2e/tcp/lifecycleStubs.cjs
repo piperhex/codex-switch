@@ -26,14 +26,16 @@ const stubs = {
     import java.net.*;
     import java.util.*;
     import java.util.concurrent.CopyOnWriteArrayList;
+    import java.util.concurrent.CountDownLatch;
     public class TcpEventListener {
       public final List<String> events = new CopyOnWriteArrayList<>();
+      public final CountDownLatch accepted = new CountDownLatch(1);
       public TcpEventListener(Object context) {}
       public void onConnect(int id, TcpSocketClient client) { events.add("connect:" + id); }
       public void onError(int id, Exception error) { events.add("error:" + id); }
       public void onClose(int id, Exception error) { events.add("close:" + id); }
       public void onListen(int id, TcpSocketServer server) { events.add("listen:" + id); }
-      public void onConnection(int server, int id, Socket socket) {}
+      public void onConnection(int server, int id, Socket socket) { accepted.countDown(); }
       public void onSecureConnection(int server, int id, Socket socket) {}
       public void onEnd(int id) {}
       public void onData(int id, byte[] data) {}

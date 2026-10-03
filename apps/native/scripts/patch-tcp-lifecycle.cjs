@@ -132,8 +132,39 @@ function patchClient(source) {
   return source;
 }
 
+function patchServer(source) {
+  source = replaceOnce(source, '    private ServerSocket serverSocket;',
+    '    private final ServerSocket serverSocket;');
+  return replaceOnce(source, `    public void close() {
+        try {
+            // close the socket
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+                mReceiverListener.onClose(getId(), null);
+                serverSocket = null;
+            }
+        } catch (IOException e) {
+            mReceiverListener.onClose(getId(), e);
+        }
+    }`, `    public synchronized void close() {
+        try {
+            // Keep the socket reference: a queued listener may start after close has completed.
+            if (!serverSocket.isClosed()) {
+                serverSocket.close();
+                mReceiverListener.onClose(getId(), null);
+            }
+        } catch (IOException e) {
+            mReceiverListener.onClose(getId(), e);
+        } finally {
+            // Closing the socket wakes accept(); shutdown also releases the idle worker.
+            listenExecutor.shutdown();
+        }
+    }`);
+}
+
 function applyTcpLifecyclePatch(directory) {
-  const changes = [['TcpSocketModule.java', patchModule], ['TcpSocketClient.java', patchClient]]
+  const changes = [['TcpSocketModule.java', patchModule], ['TcpSocketClient.java', patchClient],
+    ['TcpSocketServer.java', patchServer]]
     .map(([name, patch]) => {
       const file = path.join(directory, name), source = fs.readFileSync(file, 'utf8');
       return { file, source, changed: patch(source) };
@@ -141,4 +172,4 @@ function applyTcpLifecyclePatch(directory) {
   for (const { file, source, changed } of changes) if (source !== changed) fs.writeFileSync(file, changed);
 }
 
-module.exports = { applyTcpLifecyclePatch, patchModule, patchClient };
+module.exports = { applyTcpLifecyclePatch, patchModule, patchClient, patchServer };
