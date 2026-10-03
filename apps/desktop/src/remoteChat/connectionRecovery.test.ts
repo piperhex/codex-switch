@@ -171,6 +171,57 @@ it('still terminates P2P on authorization rejection or lease expiry', async () =
   expect(vi.getTimerCount()).toBe(0);
 });
 
+async function reconnectSocket(delay = 1500) {
+  await vi.advanceTimersByTimeAsync(delay);
+  const socket = Socket.instances.at(-1)!;
+  socket.onopen?.();
+  return socket;
+}
+
+it('pairs again after repeated missing-session replies without restarting or replaying a pending request', async () => {
+  const pending = connection.request('request', { operation: 'send', text: 'once' });
+  const rejected = expect(pending).rejects.toThrow();
+  Socket.instances[0].onclose?.({ code: 1006 });
+  const first = await reconnectSocket();
+  first.onclose?.({ code: 4004 });
+  expect(state.close).not.toHaveBeenCalled();
+  const second = await reconnectSocket(3000);
+  expect(JSON.parse(second.send.mock.calls[0][0])).toHaveProperty('resume.sessionId', 'session');
+  second.onclose?.({ code: 4004 });
+  expect(state.close).toHaveBeenCalledOnce();
+  await rejected;
+  const fresh = await reconnectSocket();
+  expect(JSON.parse(fresh.send.mock.calls[0][0])).not.toHaveProperty('resume');
+  first.onclose?.({ code: 4004 });
+  fresh.receive({ type: 'paired', sessionId: 'replacement', resumeToken: 'cd'.repeat(32),
+    transportVersion: 2, iceServers: [], expiresAt: Date.now() + 120_000 });
+  await vi.advanceTimersByTimeAsync(0);
+  state.options!.mode('relay');
+  expect(ready).toHaveBeenCalledTimes(2);
+  expect(state.send).toHaveBeenCalledOnce();
+  expect(state.close).toHaveBeenCalledOnce();
+  expect(mode).toHaveBeenLastCalledWith('relay');
+});
+
+it('preserves the original session while the PC briefly restores it and resets the rejection count on resume', async () => {
+  const pending = connection.request('request', { operation: 'send', text: 'once' });
+  const request = state.send.mock.calls[0][0] as { id: string };
+  for (let outage = 0; outage < 2; outage += 1) {
+    Socket.instances.at(-1)!.onclose?.({ code: 1006 });
+    const waiting = await reconnectSocket();
+    waiting.onclose?.({ code: 4004 });
+    const resumed = await reconnectSocket(3000);
+    expect(JSON.parse(resumed.send.mock.calls[0][0])).toHaveProperty('resume.sessionId', 'session');
+    resumed.receive({ type: 'resumed', sessionId: 'session', expiresAt: Date.now() + 120_000 });
+    await vi.advanceTimersByTimeAsync(0);
+  }
+  expect(state.close).not.toHaveBeenCalled();
+  expect(error).not.toHaveBeenCalled();
+  state.options!.message({ kind: 'response', id: request.id, data: 'accepted' });
+  await expect(pending).resolves.toBe('accepted');
+  expect(ready).toHaveBeenCalledOnce();
+});
+
 it('renews before expiry and preserves P2P, pending requests and the authenticated session', async () => {
   renewAuthorization.mockImplementationOnce(async () => { credentials.accessToken = 'renewed-token'; });
   await vi.advanceTimersByTimeAsync(59_999);

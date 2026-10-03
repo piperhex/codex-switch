@@ -105,7 +105,15 @@ const httpServer = http.createServer((request, response) => {
     for (const client of mobileClients) client.terminate();
     relayFrames = 0;
     // The page load event can precede the chat harness's asynchronous initialization.
-    void page.evaluate(() => localStorage.clear()).then(() => page.reload())
+    void (async () => {
+      let body = '';
+      for await (const chunk of request) body += chunk.toString();
+      const transportVersion = body ? JSON.parse(body).transportVersion : 1;
+      const target = new URL(page.url());
+      target.searchParams.set('transportVersion', transportVersion === 2 ? '2' : '1');
+      await page.evaluate(() => localStorage.clear());
+      await page.goto(target.toString());
+    })()
       .then(() => page.waitForFunction(() => Boolean(window.chatTest)))
       .then(() => response.end('{}'))
       .catch(() => response.writeHead(503).end('{}'));

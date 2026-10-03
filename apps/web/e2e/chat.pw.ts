@@ -10,6 +10,7 @@ import { composerLayout, desktopComposer } from './chat-composer';
 import { projectPickerJourney } from './chat-project-picker';
 import { clipboardJourney } from './chat-clipboard';
 import { backgroundJourney } from './chat-background';
+import { sessionRecoveryJourney } from './chat-session-recovery';
 import { modelPickerJourney } from './chat-model-picker';
 import { chooseSetting, closeChatSettings, isDesktop } from './chat-settings';
 
@@ -61,6 +62,10 @@ test('connects independently over WebRTC without advertising native TCP', async 
 test('uses the PC model picker and keeps the mobile settings unchanged', async ({ page, request }, info) => {
   test.skip(info.project.name !== 'desktop', 'Desktop model picker interaction');
   await modelPickerJourney(page, request, info);
+});
+
+test('automatically replaces an unavailable resumed session over relay', async ({ page, request }) => {
+  await sessionRecoveryJourney(page, request);
 });
 
 test('waits for the new relay model before enabling send', async ({ page, request }, info) => {

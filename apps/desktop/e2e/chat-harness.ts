@@ -40,7 +40,8 @@ const rpc = new ChatRpc({ prefix: `browser:${keys.publicKey}`,
 function connectSocket() {
   socket = new WebSocket(query.get('socket')!);
   socket.onopen = () => socket.send(JSON.stringify({ type: 'authenticate', role: desktop ? 'desktop' : 'mobile',
-  deviceId: query.get('device') || 'computer', publicKey: keys.publicKey }));
+  deviceId: query.get('device') || 'computer', publicKey: keys.publicKey,
+  transportVersion: Number(query.get('transportVersion') ?? 1) }));
   socket.onmessage = receive;
   socket.onclose = () => {
     for (const activeLink of links.values()) activeLink.close();
@@ -56,6 +57,7 @@ async function receive({ data }: MessageEvent<string>) {
   if (frame.type === 'registered') { document.querySelector('#status')!.textContent = 'registered'; return; }
   if (frame.type === 'paired' || frame.type === 'peer-open') {
     const sessionLink: ChatLink = new ChatLink({ sessionId: String(frame.sessionId), desktop, secret: keys.secret,
+      transportVersion: Number(frame.transportVersion),
       publicKey: desktop ? String(frame.publicKey) : undefined, iceServers: frame.iceServers as IceServer[],
       createPeer: (options) => blocked ? { offer: async () => undefined, accept: async () => undefined, close() {} }
         : new RtcPeer(options, () => new RTCPeerConnection({ iceServers: options.iceServers })),
@@ -111,6 +113,7 @@ async function receive({ data }: MessageEvent<string>) {
     });
     link = sessionLink;
     links.set(String(frame.sessionId), sessionLink);
+    if (typeof frame.expiresAt === 'number') sessionLink.renew(frame.expiresAt);
     if (desktop) socket.send(JSON.stringify({ type: 'signal', sessionId: frame.sessionId,
       payload: { kind: 'key', key: keys.publicKey } }));
     else await link.offer();
@@ -119,6 +122,11 @@ async function receive({ data }: MessageEvent<string>) {
   // Reconnecting clients can overlap with an old socket that is still closing.
   const target = links.get(String(frame.sessionId));
   if (!target) return;
+  if (frame.type === 'peer-offline') target.setRelayAvailable(false);
+  if (frame.type === 'resumed') {
+    target.renew(Number(frame.expiresAt));
+    target.setRelayAvailable(true);
+  }
   if (frame.type === 'signal') await target.acceptSignal(frame.payload as Signal);
   if (frame.type === 'relay-ready') target.enableRelay();
   if (frame.type === 'relay') target.receive(String(frame.payload));

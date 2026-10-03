@@ -46,6 +46,8 @@ interface ConnectionOptions extends ConnectionEvents {
 
 const CONNECTION_TIMEOUT_MS = 30_000;
 const SOCKET_CLOSE_GRACE_MS = 250;
+const SESSION_UNAVAILABLE_CODE = 4004;
+const MAX_RESUME_UNAVAILABLE_REPLIES = 2;
 
 export class ChatConnection {
   private readonly publicEndpoints = new PublicEndpointObserver(value => this.options.publicEndpoints?.(value));
@@ -57,6 +59,7 @@ export class ChatConnection {
   private connectTimer?: ReturnType<typeof setTimeout>;
   private socketErrorTimer?: ReturnType<typeof setTimeout>;
   private attempt = 0;
+  private resumeUnavailableReplies = 0;
   private generation = 0;
   private active = false;
   private resume?: { sessionId: string; resumeToken: string };
@@ -135,7 +138,7 @@ export class ChatConnection {
     socket.onclose = (event) => {
       keys.secret.fill(0);
       if (generation === this.generation) {
-        this.fail(socketConnectionError(event.code), ![4000, 4001].includes(event.code));
+        this.fail(socketConnectionError(event.code), this.canRecoverSocketClose(event.code));
       }
     };
     socket.onerror = () => {
@@ -145,6 +148,15 @@ export class ChatConnection {
         if (generation === this.generation) this.fail(CONNECTION_ERRORS.network, true);
       }, SOCKET_CLOSE_GRACE_MS);
     };
+  }
+
+  private canRecoverSocketClose(code: number) {
+    if (!this.resume || code !== SESSION_UNAVAILABLE_CODE) return ![4000, 4001].includes(code);
+    this.resumeUnavailableReplies += 1;
+    // Give the PC one retry to restore its session; a lost session needs a fresh pairing.
+    if (this.resumeUnavailableReplies < MAX_RESUME_UNAVAILABLE_REPLIES) return true;
+    this.attempt = 0;
+    return false;
   }
 
   private fail(message: string, recover = false) {
@@ -220,6 +232,7 @@ export class ChatConnection {
     if (this.resume && message.sessionId !== this.resume.sessionId) return;
     if (message.type === 'resumed' && this.resume) {
       this.socketAuthenticated = true;
+      this.resumeUnavailableReplies = 0;
       this.lease(message.expiresAt);
       clearTimeout(this.connectTimer);
       this.attempt = 0;
@@ -313,6 +326,7 @@ export class ChatConnection {
     clearTimeout(this.leaseTimer);
     this.renewal.clear();
     this.resume = undefined;
+    this.resumeUnavailableReplies = 0;
     this.sessionReady = false;
     const link = this.link;
     this.link = undefined;
