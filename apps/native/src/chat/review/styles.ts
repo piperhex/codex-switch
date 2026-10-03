@@ -2,7 +2,6 @@ import { StyleSheet } from 'react-native';
 import { palette } from '../styles';
 
 export const reviewStyles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: palette.border, borderRadius: 14, padding: 16, gap: 10 },
   row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
   section: { paddingVertical: 16, borderBottomWidth: 1, borderColor: palette.border, gap: 12 },
   stack: { gap: 12 },

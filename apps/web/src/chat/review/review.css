@@ -1,8 +1,5 @@
-.chat-result-card { border: 1px solid var(--chat-border); border-radius: 14px; padding: 16px; }
-.chat-result-summary { margin: 8px 0 12px; white-space: pre-wrap; overflow-wrap: anywhere;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.chat-result-footer, .chat-review-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-.chat-result-footer > :last-child { margin-left: auto; }
+.chat-review-check-header, .chat-review-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.chat-review-check-header > :last-child { margin-left: auto; }
 .chat-review-section { padding: 16px 0; border-bottom: 1px solid var(--chat-border); min-width: 0; }
 .chat-review-section h3 { font-size: 15px; margin: 0 0 12px; }
 .chat-review-check { padding-block: 12px; }

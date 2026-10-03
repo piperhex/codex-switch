@@ -22,7 +22,7 @@ export function TaskReviewChecks({ model }: { model: TaskReviewModel }) {
       const record = snapshot.checks.find(row => row.kind === kind);
       const status = checkStatus(record, snapshot.revision);
       return <div className="chat-review-check" key={kind}>
-        <div className="chat-result-footer"><strong>{kind}</strong>
+        <div className="chat-review-check-header"><strong>{kind}</strong>
           <span data-check-status={status}>{t(LABELS[status])}</span>
           {plan && <button type="button" className="chat-text-action"
             disabled={!model.enabled || model.busy || model.running} onClick={() => setConfirm(kind)}>

@@ -87,7 +87,17 @@
 .chat-plan-summary { width: fit-content; padding-left: 0; }
 .chat-files-summary { overflow: hidden; border: 1px solid #dfe5e1; border-radius: 12px; }
 .chat-files-summary strong { flex: 1; }
-.chat-files-summary button + button { border-top: 1px solid #e7ece9; }
+.chat-files-summary > button { border-top: 1px solid #e7ece9; }
+.chat-files-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+.chat-files-summary .chat-files-overview { flex: 1; min-width: 0; padding: 0; min-height: 44px; }
+.chat-files-overview > svg { flex-shrink: 0; }
+.chat-files-overview > span { min-width: 0; overflow-wrap: anywhere; }
+.chat-files-counts { display: flex; gap: 5px; margin-top: 4px; }
+.chat-files-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.chat-files-actions button { width: auto; min-height: 44px; padding: 0; }
+.chat-task-result, .chat-files-summary .chat-task-result { flex-shrink: 0; border: 0; background: transparent;
+  color: var(--chat-green); font: inherit; font-size: 13px; cursor: pointer; min-height: 44px; padding: 0; }
+.chat-task-result:focus-visible { outline: 2px solid var(--chat-green); outline-offset: 2px; border-radius: 4px; }
 .chat-added { color: #188355; }
 .chat-removed { color: #c25b55; }
 .chat-plan-step { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }

@@ -6,7 +6,25 @@ test('reviews task changes with versioned checks, comments, restore preview and 
   await request.post(`${fixtureUrl}/test/sidebar`, { data: { action: 'message-details' } });
   await login(page); await connect(page); await openChatList(page);
   await page.getByRole('button', { name: '移动端聊天体验', exact: true }).click();
-  await page.getByRole('button', { name: '验收结果', exact: true }).first().click();
+  const result = page.getByRole('button', { name: '验收结果', exact: true }).first();
+  const summary = page.locator('.chat-turn-summary').filter({ has: result });
+  const review = summary.getByRole('button', { name: /^审核$|^查看本轮修改：/ }).last();
+  await expect(result).toBeVisible();
+  await expect(summary.getByText('任务验收', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.chat-result-card')).toHaveCount(0);
+  const resultBounds = (await result.boundingBox())!;
+  const reviewBounds = (await review.boundingBox())!;
+  expect(resultBounds.x + resultBounds.width).toBeLessThanOrEqual(reviewBounds.x);
+  expect(Math.abs(resultBounds.y + resultBounds.height / 2 - reviewBounds.y - reviewBounds.height / 2))
+    .toBeLessThan(2);
+  await screenshot(page, info, 'review-header-entry');
+  await review.click();
+  const changes = info.project.name === 'mobile' ? page.locator('.ant-drawer-right .chat-diff')
+    : page.getByRole('complementary', { name: '文件更改详情' });
+  await expect(changes).toBeVisible();
+  await expect(page.locator('.chat-review-panel')).toHaveCount(0);
+  await page.getByRole('button', { name: /关闭详情抽屉|^关闭$/ }).last().click();
+  await result.click();
   const panel = page.locator('.chat-review-panel');
   await expect(panel.locator('[data-check-status="notRun"]')).toHaveCount(3, { timeout: 15_000 });
   await panel.getByRole('button', { name: '运行验证', exact: true }).last().click();

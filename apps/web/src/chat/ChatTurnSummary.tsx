@@ -6,7 +6,7 @@ import type { Turn } from './types';
 import { completedTurnFiles } from '../../../../shared/chat/turnPresentation';
 import { generatedImageSource } from '../../../../shared/chat/imageSources';
 import { ChatImage } from './ChatImage';
-import { TaskResultCard } from './review/TaskResultCard';
+import { useTaskReviewAvailable } from '../../../../shared/remote-chat/TaskReviewContext';
 
 export type TurnPanel = 'plan' | 'changes' | 'error' | 'result';
 export function turnErrorNotice(turn: Turn) {
@@ -20,6 +20,7 @@ export function ChatTurnSummary({ turn, onOpen, hideStopped = false }: {
   turn: Turn; onOpen: (panel: TurnPanel) => void; hideStopped?: boolean;
 }) {
   useLanguage();
+  const reviewAvailable = useTaskReviewAvailable(turn.status);
   const files = useMemo(() => completedTurnFiles(turn), [turn]);
   const generated = [...new Set(turn.items.filter(item => item.type === 'imageGeneration'
     && item.status === 'completed' && !item.failure).map(generatedImageSource).filter(Boolean))];
@@ -30,8 +31,8 @@ export function ChatTurnSummary({ turn, onOpen, hideStopped = false }: {
       onClick={() => onOpen('plan')}><strong>{t("任务计划")}</strong>
       <span>{turn.plan.filter(step => step.status === 'completed').length}/{turn.plan.length}</span>
       <ChevronRight size={15} /></button>}
-    {!!files.length && <ChatTurnFiles files={files} running={running} onOpen={() => onOpen('changes')} />}
-    <TaskResultCard turn={turn} open={() => onOpen('result')} />
+    {!!files.length && <ChatTurnFiles files={files} running={running} onOpen={() => onOpen('changes')}
+      onResult={reviewAvailable ? () => onOpen('result') : undefined} />}
     {turn.status === 'interrupted' && !hideStopped && <p className="chat-muted">{t("已停止生成")}</p>}
     {(turn.error || turn.retryError || turn.status === 'failed') && <button type="button"
       className="chat-error-notice" aria-label={t("查看报错详情")} onClick={() => onOpen('error')}>

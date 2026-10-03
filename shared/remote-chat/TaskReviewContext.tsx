@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import type { ChatController } from './client/controller';
-import type { ChatState } from './client/types';
+import type { ChatState, Turn } from './client/types';
 import { liveChat } from './connectionHealth';
 import type { ReviewClient } from './taskReview';
 
@@ -23,3 +23,8 @@ export function TaskReviewProvider({ controller, state, active, children }: {
 }
 
 export const useTaskReviewContext = () => useContext(Context);
+
+export function useTaskReviewAvailable(status: Turn['status']) {
+  const context = useTaskReviewContext();
+  return !!context && ['completed', 'failed', 'interrupted'].includes(status);
+}

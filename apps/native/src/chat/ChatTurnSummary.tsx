@@ -9,7 +9,8 @@ import { ChatImage } from './ChatImage';
 import { completedTurnFiles } from './turnPresentation';
 import type { Turn } from './types';
 import { palette, styles } from './styles';
-import { TaskResultCard } from './review/TaskResultCard';
+import { useTaskReviewAvailable } from '../../../../shared/remote-chat/TaskReviewContext';
+import { ReviewButton } from './review/ReviewButton';
 
 export type TurnPanel = 'plan' | 'changes' | 'error' | 'result';
 interface Props { turn: Turn; onOpen: (turnId: string, panel: TurnPanel) => void }
@@ -29,7 +30,28 @@ function FileCounts({ added, removed }: { added: number; removed: number }) {
   </View>;
 }
 
-function FileSummary({ files, onOpen, running }: { files: DiffFile[]; onOpen: () => void; running: boolean }) {
+function FileHeader({ count, added, removed, onOpen, onResult }: {
+  count: number; added: number; removed: number; onOpen: () => void; onResult?: () => void;
+}) {
+  useLanguage();
+  return <View style={summaryStyles.fileHeader}>
+    <Pressable accessibilityRole="button" accessibilityLabel={t("查看本轮修改：{value1} 个文件", { value1: count })}
+      style={summaryStyles.fileOverview} onPress={onOpen}>
+      <Ionicons name="document-text-outline" size={21} color={palette.muted} />
+      <View style={styles.fill}><Text style={styles.title}>{t("已编辑")}{' '}{count}{' '}{t("个文件")}</Text>
+        <FileCounts added={added} removed={removed} /></View>
+    </Pressable>
+    <View style={summaryStyles.fileActions}>
+      {onResult && <ReviewButton label={t('验收结果')} onPress={onResult} />}
+      <Pressable accessibilityRole="button" accessibilityLabel={t('审核')}
+        style={summaryStyles.review} onPress={onOpen}><Text style={styles.messageText}>{t('审核')}</Text></Pressable>
+    </View>
+  </View>;
+}
+
+function FileSummary({ files, onOpen, onResult, running }: {
+  files: DiffFile[]; onOpen: () => void; onResult?: () => void; running: boolean;
+}) {
   useLanguage();
   const summary = new Map<string, { path: string; added: number; removed: number }>();
   for (const file of files) {
@@ -48,13 +70,7 @@ function FileSummary({ files, onOpen, running }: { files: DiffFile[]; onOpen: ()
     <Ionicons name="chevron-forward" size={14} color={palette.muted} />
   </Pressable>;
   return <View style={summaryStyles.files}>
-    <Pressable accessibilityRole="button" accessibilityLabel={t("查看本轮修改：{value1} 个文件", { value1: paths.length })}
-      style={summaryStyles.fileHeader} onPress={onOpen}>
-      <Ionicons name="document-text-outline" size={21} color={palette.muted} />
-      <View style={styles.fill}><Text style={styles.title}>{t("已编辑")}{' '}{paths.length}{' '}{t("个文件")}</Text>
-        <FileCounts added={added} removed={removed} /></View>
-      <Text style={styles.messageText}>{t("审核")}</Text>
-    </Pressable>
+    <FileHeader count={paths.length} added={added} removed={removed} onOpen={onOpen} onResult={onResult} />
     <View style={summaryStyles.fileList}>{paths.slice(0, PREVIEW_FILES).map((file) => <Pressable key={file.path}
       accessibilityRole="button" style={summaryStyles.fileRow} onPress={onOpen}>
       <Text style={[styles.subtitle, styles.fill]} numberOfLines={1} ellipsizeMode="middle">{file.path}</Text>
@@ -74,6 +90,7 @@ export function ChatTurnDuration({ turn }: { turn: Turn }) {
 
 export function ChatTurnSummary({ turn, onOpen }: Props) {
   useLanguage();
+  const reviewAvailable = useTaskReviewAvailable(turn.status);
   const files = useMemo(() => completedTurnFiles(turn), [turn.diff, turn.items]);
   const completed = turn.plan?.filter((step) => step.status === 'completed').length ?? 0;
   const generated = [...new Set(turn.items.filter((item) => item.type === 'imageGeneration'
@@ -87,8 +104,8 @@ export function ChatTurnSummary({ turn, onOpen }: Props) {
       <Ionicons name="chevron-forward" size={15} color={palette.muted} />
     </Pressable>}
     {!!files.length && <FileSummary files={files} running={turn.status === 'inProgress'}
-      onOpen={() => onOpen(turn.id, 'changes')} />}
-    <TaskResultCard turn={turn} open={() => onOpen(turn.id, 'result')} />
+      onOpen={() => onOpen(turn.id, 'changes')}
+      onResult={reviewAvailable ? () => onOpen(turn.id, 'result') : undefined} />}
     {turn.status === 'interrupted' && <Text style={styles.subtitle}>{t("已停止生成")}</Text>}
     {(turn.error || turn.retryError || turn.status === 'failed') && <Pressable accessibilityRole="button"
       accessibilityLabel={t("查看报错详情")} onPress={() => onOpen(turn.id, 'error')}>
@@ -108,7 +125,10 @@ const summaryStyles = StyleSheet.create({
   pill: { alignSelf: 'center', maxWidth: '100%', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
     gap: 6, borderWidth: 1, borderColor: palette.border, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 10 },
   pillLabel: { color: palette.muted, fontSize: 12, lineHeight: 20, flexShrink: 1 },
-  fileHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  fileHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14 },
+  fileOverview: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
+  fileActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  review: { minHeight: 44, justifyContent: 'center' },
   fileList: { borderTopWidth: 1, borderTopColor: palette.border },
   fileRow: { flexDirection: 'row', alignItems: 'baseline', gap: 14, paddingVertical: 10, paddingHorizontal: 16 },
   counts: { flexDirection: 'row', gap: 5 },

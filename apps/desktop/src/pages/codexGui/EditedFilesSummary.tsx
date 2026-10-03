@@ -23,10 +23,11 @@ function summarizeFiles(files: DiffFile[]) {
   return [...paths.values()];
 }
 
-export function EditedFilesSummary({ files, title, status, onReview, onReviewFile, undo, renderFile }: {
+export function EditedFilesSummary({ files, title, status, onReview, onReviewFile, undo, beforeReview, renderFile }: {
   files: DiffFile[]; title: string; status?: string; onReview: () => void;
   onReviewFile: (path: string) => void;
   undo?: ReactNode;
+  beforeReview?: ReactNode;
   renderFile?: (props: { path: string; className: string; onReview: () => void }) => ReactNode;
 }) {
   const t = useDiffText();
@@ -45,7 +46,7 @@ export function EditedFilesSummary({ files, title, status, onReview, onReviewFil
         <strong>{t(changed ? "已编辑" : status ?? "已编辑")} {t("{count} 个文件", { count: summary.length })}</strong>
         <Counts added={added} removed={removed} />
       </div>
-      {undo}<button type="button" className={styles.review} onClick={onReview}
+      {undo}{beforeReview}<button type="button" className={styles.review} onClick={onReview}
         aria-label={t("查看{title}：{count} 个文件，新增 {added} 行，删除 {removed} 行",
           { title: t(title), count: summary.length, added, removed })}>{t("审核")}</button>
     </header>

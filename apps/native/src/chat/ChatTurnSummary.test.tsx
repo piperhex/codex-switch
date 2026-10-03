@@ -3,9 +3,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ChatTurnSummary } from './ChatTurnSummary';
 import type { Turn } from './types';
 
+const reviewContext = vi.hoisted(() => ({ value: {} as object | null }));
 vi.mock('react', async original => ({ ...await original<typeof import('react')>(),
   useMemo: <T,>(compute: () => T) => compute(),
-
+  useContext: () => reviewContext.value,
   useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
 }));
 vi.mock('react-native', () => ({ Pressable: 'Pressable', Text: 'Text', View: 'View',
@@ -13,7 +14,6 @@ vi.mock('react-native', () => ({ Pressable: 'Pressable', Text: 'Text', View: 'Vi
 }));
 vi.mock('@expo/vector-icons', () => ({ Ionicons: 'Icon' }));
 vi.mock('./ChatImage', () => ({ ChatImage: 'Image' }));
-vi.mock('../../../../shared/remote-chat/TaskReviewContext', () => ({ useTaskReviewContext: () => ({}) }));
 
 interface Props { children?: ReactNode; accessibilityLabel?: string; onPress?: () => void }
 function descendants(node: ReactNode): { type: unknown; props: Props }[] {
@@ -32,7 +32,7 @@ function content(node: ReactNode): string {
     return content(child.props.children);
   }).join('');
 }
-beforeEach(() => vi.stubGlobal('React', React));
+beforeEach(() => { vi.stubGlobal('React', React); reviewContext.value = {}; });
 afterEach(() => vi.unstubAllGlobals());
 
 const turn: Turn = { id: 'turn', status: 'inProgress', items: [
@@ -47,23 +47,36 @@ it('keeps running file edits compact and opens the turn changes when pressed', (
   const tree = ChatTurnSummary({ turn, onOpen });
   expect(content(tree)).toContain('已编辑 1 个文件+1−1');
   expect(content(tree)).not.toContain('审核');
+  expect(content(tree)).not.toContain('验收结果');
   expect(content(tree)).not.toContain('src/example.ts');
   descendants(tree).find(node => node.props.accessibilityLabel === '查看本轮修改：1 个文件')?.props.onPress?.();
   expect(onOpen).toHaveBeenCalledWith('turn', 'changes');
 });
 
-it.each(['completed', 'interrupted', 'failed'])('restores the file list when the turn is %s', status => {
-  const tree = ChatTurnSummary({ turn: { ...turn, status }, onOpen: vi.fn() });
-  expect(content(tree)).toContain('审核');
-  expect(content(tree)).toContain('src/example.ts');
-});
-
-it('keeps the original diff entry and opens task review separately for the same completed turn', () => {
+it.each(['completed', 'interrupted', 'failed'])('shows review actions in the file header when the turn is %s', status => {
   const onOpen = vi.fn();
-  const tree = ChatTurnSummary({ turn: { ...turn, status: 'completed' }, onOpen });
+  const tree = ChatTurnSummary({ turn: { ...turn, status }, onOpen });
+  expect(content(tree)).toContain('验收结果审核');
+  expect(content(tree)).not.toContain('任务验收');
+  expect(content(tree)).toContain('src/example.ts');
   const elements = descendants(tree);
   elements.find(node => node.props.accessibilityLabel === '查看本轮修改：1 个文件')?.props.onPress?.();
   expect(onOpen).toHaveBeenLastCalledWith('turn', 'changes');
-  elements.find(node => node.type === 'Pressable' && content(node.props.children) === '验收结果')?.props.onPress?.();
+  elements.find(node => node.props.accessibilityLabel === '审核')?.props.onPress?.();
+  expect(onOpen).toHaveBeenLastCalledWith('turn', 'changes');
+  const result = elements.find(node => node.props.accessibilityLabel === '验收结果');
+  const header = elements.find(node => node.type === 'View' && content(node.props.children) === '验收结果审核');
+  expect(descendants(header?.props.children).filter(node => node.type === 'Pressable')
+    .map(node => node.props.accessibilityLabel)).toEqual(['验收结果', '审核']);
+  result?.props.onPress?.();
   expect(onOpen).toHaveBeenLastCalledWith('turn', 'result');
+});
+
+it('hides acceptance when review is unavailable or the turn has no file changes', () => {
+  const noChanges = ChatTurnSummary({ turn: { ...turn, status: 'completed', items: [] }, onOpen: vi.fn() });
+  expect(content(noChanges)).not.toContain('验收结果');
+  reviewContext.value = null;
+  const unavailable = ChatTurnSummary({ turn: { ...turn, status: 'completed' }, onOpen: vi.fn() });
+  expect(content(unavailable)).not.toContain('验收结果');
+  expect(content(unavailable)).toContain('审核');
 });
