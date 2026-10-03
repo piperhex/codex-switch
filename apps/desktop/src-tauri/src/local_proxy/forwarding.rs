@@ -312,32 +312,9 @@ fn forward_provider_with_api_fallback(
     body: Vec<u8>,
     provider: &ProviderProfile,
 ) -> Result<UpstreamPayload, String> {
-    let model = provider_request_model(&body, provider);
-    if let Some(format) = provider.model_api_formats.get(&model).copied() {
-        provider_api_cache::forget_format(&provider.id, &model);
-        return forward_provider_with_format(format, method, url, headers, body, provider);
-    }
-    let preferred = provider_api_cache::cached_format(&provider.id, &provider.base_url, &model)
-        .unwrap_or(provider.api_format);
-    let first =
-        forward_provider_with_format(preferred, method, url, headers, body.clone(), provider);
-    if api_attempt_succeeded(&first) {
-        remember_provider_api_format(provider, &model, preferred);
-        return first;
-    }
-    if first.as_ref().is_ok_and(|payload| payload.status == 429) {
-        return first;
-    }
-
-    let alternate = alternate_api_format(preferred);
-    let second = forward_provider_with_format(alternate, method, url, headers, body, provider);
-    if api_attempt_succeeded(&second) {
-        record_discarded_proxy_attempt(&first);
-        remember_provider_api_format(provider, &model, alternate);
-        return second;
-    }
-    provider_api_cache::forget_format(&provider.id, &model);
-    preferred_protocol_failure(first, second)
+    forward_provider_api(provider, &body, |format| {
+        forward_provider_with_format(format, method, url, headers, body.clone(), provider)
+    })
 }
 
 fn forward_provider_with_format(
@@ -353,52 +330,5 @@ fn forward_provider_with_format(
             forward_provider(method, url, headers, body, provider)
         }
         ProviderApiFormat::OpenaiChat => forward_chat_bridge(method, url, headers, body, provider),
-    }
-}
-
-fn provider_request_model(body: &[u8], provider: &ProviderProfile) -> String {
-    serde_json::from_slice::<Value>(body)
-        .ok()
-        .map(|value| selected_provider_model(&value, provider))
-        .unwrap_or_else(|| provider.model.clone())
-}
-
-fn alternate_api_format(format: ProviderApiFormat) -> ProviderApiFormat {
-    match format {
-        ProviderApiFormat::OpenaiResponses => ProviderApiFormat::OpenaiChat,
-        ProviderApiFormat::OpenaiChat => ProviderApiFormat::OpenaiResponses,
-    }
-}
-
-fn api_attempt_succeeded(result: &Result<UpstreamPayload, String>) -> bool {
-    result
-        .as_ref()
-        .is_ok_and(|payload| status_ok(payload.status))
-}
-
-fn remember_provider_api_format(
-    provider: &ProviderProfile,
-    model: &str,
-    format: ProviderApiFormat,
-) {
-    provider_api_cache::remember_format(&provider.id, &provider.base_url, model, format);
-}
-
-fn preferred_protocol_failure(
-    first: Result<UpstreamPayload, String>,
-    second: Result<UpstreamPayload, String>,
-) -> Result<UpstreamPayload, String> {
-    match (first, second) {
-        (first, Ok(payload)) => {
-            record_discarded_proxy_attempt(&first);
-            Ok(payload)
-        }
-        (Ok(payload), Err(error)) => {
-            crate::error_logs::record_proxy_error(&error, None);
-            Ok(payload)
-        }
-        (Err(first_error), Err(second_error)) => Err(format!(
-            "Provider request failed for both supported API formats: {first_error}; {second_error}"
-        )),
     }
 }

@@ -80,6 +80,7 @@ include!("token_usage.rs");
 include!("token_usage_db.rs");
 include!("token_usage_breakdown.rs");
 include!("forwarding.rs");
+include!("provider_api_fallback.rs");
 include!("anthropic_bridge.rs");
 include!("anthropic_forwarding.rs");
 include!("anthropic_request.rs");
@@ -113,6 +114,7 @@ mod tests {
     include!("tests/part_06.rs");
     include!("tests/part_07.rs");
     include!("tests/chat_bridge_headers.rs");
+    include!("tests/provider_api_fallback.rs");
     include!("tests/part_08.rs");
     include!("tests/part_09.rs");
     include!("tests/conversation.rs");
