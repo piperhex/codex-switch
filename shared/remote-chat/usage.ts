@@ -12,6 +12,14 @@ const MILLION = 1_000_000;
 const THOUSAND = 1_000;
 const LOW_QUOTA_PERCENT = 20;
 const WARNING_QUOTA_PERCENT = 50;
+const THREAD_TOKEN_FRACTION_DIGITS = 2;
+
+export function formatThreadTokens(value?: number) {
+  if (value === undefined || !Number.isFinite(value) || value < 0) return '—';
+  const divisor = value >= MILLION ? MILLION : THOUSAND;
+  const unit = value >= MILLION ? 'M' : 'K';
+  return `${(value / divisor).toFixed(THREAD_TOKEN_FRACTION_DIGITS)}${unit}`;
+}
 
 export function formatTokens(value: number, fractionDigits?: number) {
   const options = {

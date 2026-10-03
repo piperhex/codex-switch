@@ -2,7 +2,8 @@ import { t, useLanguage } from '../i18n';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { useChatUsage } from '../../../../shared/remote-chat/client/useChatUsage';
-import { formatCost, formatTokens, usageTrailing, type ReadUsage } from '../../../../shared/remote-chat/usage';
+import { formatCost, formatThreadTokens, formatTokens, usageTrailing,
+  type ReadUsage } from '../../../../shared/remote-chat/usage';
 import { palette } from './styles';
 import { contextUsageLabel } from '../../../../shared/remote-chat/contextUsage';
 import type { ThreadTokenUsage } from './types';
@@ -34,6 +35,9 @@ export function ChatUsage({ read, active, ready, tokenUsage, onContextSettings }
       {trailing && <Text>{' · '}{trailing.label}
         <Text style={styles[trailing.tone]}>{trailing.text}</Text></Text>}
     </Text> : <Text style={styles.row}>{notice}</Text>}
+    <Text style={styles.row}>{t("当前对话")}{' '}
+      <Text style={styles.tokens}>{formatThreadTokens(tokenUsage?.total.totalTokens)} Token</Text>
+    </Text>
   </View>;
 }
 

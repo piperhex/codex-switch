@@ -11,6 +11,7 @@
 }
 .chat-usage-tokens { color: #0b8065; }
 .chat-usage-context { flex-basis: 100%; }
+.chat-usage-thread { flex-basis: 100%; }
 .chat-usage-cost { color: #b45d00; }
 .chat-usage-quota { color: #16874e; }
 .chat-usage-low { color: #c74e47; }

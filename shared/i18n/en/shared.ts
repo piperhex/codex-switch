@@ -46,6 +46,7 @@ export const shared = {
   '暂无上下文用量': 'No context usage yet', '上下文已用 {used} Token（容量未知）': 'Context used: {used} tokens (capacity unknown)',
   '上下文 {used} / {capacity} Token（{percent}% 已用）': 'Context {used} / {capacity} tokens ({percent}% used)',
   '合计剩余': 'Total remaining',
+  '当前对话': 'Current chat',
   '当前账户剩余额度': 'Current account quota remaining',
   '并发账户剩余额度合计': 'Combined account quota remaining',
   '聚合 API 今日预估费用': 'Estimated combined API cost today',

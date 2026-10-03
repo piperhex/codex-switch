@@ -4,7 +4,7 @@ import { ArrowUp, ChevronDown, File, MessageSquare, Pause, Play, Plus,
   SlidersHorizontal, Square, Target, X } from 'lucide-react';
 import { COMPOSER_ACTION_LABELS } from '../../../../shared/remote-chat/composerAction';
 import { composerLabel } from '../../../../shared/remote-chat/composer';
-import { formatTokens } from '../../../../shared/remote-chat/usage';
+import { formatThreadTokens } from '../../../../shared/remote-chat/usage';
 import { useDesktopLayout } from '../useDesktopLayout';
 import { ComposerAccess, ComposerDesktopStatus } from './ComposerDesktopControls';
 import { ComposerModelPicker } from './ComposerModelPicker';
@@ -179,7 +179,7 @@ export function ChatComposer(props: ComposerProps) {
       </div>
     </form>
     {desktop && <div className="chat-composer-hint"><span>{t('Enter 发送 · Shift + Enter 换行')}</span>
-      {!!tokenUsage?.total.totalTokens && <span>{formatTokens(tokenUsage.total.totalTokens)} tokens</span>}
+      <span>{t('当前对话')} {formatThreadTokens(tokenUsage?.total.totalTokens)} Token</span>
     </div>}
     {active && !busy && editing && <ChatImageEditor key={editing.id} image={editing}
       save={url => draft.replaceImage(editing, url)} close={() => setEditingId(null)} />}
