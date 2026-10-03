@@ -55,13 +55,14 @@ export class BrowserDesktopRelayHost {
     return this.mediaWork;
   }
 
-  receive(peer: BrowserDesktopPeer, data: string) {
-    if (this.stopped || this.peer?.pc !== peer.pc) return false;
+  receive(peer: BrowserDesktopPeer, data: string): boolean | 'ignored' {
+    if (data !== STANDBY_PING && data !== STANDBY_ACTIVATE) return false;
+    // A faster retiring relay may deliver its first heartbeat before the direct peer is acknowledged.
+    if (this.stopped || this.peer?.pc !== peer.pc) return 'ignored';
     if (data === STANDBY_PING) {
       try { peer.channel.send(STANDBY_PONG); } catch { /* The viewer rebuilds an unresponsive backup. */ }
       return true;
     }
-    if (data !== STANDBY_ACTIVATE) return false;
     void this.fallback(); return true;
   }
 

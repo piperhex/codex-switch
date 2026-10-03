@@ -1,4 +1,7 @@
 use super::*;
+
+#[path = "standby_race_tests.rs"]
+mod standby_race_tests;
 use crate::remote_desktop::{
     displays::{Bounds, DisplayInfo},
     monitors::Monitor,

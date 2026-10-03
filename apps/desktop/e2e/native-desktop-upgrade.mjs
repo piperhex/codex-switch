@@ -23,10 +23,10 @@ try {
     return reply;
   });
   await page.addScriptTag({ content: bundle.outputFiles[0].text });
-  await page.evaluate(async iceServers => {
+  await page.evaluate(async ({ iceServers, standby }) => {
     const video = document.createElement('video'); video.autoplay = true; video.muted = true;
     document.body.append(video);
-    const state = window.upgradeTest = { peers: [], routes: [], stats: {}, streams: 0, failures: [] };
+    const state = window.upgradeTest = { peers: [], routes: [], stats: {}, streams: 0, failures: [], delayedPings: 0 };
     state.receiver = new window.DesktopReceiverModule.DesktopReceiver({
       client: { open: async () => ({ ...await window.nativeRequest('/offer'), iceServers }),
         signal: (_id, signal) => window.nativeRequest('/signal', signal),
@@ -34,6 +34,19 @@ try {
       createPeer: configuration => {
         const peer = new RTCPeerConnection({ ...configuration,
           iceTransportPolicy: configuration.iceTransportPolicy ?? (state.peers.length ? 'all' : 'relay') });
+        if (standby && state.peers.length) peer.addEventListener('datachannel', ({ channel }) => {
+          const send = channel.send.bind(channel);
+          let delayed = false;
+          channel.send = data => {
+            if (!delayed && data === '{"kind":"ping"}') {
+              delayed = true; state.delayedPings++;
+              // Reproduce a fast relay heartbeat reaching the host before the promoted direct path.
+              setTimeout(() => { if (channel.readyState === 'open') send(data); }, 500);
+              return;
+            }
+            send(data);
+          };
+        });
         state.peers.push(peer); return peer;
       },
       stream: stream => { video.srcObject = stream ?? null; if (stream) state.streams++; },
@@ -41,7 +54,7 @@ try {
       status: () => {}, failed: message => state.failures.push(message),
     });
     await state.receiver.start({ fps: 'auto', quality: 'smooth' });
-  }, JSON.parse(process.env.CSW_NATIVE_TEST_ICE || '[]'));
+  }, { iceServers: JSON.parse(process.env.CSW_NATIVE_TEST_ICE || '[]'), standby });
   await expect.poll(() => page.evaluate(() => window.upgradeTest.routes.includes('relay')),
     { timeout: 25_000 }).toBe(true);
   await expect.poll(() => page.evaluate(() => window.upgradeTest.stats.connection),
@@ -70,8 +83,10 @@ try {
   }
   const result = await page.evaluate(() => ({ routes: [...new Set(window.upgradeTest.routes)],
     peers: window.upgradeTest.peers.length, streams: window.upgradeTest.streams,
-    failures: window.upgradeTest.failures, width: document.querySelector('video').videoWidth }));
+    failures: window.upgradeTest.failures, delayedPings: window.upgradeTest.delayedPings,
+    width: document.querySelector('video').videoWidth }));
   expect(result.failures).toEqual([]); expect(result.peers).toBe(standby ? 3 : 2); expect(errors).toEqual([]);
+  if (standby) expect(result.delayedPings).toBe(2);
   expect(lostCommit).toBe(true);
   // Host stats are sampled separately from viewer stats; observe them before closing the peer.
   await expect.poll(() => page.evaluate(async () => (await window.nativeRequest('/stats')).connection),

@@ -83,7 +83,10 @@ export class DesktopHostSession {
     });
     channel.addEventListener('close', () => { if (this.pc === pc) void this.recover(pc); });
     channel.addEventListener('message', ({ data }) => {
-      if (!this.stopped && typeof data === 'string' && this.standby?.receive(peer, data)) {
+      if (this.stopped) return;
+      const standby = typeof data === 'string' && this.standby?.receive(peer, data);
+      if (standby === 'ignored') return;
+      if (standby) {
         clearTimeout(this.expires); this.expires = setTimeout(() => this.close(), HEARTBEAT_TIMEOUT); return;
       }
       if (this.stopped || (this.pc !== pc && !this.direct.isRetiring(pc))) return;

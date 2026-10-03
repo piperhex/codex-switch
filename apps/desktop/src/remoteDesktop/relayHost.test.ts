@@ -1,7 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { BrowserDesktopRelayHost } from './relayHost';
 import type { BrowserDesktopPeer } from './directHost';
-import { STANDBY_ACTIVE, STANDBY_PING, STANDBY_PONG } from '../../../../shared/remote-desktop/standbyProtocol';
+import { STANDBY_ACTIVE, STANDBY_ACTIVATE, STANDBY_PING, STANDBY_PONG }
+  from '../../../../shared/remote-desktop/standbyProtocol';
 
 function peer() {
   const track = { kind: 'video' };
@@ -12,6 +13,19 @@ function peer() {
   return { peer: { pc, channel, clipboard: channel, sender } as unknown as BrowserDesktopPeer, track, sender };
 }
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+it('consumes early standby controls without treating an unregistered peer as a healthy backup', () => {
+  const active = peer(), activate = vi.fn(() => active.peer);
+  const host = new BrowserDesktopRelayHost({ iceServers: [], stream: () => undefined,
+    current: () => active.peer.pc, bind: vi.fn(), activate });
+  expect(host.receive(active.peer, STANDBY_PING)).toBe('ignored');
+  expect(host.receive(active.peer, STANDBY_ACTIVATE)).toBe('ignored');
+  expect(host.receive(active.peer, '{"kind":"move"}')).toBe(false);
+  expect(active.peer.channel.send).not.toHaveBeenCalled();
+  expect(activate).not.toHaveBeenCalled();
+  expect(active.peer.pc.close).not.toHaveBeenCalled();
+  host.close();
+});
 
 it('pauses only the backup sender, keeps its control channel and restores it on fallback', async () => {
   vi.useFakeTimers();
@@ -25,7 +39,8 @@ it('pauses only the backup sender, keeps its control channel and restores it on 
   expect(backup.peer.pc.close).not.toHaveBeenCalled();
   expect(host.receive(backup.peer, STANDBY_PING)).toBe(true);
   expect(backup.peer.channel.send).toHaveBeenLastCalledWith(STANDBY_PONG);
-  expect(host.receive(active.peer, STANDBY_PING)).toBe(false);
+  expect(host.receive(active.peer, STANDBY_PING)).toBe('ignored');
+  expect(active.peer.channel.send).not.toHaveBeenCalled();
   await Promise.all([host.fallback(active.peer.pc), host.fallback(active.peer.pc)]);
   expect(backup.sender.replaceTrack).toHaveBeenLastCalledWith(backup.track);
   expect(activate).toHaveBeenCalledExactlyOnceWith(backup.peer);

@@ -4,9 +4,11 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useDesktopSession } from '../../../../shared/remote-desktop/useDesktopSession';
 import type { DesktopClient, DesktopDisplays, DesktopSettings } from '../../../../shared/remote-desktop/protocol';
+import type { DesktopDirectRetry } from '../../../../shared/remote-desktop/directRetry';
 
 interface FakeSession {
-  options: { stream: (stream?: MediaStream) => void; displays: (value: DesktopDisplays) => void };
+  options: { stream: (stream?: MediaStream) => void; displays: (value: DesktopDisplays) => void;
+    failed: (message: string) => void; directRetry: DesktopDirectRetry };
   start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; input: ReturnType<typeof vi.fn>;
 }
 const runtime = vi.hoisted(() => ({ sessions: [] as FakeSession[] }));
@@ -29,7 +31,22 @@ beforeEach(async () => {
   root = createRoot(document.createElement('div'));
   await act(async () => root.render(<Harness />));
 });
-afterEach(async () => { await act(async () => root.unmount()); vi.unstubAllGlobals(); });
+afterEach(async () => { await act(async () => root.unmount()); vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+it('keeps direct backoff across automatic reconnects and resets it after the viewer closes', async () => {
+  vi.useFakeTimers();
+  const first = runtime.sessions[0]; first.options.directRetry.failed();
+  await act(async () => {
+    first.options.failed('Connection lost'); await vi.advanceTimersByTimeAsync(1000);
+  });
+  expect(runtime.sessions).toHaveLength(2);
+  expect(runtime.sessions[1].options.directRetry).toBe(first.options.directRetry);
+  expect(runtime.sessions[1].options.directRetry.delay).toBe(15_000);
+  await act(async () => root.render(<Harness active={false} />));
+  await act(async () => root.render(<Harness />));
+  expect(runtime.sessions[2].options.directRetry).not.toBe(first.options.directRetry);
+  expect(runtime.sessions[2].options.directRetry.delay).toBe(5000);
+});
 
 it('releases dragging and waits for close before reconnecting with the chosen screen', async () => {
   const old = runtime.sessions[0];

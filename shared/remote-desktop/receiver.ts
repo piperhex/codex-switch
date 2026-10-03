@@ -9,6 +9,7 @@ import { RtcObserver } from '../remote-chat/rtcObserver';
 import { connectionDiagnostic, type ConnectionDiagnostic, type DiagnosticFields } from '../remote-chat/diagnostics';
 import { DesktopDirectUpgrade, type DirectPeer } from './directUpgrade';
 import { DesktopRelayStandby } from './relayStandby';
+import { DesktopDirectRetry } from './directRetry';
 import { closeNativeMedia, openNativeMedia, nativeMediaIceServers, type NativeMediaSession } from './nativeMedia';
 
 interface ReceiverOptions {
@@ -22,6 +23,7 @@ interface ReceiverOptions {
   capabilities?: (value: DesktopCapabilities) => void;
   connected?: () => void;
   failed?: (message: string) => void;
+  directRetry?: DesktopDirectRetry;
 }
 const SIGNAL_INTERVAL = 400;
 const HEARTBEAT_INTERVAL = 2000;
@@ -51,6 +53,7 @@ export class DesktopReceiver {
   private readonly diagnostic: ConnectionDiagnostic;
   private observer?: RtcObserver;
   private upgrade?: DesktopDirectUpgrade;
+  private readonly directRetry: DesktopDirectRetry;
   private standby?: DesktopRelayStandby;
   private readonly boundPeers = new WeakSet<RTCPeerConnection>();
   private readonly boundChannels = new WeakSet<RTCDataChannel>();
@@ -67,6 +70,7 @@ export class DesktopReceiver {
     channel.send(JSON.stringify(message)); return true;
   });
   constructor(private readonly options: ReceiverOptions) {
+    this.directRetry = options.directRetry ?? new DesktopDirectRetry();
     const report = options.client.diagnostic ?? connectionDiagnostic(this.id, false);
     this.diagnostic = (event, fields) => report(event, { ...fields, scope: 'desktop' });
   }
@@ -95,6 +99,7 @@ export class DesktopReceiver {
       const pc = this.options.createPeer({ iceServers });
       this.pc = pc;
       if (offer.directUpgrade) this.upgrade = new DesktopDirectUpgrade({
+        retry: this.directRetry,
         createPeer: this.options.createPeer, iceServers, nativeMedia: this.nativeMedia, diagnostic: this.diagnostic,
         signal: signal => this.options.client.signal(this.id, signal), activate: peer => this.activate(peer),
       });
@@ -285,6 +290,7 @@ export class DesktopReceiver {
   }
   private fail(message: string, reason: DiagnosticFields['reason'] = 'peer-failed') {
     if (this.stopped) return;
+    this.directRetry.update('relay');
     this.diagnostic('desktop-failed', { reason });
     this.options.stream(undefined); this.options.status(message); this.stop();
     // Permission and platform refusals require a host-side change, not repeated connection attempts.

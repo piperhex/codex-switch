@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DesktopReceiver } from './receiver';
 import { DesktopPointer } from './input';
 import { DesktopRecovery } from './recovery';
+import { DesktopDirectRetry } from './directRetry';
 import type { ClipboardContent, ClipboardProgress } from './clipboard';
 import { DEFAULT_SETTINGS, validateSettings, type DesktopCapabilities, type DesktopClient, type DesktopDisplay,
   type DesktopSettings, type DesktopStats }
@@ -30,6 +31,7 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
   const [capabilities, setCapabilities] = useState<DesktopCapabilities>({});
   const pointer = useMemo(() => new DesktopPointer(input => receiver.current?.input(input)), []);
   const recovery = useRef<DesktopRecovery>();
+  const directRetry = useMemo(() => new DesktopDirectRetry(), [client, active, createPeer]);
 
   useEffect(() => {
     if (!active) return;
@@ -41,7 +43,7 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
   useEffect(() => {
     setStream(undefined); setStats(undefined); setHasAudio(false); setCapabilities({});
     if (!active) return;
-    const session = new DesktopReceiver({ client, createPeer, stream: setStream, status: setStatus,
+    const session = new DesktopReceiver({ client, createPeer, directRetry, stream: setStream, status: setStatus,
       connected: () => recovery.current?.connected(),
       failed: message => { pointer.release(); recovery.current?.failed(message); },
       stats: setStats, audio: setHasAudio, capabilities: setCapabilities, displays: value => {
@@ -55,7 +57,7 @@ export function useDesktopSession({ client, active, createPeer }: Options) {
     return () => {
       pointer.release(); receiver.current = undefined; pointer.dispose(); closing.current = session.stop();
     };
-  }, [client, active, createPeer, pointer, attempt]);
+  }, [client, active, createPeer, pointer, attempt, directRetry]);
 
   const update = async (next: DesktopSettings) => {
     if (updating.current) return;

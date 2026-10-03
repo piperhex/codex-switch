@@ -257,10 +257,13 @@ async fn activate(stream: &Stream, peer: &Arc<Peer>) -> bool {
     }
 }
 
-/// Standby controls are accepted only on the retained, authenticated WebRTC channel.
+/// Consume standby controls during promotion, but only a retained peer can renew or activate.
 pub(super) async fn receive(stream: &Stream, peer: &Arc<Peer>, data: &[u8]) -> bool {
-    if !stream.relay_standby || ![STANDBY_PING, STANDBY_ACTIVATE].contains(&data) {
+    if ![STANDBY_PING, STANDBY_ACTIVATE].contains(&data) {
         return false;
+    }
+    if !stream.relay_standby || *stream.cancel.borrow() {
+        return true;
     }
     let matches = stream
         .standby
@@ -270,7 +273,9 @@ pub(super) async fn receive(stream: &Stream, peer: &Arc<Peer>, data: &[u8]) -> b
         .as_ref()
         .is_some_and(|ready| Arc::ptr_eq(ready, peer));
     if !matches {
-        return false;
+        // The old relay can receive this before the new direct peer's ping registers it.
+        // It must never reach input parsing. The viewer retries after registration.
+        return true;
     }
     stream.heartbeat.send_replace(Instant::now());
     if data == STANDBY_ACTIVATE {

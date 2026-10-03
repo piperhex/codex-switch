@@ -8,6 +8,7 @@ import { STANDBY_PONG } from '../../../shared/remote-desktop/standbyProtocol';
 
 declare global { interface Window { desktopRelayFixture?: {
   iceServers: IceServer[]; upgrade?: boolean; failDirectAttempts?: number; loseCommitReply?: boolean; directFirst?: boolean;
+  delayDirectPingMs?: number;
 } } }
 
 const canvas = document.createElement('canvas');
@@ -105,6 +106,20 @@ Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {
   },
 }, configurable: true });
 
+function delayFirstDirectPing(channel: RTCDataChannel, delay: number) {
+  let delayed = false;
+  channel.send = new Proxy(channel.send, {
+    apply(send, receiver: unknown, args: unknown[]) {
+      if (!delayed && args[0] === '{"kind":"ping"}') {
+        delayed = true;
+        setTimeout(() => { if (channel.readyState === 'open') Reflect.apply(send, receiver, args); }, delay);
+        return;
+      }
+      return Reflect.apply(send, receiver, args);
+    },
+  });
+}
+
 if (window.desktopRelayFixture) {
   const Peer = window.RTCPeerConnection;
   window.RTCPeerConnection = new Proxy(Peer, { construct(target, args: [RTCConfiguration?]) {
@@ -112,6 +127,10 @@ if (window.desktopRelayFixture) {
     const relay = !window.desktopRelayFixture?.directFirst
       && (!window.desktopRelayFixture?.upgrade || desktopTest.peers.length < blocked);
     const peer = new target({ ...args[0], iceTransportPolicy: args[0]?.iceTransportPolicy ?? (relay ? 'relay' : 'all') });
+    const delay = window.desktopRelayFixture?.delayDirectPingMs;
+    if (delay && desktopTest.peers.length >= 2) {
+      peer.addEventListener('datachannel', ({ channel }) => delayFirstDirectPing(channel, delay));
+    }
     peer.addEventListener('icecandidateerror', event => desktopTest.iceErrors.push(`${event.errorCode}: ${event.errorText}`));
     peer.addEventListener('icecandidate', event => {
       if (event.candidate) desktopTest.iceErrors.push(`candidate: ${event.candidate.type} ${event.candidate.protocol}`);

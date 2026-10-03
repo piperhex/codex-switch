@@ -5,8 +5,8 @@ import { DesktopStatsSampler } from './stats';
 import type { NativeMediaSession } from './nativeMedia';
 import type { ConnectionDiagnostic } from '../remote-chat/diagnostics';
 import { RtcObserver } from '../remote-chat/rtcObserver';
+import { DesktopDirectRetry } from './directRetry';
 
-const RETRY_DELAYS = [5000, 15_000, 30_000, 60_000];
 const PROBE_TIMEOUT = 25_000;
 const SIGNAL_INTERVAL = 400;
 const COMMIT_RETRY = 2000;
@@ -32,6 +32,7 @@ interface Options {
   activate: (peer: DirectPeer) => void;
   nativeMedia?: NativeMediaSession;
   diagnostic?: ConnectionDiagnostic;
+  retry?: DesktopDirectRetry;
 }
 interface Probe {
   generation: number; pc: RTCPeerConnection; candidates: RTCIceCandidateInit[];
@@ -48,14 +49,19 @@ export class DesktopDirectUpgrade {
   private timer?: ReturnType<typeof setTimeout>;
   private probe?: Probe;
   private generation = 0;
-  private attempt = 0;
+  private readonly retry: DesktopDirectRetry;
   private busy = false;
-  constructor(private readonly options: Options) {}
+  constructor(private readonly options: Options) { this.retry = options.retry ?? new DesktopDirectRetry(); }
 
   update(stats: Partial<DesktopStats>) {
+    if (this.stopped) return;
+    if (stats.connection && stats.connection !== this.route && !this.probe) {
+      clearTimeout(this.timer); this.timer = undefined;
+    }
+    this.retry.update(stats.connection);
     if (stats.connection) this.route = stats.connection;
     if (!this.stopped && this.route === 'relay' && !this.timer && !this.busy && !this.probe) {
-      this.schedule(() => this.start(), RETRY_DELAYS[Math.min(this.attempt, RETRY_DELAYS.length - 1)]);
+      this.schedule(() => this.start(), this.retry.delay);
     }
   }
 
@@ -151,7 +157,7 @@ export class DesktopDirectUpgrade {
       if (!reply.committed || reply.generation !== probe.generation) {
         probe.committing = false; await this.discard(probe); return;
       }
-      this.probe = undefined; this.route = 'direct'; this.attempt = 0;
+      this.probe = undefined; this.route = 'direct'; this.retry.update('direct');
       probe.observer?.close();
       this.options.diagnostic?.('path-selected', {
         transport: probe.native ? 'mesh' : 'rtc', generation: probe.generation,
@@ -170,11 +176,13 @@ export class DesktopDirectUpgrade {
     this.options.diagnostic?.('path-state', { transport: 'rtc', generation: probe.generation, state: 'failed' });
     try { await this.signal(probe, 'cancel'); } catch { /* Host also expires abandoned probes. */ }
     if (this.probe !== probe) return;
-    this.probe = undefined; this.attempt++;
+    this.probe = undefined; this.retry.failed();
     this.update({});
   }
 
   close() {
+    if (this.stopped) return;
+    this.retry.end();
     this.stopped = true; clearTimeout(this.timer); this.timer = undefined;
     this.probe?.observer?.close(); this.probe?.pc.close(); this.probe = undefined;
   }

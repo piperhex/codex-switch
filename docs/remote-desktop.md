@@ -76,7 +76,10 @@ the existing unsupported-platform behavior.
   with six seconds of silence marking the backup unavailable. Backup repair waits at least five seconds between
   attempts and never replaces the working direct session. Standby peers do not receive continuous audio/video.
   Direct failure activates the retained relay through its own encrypted control channel, without waiting for chat
-  signaling or restarting capture. The receiver then continues its normal direct upgrade attempts. Closing the
+  signaling or restarting capture. A standby heartbeat arriving before the promoted direct peer's first ping
+  is ignored until the relay is registered; it never enters keyboard/mouse parsing or renews an unregistered peer.
+  Direct retries use 5/15/30/60-second backoff, including direct connections that fail within 30 seconds.
+  Automatic media reconnects retain that backoff; 30 seconds of stable direct service resets it. Closing the
   desktop releases both peers. Older hosts keep the previous reconnection behavior until updated.
   See [video relay deployment](../apps/admin-go/DESKTOP-RELAY.md) for credentials, quotas and network requirements.
 - Android receives encrypted media directly in native libwebrtc. Decryption, jitter buffering and decoding
@@ -244,6 +247,8 @@ With isolated TURN credentials in `DESKTOP_UPGRADE_TEST_ICE`, `remote-desktop-st
 `remote-desktop-upgrade.pw.ts` verify standby creation/repair, paused backup media, retained relay fallback and
 capture continuity. The native decoder test also covers relay → direct → relay → direct when
 `CSW_NATIVE_TEST_ICE`, `CSW_NATIVE_TEST_UPGRADE=1` and `CSW_NATIVE_TEST_STANDBY=1` are set.
+Both upgrade tests delay the new direct channel's first heartbeat to reproduce an early standby heartbeat.
+Rust regression tests additionally verify that early standby activation cannot cancel capture or authorize a peer.
 
 The native test renders a quiet 440 Hz tone and checks decoded audio samples alongside video frames. It needs
 an active default Windows output device. It also checks Opus packet/sample counts; waveform analysis avoids

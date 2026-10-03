@@ -6,7 +6,8 @@ test('keeps relay video and controls during failed probes, then promotes decoded
   test.skip(!process.env.DESKTOP_UPGRADE_TEST_ICE, 'requires isolated local TURN fixture');
   test.setTimeout(100_000);
   await page.addInitScript(iceServers => {
-    window.desktopRelayFixture = { iceServers, upgrade: true, failDirectAttempts: 1, loseCommitReply: true };
+    window.desktopRelayFixture = { iceServers, upgrade: true, failDirectAttempts: 1, loseCommitReply: true,
+      delayDirectPingMs: 500 };
   }, JSON.parse(process.env.DESKTOP_UPGRADE_TEST_ICE!));
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('e2e/remote-desktop-harness.html');
@@ -28,6 +29,8 @@ test('keeps relay video and controls during failed probes, then promotes decoded
   expect(await page.evaluate(() => window.desktopTest.peers.slice(0, 2).map(peer => peer.connectionState)))
     .toEqual(['connected', 'connected']);
   expect(await page.evaluate(() => window.desktopTest.captures)).toBe(1);
+  expect(await page.evaluate(() => window.desktopTest.inputs.every(input => !input.kind.startsWith('standby-'))))
+    .toBe(true);
   const direct = await page.evaluate(async () => Promise.all(window.desktopTest.peers.slice(4).map(async peer => {
     const report = await peer.getStats();
     const transport = [...report.values()].find(value => value.type === 'transport' && value.selectedCandidatePairId);
