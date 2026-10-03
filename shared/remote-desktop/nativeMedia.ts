@@ -5,7 +5,8 @@ const OPEN_TIMEOUT = 4000;
 const CLOSE_TIMEOUT = 2000;
 
 export interface NativeMediaEndpoint extends IceServer { localAddress: string; remoteAddress: string }
-export interface NativeMediaRoute { direct: boolean; protocol?: string; ipv6: boolean; rttMs?: number }
+// Native route status serializes absent Option fields as null during connection recovery.
+export interface NativeMediaRoute { direct: boolean; protocol?: string | null; ipv6: boolean; rttMs?: number | null }
 export interface NativeMediaSession {
   endpoint: NativeMediaEndpoint;
   status(): Promise<NativeMediaRoute>;

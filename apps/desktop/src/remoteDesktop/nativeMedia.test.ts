@@ -84,8 +84,16 @@ it('reports the actual native transport and clears P2P when its direct route is 
   const publish = vi.fn(); const stop = monitorDesktopStats({ getStats } as unknown as RTCPeerConnection, publish, native);
   await vi.advanceTimersByTimeAsync(0);
   expect(publish).toHaveBeenLastCalledWith(expect.objectContaining({ connection: 'direct', transport: 'TCP', rttMs: 35 }));
-  vi.mocked(native.status).mockResolvedValue({ direct: false, ipv6: false });
+  // Rust Option fields are serialized as null while the route is unavailable.
+  vi.mocked(native.status).mockResolvedValue({ direct: false, ipv6: false, protocol: null, rttMs: null });
   await vi.advanceTimersByTimeAsync(1000);
-  expect(publish).toHaveBeenLastCalledWith(expect.objectContaining({ connection: undefined }));
+  expect(publish).toHaveBeenLastCalledWith(expect.objectContaining({
+    connection: undefined, transport: undefined, rttMs: undefined,
+  }));
+  vi.mocked(native.status).mockResolvedValue({ direct: true, protocol: 'udp', ipv6: false, rttMs: 0 });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(publish).toHaveBeenLastCalledWith(expect.objectContaining({
+    connection: 'direct', transport: 'UDP', rttMs: 0,
+  }));
   stop(); expect(vi.getTimerCount()).toBe(0);
 });

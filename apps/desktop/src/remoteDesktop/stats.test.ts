@@ -43,6 +43,22 @@ it('reports a relay transport without guessing the local network type', () => {
   expect(sample).toMatchObject({ transport: 'TLS', connection: 'relay', network: undefined });
 });
 
+it.each([null, undefined, NaN, Infinity, -Infinity, '12', {}])(
+  'renders missing or invalid measurements as unknown: %s', invalid => {
+    // Native JSON and older hosts can supply values outside the TypeScript contract.
+    const stats = { fps: 0, bitrate: 0, width: invalid, height: invalid, elapsedSeconds: invalid,
+      receivedFps: invalid, receivedBitrate: invalid, rttMs: invalid, decodeMs: invalid, lossPercent: invalid };
+    expect(desktopStatsLines(stats as unknown as Parameters<typeof desktopStatsLines>[0]))
+      .toEqual(['00:00:00', '— —', '— fps', '— Mbps', '— ms 延迟', '— ms 解码', '—% 丢包', '—', '— 网络']);
+  },
+);
+
+it('preserves measured zero values instead of treating them as missing', () => {
+  expect(desktopStatsLines({ fps: 0, bitrate: 0, width: 0, height: 0, elapsedSeconds: 0,
+    receivedFps: 0, receivedBitrate: 0, rttMs: 0, decodeMs: 0, lossPercent: 0 }))
+    .toEqual(['00:00:00', '— —', '0 fps', '0.0 Mbps', '0 ms 延迟', '0 ms 解码', '0.0% 丢包', '—', '— 网络']);
+});
+
 afterEach(() => vi.useRealTimers());
 it('keeps stats reads single-flight and ignores an in-flight result after closing', async () => {
   vi.useFakeTimers();

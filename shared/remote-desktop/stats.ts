@@ -62,15 +62,17 @@ export class DesktopStatsSampler {
 }
 
 export function desktopStatsLines(stats: DesktopStats, translate: (text: string) => string = text => text): string[] {
-  const elapsed = Math.max(0, Math.floor(stats.elapsedSeconds ?? 0));
+  const elapsed = Math.max(0, Math.floor(number(stats.elapsedSeconds) ?? 0));
   const duration = [Math.floor(elapsed / 3600), Math.floor(elapsed / 60) % 60, elapsed % 60]
     .map(value => String(value).padStart(2, '0')).join(':');
-  const value = (input: number | undefined, digits = 0) => input === undefined ? '—' : input.toFixed(digits);
+  const value = (input: unknown, digits = 0) => number(input)?.toFixed(digits) ?? '—';
+  const bitrate = number(stats.receivedBitrate);
+  const width = number(stats.width); const height = number(stats.height);
   const connection = stats.connection ? translate(stats.connection === 'relay' ? '中继' : '直连') : '—';
   return [duration, `${stats.transport ?? '—'} ${connection}`, `${value(stats.receivedFps)} fps`,
-    `${value(stats.receivedBitrate === undefined ? undefined : stats.receivedBitrate / 1_000_000, 1)} Mbps`,
+    `${value(bitrate === undefined ? undefined : bitrate / 1_000_000, 1)} Mbps`,
     `${value(stats.rttMs)} ms ${translate('延迟')}`, `${value(stats.decodeMs)} ms ${translate('解码')}`,
     `${value(stats.lossPercent, 1)}% ${translate('丢包')}`,
-    stats.width && stats.height ? `${stats.width} × ${stats.height}` : '—',
+    width && height ? `${width} × ${height}` : '—',
     stats.network ? translate(stats.network) : `— ${translate('网络')}`];
 }

@@ -18,7 +18,8 @@ export function monitorDesktopStats(pc: RTCPeerConnection, publish: (stats: Part
       if (nativeMedia && stats.nativeMedia) {
         const route = await nativeMedia.status();
         stats.connection = route.direct ? 'direct' : undefined;
-        stats.transport = route.protocol === 'tcp' ? 'TCP' : 'UDP'; stats.rttMs = route.rttMs;
+        stats.transport = route.protocol === 'tcp' ? 'TCP' : route.protocol === 'udp' ? 'UDP' : undefined;
+        stats.rttMs = typeof route.rttMs === 'number' && Number.isFinite(route.rttMs) ? route.rttMs : undefined;
       }
       if (!stopped) publish({ ...stats, elapsedSeconds: (Date.now() - started) / 1000 });
     } catch {
