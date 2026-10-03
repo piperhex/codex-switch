@@ -12,6 +12,10 @@ fn main() {
 #[cfg(windows)]
 fn link_windows_resources_to_tests() {
     let output_dir = std::env::var_os("OUT_DIR").expect("Cargo must provide OUT_DIR");
-    let resource_path = std::path::PathBuf::from(output_dir).join("resource.lib");
-    println!("cargo:rustc-link-arg-tests={}", resource_path.display());
+    // `rustc-link-arg-tests` only reaches integration tests. The cfg(test) link
+    // in windows_test_resources also covers explicit `--lib` / `--all-targets`.
+    println!(
+        "cargo:rustc-link-search=native={}",
+        std::path::PathBuf::from(output_dir).display()
+    );
 }

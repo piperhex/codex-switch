@@ -75,6 +75,8 @@ mod web_session_login;
 mod webview_windows;
 #[cfg(target_os = "windows")]
 mod windows_client_processes;
+#[cfg(all(test, windows))]
+mod windows_test_resources;
 
 use oauth::AppState;
 use tauri::Manager;
