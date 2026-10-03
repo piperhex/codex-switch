@@ -60,6 +60,9 @@ it('exposes only the active physical route endpoints and clears them on route lo
   const test = harness();
   test.receive({ type: 'open' });
   test.receive({ type: 'status', route: { direct: true, ipv6: true, protocol: 'udp',
+    remoteEndpoint: { host: '2001:db8::8', port: 42123 } } });
+  expect(test.path.connectionEndpoints?.local).toBeUndefined();
+  test.receive({ type: 'status', route: { direct: true, ipv6: true, protocol: 'udp',
     localEndpoint: { host: '192.168.1.4', port: 45678 }, remoteEndpoint: { host: '2001:db8::8', port: 42123 } } });
   expect(test.path.connectionEndpoints).toEqual({
     local: { host: '192.168.1.4', port: 45678, protocol: 'udp' },

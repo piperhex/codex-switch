@@ -3,8 +3,13 @@ use easytier_core::peers::peer_manager::PeerSnapshot;
 use easytier_proto::core_peer::peer::{PeerConnInfo, Route};
 use serde::Serialize;
 
+mod endpoints;
+use endpoints::endpoint;
+
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod udp_tests;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,29 +31,30 @@ pub struct RouteEndpoint {
     pub port: u16,
 }
 
-fn endpoint(address: &easytier_proto::common::Url) -> Option<RouteEndpoint> {
-    let address = url::Url::parse(&address.url).ok()?;
-    let host = match address.host()? {
-        url::Host::Ipv4(ip) if !ip.is_unspecified() => ip.to_string(),
-        url::Host::Ipv6(ip) if !ip.is_unspecified() => ip.to_string(),
-        url::Host::Domain(host) => {
-            let ip = host.parse::<std::net::IpAddr>().ok()?;
-            if ip.is_unspecified() {
-                return None;
-            }
-            ip.to_string()
-        }
-        _ => return None,
-    };
-    let port = address.port().filter(|port| *port > 0)?;
-    Some(RouteEndpoint { host, port })
-}
-
 /// A private virtual address reachable through a rendezvous relay must never count as P2P.
 pub async fn status(instance: &NativeCoreInstance, remote_name: &str) -> RouteStatus {
     let routes = instance.route_snapshots().await;
     let peers = instance.peer_snapshots().await;
-    from_snapshots(&routes, &peers, remote_name)
+    let mut status = from_snapshots(&routes, &peers, remote_name);
+    if status.local_endpoint.is_none() {
+        if let Some(tunnel) = routed_connection(&routes, &peers, remote_name)
+            .and_then(|connection| connection.tunnel.as_ref())
+        {
+            status.local_endpoint = endpoints::resolve_udp_binding(tunnel).await;
+        }
+    }
+    status
+}
+
+fn routed_connection<'a>(
+    routes: &[Route],
+    peers: &'a [PeerSnapshot],
+    remote_name: &str,
+) -> Option<&'a PeerConnInfo> {
+    let route = routes.iter().find(|route| {
+        route.hostname == remote_name && route.cost == 1 && route.next_hop_peer_id == route.peer_id
+    })?;
+    selected_connection(peers.iter().find(|peer| peer.peer_id == route.peer_id)?)
 }
 
 pub(super) fn from_snapshots(
@@ -56,15 +62,7 @@ pub(super) fn from_snapshots(
     peers: &[PeerSnapshot],
     remote_name: &str,
 ) -> RouteStatus {
-    let Some(route) = routes.iter().find(|route| {
-        route.hostname == remote_name && route.cost == 1 && route.next_hop_peer_id == route.peer_id
-    }) else {
-        return RouteStatus::default();
-    };
-    let Some(peer) = peers.iter().find(|peer| peer.peer_id == route.peer_id) else {
-        return RouteStatus::default();
-    };
-    let Some(connection) = selected_connection(peer) else {
+    let Some(connection) = routed_connection(routes, peers, remote_name) else {
         return RouteStatus::default();
     };
     let tunnel = connection.tunnel.as_ref();
