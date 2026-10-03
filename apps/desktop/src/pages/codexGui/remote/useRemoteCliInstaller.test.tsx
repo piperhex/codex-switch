@@ -48,7 +48,7 @@ it('checks and installs on the remote computer and follows progress until comple
   expect(installer.installing).toBe(false);
 });
 
-it('observes host updates without a manual check and clears them after automatic installation', async () => {
+it('observes host updates and retains the completed release after automatic installation', async () => {
   const release = { version: '0.156.0', size: 100, ready: false };
   request.mockResolvedValue({ ...status, release });
   await act(async () => root.render(<Fixture />));
@@ -60,7 +60,9 @@ it('observes host updates without a manual check and clears them after automatic
   request.mockResolvedValue({ ...status, version: release.version, release: null });
   await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
   expect(installer.version).toBe(release.version);
-  expect(installer.release).toBeNull();
+  expect(installer.release?.version).toBe(installer.version);
+  await act(async () => installer.install());
+  expect(request.mock.calls.every(([body]) => body.operation === 'guiCliStatus')).toBe(true);
 });
 
 it('does not let an older status read erase a manually discovered update', async () => {
@@ -72,6 +74,16 @@ it('does not let an older status read erase a manually discovered update', async
   await act(async () => installer.check());
   await act(async () => finish({ ...status, release: null }));
   expect(installer.release).toEqual(release);
+});
+
+it('clears a withdrawn pending update instead of preserving an installable stale release', async () => {
+  request.mockResolvedValue({ ...status, release: { version: '0.156.0', size: 100 } });
+  await act(async () => root.render(<Fixture />));
+  request.mockResolvedValue({ ...status, release: null });
+  await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+  expect(installer.release).toBeNull();
+  await act(async () => installer.install());
+  expect(request.mock.calls.every(([body]) => body.operation === 'guiCliStatus')).toBe(true);
 });
 
 it('ignores a delayed status requested while the manual update check is still running', async () => {

@@ -16,7 +16,7 @@ export function ChatGuiUpdateSheet({ deviceName, onClose, onBack, ...options }: 
       { label: t("暂不安装"), onPress: update.cancel },
       { label: t("确认安装"), tone: 'primary', disabled: !update.canConfirm, onPress: update.confirm },
     ] : [
-      { label: t("检查更新"), disabled: !update.canCheck, onPress: update.check },
+      { label: t(update.checkLabel), disabled: !update.canCheck, onPress: update.check },
       { label: t("安装更新"), tone: 'primary', disabled: !update.canInstall, onPress: update.requestInstall },
     ]}>
     <ScrollView><View style={localStyles.body}>
@@ -26,12 +26,12 @@ export function ChatGuiUpdateSheet({ deviceName, onClose, onBack, ...options }: 
       </> : <>
         <Text style={styles.subtitle}>{t("当前版本")}</Text>
         <Text selectable style={styles.title}>{update.version ? `v${update.version}` : t("暂未读取到版本")}</Text>
-        {!!update.release && <>
+        {update.available && update.release && <>
           <Text style={styles.subtitle}>{t("可用版本")}</Text>
           <Text selectable style={styles.title}>v{update.release.version}</Text>
         </>}
       </>}
-      <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{update.message}</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.subtitle}>{t(update.message)}</Text>
       {update.progress !== null && <Text accessibilityRole="progressbar"
         accessibilityValue={{ min: 0, max: 100, now: update.progress }} style={styles.title}>{update.progress}%</Text>}
       {!!update.error && <Text accessibilityRole="alert" style={styles.error}>{update.error}</Text>}

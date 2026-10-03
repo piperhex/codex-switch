@@ -37,7 +37,10 @@ export function useRemoteCliInstaller(client: GuiToolsClient, active: boolean) {
         if (cancelled) return;
         if (revision !== scope.mutation) { delay = INSTALL_REFRESH_MS; return; }
         setStatus(next); setReadError('');
-        if (next.release !== undefined) setRelease(next.release);
+        // Status only lists pending updates. Retain a checked release matching the installed version
+        // so a successful check (or completed installation) stays visible after status refreshes.
+        if (next.release !== undefined) setRelease(previous =>
+          next.release ?? (previous?.version === next.version ? previous : null));
         if (next.installing) delay = INSTALL_REFRESH_MS;
       } catch {
         if (!cancelled && revision === scope.mutation) {

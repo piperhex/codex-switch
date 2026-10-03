@@ -4,6 +4,7 @@ import { ChatGuiUpdateSheet } from './ChatGuiUpdateSheet';
 import type { GuiToolsClient } from '../../../../shared/remote-chat/guiTools';
 
 const update = vi.hoisted(() => ({ version: '0.155.0', release: { version: '0.156.0' },
+  available: true, checkLabel: '检查更新',
   confirmation: null as string | null, canCheck: true, canInstall: true, canConfirm: false,
   message: '有新版本可安装。', progress: null as number | null, error: '',
   check: vi.fn(), requestInstall: vi.fn(), cancel: vi.fn(), confirm: vi.fn() }));
@@ -20,7 +21,8 @@ function text(tree: ReactNode): string {
 beforeEach(() => {
   vi.stubGlobal('React', React); vi.clearAllMocks();
   Object.assign(update, { confirmation: null, canCheck: true, canInstall: true,
-    canConfirm: false, progress: null, error: '' });
+    canConfirm: false, progress: null, error: '', available: true, checkLabel: '检查更新',
+    version: '0.155.0', message: '有新版本可安装。' });
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -44,6 +46,27 @@ it('uses guarded confirmation, shows progress and errors, and keeps back navigat
   const ready = ChatGuiUpdateSheet(props);
   expect(ready.props.actions[1].disabled).toBe(false);
   ready.props.actions[1].onPress(); expect(update.confirm).toHaveBeenCalledOnce();
+});
+
+it('shows a lasting up-to-date result without listing the same version as an available update', () => {
+  Object.assign(update, { version: '0.156.0', available: false, canInstall: false,
+    checkLabel: '已是最新', message: 'Codex GUI 已是最新版本。' });
+  const sheet = ChatGuiUpdateSheet(props);
+  expect(text(sheet)).toContain('Codex GUI 已是最新版本。');
+  expect(text(sheet)).not.toContain('可用版本');
+  expect(sheet.props.actions[0]).toMatchObject({ label: '已是最新', disabled: false });
+  expect(sheet.props.actions[1].disabled).toBe(true);
+  sheet.props.actions[0].onPress();
+  expect(update.check).toHaveBeenCalledOnce();
+});
+
+it('shows the in-progress check and disables repeated checks', () => {
+  Object.assign(update, { canCheck: false, canInstall: false,
+    checkLabel: '正在检查更新…', message: '正在检查更新…' });
+  const sheet = ChatGuiUpdateSheet(props);
+  expect(text(sheet)).toContain('正在检查更新…');
+  expect(sheet.props.actions[0]).toMatchObject({ label: '正在检查更新…', disabled: true });
+  expect(sheet.props.actions[1].disabled).toBe(true);
 });
 
 vi.mock('react', async () => ({ ...await vi.importActual<typeof import('react')>('react'),

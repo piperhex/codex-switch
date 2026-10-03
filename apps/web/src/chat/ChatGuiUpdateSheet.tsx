@@ -17,7 +17,7 @@ export function ChatGuiUpdateSheet({ deviceName, onClose, onBack, ...options }: 
         <p>{t('将在这台电脑上更新 Codex GUI，完成后自动重新连接。')}</p>
       </> : <dl>
         <dt>{t('当前版本')}</dt><dd>{update.version ? `v${update.version}` : t('暂未读取到版本')}</dd>
-        {update.release && <><dt>{t('可用版本')}</dt><dd>v{update.release.version}</dd></>}
+        {update.available && update.release && <><dt>{t('可用版本')}</dt><dd>v{update.release.version}</dd></>}
       </dl>}
       <p role="status">{t(update.message)}</p>
       {update.progress !== null && <progress aria-label={t('下载进度')} max={100} value={update.progress} />}
@@ -27,7 +27,7 @@ export function ChatGuiUpdateSheet({ deviceName, onClose, onBack, ...options }: 
           <Button onClick={update.cancel}>{t('暂不安装')}</Button>
           <Button color="primary" disabled={!update.canConfirm} onClick={update.confirm}>{t('确认安装')}</Button>
         </> : <>
-          <Button disabled={!update.canCheck} onClick={update.check}>{t('检查更新')}</Button>
+          <Button disabled={!update.canCheck} onClick={update.check}>{t(update.checkLabel)}</Button>
           <Button color="primary" disabled={!update.canInstall} onClick={update.requestInstall}>{t('安装更新')}</Button>
         </>}
       </div>
