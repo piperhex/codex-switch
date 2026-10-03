@@ -10,6 +10,7 @@ fn forward_chat_bridge(
     }
     let mut responses_body: Value = serde_json::from_slice(&body)
         .map_err(|error| format!("Responses request body is not valid JSON: {error}"))?;
+    validate_anthropic_chat_tools(&responses_body, headers).map_err(|error| error.to_string())?;
     omit_unsupported_provider_service_tier(&mut responses_body, provider);
     let selected_model = selected_provider_model(&responses_body, provider);
     responses_body["model"] = Value::String(selected_model.clone());

@@ -30,7 +30,13 @@ impl ContinuationScope {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct ContinuationKey {
     scope: ContinuationScope,
-    call_id: String,
+    reference: ContinuationReference,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum ContinuationReference {
+    ToolCall(String),
+    ReasoningItem(String),
 }
 
 #[derive(Clone)]
@@ -64,12 +70,67 @@ pub(crate) fn restore_messages(scope: &ContinuationScope, messages: &mut [Value]
     store.restore_messages(scope, messages, Instant::now());
 }
 
+/// Retain plaintext by item identity when a client later returns an encrypted-only history item.
+pub(crate) fn capture_reasoning(scope: &ContinuationScope, item_id: &str, text: &str) {
+    // Match the existing best-effort continuation cache behavior on lock poisoning.
+    if let Ok(mut store) = continuation_store().lock() {
+        store.capture_reasoning(scope, (item_id, text), Instant::now());
+    }
+}
+
+pub(crate) fn reasoning_for_item(scope: &ContinuationScope, item_id: &str) -> Option<String> {
+    let mut store = continuation_store().lock().ok()?;
+    store.remove_expired(Instant::now());
+    let key = ContinuationKey {
+        scope: scope.clone(),
+        reference: ContinuationReference::ReasoningItem(item_id.to_string()),
+    };
+    store
+        .entries
+        .get(&key)?
+        .reasoning_content
+        .as_ref()
+        .map(|text| text.to_string())
+}
+
 fn continuation_store() -> &'static Mutex<ContinuationStore> {
     static STORE: OnceLock<Mutex<ContinuationStore>> = OnceLock::new();
     STORE.get_or_init(|| Mutex::new(ContinuationStore::default()))
 }
 
 impl ContinuationStore {
+    fn capture_reasoning(
+        &mut self,
+        scope: &ContinuationScope,
+        snapshot: (&str, &str),
+        now: Instant,
+    ) {
+        let (item_id, text) = snapshot;
+        if text.is_empty()
+            || text.len() > MAX_REASONING_BYTES
+            || item_id.len() > MAX_SIGNATURE_BYTES
+        {
+            return;
+        }
+        self.remove_expired(now);
+        self.next_sequence = self.next_sequence.wrapping_add(1);
+        let key = ContinuationKey {
+            scope: scope.clone(),
+            reference: ContinuationReference::ReasoningItem(item_id.to_string()),
+        };
+        self.entries.insert(
+            key,
+            ContinuationEntry {
+                reasoning_content: Some(Arc::from(text)),
+                thought_signature: None,
+                expires_at: now + CONTINUATION_TTL,
+                sequence: self.next_sequence,
+                bytes: item_id.len() + text.len(),
+            },
+        );
+        self.enforce_limits();
+    }
+
     fn capture_message(&mut self, scope: &ContinuationScope, message: &Value, now: Instant) {
         self.remove_expired(now);
         let reasoning_content =
@@ -107,7 +168,7 @@ impl ContinuationStore {
         self.next_sequence = self.next_sequence.wrapping_add(1);
         let key = ContinuationKey {
             scope: scope.clone(),
-            call_id,
+            reference: ContinuationReference::ToolCall(call_id),
         };
         self.entries.insert(
             key,
@@ -160,7 +221,7 @@ impl ContinuationStore {
         let call_id = non_empty_string(tool_call.get("id"))?;
         let key = ContinuationKey {
             scope: scope.clone(),
-            call_id,
+            reference: ContinuationReference::ToolCall(call_id),
         };
         self.entries.get(&key).cloned()
     }
@@ -280,6 +341,7 @@ mod tests {
         let scope = ContinuationScope::new("provider", "session");
         let now = Instant::now();
         store.capture_message(&scope, &captured_message("reasoning", "signature"), now);
+        store.capture_reasoning(&scope, ("rs_plain", "plain reasoning"), now);
         let mut messages = response_messages();
 
         store.restore_messages(

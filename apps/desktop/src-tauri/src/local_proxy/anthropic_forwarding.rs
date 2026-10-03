@@ -59,6 +59,7 @@ fn forward_anthropic_official<R: tauri::Runtime>(
     )?;
     let request: Value = serde_json::from_slice(&body)
         .map_err(|error| format!("Anthropic request body is not valid JSON: {error}"))?;
+    validate_anthropic_search_options(&request).map_err(|error| error.to_string())?;
     let stream = request
         .get("stream")
         .and_then(Value::as_bool)
@@ -70,9 +71,10 @@ fn forward_anthropic_official<R: tauri::Runtime>(
     let app_settings = read_app_settings(app)?;
     let subagent_model =
         crate::third_party_apps::effective_settings(&app_settings).claude_subagent_model;
-    let responses_body = inject_system_prompt_value(filter_system_prompt_value(
+    let mut responses_body = inject_system_prompt_value(filter_system_prompt_value(
         anthropic_to_responses(&request, &subagent_model),
     ));
+    prepare_anthropic_official_request(&mut responses_body);
     update_proxy_session_target(
         session_id,
         None,
@@ -101,9 +103,11 @@ fn forward_anthropic_provider(
     body: Vec<u8>,
     provider: &ProviderProfile,
     subagent_model: &str,
+    session_id: Option<&str>,
 ) -> Result<UpstreamPayload, String> {
     let request: Value = serde_json::from_slice(&body)
         .map_err(|error| format!("Anthropic request body is not valid JSON: {error}"))?;
+    validate_anthropic_search_options(&request).map_err(|error| error.to_string())?;
     let stream = request
         .get("stream")
         .and_then(Value::as_bool)
@@ -122,7 +126,13 @@ fn forward_anthropic_provider(
         Value::String(anthropic_provider_model(&request, provider, subagent_model));
     let encoded = serde_json::to_vec(&responses_body)
         .map_err(|error| format!("Failed to encode Anthropic request: {error}"))?;
-    let payload = forward_provider_request(&Method::Post, "/v1/responses", &[], encoded, provider)?;
+    // Only pass our conversation identity, never the incoming Anthropic authentication headers.
+    let mut headers = vec![(ANTHROPIC_BRIDGE_HEADER.to_string(), "true".to_string())];
+    if let Some(id) = session_id {
+        headers.push(("session-id".to_string(), id.to_string()));
+    }
+    let payload =
+        forward_provider_request(&Method::Post, "/v1/responses", &headers, encoded, provider)?;
     convert_responses_payload(payload, stream, model)
 }
 

@@ -10,6 +10,7 @@ macro_rules! log_proxy_error {
     }};
 }
 
+mod anthropic_reasoning;
 mod anthropic_stream;
 pub(crate) mod auto_reset;
 pub(crate) mod concurrent_quota;
@@ -68,6 +69,7 @@ include!("routing_auto.rs");
 include!("routing_target.rs");
 include!("image_account_pool.rs");
 include!("capture.rs");
+include!("usage_values.rs");
 include!("usage_context.rs");
 include!("service_tier.rs");
 include!("diagnostics_helpers.rs");
@@ -81,11 +83,15 @@ include!("forwarding.rs");
 include!("anthropic_bridge.rs");
 include!("anthropic_forwarding.rs");
 include!("anthropic_request.rs");
+include!("anthropic_options.rs");
 include!("models.rs");
 include!("chat_bridge.rs");
 include!("auth_http.rs");
 include!("error_logging.rs");
 include!("conversion.rs");
+include!("chat_input.rs");
+include!("chat_media.rs");
+include!("chat_request_options.rs");
 include!("tools.rs");
 include!("streaming.rs");
 include!("streaming_tools.rs");
@@ -95,6 +101,9 @@ include!("sse.rs");
 #[cfg(test)]
 mod tests {
     include!("tests/diagnostics.rs");
+    include!("tests/chat_protocol_conversion.rs");
+    include!("tests/anthropic_protocol_conversion.rs");
+    include!("tests/anthropic_protocol_http.rs");
     include!("tests/part_01.rs");
     include!("tests/part_02.rs");
     include!("tests/part_03.rs");

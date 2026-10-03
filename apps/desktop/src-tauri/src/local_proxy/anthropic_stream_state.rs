@@ -68,6 +68,12 @@ impl MessageState {
             "response.function_call_arguments.done" => {
                 self.blocks.arguments(value, true, &mut events)?
             }
+            "response.reasoning_summary_text.delta" => {
+                self.blocks.reasoning_text(value, false, &mut events)?
+            }
+            "response.reasoning_summary_text.done" => {
+                self.blocks.reasoning_text(value, true, &mut events)?
+            }
             "response.completed" | "response.incomplete" => self.finish(value, &mut events)?,
             _ => events.push(json!({ "type": "ping" })),
         }

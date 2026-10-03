@@ -15,10 +15,34 @@ struct ContentBlock {
     closed: bool,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BlockType {
+    Text,
+    Tool,
+    Thinking,
+    Server,
+}
+
 enum BlockKind {
     Text,
     Tool { id: String, name: String },
+    Thinking(Box<ThinkingContent>),
+    Server(Value),
 }
+
+impl BlockKind {
+    fn block_type(&self) -> BlockType {
+        match self {
+            Self::Text => BlockType::Text,
+            Self::Tool { .. } => BlockType::Tool,
+            Self::Thinking(_) => BlockType::Thinking,
+            Self::Server(_) => BlockType::Server,
+        }
+    }
+}
+
+include!("anthropic_stream_reasoning.rs");
+include!("anthropic_stream_search.rs");
 
 impl ContentBlocks {
     pub(super) fn has_tools(&self) -> bool {
@@ -40,6 +64,8 @@ impl ContentBlocks {
         match item.get("type").and_then(Value::as_str) {
             Some("function_call") => self.tool_item(event, item, events),
             Some("message") => self.message_item(event, item, events),
+            Some("reasoning") => self.reasoning_item(event, item, events),
+            Some("web_search_call") => self.search_item(event, item, events),
             _ => Ok(()),
         }
     }
@@ -52,7 +78,7 @@ impl ContentBlocks {
     ) -> Result<(), ConversionError> {
         let reference =
             json!({ "item_id": item.get("id"), "output_index": event.get("output_index") });
-        let index = if let Some(index) = self.find(&reference, true)? {
+        let index = if let Some(index) = self.find(&reference, BlockType::Tool)? {
             index
         } else {
             let id = item
@@ -105,7 +131,7 @@ impl ContentBlocks {
                 "item_id": item.get("id"), "output_index": event.get("output_index"),
                 "content_index": content_index, "text": part.get("text")
             });
-            let index = match self.find(&text, false)? {
+            let index = match self.find(&text, BlockType::Text)? {
                 Some(index) => index,
                 None => self.push(&text, BlockKind::Text, events),
             };
@@ -131,7 +157,7 @@ impl ContentBlocks {
             .get(if done { "text" } else { "delta" })
             .and_then(Value::as_str)
             .ok_or(ConversionError::InvalidEvent)?;
-        let index = match self.find(event, false)? {
+        let index = match self.find(event, BlockType::Text)? {
             Some(index) => index,
             None => self.push(event, BlockKind::Text, events),
         };
@@ -149,7 +175,7 @@ impl ContentBlocks {
         events: &mut Vec<Value>,
     ) -> Result<(), ConversionError> {
         let index = self
-            .find(event, true)?
+            .find(event, BlockType::Tool)?
             .ok_or(ConversionError::InvalidTool)?;
         let arguments = event
             .get(if done { "arguments" } else { "delta" })
@@ -163,7 +189,7 @@ impl ContentBlocks {
     }
 
     /// Both identifiers, when present, must identify the same block. Never choose the last tool.
-    fn find(&self, event: &Value, tool: bool) -> Result<Option<usize>, ConversionError> {
+    fn find(&self, event: &Value, kind: BlockType) -> Result<Option<usize>, ConversionError> {
         let item_id = event.get("item_id").and_then(Value::as_str);
         let output_index = event.get("output_index").and_then(Value::as_u64);
         let content_index = event
@@ -172,9 +198,7 @@ impl ContentBlocks {
             .unwrap_or(0);
         let mut matched = None;
         for (index, block) in self.blocks.iter().enumerate() {
-            if tool != matches!(block.kind, BlockKind::Tool { .. })
-                || block.content_index != content_index
-            {
+            if kind != block.kind.block_type() || block.content_index != content_index {
                 continue;
             }
             let same_id = item_id
@@ -237,9 +261,11 @@ impl ContentBlocks {
         if block.closed {
             return Err(ConversionError::InvalidEvent);
         }
-        let delta_value = match block.kind {
+        let delta_value = match &block.kind {
             BlockKind::Text => json!({ "type": "text_delta", "text": delta }),
             BlockKind::Tool { .. } => json!({ "type": "input_json_delta", "partial_json": delta }),
+            BlockKind::Thinking(_) => json!({ "type": "thinking_delta", "thinking": delta }),
+            BlockKind::Server(_) => return Err(ConversionError::InvalidEvent),
         };
         block.content.push_str(delta);
         events.push(json!({ "type": "content_block_delta", "index": index, "delta": delta_value }));
@@ -256,6 +282,17 @@ impl ContentBlocks {
                 .ok()
                 .filter(Value::is_object)
                 .ok_or(ConversionError::InvalidTool)?;
+        }
+        if let BlockKind::Thinking(thinking) = &mut block.kind {
+            thinking.item["summary"] = thinking
+                .parts
+                .values()
+                .map(|text| json!({ "type": "summary_text", "text": text }))
+                .collect::<Vec<_>>()
+                .into();
+            thinking.signature = super::super::anthropic_reasoning::signature(&thinking.item);
+            events.push(json!({ "type": "content_block_delta", "index": index,
+                "delta": { "type": "signature_delta", "signature": thinking.signature } }));
         }
         block.closed = true;
         events.push(json!({ "type": "content_block_stop", "index": index }));
@@ -283,6 +320,10 @@ impl ContentBlock {
     fn value(&self) -> Value {
         match &self.kind {
             BlockKind::Text => json!({ "type": "text", "text": self.content }),
+            BlockKind::Thinking(thinking) => json!({
+                "type": "thinking", "thinking": self.content, "signature": thinking.signature
+            }),
+            BlockKind::Server(value) => value.clone(),
             BlockKind::Tool { id, name } => json!({
                 "type": "tool_use", "id": id, "name": name,
                 "input": serde_json::from_str::<Value>(&self.content).unwrap_or_else(|_| json!({}))

@@ -447,7 +447,7 @@ fn anthropic_provider_forwarding_preserves_frozen_tier_and_respects_disabled_fas
             Some(ProxyServiceTier::Priority),
         );
         let payload =
-            forward_anthropic_provider(snapshot, &provider, SERVICE_TIER_TEST_MODEL).unwrap();
+            forward_anthropic_provider(snapshot, &provider, SERVICE_TIER_TEST_MODEL, None).unwrap();
         let (path, request) = handle.join().unwrap();
         assert_eq!(path, "/v1/responses");
         assert_eq!(

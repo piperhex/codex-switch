@@ -87,7 +87,7 @@ fn forward_active_request<R: Runtime>(
                     .map_err(|_| "Anthropic request body is not valid JSON".to_string())?;
                 let model = anthropic_provider_model(&request, provider, &subagent_model);
                 update_proxy_session_target(session_id, None, &provider.name, &model);
-                return forward_anthropic_provider(body, provider, &subagent_model);
+                return forward_anthropic_provider(body, provider, &subagent_model, session_id);
             }
             forward_provider_request(method, url, headers, body, provider)
         }

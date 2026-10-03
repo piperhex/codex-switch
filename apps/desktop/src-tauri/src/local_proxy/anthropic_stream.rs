@@ -191,3 +191,7 @@ fn encode_events(events: Vec<Value>) -> Vec<u8> {
 #[cfg(test)]
 #[path = "anthropic_stream_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "anthropic_stream_reasoning_tests.rs"]
+mod reasoning_tests;

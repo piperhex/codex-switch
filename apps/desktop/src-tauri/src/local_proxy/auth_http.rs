@@ -102,6 +102,7 @@ fn should_skip_header(name: &str, skip_auth: bool) -> bool {
             | "x-forwarded-for"
             | "x-forwarded-host"
             | "x-forwarded-proto"
+            | ANTHROPIC_BRIDGE_HEADER
             | LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER
             | crate::codex_config::LOCAL_PROXY_REQUEST_PURPOSE_HEADER
     ) || (skip_auth

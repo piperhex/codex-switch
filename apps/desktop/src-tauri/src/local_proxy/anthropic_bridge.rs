@@ -28,7 +28,8 @@ fn anthropic_usage(usage: Option<&Value>) -> Value {
     ] {
         let count = usage
             .and_then(|usage| usage.get(field))
-            .and_then(Value::as_u64);
+            .and_then(Value::as_u64)
+            .filter(|_| !usage.is_some_and(|usage| usage_field_missing(usage, missing_flag)));
         converted[field] = json!(count.unwrap_or(0));
         if count.is_none() {
             // Messages clients require integer counters even before the upstream reports usage.
@@ -45,6 +46,20 @@ fn anthropic_usage(usage: Option<&Value>) -> Value {
         if let Some(value) = usage.and_then(|usage| usage.get(field)) {
             converted[field] = value.clone();
         }
+    }
+    let cached = usage
+        .and_then(|usage| usage.pointer("/input_tokens_details/cached_tokens"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let created = usage
+        .and_then(|usage| usage.get("cache_creation_input_tokens"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    converted["cache_read_input_tokens"] = json!(cached);
+    converted["cache_creation_input_tokens"] = json!(created);
+    if let Some(total_input) = converted["input_tokens"].as_u64() {
+        converted["input_tokens"] =
+            json!(total_input.saturating_sub(cached).saturating_sub(created));
     }
     converted
 }
@@ -77,7 +92,7 @@ mod anthropic_bridge_tests {
         });
         let converted = convert(&request);
         assert_eq!(converted["instructions"], "Be concise");
-        assert!(converted.get("max_output_tokens").is_none());
+        assert_eq!(converted["max_output_tokens"], 512);
         assert_eq!(converted["store"], false);
         assert_eq!(converted["stream"], true);
         assert_eq!(converted["input"][0]["content"][0]["text"], "Hello");

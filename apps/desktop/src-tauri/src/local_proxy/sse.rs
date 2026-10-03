@@ -25,8 +25,8 @@ fn streaming_continuation_tool_call(tool: &StreamingToolCall) -> Value {
 
 fn chat_stream_reasoning_delta(value: &Value) -> Option<&str> {
     value
-        .pointer("/choices/0/delta/reasoning_content")
-        .and_then(Value::as_str)
+        .pointer("/choices/0/delta")
+        .and_then(chat_message_reasoning)
 }
 
 fn chat_stream_delta_text(value: &Value) -> Option<&str> {
@@ -283,7 +283,7 @@ fn push_sse(output: &mut String, event: &str, value: Value) {
 }
 
 fn response_id() -> String {
-    format!("resp_{}", unix_now())
+    format!("resp_{}", uuid::Uuid::new_v4())
 }
 
 fn unix_now() -> u64 {

@@ -343,7 +343,7 @@
     }
 
     #[test]
-    fn chat_bridge_ignores_local_reasoning_items_when_building_chat_history() {
+    fn chat_bridge_restores_local_reasoning_on_assistant_history() {
         let body = json!({
             "model": "deepseek-chat",
             "input": [
@@ -363,6 +363,7 @@
 
         assert_eq!(chat["messages"].as_array().unwrap().len(), 1);
         assert_eq!(chat["messages"][0]["content"], "The weather is sunny.");
+        assert_eq!(chat["messages"][0]["reasoning_content"], "private thought");
     }
 
     #[test]

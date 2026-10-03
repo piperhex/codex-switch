@@ -6,29 +6,33 @@ fn build_codex_tool_context_from_request(body: &Value) -> CodexToolContext {
         }
     }
     if let Some(input) = body.get("input") {
-        collect_tool_search_output_tools(input, &mut context);
+        collect_input_tools(input, &mut context);
     }
     context
 }
 
-fn collect_tool_search_output_tools(value: &Value, context: &mut CodexToolContext) {
+fn collect_input_tools(value: &Value, context: &mut CodexToolContext) {
     match value {
         Value::Array(items) => {
             for item in items {
-                collect_tool_search_output_tools(item, context);
+                collect_input_tools(item, context);
             }
         }
         Value::Object(obj) => {
-            if obj.get("type").and_then(Value::as_str) == Some("tool_search_output") {
-                if let Some(tools) = obj.get("tools").and_then(Value::as_array) {
-                    for tool in tools {
-                        context.add_response_tool(tool);
-                    }
+            if matches!(
+                obj.get("type").and_then(Value::as_str),
+                Some("tool_search_output" | "additional_tools")
+            ) {
+                for tool in obj
+                    .get("tools")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
+                    context.add_response_tool(tool);
                 }
             }
-            for nested in obj.values() {
-                collect_tool_search_output_tools(nested, context);
-            }
+            // Only protocol input items declare tools; tool-result payloads are untrusted data.
         }
         _ => {}
     }
@@ -211,6 +215,21 @@ fn chat_to_responses_json(
         .and_then(value_to_text)
         .unwrap_or_default();
     let mut output = Vec::new();
+    if let Some(reasoning) = chat_message_reasoning(&message) {
+        if let Some(scope) =
+            continuation_scope.filter(|_| status == ChatCompletionStatus::Completed)
+        {
+            chat_bridge_continuation::capture_reasoning(
+                scope,
+                &format!("{LOCAL_REASONING_ITEM_ID_PREFIX}{id}"),
+                reasoning,
+            );
+        }
+        output.push(json!({
+            "type": "reasoning", "id": format!("{LOCAL_REASONING_ITEM_ID_PREFIX}{id}"),
+            "summary": [{ "type": "summary_text", "text": reasoning }]
+        }));
+    }
     if !content.is_empty() {
         output.push(json!({
             "id": format!("msg_{}", id),

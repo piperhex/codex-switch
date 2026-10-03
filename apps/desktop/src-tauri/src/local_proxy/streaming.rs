@@ -196,6 +196,11 @@ impl<R: BufRead> ChatSseReader<R> {
         let Some(scope) = self.continuation_scope.as_ref() else {
             return;
         };
+        chat_bridge_continuation::capture_reasoning(
+            scope,
+            &self.reasoning_id,
+            &self.reasoning_content,
+        );
         let tool_calls = self
             .tools
             .values()

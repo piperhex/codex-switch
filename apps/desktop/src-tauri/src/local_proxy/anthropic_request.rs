@@ -1,7 +1,4 @@
-fn anthropic_to_responses(
-    request: &Value,
-    subagent_model: &str,
-) -> Value {
+fn anthropic_to_responses(request: &Value, subagent_model: &str) -> Value {
     let mut body = json!({
         "model": codex_model_for_anthropic_request(request, subagent_model),
         "input": anthropic_messages(request.get("messages")),
@@ -16,6 +13,7 @@ fn anthropic_to_responses(
     if let Some(tools) = request.get("tools").and_then(Value::as_array) {
         body["tools"] = Value::Array(tools.iter().map(anthropic_tool).collect());
     }
+    apply_anthropic_request_options(request, &mut body);
     body
 }
 
@@ -31,10 +29,7 @@ fn is_anthropic_token_probe(body: &[u8]) -> bool {
         })
 }
 
-fn codex_model_for_anthropic_request(
-    request: &Value,
-    subagent_model: &str,
-) -> String {
+fn codex_model_for_anthropic_request(request: &Value, subagent_model: &str) -> String {
     if is_anthropic_subagent_request(request) {
         return match subagent_model {
             "terra" => "gpt-5.6-terra".to_string(),
@@ -95,21 +90,24 @@ fn anthropic_messages(messages: Option<&Value>) -> Value {
             converted.push(anthropic_message(message));
             continue;
         };
-        let role = message.get("role").and_then(Value::as_str).unwrap_or("user");
+        let role = message
+            .get("role")
+            .and_then(Value::as_str)
+            .unwrap_or("user");
         let mut regular_blocks = Vec::new();
         for block in blocks {
             let block_type = block.get("type").and_then(Value::as_str);
-            if matches!(block_type, Some("tool_result" | "tool_use")) {
+            if matches!(block_type, Some("tool_result" | "tool_use" | "thinking")) {
                 if !regular_blocks.is_empty() {
                     converted.push(json!({
                         "role": role,
                         "content": std::mem::take(&mut regular_blocks)
                     }));
                 }
-                let tool_item = if block_type == Some("tool_result") {
-                    anthropic_tool_result(block)
-                } else {
-                    anthropic_tool_call(block)
+                let tool_item = match block_type {
+                    Some("tool_result") => anthropic_tool_result(block),
+                    Some("thinking") => anthropic_reasoning::restore(block),
+                    _ => anthropic_tool_call(block),
                 };
                 converted.push(tool_item);
             } else if let Some(converted_block) = anthropic_content_block(block, role) {
@@ -217,10 +215,12 @@ fn anthropic_tool_result_part(part: &Value) -> Value {
             "type": "input_text",
             "text": part.get("text").and_then(Value::as_str).unwrap_or_default()
         }),
-        Some("image") => anthropic_image_block(part).unwrap_or_else(|| json!({
-            "type": "input_text",
-            "text": part.to_string()
-        })),
+        Some("image") => anthropic_image_block(part).unwrap_or_else(|| {
+            json!({
+                "type": "input_text",
+                "text": part.to_string()
+            })
+        }),
         _ => json!({ "type": "input_text", "text": part.to_string() }),
     }
 }
@@ -244,10 +244,25 @@ fn response_text_type(role: &str) -> &'static str {
 }
 
 fn anthropic_tool(tool: &Value) -> Value {
+    if tool
+        .get("type")
+        .and_then(Value::as_str)
+        .is_some_and(|kind| kind.starts_with("web_search"))
+    {
+        return anthropic_web_search_tool(tool);
+    }
+    let mut parameters = tool
+        .get("input_schema")
+        .cloned()
+        .unwrap_or_else(|| json!({ "type": "object", "properties": {} }));
+    if parameters["type"] == "object" && parameters.get("properties").is_none() {
+        parameters["properties"] = json!({});
+    }
     json!({
         "type": "function",
         "name": tool.get("name").cloned().unwrap_or(Value::Null),
         "description": tool.get("description").cloned().unwrap_or(Value::Null),
-        "parameters": tool.get("input_schema").cloned().unwrap_or_else(|| json!({}))
+        "parameters": parameters,
+        "strict": false
     })
 }

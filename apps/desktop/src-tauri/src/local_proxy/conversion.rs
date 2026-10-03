@@ -88,7 +88,8 @@ fn responses_to_chat_completions_with_context(
         }
     }
     if let Some(input) = body.get("input") {
-        append_input_messages(input, &mut messages, tool_context);
+        append_input_messages(input, &mut messages, tool_context, continuation_scope);
+        lift_chat_tool_images(&mut messages);
     }
     if let Some(scope) = continuation_scope {
         chat_bridge_continuation::restore_messages(scope, &mut messages);
@@ -101,26 +102,7 @@ fn responses_to_chat_completions_with_context(
         "model": body.get("model").cloned().unwrap_or_else(|| json!("gpt-5-codex")),
         "messages": messages
     });
-    for key in [
-        "temperature",
-        "top_p",
-        "stream",
-        "presence_penalty",
-        "frequency_penalty",
-        "parallel_tool_calls",
-        "service_tier",
-    ] {
-        if let Some(value) = body.get(key) {
-            result[key] = value.clone();
-        }
-    }
-    if let Some(value) = body
-        .get("max_output_tokens")
-        .or_else(|| body.get("max_tokens"))
-        .or_else(|| body.get("max_completion_tokens"))
-    {
-        result["max_tokens"] = value.clone();
-    }
+    apply_chat_request_options(body, &mut result);
     if !tool_context.chat_tools().is_empty() {
         result["tools"] = Value::Array(tool_context.chat_tools().to_vec());
     }
@@ -153,6 +135,9 @@ fn apply_deepseek_reasoning(responses_body: &Value, chat_body: &mut Value) {
         return;
     };
     let thinking_type = if effort == "none" {
+        if let Some(object) = chat_body.as_object_mut() {
+            object.remove("reasoning_effort");
+        }
         "disabled"
     } else {
         chat_body["reasoning_effort"] = Value::String(effort.to_string());
@@ -161,131 +146,14 @@ fn apply_deepseek_reasoning(responses_body: &Value, chat_body: &mut Value) {
     chat_body["thinking"] = json!({ "type": thinking_type });
 }
 
-fn append_input_messages(
-    input: &Value,
-    messages: &mut Vec<Value>,
-    tool_context: &CodexToolContext,
-) {
-    let mut pending_tool_calls = Vec::new();
-    match input {
-        Value::String(text) => messages.push(json!({ "role": "user", "content": text })),
-        Value::Array(items) => {
-            for item in items {
-                append_input_item_as_chat_message(
-                    item,
-                    messages,
-                    &mut pending_tool_calls,
-                    tool_context,
-                );
-            }
-        }
-        Value::Object(map) => {
-            append_input_item_as_chat_message(
-                &Value::Object(map.clone()),
-                messages,
-                &mut pending_tool_calls,
-                tool_context,
-            );
-        }
-        _ => {}
-    }
-    flush_pending_tool_calls(messages, &mut pending_tool_calls);
-}
-
-fn append_input_item_as_chat_message(
-    item: &Value,
-    messages: &mut Vec<Value>,
-    pending_tool_calls: &mut Vec<Value>,
-    tool_context: &CodexToolContext,
-) {
-    if is_local_reasoning_item(item) {
-        return;
-    }
-    match item {
-        Value::String(text) => {
-            flush_pending_tool_calls(messages, pending_tool_calls);
-            messages.push(json!({ "role": "user", "content": text }));
-            return;
-        }
-        Value::Array(items) => {
-            for nested in items {
-                append_input_item_as_chat_message(
-                    nested,
-                    messages,
-                    pending_tool_calls,
-                    tool_context,
-                );
-            }
-            return;
-        }
-        _ => {}
-    }
-
-    let item_type = item.get("type").and_then(Value::as_str);
-    match item_type {
-        Some("function_call") => {
-            pending_tool_calls.push(responses_function_call_to_chat_tool_call(
-                item,
-                tool_context,
-            ));
-        }
-        Some("custom_tool_call") => {
-            pending_tool_calls.push(responses_custom_tool_call_to_chat_tool_call(item));
-        }
-        Some("tool_search_call") => {
-            pending_tool_calls.push(responses_tool_search_call_to_chat_tool_call(item));
-        }
-        Some("function_call_output") => {
-            flush_pending_tool_calls(messages, pending_tool_calls);
-            append_tool_output_message(item, messages);
-        }
-        Some("custom_tool_call_output") | Some("tool_search_output") => {
-            flush_pending_tool_calls(messages, pending_tool_calls);
-            append_tool_output_message(item, messages);
-        }
-        _ => {
-            flush_pending_tool_calls(messages, pending_tool_calls);
-            append_regular_input_message(item, messages);
-        }
-    }
-}
-
-fn flush_pending_tool_calls(messages: &mut Vec<Value>, pending_tool_calls: &mut Vec<Value>) {
-    if pending_tool_calls.is_empty() {
-        return;
-    }
-    if let Some(message) = messages.last_mut().filter(|message| {
-        message.get("role").and_then(Value::as_str) == Some("assistant")
-            && message.get("tool_calls").is_none()
-    }) {
-        message["tool_calls"] = Value::Array(std::mem::take(pending_tool_calls));
-        return;
-    }
-    messages.push(json!({
-        "role": "assistant",
-        "content": Value::Null,
-        "tool_calls": std::mem::take(pending_tool_calls)
-    }));
-}
-
-fn append_tool_output_message(item: &Value, messages: &mut Vec<Value>) {
-    let call_id = item.get("call_id").and_then(Value::as_str).unwrap_or("");
-    if call_id.is_empty() {
-        return;
-    }
-    let content = match item.get("output") {
-        Some(output) => output_to_chat_tool_content(output),
-        None => canonical_json_string(item),
-    };
-    messages.push(json!({
-        "role": "tool",
-        "tool_call_id": call_id,
-        "content": content
-    }));
-}
-
 fn append_regular_input_message(item: &Value, messages: &mut Vec<Value>) {
     if let Value::Object(map) = item {
+        if map.get("type").and_then(Value::as_str) == Some("agent_message") {
+            if let Some(text) = agent_message_text(item) {
+                messages.push(json!({ "role": "user", "content": text }));
+            }
+            return;
+        }
         if map.get("type").and_then(Value::as_str) == Some("input_image") {
             if let Some(content) = responses_content_to_chat(item) {
                 messages.push(json!({ "role": "user", "content": content }));
