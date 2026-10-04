@@ -4,7 +4,8 @@ export interface PublicEndpoint { host: string; port: number; protocol: 'udp' | 
 export interface ConnectionPublicEndpoints { local: PublicEndpoint[]; remote: PublicEndpoint[] }
 export const MAX_PUBLIC_ENDPOINTS = 8;
 
-function publicHost(host: string): boolean {
+/** Public literals eligible for display, excluding private, VPN fake-IP and link-local ranges. */
+export function publicHost(host: string): boolean {
   if (host.includes(':')) {
     const halves = host.split('::');
     const groups = halves.flatMap(half => half ? half.split(':') : []);

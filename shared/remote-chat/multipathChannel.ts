@@ -1,4 +1,5 @@
 import type { Channel, PeerOptions } from './protocol';
+import type { ConnectionEndpoints } from './connectionEndpoints';
 
 const PROBE_MS = 1000;
 const PATH_TIMEOUT_MS = 3000;
@@ -16,7 +17,7 @@ export class MultipathChannel implements Channel {
   private state = 'connecting';
   private readonly opened = new Set<() => void>();
   private readonly closed = new Set<() => void>();
-  private readonly messages = new Set<(text: string) => void>();
+  private readonly messages = new Set<(text: string, endpoints: ConnectionEndpoints) => void>();
   private readonly timer = setInterval(() => this.tick(), PROBE_MS);
 
   constructor(private readonly options: Pick<PeerOptions, 'stateChanged' | 'disconnected' | 'diagnostic'>) {}
@@ -25,13 +26,13 @@ export class MultipathChannel implements Channel {
   get connectionEndpoints() { return this.state === 'open' ? this.selected?.channel.connectionEndpoints : undefined; }
   onOpen(callback: () => void) { this.opened.add(callback); }
   onClose(callback: () => void) { this.closed.add(callback); }
-  onMessage(callback: (text: string) => void) { this.messages.add(callback); }
+  onMessage(callback: (text: string, endpoints?: ConnectionEndpoints) => void) { this.messages.add(callback); }
 
   add(channel: Channel, priority: number, transport: Path['transport'] = priority === 0 ? 'rtc' : 'tcp') {
     if (this.state === 'closed') { channel.close(); return; }
     const path: Path = { channel, priority, transport, pong: 0, probe: 0, samples: 0, pending: new Map() };
     this.paths.add(path);
-    channel.onMessage(text => this.receive(path, text));
+    channel.onMessage((text, endpoints) => this.receive(path, text, endpoints));
     channel.onOpen(() => this.probe(path));
     channel.onClose(() => { this.paths.delete(path); this.choose(); });
     if (channel.readyState === 'open') this.probe(path);
@@ -50,7 +51,7 @@ export class MultipathChannel implements Channel {
     catch { path.pong = 0; }
   }
 
-  private receive(path: Path, text: string) {
+  private receive(path: Path, text: string, endpoints?: ConnectionEndpoints) {
     if (this.state === 'closed' || !this.paths.has(path)) return;
     try {
       if (text.length > MAX_ENVELOPE_CHARS) throw new Error('Invalid path packet');
@@ -64,7 +65,9 @@ export class MultipathChannel implements Channel {
         path.pending.delete(Number(frame[1]));
         path.pong = Date.now(); this.choose();
       } else if (frame[0] === 'data' && typeof frame[1] === 'string') {
-        this.messages.forEach(callback => callback(frame[1]));
+        // Incoming and outgoing paths may differ. Preserve the innermost source, even when unknown.
+        const source = endpoints ?? path.channel.connectionEndpoints ?? {};
+        this.messages.forEach(callback => callback(frame[1], source));
       }
     } catch { path.channel.close(); }
   }

@@ -124,3 +124,17 @@ it('publishes the selected link endpoints, clears on relay, and disposes polling
   link.close();
   expect(vi.getTimerCount()).toBe(0);
 });
+
+it.each([{}, { remote: { host: '198.51.100.4', port: 2345, protocol: 'tcp' as const } }])
+('preserves the incoming path through nested multiplexers when the outgoing path differs: %j', source => {
+  vi.useFakeTimers(); vi.setSystemTime(10_000);
+  const rtc = channel(endpoints), tcp = channel(source);
+  const inner = new MultipathChannel({ disconnected() {} }), outer = new MultipathChannel({ disconnected() {} });
+  inner.add(rtc, 0); inner.add(tcp, 1); outer.add(inner, 0);
+  const receive = vi.fn(); outer.onMessage(receive);
+  const message = JSON.stringify(['message', 'incoming']);
+  tcp.send(JSON.stringify(['data', JSON.stringify(['data', message])]));
+  expect(outer.connectionEndpoints).toEqual(endpoints);
+  expect(receive).toHaveBeenCalledWith(message, source);
+  outer.close();
+});

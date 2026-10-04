@@ -93,3 +93,17 @@ it('keeps routine progress hidden and renders uncertain delivery and failures', 
   turn.status = 'failed';
   expect(text(ChatTaskStatus({ state }))).toContain('任务未完成');
 });
+
+it('prefers the confirmed public mapping over the phone VPN address in the current P2P connection', () => {
+  const view = ChatConnectionHealth({ state: { ...initialChatState(), mode: 'direct', ready: true,
+    directEndpoints: {
+      local: { host: '172.19.0.1', port: 47894, protocol: 'udp' },
+      localPublic: { host: '203.0.113.8', port: 42123, protocol: 'udp' },
+      remote: { host: '198.51.100.8', port: 46184, protocol: 'udp' },
+    } }, device: { online: true }, reconnect: vi.fn(), close: vi.fn() });
+  const content = text(view);
+  expect(content).toContain('本机公网 IP 和端口');
+  expect(content).toContain('203.0.113.8:42123 · UDP');
+  expect(content).not.toContain('172.19.0.1');
+  expect(content).toContain('198.51.100.8:46184 · UDP');
+});

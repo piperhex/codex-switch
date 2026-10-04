@@ -3,12 +3,15 @@ import { HotLink } from '../../../../shared/remote-chat/hotLink';
 import { keyPair, SessionCipher } from '../../../../shared/remote-chat/cipher';
 import { directPackets } from '../../../../shared/remote-chat/directPackets';
 import type { Channel, PeerOptions, RpcMessage } from '../../../../shared/remote-chat/protocol';
+import type { ConnectionEndpoints } from '../../../../shared/remote-chat/connectionEndpoints';
 
 type Side = 'phone' | 'pc';
 type Path = 'direct' | 'relay';
 interface Packet { side: Side; path: Path; payload: string; frame: Record<string, unknown> }
 
-export function hotLinkHarness(options: { relayDelay?: number } = {}) {
+export function hotLinkHarness(options: {
+  relayDelay?: number; endpoints?: Partial<Record<Side, ConnectionEndpoints>>;
+} = {}) {
   const keys = { phone: keyPair((size) => crypto.getRandomValues(new Uint8Array(size))),
     pc: keyPair((size) => crypto.getRandomValues(new Uint8Array(size))) };
   const messages = { phone: [] as RpcMessage[], pc: [] as RpcMessage[] };
@@ -16,6 +19,7 @@ export function hotLinkHarness(options: { relayDelay?: number } = {}) {
   const links = {} as Record<Side, HotLink>;
   const peers = {} as Record<Side, PeerOptions>;
   const channels = {} as Record<Side, Channel>;
+  const endpoints = { ...options.endpoints };
   const receive = {} as Record<Side, (payload: string) => void>;
   const paths = { direct: true, relay: true };
   const packets: Packet[] = [];
@@ -58,11 +62,12 @@ export function hotLinkHarness(options: { relayDelay?: number } = {}) {
       message: (message) => messages[side].push(message), mode: (mode) => modes[side].push(mode), error,
     });
     channels[side] = { readyState: 'open', bufferedAmount: 0, close() {},
+      get connectionEndpoints() { return endpoints[side]; },
       send: (payload) => send(side, 'direct', payload), onOpen() {}, onClose() {},
       onMessage: (callback) => { receive[side] = callback; } };
   }
   for (const side of ['phone', 'pc'] as const) peers[side].channel(channels[side]);
-  return { links, messages, modes, paths, packets, error, reconnect, deliver,
+  return { links, messages, modes, paths, packets, error, reconnect, deliver, endpoints,
     filter: (callback: typeof filter) => { filter = callback; },
     restoreRelay: () => { paths.relay = true; links.phone.enableRelay(); links.pc.enableRelay(); },
     close: () => { links.phone.close(); links.pc.close(); } };

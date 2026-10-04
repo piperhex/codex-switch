@@ -3,8 +3,8 @@ export const reliabilityEnglish: Readonly<Record<string, string>> = {
   '本机 IP 和端口': 'This device’s IP and port',
   '电脑 IP 和端口': 'Computer’s IP and port',
   '暂无法获取': 'Currently unavailable',
-  '显示当前直连使用的地址，可能是局域网地址。':
-    'Addresses used by the current direct connection, which may be local network addresses.',
+  '优先显示当前连接对应的公网地址，无法确认时显示本地地址。':
+    'Shows public addresses for the current connection when confirmed; otherwise, local addresses.',
   '本机公网 IP 和端口': 'This device’s public IP and port',
   '电脑公网 IP 和端口': 'Computer’s public IP and port',
   '尚未识别': 'Not detected yet',
@@ -91,8 +91,8 @@ export const reliabilityRussian: Readonly<Record<string, string>> = {
   '本机 IP 和端口': 'IP и порт этого устройства',
   '电脑 IP 和端口': 'IP и порт компьютера',
   '暂无法获取': 'Пока недоступно',
-  '显示当前直连使用的地址，可能是局域网地址。':
-    'Адреса текущего прямого подключения, в том числе адреса локальной сети.',
+  '优先显示当前连接对应的公网地址，无法确认时显示本地地址。':
+    'Показаны подтверждённые публичные адреса текущего подключения, иначе — локальные адреса.',
   '本机公网 IP 和端口': 'Публичный IP и порт этого устройства',
   '电脑公网 IP 和端口': 'Публичный IP и порт компьютера',
   '尚未识别': 'Пока не определены',

@@ -18,7 +18,8 @@ export interface Channel {
   close(): void;
   onOpen(callback: () => void): void;
   onClose(callback: () => void): void;
-  onMessage(callback: (data: string) => void): void;
+  /** Multiplexers pass the receiving path's addresses; an empty object means that path's addresses are unknown. */
+  onMessage(callback: (data: string, endpoints?: import('./connectionEndpoints').ConnectionEndpoints) => void): void;
 }
 export interface Peer {
   offer(): Promise<void>;

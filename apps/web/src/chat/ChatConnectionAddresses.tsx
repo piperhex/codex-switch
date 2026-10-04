@@ -14,7 +14,7 @@ export function ChatConnectionAddresses({ state }: { state: ChatState }) {
         <dd>{row.address ? <span>{row.address}</span>
           : <span className="connection-health-address-unknown">{t('暂无法获取')}</span>}</dd>
       </div>)}</dl>
-      <p>{t('显示当前直连使用的地址，可能是局域网地址。')}</p>
+      <p>{t('优先显示当前连接对应的公网地址，无法确认时显示本地地址。')}</p>
     </section>}
     <div className="connection-health-addresses connection-health-public">
       <dl>{publicEndpointRows(state.publicEndpoints).map(row => <div key={row.id}>

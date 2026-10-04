@@ -8,6 +8,8 @@ import { DirectPackets, directPackets } from './directPackets';
 import { connectionDiagnostic } from './diagnostics';
 import { getChatPolicy } from './policy';
 import type { LinkOptions } from './linkOptions';
+import type { ConnectionEndpoints } from './connectionEndpoints';
+import { PeerEndpointObservation } from './peerEndpointObservation';
 import { MAX_BUFFER_BYTES, type Channel, type ConnectionMode, type RpcMessage, type Signal } from './protocol';
 
 type Path = 'direct' | 'relay';
@@ -28,6 +30,7 @@ export class HotLink {
   private readonly timer: ReturnType<typeof setInterval>;
   private cipher?: SessionCipher;
   private channel?: Channel;
+  private readonly endpointObservation = new PeerEndpointObservation();
   private readonly directPackets = new DirectPackets({
     send: (payload) => {
       if (this.channel?.readyState !== 'open') throw new Error('Direct path unavailable');
@@ -49,7 +52,8 @@ export class HotLink {
   private probeId = 0;
   private relaySince = Date.now();
   private readonly lastPong = { direct: 0, relay: 0 };
-  private readonly probes = new Map<number, { path: Path; at: number }>();
+  private readonly probes = new Map<number, { path: Path; at: number;
+    route?: ReturnType<PeerEndpointObservation['capture']> }>();
 
   constructor(private readonly options: LinkOptions) {
     this.diagnostic = connectionDiagnostic(options.sessionId, options.desktop, (event, fields) => {
@@ -75,7 +79,7 @@ export class HotLink {
   reportDiagnostic: import('./diagnostics').ConnectionDiagnostic = (event, fields) => this.diagnostic(event, fields);
   get connectionMode() { return this.mode; }
   get directEndpoints() {
-    return !this.closed && this.mode === 'direct' ? this.channel?.connectionEndpoints : undefined;
+    return !this.closed && this.mode === 'direct' ? this.endpointObservation.read(this.channel) : undefined;
   }
   openNativeMedia(viewId: string) { return this.peer.openNativeMedia(viewId); }
   offer() { return this.peer.offer(); }
@@ -101,6 +105,7 @@ export class HotLink {
   private attach(channel: Channel) {
     if (this.closed) { channel.close(); return; }
     const previous = this.channel;
+    this.endpointObservation.clear();
     this.directPackets.clear();
     this.channel = channel;
     previous?.close();
@@ -108,7 +113,9 @@ export class HotLink {
     this.directSince = 0;
     channel.onOpen(() => { if (this.channel === channel) this.probe('direct'); });
     channel.onClose(() => { if (this.channel === channel) this.fallback(); });
-    channel.onMessage((payload) => { if (this.channel === channel) this.receive(payload, 'direct'); });
+    channel.onMessage((payload, endpoints) => {
+      if (this.channel === channel) this.receive(payload, 'direct', endpoints ?? channel.connectionEndpoints);
+    });
     if (channel.readyState === 'open') this.probe('direct');
   }
 
@@ -142,22 +149,23 @@ export class HotLink {
 
   private probe(path: Path) {
     const id = ++this.probeId;
-    this.probes.set(id, { path, at: Date.now() });
+    this.probes.set(id, { path, at: Date.now(),
+      route: path === 'direct' ? this.endpointObservation.capture(this.channel) : undefined });
     // A very large configured timeout must not retain unanswered probes indefinitely.
     if (this.probes.size > MAX_PENDING_PROBES) this.probes.delete(this.probes.keys().next().value!);
     const frame = { kind: 'ping', id, packetBatching: true, parallelResponses: true };
     if (!this.transmit(path, frame)) this.probes.delete(id);
   }
 
-  receive(payload: string, path: Path = 'relay') {
+  receive(payload: string, path: Path = 'relay', endpoints?: ConnectionEndpoints) {
     if (this.closed || !this.cipher) return;
     try {
       const packets = path === 'direct' ? directPackets(payload) : [payload];
-      for (const packet of packets) this.receivePacket(packet, path);
+      for (const packet of packets) this.receivePacket(packet, path, endpoints);
     } catch { this.fail('连接校验失败，请重新连接电脑。'); }
   }
 
-  private receivePacket(payload: string, path: Path) {
+  private receivePacket(payload: string, path: Path, endpoints?: ConnectionEndpoints) {
     if (this.closed || !this.cipher) return;
     const text = this.cipher.decrypt(payload);
     if (text === null) return;
@@ -167,20 +175,24 @@ export class HotLink {
       if (!Number.isSafeInteger(frame.id)) throw new Error('Invalid probe');
       if (frame.parallelResponses === true) this.delivery.enableResponses();
       if (path === 'direct' && frame.packetBatching === true) this.directPackets.enable();
-      this.transmit(path, { kind: 'pong', id: frame.id, packetBatching: true, parallelResponses: true });
+      this.transmit(path, { kind: 'pong', id: frame.id, packetBatching: true, parallelResponses: true,
+        observedEndpoint: path === 'direct' ? endpoints?.remote : undefined });
     } else if (frame.kind === 'pong') {
       if (frame.parallelResponses === true) this.delivery.enableResponses();
       if (path === 'direct' && frame.packetBatching === true) this.directPackets.enable();
-      this.pong(frame.id, path);
+      this.pong(frame, path);
     } else {
       this.delivery.accept(frame, (ack) => { this.transmit(path, ack); }, path);
     }
   }
 
-  private pong(id: unknown, path: Path) {
-    const probe = this.probes.get(Number(id));
+  private pong(frame: Record<string, unknown>, path: Path) {
+    const id = Number(frame.id);
+    const probe = this.probes.get(id);
     if (!probe || probe.path !== path || this.timedOut(path, probe.at)) return;
-    this.probes.delete(Number(id));
+    this.probes.delete(id);
+    if (path === 'direct') this.endpointObservation.confirm({ channel: this.channel,
+      route: probe.route, id, endpoint: frame.observedEndpoint });
     if (path === 'direct' && !this.healthy('direct')) this.directSince = Date.now();
     this.lastPong[path] = Date.now();
     this.choose();
@@ -207,6 +219,7 @@ export class HotLink {
     else if (relay) path = 'relay';
     const changed = path !== this.selected;
     if (changed) this.directPackets.clear();
+    if (changed && path !== 'direct') this.endpointObservation.clear();
     this.selected = path;
     this.delivery.setAvailable(Boolean(path) || !this.expiresAt);
     if (path) { this.outageSince = Date.now(); this.established = true; }
@@ -258,7 +271,10 @@ export class HotLink {
     this.lastTick = now;
   }
 
-  fallback() { this.lastPong.direct = 0; this.directSince = 0; this.choose(); }
+  fallback() {
+    this.endpointObservation.clear();
+    this.lastPong.direct = 0; this.directSince = 0; this.choose();
+  }
   enableRelay() { this.setRelayAvailable(true); }
 
   setRelayQuotaBlocked(blocked: boolean) {
@@ -294,6 +310,7 @@ export class HotLink {
     if (this.closed) return;
     if (notify) { this.transmit('direct', { kind: 'close' }); this.transmit('relay', { kind: 'close' }); }
     this.closed = true;
+    this.endpointObservation.clear();
     this.directPackets.clear();
     clearInterval(this.timer);
     this.peer.close();

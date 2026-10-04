@@ -15,7 +15,7 @@ export function ChatConnectionAddresses({ state }: { state: ChatState }) {
         {row.address ? <Text selectable style={css.address}>{row.address}</Text>
           : <Text style={css.detail}>{t('暂无法获取')}</Text>}
       </View>)}
-      <Text style={css.detail}>{t('显示当前直连使用的地址，可能是局域网地址。')}</Text>
+      <Text style={css.detail}>{t('优先显示当前连接对应的公网地址，无法确认时显示本地地址。')}</Text>
     </View>}
     <View style={css.addresses}>
       {publicEndpointRows(state.publicEndpoints).map(row => <View key={row.id} style={css.addressRow}>
