@@ -24,6 +24,9 @@
   border: 0; background: transparent; font: inherit; font-size: 12px; }
 .chat-model span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; }
 .chat-model svg { flex-shrink: 0; }
+.chat-model .chat-model-speed { display: inline-flex; align-items: center; flex-shrink: 0;
+  overflow: visible; direction: ltr; }
+.chat-model-speed-separator { margin-right: .35em; }
 .is-compact .chat-composer-content { padding-inline: 42px 96px; }
 .is-compact .chat-composer-actions { position: absolute; inset: auto 8px 8px; pointer-events: none; }
 .is-compact .chat-composer-actions button { pointer-events: auto; }

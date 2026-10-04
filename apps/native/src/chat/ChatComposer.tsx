@@ -10,8 +10,7 @@ import type { ThreadGoal } from '../../../desktop/src/pages/codexGui/goalTypes';
 import type { ReadUsage } from '../../../../shared/remote-chat/usage';
 import type { ContextSettingsApi } from '../../../../shared/remote-chat/contextSettings';
 import { ComposerActionButton } from './ComposerActionButton';
-import Feather from '@expo/vector-icons/Feather';
-import { modelLabelTail } from './modelLabel';
+import { ComposerModelButton } from './ComposerModelButton';
 import { ComposerAddMenu, type ComposerAddAction } from './ComposerAddMenu';
 import { ComposerPopover } from './ComposerPopover';
 import { ComposerPluginMenu } from './ComposerPluginMenu';
@@ -36,7 +35,7 @@ import type { SkillCatalogState } from './skillCatalog';
 import { useChatDraft } from '../../../../shared/remote-chat/client/useChatDraft';
 import type { Model, SendInput, ThreadTokenUsage } from './types';
 import { styles } from './styles';
-import { composerLabel, type ComposerSettings } from '../../../../shared/remote-chat/composer';
+import type { ComposerSettings } from '../../../../shared/remote-chat/composer';
 import { ChatQueue } from './ChatQueue';
 import type { QueueProps } from '../../../../shared/remote-chat/client/queueProps';
 import { useQueueEditor } from '../../../../shared/remote-chat/client/useQueueEditor';
@@ -214,14 +213,8 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
               if (goal && threadId && goals) void goals.clear(threadId).then((cleared) => { if (cleared) goalMode.exit(); });
               else goalMode.exit();
             }} />}
-          <Pressable accessibilityRole="button" style={[styles.composerModel, compactField && styles.composerModelCompact]}
-            accessibilityLabel={t("{value1}，聊天设置", { value1: composerLabel(models, selection, t) })}
-            onPress={() => setSettings(true)}>
-            {compactField ? <Feather name="sliders" size={19} color={styles.composerModelText.color} /> : <>
-            <Text numberOfLines={1} ellipsizeMode="head" style={styles.composerModelText}>
-              {modelLabelTail(composerLabel(models, selection, t))}</Text>
-            <Feather name="chevron-down" size={12} color={styles.composerModelText.color} /></>}
-          </Pressable>
+          <ComposerModelButton models={models} selection={selection} compact={compactField}
+            onPress={() => setSettings(true)} />
           <ComposerActionButton action={action} disabled={actionDisabled} busy={pausing || sending}
             onPress={() => { void submit(); }} />
         </View>

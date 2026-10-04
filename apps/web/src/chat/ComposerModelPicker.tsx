@@ -8,6 +8,8 @@ import type { ComposerProps } from './composerProps';
 import type { Model } from './types';
 import './composerModelPicker.css';
 import { RequestSpeedButton } from '../../../../shared/remote-chat/RequestSpeedButton';
+import { requestSpeedSuffix } from '../../../../shared/remote-chat/requestSpeed';
+import { ComposerSpeedIndicator } from './ComposerSpeedIndicator';
 
 const EFFORT_ORDER = Object.keys(EFFORT_LABELS);
 const MODEL_SEARCH_THRESHOLD = 8;
@@ -107,9 +109,11 @@ export function ComposerModelPicker({ models, selection, updateSettings, setting
       body: { padding: 0, borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 16px rgb(0 0 0 / 8%)' } }}>
     <button ref={trigger} type="button" className="chat-model" disabled={!model}
       aria-haspopup="dialog" aria-expanded={open && !!model}
-      aria-label={t('模型与推理强度：{model} {effort}', { model: modelLabel, effort: effortLabel })}
+      aria-label={t('模型与推理强度：{model} {effort}', { model: modelLabel, effort: effortLabel })
+        + requestSpeedSuffix(selection.speed, t)}
       onKeyDown={event => { if (event.key === 'Escape') changeOpen(false); }}>
       <span>{modelLabel}</span>{effortLabel && <span className="chat-model-effort">{effortLabel}</span>}
+      <ComposerSpeedIndicator speed={selection.speed} />
     </button>
   </Popover>;
 }

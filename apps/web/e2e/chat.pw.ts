@@ -125,7 +125,7 @@ for (const [code, message] of [[4004, '电脑的聊天连接尚未就绪。'], [
   });
 }
 
-test('shows speed icons only on desktop and syncs speed settings while responding', async ({ page, request }, info) => {
+test('keeps speed controls in settings and syncs speed while responding', async ({ page, request }, info) => {
   await connect(page);
   await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 16_000 });
   await openChatList(page);

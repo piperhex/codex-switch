@@ -4,10 +4,12 @@ import { ArrowUp, ChevronDown, File, MessageSquare, Pause, Play, Plus,
   SlidersHorizontal, Square, Target, X } from 'lucide-react';
 import { COMPOSER_ACTION_LABELS } from '../../../../shared/remote-chat/composerAction';
 import { composerLabel } from '../../../../shared/remote-chat/composer';
+import { requestSpeedSuffix } from '../../../../shared/remote-chat/requestSpeed';
 import { formatThreadTokens } from '../../../../shared/remote-chat/usage';
 import { useDesktopLayout } from '../useDesktopLayout';
 import { ComposerAccess, ComposerDesktopStatus } from './ComposerDesktopControls';
 import { ComposerModelPicker } from './ComposerModelPicker';
+import { ComposerSpeedIndicator } from './ComposerSpeedIndicator';
 import { ChatSettings } from './ChatSettings';
 import { ChatAttachmentPreviews } from './ChatAttachments';
 import { pickChatImages } from './pickChatImages';
@@ -164,10 +166,11 @@ export function ChatComposer(props: ComposerProps) {
             {desktop ? <ComposerModelPicker key={`model:${threadId}:${cwd}:${active}`} models={models}
               selection={selection} updateSettings={updateSettings} settingsBusy={settingsBusy} beforeOpen={closeMenus} />
               : <button type="button" className="chat-model" onPointerDown={event => event.preventDefault()}
-              aria-label={t("{value1}{value2}，聊天设置", { value1: label, value2: '' })}
+              aria-label={t("{value1}{value2}，聊天设置", {
+                value1: label, value2: requestSpeedSuffix(selection.speed, t) })}
               onClick={showSettings}>
               {compact && <SlidersHorizontal size={20} />}
-              {!compact && <><span>{label}</span>
+              {!compact && <><span>{label}</span><ComposerSpeedIndicator speed={selection.speed} />
                 <ChevronDown size={12} /></>}
             </button>}
             <button type="submit" className="chat-composer-submit" aria-label={t(COMPOSER_ACTION_LABELS[action])}

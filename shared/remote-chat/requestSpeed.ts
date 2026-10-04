@@ -9,6 +9,10 @@ const NEXT_SPEED: Record<RequestSpeed, RequestSpeed> = {
 export const nextRequestSpeed = (speed: RequestSpeed, available = true) => available ? NEXT_SPEED[speed] : 'normal';
 export const speedBoltCount = (speed: RequestSpeed) => ({ normal: 0, fast: 1, ultrafast: 2 })[speed];
 
+export function requestSpeedSuffix(speed?: RequestSpeed, translate = (text: string) => text) {
+  return speed && speed !== 'normal' ? ` · ${translate(REQUEST_SPEED_LABELS[speed])}` : '';
+}
+
 export function requestSpeedLabel(speed: RequestSpeed, translate = (text: string) => text, available = true) {
   return `${translate(REQUEST_SPEED_LABELS[speed])} · ${translate('点击切换为')}${translate(
     REQUEST_SPEED_LABELS[nextRequestSpeed(speed, available)])}`;
