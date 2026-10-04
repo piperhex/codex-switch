@@ -44,8 +44,58 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   expect(frames.size).toBe(0);
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("throttles long replies while continuous deltas still become visible on schedule", async () => {
+  vi.useFakeTimers();
+  await render("");
+  let text = "long streamed reply ".repeat(500);
+  for (let index = 0; index < 20; index++) {
+    text += String(index);
+    await render(text);
+    expect(frames.size).toBe(0);
+    now += 50;
+    await act(async () => { vi.advanceTimersByTime(50); });
+    if ((index + 1) % 5 === 0) expect(container.textContent).toBe(text);
+  }
+  expect(container.textContent).toBe(text);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("limits very long replies to one update a second and flushes completion immediately", async () => {
+  vi.useFakeTimers();
+  await render("");
+  const text = "long streamed reply ".repeat(5_000);
+  await render(text);
+  now += 999;
+  await act(async () => { vi.advanceTimersByTime(999); });
+  expect(container.textContent).toBe("");
+  now++;
+  await act(async () => { vi.advanceTimersByTime(1); });
+  expect(container.textContent).toBe(text);
+  await render(text + "final delta");
+  expect(container.textContent).toBe(text);
+  await render(text + "final delta", false);
+  expect(container.textContent).toBe(text + "final delta");
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("cancels a pending long reply timer when hidden or replaced", async () => {
+  vi.useFakeTimers();
+  await render("");
+  await render("long reply ".repeat(1_000));
+  expect(vi.getTimerCount()).toBe(1);
+  await render("authoritative replacement");
+  expect(container.textContent).toBe("authoritative replacement");
+  expect(vi.getTimerCount()).toBe(0);
+  await render("authoritative replacement" + " continued".repeat(1_000));
+  vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+  await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+  expect(container.textContent).toContain(" continued");
+  expect(vi.getTimerCount()).toBe(0);
 });
 
 it("reveals a burst across successive frames and catches up within 120 ms", async () => {

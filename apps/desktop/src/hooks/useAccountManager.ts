@@ -13,7 +13,6 @@ import {
   chooseAndImportAccountArchive,
   hasLocalBackend,
   isDesktopApp,
-  loadDashboard,
   refreshAccountUsage,
   refreshOfficialModelCatalog,
   removeAccount,
@@ -26,8 +25,9 @@ import {
   updateAccountNote,
 } from "../api/backend";
 import type { Translate } from "../i18n";
-import type { Account, AccountDetailsDraft, AppInfo } from "../types";
+import type { Account, AccountDetailsDraft } from "../types";
 import { runSwitchFollowUp } from "./switchFollowUp";
+import { useAccountDashboard } from "./useAccountDashboard";
 
 interface RefreshAllOptions {
   quiet?: boolean;
@@ -48,9 +48,7 @@ export function useAccountManager(
   t: Translate,
   cloudSync?: AccountCloudSync,
 ) {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [info, setInfo] = useState<AppInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { accounts, setAccounts, info, loading, read: readDashboard, reload: load } = useAccountDashboard(notify);
   const [busyAccountId, setBusyAccountId] = useState<string | null>(null);
   const [autoSwitchBusyAccountId, setAutoSwitchBusyAccountId] = useState<string | null>(null);
   const [autoSwitchPriorityBusyAccountId, setAutoSwitchPriorityBusyAccountId] = useState<string | null>(null);
@@ -58,18 +56,6 @@ export function useAccountManager(
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [archiveOperation, setArchiveOperation] = useState<"import" | "export" | null>(null);
   const refreshingAllRef = useRef(false);
-
-  const load = useCallback(async () => {
-    try {
-      const dashboard = await loadDashboard();
-      setAccounts(dashboard.accounts);
-      setInfo(dashboard.info);
-    } catch (error) {
-      notify(String(error));
-    } finally {
-      setLoading(false);
-    }
-  }, [notify]);
 
   const syncAddedAccount = useCallback((id: string) => {
     const syncAccount = cloudSync?.restoreAndPushAccount ?? cloudSync?.pushAccount;
@@ -466,16 +452,9 @@ export function useAccountManager(
     } catch (error) {
       notify(String(error));
     }
-    try {
-      const dashboard = await loadDashboard();
-      setAccounts(dashboard.accounts);
-      setInfo(dashboard.info);
-      return dashboard.accounts.find((account) => account.id === id) ?? null;
-    } catch (error) {
-      notify(String(error));
-      return null;
-    }
-  }, [cloudSync, notify]);
+    const dashboard = await readDashboard();
+    return dashboard?.accounts.find((account) => account.id === id) ?? null;
+  }, [cloudSync, notify, readDashboard]);
 
   const setAutoSwitchPriority = useCallback(async (id: string, priority: number) => {
     setAutoSwitchPriorityBusyAccountId(id);

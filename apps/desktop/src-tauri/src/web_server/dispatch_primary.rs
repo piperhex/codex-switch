@@ -34,7 +34,7 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app, argument(&args, "homeId")?,
             argument(&args, "request")?,
         ))),
-        "get_app_info" => serialize(crate::commands::get_app_info(app)),
+        "get_app_info" => serialize(block_on(crate::commands::get_app_info(app))),
         "list_accounts" => serialize(block_on(crate::commands::list_accounts(app))),
         "get_app_settings" => serialize(block_on(crate::floating_bubble::get_app_settings(app))),
         "set_non_proxy_enhancements" => serialize(block_on(

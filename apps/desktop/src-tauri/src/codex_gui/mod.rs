@@ -46,6 +46,7 @@ mod prompt;
 mod protocol;
 pub(crate) mod push_notifications;
 mod push_outbox;
+mod push_writer;
 pub(crate) mod queue_store;
 pub(crate) mod releases;
 pub(crate) mod scheduled_tasks;

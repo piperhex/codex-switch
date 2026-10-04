@@ -25,18 +25,24 @@ const COMPONENTS: Components = {
 };
 const PLUGINS = [remarkGfm, remarkWebLinks, remarkMath, remarkBreaks];
 
+// Changes to copy/fork controls must not parse completed Markdown again.
+const MarkdownSection = memo(function MarkdownSection({ text }: { text: string }) {
+  useGuiLanguage();
+  return <Markdown remarkPlugins={PLUGINS} rehypePlugins={[[rehypeKatex, mathOptions]]}
+    skipHtml components={COMPONENTS} urlTransform={(url, key) => {
+      if (key === "src" && (isInlineImage(url) || localImageSource(url))) return url;
+      if (key === "href" && (isFileReference(url) || localImageSource(url))) return url;
+      return defaultUrlTransform(url);
+    }}>{normalizeMathDelimiters(text)}</Markdown>;
+});
+
 export const RichText = memo(function RichText({ text, trailing }: { text: string; trailing?: ReactNode }) {
   useGuiLanguage();
   const sections = useMemo(() => messageSections(text), [text]);
   return <div className={styles.markdown}>
     {sections.map((section, index) => section.type === "review"
       ? <CodeReviewComment key={index} comment={section.comment} />
-      : <Markdown key={index} remarkPlugins={PLUGINS} rehypePlugins={[[rehypeKatex, mathOptions]]}
-        skipHtml components={COMPONENTS} urlTransform={(url, key) => {
-      if (key === "src" && (isInlineImage(url) || localImageSource(url))) return url;
-      if (key === "href" && (isFileReference(url) || localImageSource(url))) return url;
-      return defaultUrlTransform(url);
-    }}>{normalizeMathDelimiters(section.text)}</Markdown>)}
+      : <MarkdownSection key={index} text={section.text} />)}
     {trailing && <div className={styles.messageCopy} data-quote-exclude>{trailing}</div>}
   </div>;
 });

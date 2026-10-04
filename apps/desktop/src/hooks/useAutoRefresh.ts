@@ -80,6 +80,7 @@ export function useAutoRefresh(active: boolean, onRefresh: () => Promise<void>) 
   ));
   const [enabled, setEnabled] = useState(() => window.localStorage.getItem(ENABLED_KEY) !== "false");
   const refreshRef = useRef(onRefresh);
+  const refreshingRef = useRef(false);
   refreshRef.current = onRefresh;
 
   const updateSeconds = useCallback((value: number | string | null) => {
@@ -92,7 +93,13 @@ export function useAutoRefresh(active: boolean, onRefresh: () => Promise<void>) 
   useEffect(() => {
     if (!enabled || !active) return;
     const timer = window.setInterval(async () => {
-      await refreshRef.current();
+      if (refreshingRef.current) return;
+      refreshingRef.current = true;
+      try {
+        await refreshRef.current();
+      } finally {
+        refreshingRef.current = false;
+      }
     }, seconds * 1000);
     return () => window.clearInterval(timer);
   }, [active, enabled, seconds]);

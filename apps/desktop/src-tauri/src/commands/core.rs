@@ -39,8 +39,14 @@ pub(crate) enum ManagedFolder {
 }
 
 #[tauri::command]
-pub(crate) fn get_app_info<R: Runtime>(app: tauri::AppHandle<R>) -> Result<AppInfo, String> {
-    let paths = resolve_paths(&app)?;
+pub(crate) async fn get_app_info<R: Runtime>(app: tauri::AppHandle<R>) -> Result<AppInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || app_info_blocking(&app))
+        .await
+        .map_err(|_| "暂时无法读取应用信息，请稍后重试。".to_string())?
+}
+
+fn app_info_blocking<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<AppInfo, String> {
+    let paths = resolve_paths(app)?;
     Ok(AppInfo {
         codex_home: paths.codex_home.display().to_string(),
         auth_path: paths.current_auth.display().to_string(),

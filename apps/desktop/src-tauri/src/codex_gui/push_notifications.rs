@@ -2,6 +2,7 @@
 use super::{
     protocol::GuiEvent,
     push_outbox::{self as outbox, OutboxError, Result},
+    push_writer::{PendingNotice, PushWriter},
 };
 use crate::cloud::PushIdentity;
 use serde::Serialize;
@@ -70,39 +71,46 @@ pub(super) fn identify(event: &mut GuiEvent, session: &str) {
     }
 }
 
-/// Persist on a blocking worker before publishing the corresponding GUI event.
-pub(super) async fn receive(app: &tauri::AppHandle, event: &GuiEvent, session: &str) {
+/// Queue only metadata; the protocol reader must keep delivering events and RPC responses.
+pub(super) fn receive(app: &tauri::AppHandle, event: &GuiEvent, session: &str) {
     let Some(notice) = notice(event, session) else {
         return;
     };
-    let handle = app.clone();
-    let saved = tauri::async_runtime::spawn_blocking(move || persist(&handle, &notice)).await;
-    match saved {
-        Ok(Ok(())) => wake(),
-        _ => {
-            eprintln!("chat notification could not be saved");
-            super::web::publish(
-                app,
-                "codex-gui-event",
-                GuiEvent {
-                    method: "chat/notifications/error".into(),
-                    id: None,
-                    params: serde_json::json!({}),
-                },
-            );
-        }
+    if enqueue(app, notice).is_err() {
+        report_save_error(app);
     }
 }
 
-fn persist(app: &tauri::AppHandle, notice: &Notice) -> Result<()> {
-    let Some(identity) = crate::cloud::push_identity(app).map_err(|_| OutboxError::Storage)? else {
+fn enqueue(app: &tauri::AppHandle, notice: Notice) -> Result<()> {
+    let Some(route) = crate::cloud::push_route(app).map_err(|_| OutboxError::Storage)? else {
         return Ok(());
     };
+    app.try_state::<PushWriter>()
+        .ok_or(OutboxError::Storage)?
+        .enqueue(PendingNotice { route, notice })
+}
+
+fn report_save_error(app: &tauri::AppHandle) {
+    eprintln!("chat notification could not be saved");
+    super::web::publish(
+        app,
+        "codex-gui-event",
+        GuiEvent {
+            method: "chat/notifications/error".into(),
+            id: None,
+            params: serde_json::json!({}),
+        },
+    );
+}
+
+fn persist(app: &tauri::AppHandle, pending: &PendingNotice) -> Result<()> {
+    let identity = crate::cloud::push_identity_for_route(app, &pending.route)
+        .map_err(|_| OutboxError::Storage)?;
     let root = app
         .path()
         .app_data_dir()
         .map_err(|_| OutboxError::Storage)?;
-    outbox::insert(&outbox::open(&root)?, &identity, notice)
+    outbox::insert(&outbox::open(&root)?, &identity, &pending.notice)
 }
 
 fn wake() {
@@ -117,7 +125,23 @@ fn wake() {
 }
 
 /// Start at application startup so old events retry even before the next AI task.
-pub(crate) fn start(app: &tauri::AppHandle) {
+pub(crate) fn start(app: &tauri::AppHandle, settings: &crate::models::AppSettings) {
+    crate::cloud::initialize_push_routing(app, settings);
+    if app.try_state::<PushWriter>().is_none() {
+        let handle = app.clone();
+        match PushWriter::start(move |notice| {
+            if persist(&handle, &notice).is_ok() {
+                wake();
+            } else {
+                report_save_error(&handle);
+            }
+        }) {
+            Ok(writer) => {
+                app.manage(writer);
+            }
+            Err(_) => eprintln!("chat notification writer could not start"),
+        }
+    }
     WAKE.get_or_init(|| {
         let (sender, receiver) = mpsc::sync_channel(1);
         let app = app.clone();

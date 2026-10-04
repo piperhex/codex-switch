@@ -1,4 +1,7 @@
 mod resolution;
+#[cfg(test)]
+#[path = "codex_home/responsiveness_tests.rs"]
+mod responsiveness_tests;
 mod selection;
 use resolution::resolve_for_override;
 pub(crate) use resolution::{initialize_paths, resolve, resolve_all, resolve_default};

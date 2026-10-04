@@ -132,13 +132,20 @@ pub(crate) fn read_app_settings<R: Runtime>(
     Ok(settings)
 }
 
+static APP_SETTINGS_WRITE_LOCK: Mutex<()> = Mutex::new(());
+
 pub(crate) fn write_app_settings<R: Runtime>(
     app: &tauri::AppHandle<R>,
     settings: &AppSettings,
 ) -> Result<(), String> {
+    let _guard = APP_SETTINGS_WRITE_LOCK
+        .lock()
+        .map_err(|_| "Application settings are unavailable".to_string())?;
     let path = app_settings_path(app)?;
     let value = serde_json::to_value(settings).map_err(|error| error.to_string())?;
-    write_json_atomic(&path, &value)
+    write_json_atomic(&path, &value)?;
+    crate::cloud::remember_push_routing(app, settings);
+    Ok(())
 }
 
 fn migrate_upstream_429_retry_timeout(settings: &mut AppSettings) -> bool {

@@ -332,7 +332,7 @@ impl Client {
         if !self.events_enabled.load(Ordering::Acquire) {
             return;
         }
-        super::push_notifications::receive(&self.app, &event, &self.notification_session).await;
+        super::push_notifications::receive(&self.app, &event, &self.notification_session);
         super::conversation_context::display(&mut event.params);
         super::web::publish(&self.app, "codex-gui-event", event);
     }
